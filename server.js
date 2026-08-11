@@ -68,7 +68,7 @@ JSON.stringify(users, null, 4)
 
 app.post("/api/register", (req, res) => {
 
-```
+
 const {
     username,
     password,
@@ -122,7 +122,7 @@ res.json({
         bio: newUser.bio
     }
 });
-```
+
 
 });
 
@@ -132,7 +132,7 @@ res.json({
 
 app.post("/api/login", (req, res) => {
 
-```
+
 const {
     username,
     password
@@ -170,7 +170,7 @@ res.json({
         bio: user.bio
     }
 });
-```
+
 
 });
 
@@ -180,13 +180,13 @@ res.json({
 
 app.post("/api/logout", (req, res) => {
 
-```
+
 req.session.destroy(() => {
     res.json({
         success: true
     });
 });
-```
+
 
 });
 
@@ -196,7 +196,7 @@ req.session.destroy(() => {
 
 app.get("/api/me", (req, res) => {
 
-```
+
 if (!req.session.userId) {
     return res.status(401).json({
         error: "Not logged in."
@@ -222,7 +222,7 @@ res.json({
     avatar: user.avatar,
     bio: user.bio
 });
-```
+
 
 });
 
@@ -232,7 +232,7 @@ res.json({
 
 app.get("/api/users", (req, res) => {
 
-```
+
 const users = getUsers();
 
 const safeUsers = users.map(user => ({
@@ -244,7 +244,7 @@ const safeUsers = users.map(user => ({
 }));
 
 res.json(safeUsers);
-```
+
 
 });
 
@@ -254,7 +254,7 @@ res.json(safeUsers);
 
 app.get("/api/users/:id", (req, res) => {
 
-```
+
 const users = getUsers();
 
 const user = users.find(
@@ -276,7 +276,7 @@ res.json({
     avatar: user.avatar,
     bio: user.bio
 });
-```
+
 
 });
 
