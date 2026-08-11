@@ -1,48 +1,156 @@
 <!DOCTYPE html>
 
-<html>
-
+<html lang="en">
 <head>
-    <title>ShrekBook Profile</title>
-    <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+```
+<title>ShrekBook Profile</title>
+
+<link rel="stylesheet" href="style.css">
+
+<style>
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f2f2f2;
+    }
+
+    .profile-container {
+        max-width: 700px;
+        margin: 50px auto;
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .avatar {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #ddd;
+    }
+
+    .display-name {
+        margin: 15px 0 5px;
+        font-size: 32px;
+    }
+
+    .username {
+        margin: 0;
+        color: #777;
+        font-size: 18px;
+    }
+
+    .bio {
+        margin-top: 25px;
+        font-size: 17px;
+        color: #444;
+    }
+
+    .error {
+        color: #d00;
+        font-size: 20px;
+    }
+</style>
+
+
 </head>
 
 <body>
 
-<p id="username"></p>
-<h1>Welcome to Your Page!</h1>
+
+<div class="profile-container">
+
+    <img
+        id="avatar"
+        class="avatar"
+        src="https://placehold.co/140x140"
+        alt="Profile avatar"
+    >
+
+    <h1 id="displayName" class="display-name">
+        Loading...
+    </h1>
+
+    <p id="username" class="username">
+        Loading...
+    </p>
+
+    <p id="bio" class="bio"></p>
+
+</div>
+
 <script>
+    // Get the user ID from the URL.
+    // Example:
+    // /profile/1
+    //              ↑
+    //            user ID
+
     const parts = window.location.pathname.split("/");
     const userId = parts[parts.length - 1];
 
     fetch(`/api/users/${userId}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("User not found");
+            }
+
+            return response.json();
+        })
+
         .then(user => {
 
             if (user.error) {
-                document.getElementById("displayName").textContent =
-                    "User not found";
-
-                document.getElementById("username").textContent = "";
-
-                return;
+                throw new Error("User not found");
             }
 
+            // Display name
             document.getElementById("displayName").textContent =
-                user.displayName;
+                user.displayName || user.username;
 
+            // Username
             document.getElementById("username").textContent =
                 "@" + user.username;
+
+            // Avatar
+            if (user.avatar) {
+                document.getElementById("avatar").src =
+                    user.avatar;
+            }
+
+            // Bio
+            document.getElementById("bio").textContent =
+                user.bio || "No bio yet.";
+
+            // Change browser tab title
+            document.title =
+                `${user.displayName || user.username} - ShrekBook`;
         })
+
         .catch(error => {
+
             console.error(error);
 
             document.getElementById("displayName").textContent =
-                "Something went wrong";
+                "User not found";
+
+            document.getElementById("username").textContent =
+                "";
+
+            document.getElementById("bio").textContent =
+                "This profile doesn't exist.";
+
+            document.getElementById("avatar").src =
+                "https://placehold.co/140x140";
         });
 </script>
-
+```
 
 </body>
-
 </html>
