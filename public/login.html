@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+```
+<meta charset="UTF-8">
+
+<title>Login - ShrekBook</title>
+```
+
+</head>
+
+<body>
+
+<h1>Login to ShrekBook 🧌</h1>
+
+<form id="loginForm">
+
+```
+<input
+    id="username"
+    placeholder="Username"
+    required
+>
+
+<br><br>
+
+<input
+    id="password"
+    type="password"
+    placeholder="Password"
+    required
+>
+
+<br><br>
+
+<button type="submit">
+    Login
+</button>
+```
+
+</form>
+
+<p id="message"></p>
+
+<a href="/signup.html">
+    Create an account
+</a>
+
+<script>
+
+document
+    .getElementById("loginForm")
+    .addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const response = await fetch(
+            "/api/login",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+
+                    username:
+                        document.getElementById(
+                            "username"
+                        ).value,
+
+                    password:
+                        document.getElementById(
+                            "password"
+                        ).value
+                })
+            }
+        );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            document.getElementById(
+                "message"
+            ).textContent = data.error;
+
+            return;
+        }
+
+        window.location.href =
+            "/";
+    });
+
+</script>
+
+</body>
+
+</html>

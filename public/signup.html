@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+```
+<meta charset="UTF-8">
+
+<title>Create Account - ShrekBook</title>
+```
+
+</head>
+
+<body>
+
+<h1>Create a ShrekBook Account 🧌</h1>
+
+<form id="signupForm">
+
+```
+<input
+    id="username"
+    placeholder="Username"
+    required
+>
+
+<br><br>
+
+<input
+    id="displayName"
+    placeholder="Display name"
+>
+
+<br><br>
+
+<input
+    id="password"
+    type="password"
+    placeholder="Password"
+    required
+>
+
+<br><br>
+
+<input
+    id="avatar"
+    placeholder="Avatar image URL"
+>
+
+<br><br>
+
+<textarea
+    id="bio"
+    placeholder="Bio"
+></textarea>
+
+<br><br>
+
+<button type="submit">
+    Create Account
+</button>
+```
+
+</form>
+
+<p id="message"></p>
+
+<a href="/login.html">
+    Already have an account? Login
+</a>
+
+<script>
+
+document
+    .getElementById("signupForm")
+    .addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const response = await fetch(
+            "/api/register",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+
+                    username:
+                        document.getElementById(
+                            "username"
+                        ).value,
+
+                    displayName:
+                        document.getElementById(
+                            "displayName"
+                        ).value,
+
+                    password:
+                        document.getElementById(
+                            "password"
+                        ).value,
+
+                    avatar:
+                        document.getElementById(
+                            "avatar"
+                        ).value,
+
+                    bio:
+                        document.getElementById(
+                            "bio"
+                        ).value
+                })
+            }
+        );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            document.getElementById(
+                "message"
+            ).textContent = data.error;
+
+            return;
+        }
+
+        window.location.href =
+            "/profile.html?id=" + data.user.id;
+    });
+
+</script>
+
+</body>
+
+</html>

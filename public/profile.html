@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+```
+<meta charset="UTF-8">
+
+<title>Profile - ShrekBook</title>
+
+<style>
+
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f1f1f1;
+    }
+
+    .profile {
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 30px;
+        background: white;
+        border-radius: 15px;
+        text-align: center;
+    }
+
+    .avatar {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .username {
+        color: #777;
+    }
+
+</style>
+```
+
+</head>
+
+<body>
+
+<div class="profile">
+
+```
+<img
+    id="avatar"
+    class="avatar"
+    src="https://placehold.co/200x200"
+    alt="Avatar"
+>
+
+<h1 id="displayName">
+    Loading...
+</h1>
+
+<p
+    id="username"
+    class="username"
+>
+    Loading...
+</p>
+
+<p id="bio"></p>
+
+<br>
+
+<a href="/">
+    ← Back to ShrekBook
+</a>
+```
+
+</div>
+
+<script>
+
+const params =
+    new URLSearchParams(
+        window.location.search
+    );
+
+const userId =
+    params.get("id");
+
+async function loadProfile() {
+
+    if (!userId) {
+
+        document.getElementById(
+            "displayName"
+        ).textContent =
+            "No user specified";
+
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/users/${userId}`
+            );
+
+        const user =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                "User not found"
+            );
+        }
+
+        document.getElementById(
+            "displayName"
+        ).textContent =
+            user.displayName;
+
+        document.getElementById(
+            "username"
+        ).textContent =
+            "@" + user.username;
+
+        document.getElementById(
+            "avatar"
+        ).src =
+            user.avatar;
+
+        document.getElementById(
+            "bio"
+        ).textContent =
+            user.bio;
+
+        document.title =
+            user.displayName +
+            " - ShrekBook";
+
+    } catch (error) {
+
+        document.getElementById(
+            "displayName"
+        ).textContent =
+            "User not found";
+
+        document.getElementById(
+            "username"
+        ).textContent = "";
+
+        document.getElementById(
+            "bio"
+        ).textContent =
+            "This profile doesn't exist.";
+
+    }
+}
+
+loadProfile();
+
+</script>
+
+</body>
+
+</html>
