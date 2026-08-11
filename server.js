@@ -4,7 +4,7 @@ const path = require("path");
 const session = require("express-session");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+
 
 const DATA_DIR = path.join(__dirname, "data");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
@@ -283,7 +283,7 @@ res.json({
 // -------------------------
 // Start server
 // -------------------------
-
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
 console.log(`ShrekBook running on port ${PORT}`);
 });
