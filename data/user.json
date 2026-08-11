@@ -1,15 +1,9 @@
 [
     {
+        "id": 1,
         "username": "shrek",
-        "pasword": "Shrek"
-    },
-
-
-
-    {
-
-        "username": "donkey",
-        "displayName": "Donkey"
-
+        "displayName": "Shrek",
+        "avatar": "https://placehold.co/200x200",
+        "bio": "GET OUT OF MY SWAMP!"
     }
 ]
