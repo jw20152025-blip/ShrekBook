@@ -1,0 +1,20 @@
+h1{
+  font-family: "Lucidia Console", "Monaco", monospace;
+  color: MidnightBlue;
+}
+h2{
+  font-family: "Lucidia Console", "Monaco", monospace;
+  color: LightSlateGrey;
+}
+p{
+  font-family: "Lucidia Console", "Monaco", monospace;
+  color: LightSteelBlue;
+}
+li{
+  font-family: "Lucidia Console", "Monaco", monospace;
+  color: SlateGray;
+}
+button{
+  font-family: "Lucidia Console", "Monaco", monospace;
+  color: MediumSeaGreen
+}

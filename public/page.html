@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <title>ShrekBook Profile</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<p id="username"></p>
+<h1>Welcome to Your Page!</h1>
+<script>
+    const parts = window.location.pathname.split("/");
+    const userId = parts[parts.length - 1];
+
+    fetch(`/api/users/${userId}`)
+        .then(response => response.json())
+        .then(user => {
+
+            if (user.error) {
+                document.getElementById("displayName").textContent =
+                    "User not found";
+
+                document.getElementById("username").textContent = "";
+
+                return;
+            }
+
+            document.getElementById("displayName").textContent =
+                user.displayName;
+
+            document.getElementById("username").textContent =
+                "@" + user.username;
+        })
+        .catch(error => {
+            console.error(error);
+
+            document.getElementById("displayName").textContent =
+                "Something went wrong";
+        });
+</script>
+
+
+</body>
+
+</html>
