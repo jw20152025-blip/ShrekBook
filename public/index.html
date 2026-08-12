@@ -1,82 +1,246 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
 
     <title>ShrekBook 🧌</title>
 
-    <link rel="stylesheet" href="/styles.css">
+    <link
+        rel="stylesheet"
+        href="/styles.css">
 </head>
 
 <body>
 
 <header class="navbar">
 
-    <div class="logo">
-        🧌 ShrekBook
-    </div>
+    <div class="navbar-inner">
 
-    <nav>
-        <a href="/">Home</a>
-        <a href="/profile.html">Profile</a>
-        <button onclick="logout()">Logout</button>
-    </nav>
+        <a
+            href="/"
+            class="logo">
+
+            🧌 ShrekBook
+
+        </a>
+
+
+        <nav id="nav">
+
+            <a href="/">
+                Home
+            </a>
+
+            <a
+                href="/profile.html"
+                id="profile-link">
+
+                Profile
+
+            </a>
+
+            <button
+                id="logout-button"
+                onclick="logout()"
+                style="display:none;">
+
+                Logout
+
+            </button>
+
+        </nav>
+
+    </div>
 
 </header>
 
 
 <main class="container">
 
-    <!-- ========================= -->
-    <!-- CREATE POST -->
-    <!-- ========================= -->
+    <!-- ================================= -->
+    <!-- LOGIN / SIGNUP -->
+    <!-- ================================= -->
 
-    <section class="create-post">
+    <section
+        id="auth-section"
+        class="auth-section">
 
-        <h2>What's on your mind? 🧌</h2>
+        <div class="auth-box">
 
-        <textarea
-            id="post-content"
-            placeholder="Say something..."
-            maxlength="5000">
-        </textarea>
+            <h1>
+                Welcome to ShrekBook 🧌
+            </h1>
 
-        <button onclick="createPost()">
-            📝 Post
-        </button>
-
-        <p id="post-status"></p>
-
-    </section>
+            <p>
+                The social network for ogres,
+                cats, and everyone in between.
+            </p>
 
 
-    <!-- ========================= -->
-    <!-- POSTS -->
-    <!-- ========================= -->
+            <!-- LOGIN -->
 
-    <section>
+            <div id="login-box">
 
-        <h2>Feed</h2>
+                <h2>
+                    Login
+                </h2>
 
-        <div id="posts">
-            Loading posts...
+                <input
+                    id="login-email"
+                    type="email"
+                    placeholder="Email">
+
+                <input
+                    id="login-password"
+                    type="password"
+                    placeholder="Password">
+
+                <button
+                    onclick="login()">
+
+                    🔐 Login
+
+                </button>
+
+                <p id="login-status"></p>
+
+                <button
+                    class="secondary-button"
+                    onclick="showSignup()">
+
+                    Don't have an account?
+                    Sign up
+
+                </button>
+
+            </div>
+
+
+            <!-- SIGNUP -->
+
+            <div
+                id="signup-box"
+                style="display:none;">
+
+                <h2>
+                    Create Account
+                </h2>
+
+                <input
+                    id="signup-username"
+                    type="text"
+                    maxlength="30"
+                    placeholder="Username">
+
+                <input
+                    id="signup-display-name"
+                    type="text"
+                    maxlength="50"
+                    placeholder="Display name">
+
+                <input
+                    id="signup-email"
+                    type="email"
+                    placeholder="Email">
+
+                <input
+                    id="signup-password"
+                    type="password"
+                    placeholder="Password">
+
+                <button
+                    onclick="signup()">
+
+                    📝 Create Account
+
+                </button>
+
+                <p id="signup-status"></p>
+
+                <button
+                    class="secondary-button"
+                    onclick="showLogin()">
+
+                    Already have an account?
+                    Login
+
+                </button>
+
+            </div>
+
         </div>
 
     </section>
 
 
-    <!-- ========================= -->
-    <!-- PEOPLE -->
-    <!-- ========================= -->
+    <!-- ================================= -->
+    <!-- APP -->
+    <!-- ================================= -->
 
-    <section class="people-section">
+    <section
+        id="app-section"
+        style="display:none;">
 
-        <h2>People 👥</h2>
 
-        <div id="people">
-            Loading people...
-        </div>
+        <!-- CREATE POST -->
+
+        <section class="create-post">
+
+            <h2>
+                What's on your mind? 🧌
+            </h2>
+
+            <textarea
+                id="post-content"
+                maxlength="5000"
+                placeholder="Say something...">
+            </textarea>
+
+            <button
+                onclick="createPost()">
+
+                📝 Post
+
+            </button>
+
+            <p id="post-status"></p>
+
+        </section>
+
+
+        <!-- POSTS -->
+
+        <section>
+
+            <h2>
+                Feed
+            </h2>
+
+            <div id="posts">
+                Loading posts...
+            </div>
+
+        </section>
+
+
+        <!-- PEOPLE -->
+
+        <section class="people-section">
+
+            <h2>
+                People 👥
+            </h2>
+
+            <div id="people">
+                Loading people...
+            </div>
+
+        </section>
 
     </section>
 
@@ -86,27 +250,351 @@
 <script>
 
 /* =========================================
-   HTML ESCAPE
+   ESCAPE HTML
 ========================================= */
 
 function escapeHtml(text) {
 
-    const div = document.createElement("div");
+    const div =
+        document.createElement("div");
 
-    div.textContent = text ?? "";
+    div.textContent =
+        text ?? "";
 
     return div.innerHTML;
 }
 
 
 /* =========================================
-   LOAD POSTS
+   LOGIN
+========================================= */
+
+async function login() {
+
+    const email =
+        document.getElementById(
+            "login-email"
+        ).value.trim();
+
+    const password =
+        document.getElementById(
+            "login-password"
+        ).value;
+
+    const status =
+        document.getElementById(
+            "login-status"
+        );
+
+    if (!email || !password) {
+
+        status.textContent =
+            "❌ Enter your email and password.";
+
+        return;
+    }
+
+    status.textContent =
+        "Logging in...";
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/login",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        email,
+                        password
+                    })
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Login failed."
+            );
+        }
+
+        status.textContent =
+            "✅ Logged in!";
+
+        showApp();
+
+    } catch (error) {
+
+        console.error(
+            "LOGIN ERROR:",
+            error
+        );
+
+        status.textContent =
+            "❌ " + error.message;
+    }
+}
+
+
+/* =========================================
+   SIGNUP
+========================================= */
+
+async function signup() {
+
+    const username =
+        document.getElementById(
+            "signup-username"
+        ).value.trim();
+
+    const display_name =
+        document.getElementById(
+            "signup-display-name"
+        ).value.trim();
+
+    const email =
+        document.getElementById(
+            "signup-email"
+        ).value.trim();
+
+    const password =
+        document.getElementById(
+            "signup-password"
+        ).value;
+
+    const status =
+        document.getElementById(
+            "signup-status"
+        );
+
+
+    if (
+        !username ||
+        !email ||
+        !password
+    ) {
+
+        status.textContent =
+            "❌ Fill in all required fields.";
+
+        return;
+    }
+
+
+    status.textContent =
+        "Creating account...";
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/signup",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                        username,
+
+                        display_name:
+                            display_name ||
+                            username,
+
+                        email,
+
+                        password
+                    })
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Signup failed."
+            );
+        }
+
+
+        status.textContent =
+            "✅ Account created!";
+
+        showLogin();
+
+
+    } catch (error) {
+
+        console.error(
+            "SIGNUP ERROR:",
+            error
+        );
+
+        status.textContent =
+            "❌ " + error.message;
+    }
+}
+
+
+/* =========================================
+   AUTH UI
+========================================= */
+
+function showSignup() {
+
+    document.getElementById(
+        "login-box"
+    ).style.display =
+        "none";
+
+    document.getElementById(
+        "signup-box"
+    ).style.display =
+        "block";
+}
+
+
+function showLogin() {
+
+    document.getElementById(
+        "signup-box"
+    ).style.display =
+        "none";
+
+    document.getElementById(
+        "login-box"
+    ).style.display =
+        "block";
+}
+
+
+/* =========================================
+   CHECK SESSION
+========================================= */
+
+async function checkLogin() {
+
+    try {
+
+        const response =
+            await fetch("/api/me");
+
+        if (!response.ok) {
+
+            showAuth();
+
+            return;
+        }
+
+        const data =
+            await response.json();
+
+        if (data.user) {
+
+            showApp();
+
+        } else {
+
+            showAuth();
+        }
+
+    } catch {
+
+        showAuth();
+
+    }
+}
+
+
+function showAuth() {
+
+    document.getElementById(
+        "auth-section"
+    ).style.display =
+        "block";
+
+    document.getElementById(
+        "app-section"
+    ).style.display =
+        "none";
+
+    document.getElementById(
+        "logout-button"
+    ).style.display =
+        "none";
+}
+
+
+function showApp() {
+
+    document.getElementById(
+        "auth-section"
+    ).style.display =
+        "none";
+
+    document.getElementById(
+        "app-section"
+    ).style.display =
+        "block";
+
+    document.getElementById(
+        "logout-button"
+    ).style.display =
+        "inline-block";
+
+    loadPosts();
+
+    loadPeople();
+}
+
+
+/* =========================================
+   LOGOUT
+========================================= */
+
+async function logout() {
+
+    await fetch(
+        "/api/logout",
+        {
+            method: "POST"
+        }
+    );
+
+    showAuth();
+}
+
+
+/* =========================================
+   POSTS
 ========================================= */
 
 async function loadPosts() {
 
     const container =
-        document.getElementById("posts");
+        document.getElementById(
+            "posts"
+        );
 
     try {
 
@@ -117,11 +605,13 @@ async function loadPosts() {
             await response.json();
 
         if (!response.ok) {
+
             throw new Error(
                 posts.error ||
                 "Could not load posts."
             );
         }
+
 
         if (!posts.length) {
 
@@ -131,18 +621,20 @@ async function loadPosts() {
             return;
         }
 
+
         container.innerHTML =
             posts.map(post => {
 
                 const username =
                     post.username ||
                     post.profiles?.username ||
-                    "Unknown";
+                    "User";
 
                 const avatar =
                     post.avatar ||
                     post.profiles?.avatar ||
                     "/default-avatar.png";
+
 
                 return `
 
@@ -152,9 +644,7 @@ async function loadPosts() {
 
                         <img
                             class="avatar"
-                            src="${escapeHtml(avatar)}"
-                            alt="Avatar"
-                        >
+                            src="${escapeHtml(avatar)}">
 
                         <strong>
                             ${escapeHtml(username)}
@@ -165,24 +655,22 @@ async function loadPosts() {
 
                     <div class="post-content">
 
-                        ${escapeHtml(post.content)}
+                        ${escapeHtml(
+                            post.content
+                        )}
 
                     </div>
 
 
-                    <div class="post-actions">
+                    <button
+                        onclick="toggleComments('${post.id}')">
 
-                        <button
-                            onclick="toggleComments('${post.id}')">
+                        💬 Comments
 
-                            💬 Comments
-
-                        </button>
-
-                    </div>
+                    </button>
 
 
-                    <section
+                    <div
                         id="comments-${post.id}"
                         class="comments"
                         style="display:none;">
@@ -199,21 +687,19 @@ async function loadPosts() {
 
                             <input
                                 id="comment-input-${post.id}"
-                                type="text"
-                                maxlength="500"
                                 placeholder="Write a comment..."
-                            >
+                                maxlength="500">
 
                             <button
                                 onclick="submitComment('${post.id}')">
 
-                                💬 Send
+                                Send
 
                             </button>
 
                         </div>
 
-                    </section>
+                    </div>
 
                 </article>
 
@@ -221,18 +707,18 @@ async function loadPosts() {
 
             }).join("");
 
+
     } catch (error) {
 
         console.error(
-            "POST LOAD ERROR:",
+            "POST ERROR:",
             error
         );
 
-        container.innerHTML = `
-            <p>
-                ❌ ${escapeHtml(error.message)}
-            </p>
-        `;
+        container.innerHTML =
+            `<p>❌ ${escapeHtml(
+                error.message
+            )}</p>`;
     }
 }
 
@@ -248,69 +734,56 @@ async function createPost() {
             "post-content"
         );
 
-    const status =
-        document.getElementById(
-            "post-status"
-        );
-
     const content =
         input.value.trim();
 
-    if (!content) {
+    if (!content) return;
 
-        status.textContent =
-            "❌ Write something first.";
+
+    const response =
+        await fetch(
+            "/api/posts",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+                    content
+                })
+            }
+        );
+
+
+    const data =
+        await response.json();
+
+
+    if (!response.ok) {
+
+        document.getElementById(
+            "post-status"
+        ).textContent =
+            "❌ " +
+            (data.error ||
+                "Could not post.");
 
         return;
     }
 
-    try {
 
-        const response =
-            await fetch(
-                "/api/posts",
-                {
-                    method: "POST",
+    input.value = "";
 
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
+    document.getElementById(
+        "post-status"
+    ).textContent =
+        "✅ Posted!";
 
-                    body: JSON.stringify({
-                        content
-                    })
-                }
-            );
 
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Could not create post."
-            );
-        }
-
-        input.value = "";
-
-        status.textContent =
-            "✅ Posted!";
-
-        await loadPosts();
-
-    } catch (error) {
-
-        console.error(
-            "POST ERROR:",
-            error
-        );
-
-        status.textContent =
-            "❌ " + error.message;
-    }
+    loadPosts();
 }
 
 
@@ -320,42 +793,31 @@ async function createPost() {
 
 async function toggleComments(postId) {
 
-    const section =
+    const box =
         document.getElementById(
             `comments-${postId}`
         );
 
-    if (!section) {
+    if (!box) return;
 
-        console.error(
-            "Comments section missing:",
-            postId
-        );
-
-        return;
-    }
 
     if (
-        section.style.display ===
+        box.style.display ===
         "none"
     ) {
 
-        section.style.display =
+        box.style.display =
             "block";
 
-        await loadComments(postId);
+        loadComments(postId);
 
     } else {
 
-        section.style.display =
+        box.style.display =
             "none";
     }
 }
 
-
-/* =========================================
-   LOAD COMMENTS
-========================================= */
 
 async function loadComments(postId) {
 
@@ -363,11 +825,6 @@ async function loadComments(postId) {
         document.getElementById(
             `comment-list-${postId}`
         );
-
-    if (!list) return;
-
-    list.innerHTML =
-        "Loading comments...";
 
     try {
 
@@ -379,6 +836,7 @@ async function loadComments(postId) {
         const comments =
             await response.json();
 
+
         if (!response.ok) {
 
             throw new Error(
@@ -386,6 +844,7 @@ async function loadComments(postId) {
                 "Could not load comments."
             );
         }
+
 
         if (!comments.length) {
 
@@ -395,68 +854,44 @@ async function loadComments(postId) {
             return;
         }
 
+
         list.innerHTML =
-            comments.map(comment => {
-
-                const username =
-                    comment.username ||
-                    comment.profiles?.username ||
-                    "User";
-
-                const avatar =
-                    comment.avatar ||
-                    comment.profiles?.avatar ||
-                    "/default-avatar.png";
-
-                return `
+            comments.map(comment => `
 
                 <div class="comment">
 
-                    <img
-                        class="avatar-small"
-                        src="${escapeHtml(avatar)}"
-                        alt="Avatar"
-                    >
+                    <strong>
+                        ${escapeHtml(
+                            comment.username ||
+                            "User"
+                        )}
+                    </strong>
 
-                    <div>
-
-                        <strong>
-                            ${escapeHtml(username)}
-                        </strong>
-
-                        <p>
-                            ${escapeHtml(
-                                comment.content
-                            )}
-                        </p>
-
-                    </div>
+                    <p>
+                        ${escapeHtml(
+                            comment.content
+                        )}
+                    </p>
 
                 </div>
 
-                `;
+            `).join("");
 
-            }).join("");
 
     } catch (error) {
 
         console.error(
-            "COMMENT LOAD ERROR:",
+            "COMMENTS ERROR:",
             error
         );
 
-        list.innerHTML = `
-            <p>
-                ❌ ${escapeHtml(error.message)}
-            </p>
-        `;
+        list.innerHTML =
+            `<p>❌ ${escapeHtml(
+                error.message
+            )}</p>`;
     }
 }
 
-
-/* =========================================
-   SUBMIT COMMENT
-========================================= */
 
 async function submitComment(postId) {
 
@@ -465,20 +900,11 @@ async function submitComment(postId) {
             `comment-input-${postId}`
         );
 
-    if (!input) {
-
-        console.error(
-            "Comment input missing:",
-            postId
-        );
-
-        return;
-    }
-
     const content =
         input.value.trim();
 
     if (!content) return;
+
 
     try {
 
@@ -499,8 +925,10 @@ async function submitComment(postId) {
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -510,16 +938,13 @@ async function submitComment(postId) {
             );
         }
 
+
         input.value = "";
 
-        await loadComments(postId);
+        loadComments(postId);
+
 
     } catch (error) {
-
-        console.error(
-            "COMMENT ERROR:",
-            error
-        );
 
         alert(
             "❌ " + error.message
@@ -542,10 +967,13 @@ async function loadPeople() {
     try {
 
         const response =
-            await fetch("/api/users");
+            await fetch(
+                "/api/users"
+            );
 
         const users =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -555,13 +983,6 @@ async function loadPeople() {
             );
         }
 
-        if (!users.length) {
-
-            container.innerHTML =
-                "<p>No users yet.</p>";
-
-            return;
-        }
 
         container.innerHTML =
             users.map(user => `
@@ -573,9 +994,7 @@ async function loadPeople() {
                         src="${escapeHtml(
                             user.avatar ||
                             "/default-avatar.png"
-                        )}"
-                        alt="Avatar"
-                    >
+                        )}">
 
                     <div>
 
@@ -598,12 +1017,8 @@ async function loadPeople() {
 
             `).join("");
 
-    } catch (error) {
 
-        console.error(
-            "PEOPLE ERROR:",
-            error
-        );
+    } catch (error) {
 
         container.innerHTML =
             `<p>❌ ${escapeHtml(
@@ -614,28 +1029,10 @@ async function loadPeople() {
 
 
 /* =========================================
-   LOGOUT
-========================================= */
-
-async function logout() {
-
-    await fetch(
-        "/api/logout",
-        {
-            method: "POST"
-        }
-    );
-
-    location.href = "/";
-}
-
-
-/* =========================================
    START
 ========================================= */
 
-loadPosts();
-loadPeople();
+checkLogin();
 
 </script>
 
