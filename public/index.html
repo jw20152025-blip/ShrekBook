@@ -333,212 +333,86 @@ async function createPost() {
 // ==========================================
 
 async function loadComments(postId) {
-
     const container =
-        document.getElementById(
-            `comments-${postId}`
-        );
+        document.getElementById(`comments-${postId}`);
 
+    container.innerHTML = "Loading comments...";
 
-    const response =
-        await fetch(
+    try {
+        const response = await fetch(
             `/api/posts/${postId}/comments`
         );
 
+        const data = await response.json();
 
-    const comments =
-        await response.json();
+        console.log("Comments response:", data);
 
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Failed to load comments"
+            );
+        }
 
-    container.innerHTML = `
+        container.innerHTML = `
+            <div class="comment-input">
 
-        <div class="comment-input">
+                <input
+                    id="comment-input-${postId}"
+                    placeholder="Write a comment..."
+                >
 
-            <input
-                id="comment-input-${postId}"
-                placeholder="Write a comment..."
-            >
+                <button
+                    onclick="createComment('${postId}')"
+                >
+                    Comment
+                </button>
 
-            <button
-                onclick="createComment('${postId}')"
-            >
-                Comment
-            </button>
-
-        </div>
-
-    `;
-
-
-    comments.forEach(comment => {
-
-        const element =
-            document.createElement("div");
-
-
-        element.className =
-            "comment";
-
-
-        element.innerHTML = `
-
-            <p>
-                ${escapeHTML(
-                    comment.content
-                )}
-            </p>
-
-            <small>
-                ${new Date(
-                    comment.created_at
-                ).toLocaleString()}
-            </small>
-
+            </div>
         `;
 
+        if (data.length === 0) {
+            container.innerHTML +=
+                "<p>No comments yet. Be the first! 🧌</p>";
+            return;
+        }
 
-        container.appendChild(element);
+        data.forEach(comment => {
 
-    });
+            const element =
+                document.createElement("div");
 
+            element.className = "comment";
+
+            element.innerHTML = `
+                <p>
+                    ${escapeHTML(comment.content)}
+                </p>
+
+                <small>
+                    ${new Date(
+                        comment.created_at
+                    ).toLocaleString()}
+                </small>
+            `;
+
+            container.appendChild(element);
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Comments error:",
+            error
+        );
+
+        container.innerHTML = `
+            <p>
+                ❌ Could not load comments:
+                ${escapeHTML(error.message)}
+            </p>
+        `;
+    }
 }
-
-
-async function createComment(postId) {
-
-    const userId =
-        localStorage.getItem(
-            "shrekbook_user_id"
-        );
-
-
-    if (!userId) {
-
-        alert(
-            "You need to log in first."
-        );
-
-        return;
-    }
-
-
-    const input =
-        document.getElementById(
-            `comment-input-${postId}`
-        );
-
-
-    if (!input.value.trim()) {
-
-        return;
-    }
-
-
-    const response =
-        await fetch(
-            `/api/posts/${postId}/comments`,
-            {
-
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
-
-                body: JSON.stringify({
-
-                    user_id:
-                        userId,
-
-                    content:
-                        input.value
-
-                })
-
-            }
-        );
-
-
-    if (!response.ok) {
-
-        const data =
-            await response.json();
-
-        alert(
-            data.error ||
-            "Could not comment."
-        );
-
-        return;
-    }
-
-
-    loadComments(postId);
-
-}
-
-
-// ==========================================
-// LIKES
-// ==========================================
-
-async function likePost(postId) {
-
-    const userId =
-        localStorage.getItem(
-            "shrekbook_user_id"
-        );
-
-
-    if (!userId) {
-
-        alert(
-            "You need to log in first."
-        );
-
-        return;
-    }
-
-
-    const response =
-        await fetch(
-            `/api/posts/${postId}/like`,
-            {
-
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
-
-                body: JSON.stringify({
-
-                    user_id:
-                        userId
-
-                })
-
-            }
-        );
-
-
-    if (!response.ok) {
-
-        const data =
-            await response.json();
-
-        alert(
-            data.error ||
-            "Could not like post."
-        );
-
-    }
-
-}
-
-
 // ==========================================
 // PEOPLE
 // ==========================================
