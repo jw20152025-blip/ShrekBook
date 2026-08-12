@@ -1167,131 +1167,36 @@ app.post("/api/posts", async (req, res) => {
 // COMMENTS
 // ========================================
 
-app.get(
-    "/api/posts/:id/comments",
-    async (req, res) => {
+app.get("/api/posts/:postId/comments", async (req, res) => {
+    try {
+        const { postId } = req.params;
 
-        try {
-
-            const {
-                data,
-                error
-            } = await supabase
-                .from("comments")
-                .select("*")
-                .eq(
-                    "post_id",
-                    req.params.id
-                )
-                .order(
-                    "created_at",
-                    {
-                        ascending: true
-                    }
-                );
-
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            res.json(data);
-
-        } catch (error) {
-
-            res.status(500).json({
-                error:
-                    error.message
+        const { data, error } = await supabase
+            .from("comments")
+            .select("*")
+            .eq("post_id", postId)
+            .order("created_at", {
+                ascending: true
             });
 
-        }
+        if (error) {
+            console.error("COMMENTS LOAD ERROR:", error);
 
-    }
-);
-
-
-app.post(
-    "/api/posts/:id/comments",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session.user) {
-
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-
-            }
-
-
-            const content =
-                String(
-                    req.body.content || ""
-                ).trim();
-
-
-            if (!content) {
-
-                return res.status(400).json({
-                    error:
-                        "Comment cannot be empty."
-                });
-
-            }
-
-
-            const {
-                data,
-                error
-            } = await supabase
-                .from("comments")
-                .insert({
-
-                    post_id:
-                        req.params.id,
-
-                    user_id:
-                        req.session.user.id,
-
-                    content
-
-                })
-                .select()
-                .single();
-
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            res.json(data);
-
-
-        } catch (error) {
-
-            res.status(500).json({
-                error:
-                    error.message
+            return res.status(500).json({
+                error: error.message
             });
-
         }
 
+        res.json(data || []);
+
+    } catch (error) {
+        console.error("COMMENTS SERVER ERROR:", error);
+
+        res.status(500).json({
+            error: error.message
+        });
     }
-);
+});
 
 
 // ========================================
