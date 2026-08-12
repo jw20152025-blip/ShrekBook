@@ -287,3 +287,11 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
 console.log(`ShrekBook running on port ${PORT}`);
 });
+console.log("EXPRESS SESSION TEST:");
+
+try {
+    console.log(require.resolve("express-session"));
+} catch (err) {
+    console.log("EXPRESS-SESSION IS MISSING");
+    console.log(err);
+}
