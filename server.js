@@ -212,254 +212,51 @@ app.get("/api/profile/:id", async (req, res) => {
 // SIGNUP
 // ============================================
 
-app.post("/api/signup", async (req, res) => {
-
+app.post("/api/posts", async (req, res) => {
     try {
 
-        const {
-            username,
-            displayName,
-            email,
-            password,
-            avatar
-        } = req.body;
-
-
-        if (
-            !username ||
-            !displayName ||
-            !email ||
-            !password
-        ) {
-
-            return res.status(400).json({
-                error: "All fields are required."
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
             });
         }
 
+        const { content } = req.body;
 
-        // Create Supabase Auth account
-
-        const {
-            data: authData,
-            error: authError
-        } = await supabase.auth.admin.createUser({
-
-            email: email,
-
-            password: password,
-
-            email_confirm: true
-        });
-
-
-        if (authError) {
-
+        if (!content || !content.trim()) {
             return res.status(400).json({
-                error: authError.message
+                error: "Post cannot be empty."
             });
         }
 
-
-        const userId =
-            authData.user.id;
-
-
-        // Create profile
-
-        const {
-            data: profile,
-            error: profileError
-        } = await supabase
-            .from("profiles")
+        const { data, error } = await supabase
+            .from("posts")
             .insert({
-
-                id: userId,
-
-                username: username,
-
-                display_name: displayName,
-
-                avatar:
-                    avatar ||
-                    "https://placehold.co/150",
-
-                gyatt: 0,
-
-                cat: 0,
-
-                ogred: 0
-
+                user_id: req.session.user.id,
+                content: content.trim()
             })
             .select()
             .single();
 
-
-        if (profileError) {
-
-            // Remove Auth account if
-            // profile creation failed.
-
-            await supabase.auth.admin
-                .deleteUser(userId);
-
-
-            return res.status(400).json({
-                error:
-                    profileError.message
-            });
-        }
-
-
-        res.status(201).json({
-            success: true,
-            user: profile
-        });
-
-    } catch (error) {
-
-        console.error(error);
-
-        res.status(500).json({
-            error: "Server error"
-        });
-    }
-});
-
-
-// ============================================
-// LOGIN
-// ============================================
-
-app.post("/api/login", async (req, res) => {
-
-    try {
-
-        const {
-            email,
-            password
-        } = req.body;
-
-
-        if (!email || !password) {
-
-            return res.status(400).json({
-                error:
-                    "Email and password are required."
-            });
-        }
-
-
-        const {
-            data,
-            error
-        } = await supabase.auth.signInWithPassword({
-
-            email: email,
-
-            password: password
-        });
-
-
         if (error) {
-
-            return res.status(401).json({
-                error: error.message
-            });
-        }
-
-
-        req.session.userId =
-            data.user.id;
-
-
-        res.json({
-
-            success: true,
-
-            user: {
-                id: data.user.id,
-                email: data.user.email
-            },
-
-            access_token:
-                data.session.access_token
-
-        });
-
-    } catch (error) {
-
-        console.error(error);
-
-        res.status(500).json({
-            error: "Server error"
-        });
-    }
-});
-
-
-// ============================================
-// LOGOUT
-// ============================================
-
-app.post("/api/logout", (req, res) => {
-
-    req.session.destroy(() => {
-
-        res.json({
-            success: true
-        });
-
-    });
-
-});
-
-
-// ============================================
-// POSTS
-// ============================================
-
-app.get("/api/posts", async (req, res) => {
-
-    try {
-
-        const { data, error } =
-            await supabase
-                .from("posts")
-                .select(`
-                    id,
-                    user_id,
-                    content,
-                    created_at
-                `)
-                .order(
-                    "created_at",
-                    {
-                        ascending: false
-                    }
-                );
-
-
-        if (error) {
+            console.error("Supabase post error:", error);
 
             return res.status(500).json({
                 error: error.message
             });
         }
 
-
         res.json(data);
 
     } catch (error) {
 
-        console.error(error);
+        console.error("POST ERROR:", error);
 
         res.status(500).json({
             error: "Server error"
         });
     }
 });
-
 
 app.post("/api/posts", async (req, res) => {
 
