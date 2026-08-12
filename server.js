@@ -302,98 +302,83 @@ app.post("/api/signup", async (req, res) => {
 // ========================================
 
 app.post("/api/login", async (req, res) => {
-
     try {
+        const { email, password } = req.body;
 
-        const {
-            email,
-            password
-        } = req.body;
-
-
-        const {
-            data,
-            error
-        } = await supabase.auth.signInWithPassword({
-
-            email,
-
-            password
-
-        });
-
-
-        if (error) {
-
-            return res.status(401).json({
-                error:
-                    error.message
+        if (!email || !password) {
+            return res.status(400).json({
+                error: "Email and password are required."
             });
-
         }
 
+        // Log into Supabase Auth
+        const {
+            data: authData,
+            error: authError
+        } = await supabase.auth.signInWithPassword({
+            email,
+            password
+        });
 
+        if (authError) {
+            console.error("AUTH LOGIN ERROR:", authError);
+
+            return res.status(401).json({
+                error: authError.message
+            });
+        }
+
+        const userId = authData.user.id;
+
+        // Find the ShrekBook profile
         const {
             data: profile,
             error: profileError
         } = await supabase
             .from("profiles")
             .select("*")
-            .eq(
-                "id",
-                data.user.id
-            )
-            .single();
-
+            .eq("id", userId)
+            .maybeSingle();
 
         if (profileError) {
+            console.error(
+                "PROFILE LOOKUP ERROR:",
+                profileError
+            );
 
             return res.status(500).json({
-                error:
-                    profileError.message
+                error: profileError.message
             });
-
         }
 
+        // Auth account exists, but profile doesn't
+        if (!profile) {
+            return res.status(404).json({
+                error:
+                    "Your login account exists, but your ShrekBook profile does not. Create a new account or create the missing profile."
+            });
+        }
 
+        // Create Express session
         req.session.user = {
-
             id: profile.id,
-
-            username:
-                profile.username,
-
-            display_name:
-                profile.display_name
-
+            username: profile.username,
+            display_name: profile.display_name
         };
 
-
         res.json({
-
             success: true,
-
             user: profile
-
         });
-
 
     } catch (error) {
-
-        console.error(
-            "LOGIN ERROR:",
-            error
-        );
+        console.error("LOGIN SERVER ERROR:", error);
 
         res.status(500).json({
-            error:
-                error.message
+            error: error.message
         });
-
     }
-
 });
-
 
 // ========================================
 // LOGOUT
