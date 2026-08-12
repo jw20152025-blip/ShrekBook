@@ -7,32 +7,23 @@
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+        content="width=device-width, initial-scale=1.0">
 
-    <title>Profile - ShrekBook</title>
+    <title>My Profile - ShrekBook 🧌</title>
 
     <link
         rel="stylesheet"
-        href="/styles.css"
-    >
+        href="/styles.css">
 
 </head>
 
+
 <body>
 
-<header>
+<header class="navbar">
 
-    <div class="brand">
-
-        <img
-            class="avatar"
-            src="/shrek.webp"
-            alt="Shrek"
-        >
-
-        <h1>ShrekBook</h1>
-
+    <div class="logo">
+        🧌 ShrekBook
     </div>
 
     <nav>
@@ -41,13 +32,13 @@
             Home
         </a>
 
-        <a href="/login.html">
-            Login
+        <a href="/profile.html">
+            Profile
         </a>
 
-        <a href="/signup.html">
-            Create Account
-        </a>
+        <button onclick="logout()">
+            Logout
+        </button>
 
     </nav>
 
@@ -56,27 +47,137 @@
 
 <main class="container">
 
-    <section
-        class="profile"
-        id="profile"
-    >
+    <section class="profile-card">
 
-        <p>
-            Loading profile...
-        </p>
-
-    </section>
+        <h1>
+            My Profile 👤
+        </h1>
 
 
-    <section>
+        <!-- ===================== -->
+        <!-- AVATAR -->
+        <!-- ===================== -->
 
-        <h2>Posts</h2>
+        <div class="avatar-editor">
 
-        <div id="profilePosts">
+            <img
+                id="avatar-preview"
+                class="profile-avatar"
+                src="/default-avatar.png"
+                alt="Profile avatar">
 
-            Loading posts...
+            <label>
+                Avatar URL
+            </label>
+
+            <input
+                id="avatar"
+                type="url"
+                placeholder="https://example.com/avatar.png">
 
         </div>
+
+
+        <!-- ===================== -->
+        <!-- DISPLAY NAME -->
+        <!-- ===================== -->
+
+        <label>
+            Display Name
+        </label>
+
+        <input
+            id="display-name"
+            type="text"
+            maxlength="50"
+            placeholder="Your display name">
+
+
+        <!-- ===================== -->
+        <!-- USERNAME -->
+        <!-- ===================== -->
+
+        <label>
+            Username
+        </label>
+
+        <input
+            id="username"
+            type="text"
+            disabled>
+
+
+        <!-- ===================== -->
+        <!-- BIO -->
+        <!-- ===================== -->
+
+        <label>
+            Bio
+        </label>
+
+        <textarea
+            id="bio"
+            maxlength="500"
+            placeholder="Tell everyone about yourself...">
+        </textarea>
+
+
+        <!-- ===================== -->
+        <!-- SHREK STATS -->
+        <!-- ===================== -->
+
+        <h2>
+            ShrekBook Stats 🧌
+        </h2>
+
+
+        <label>
+            🧌 Gyatt
+        </label>
+
+        <input
+            id="gyatt"
+            type="number"
+            min="0"
+            value="0">
+
+
+        <label>
+            🐱 Cat
+        </label>
+
+        <input
+            id="cat"
+            type="number"
+            min="0"
+            value="0">
+
+
+        <label>
+            👹 Ogre
+        </label>
+
+        <input
+            id="ogres"
+            type="number"
+            min="0"
+            value="0">
+
+
+        <!-- ===================== -->
+        <!-- SAVE -->
+        <!-- ===================== -->
+
+        <button
+            class="save-button"
+            onclick="saveProfile()">
+
+            💾 Save Profile
+
+        </button>
+
+
+        <p id="status"></p>
 
     </section>
 
@@ -85,41 +186,32 @@
 
 <script>
 
+/* =========================================
+   ESCAPE
+========================================= */
+
+function escapeHtml(text) {
+
+    const div =
+        document.createElement("div");
+
+    div.textContent =
+        text ?? "";
+
+    return div.innerHTML;
+}
+
+
+/* =========================================
+   LOAD PROFILE
+========================================= */
+
 async function loadProfile() {
-
-    const params =
-        new URLSearchParams(
-            window.location.search
-        );
-
-    const userId =
-        params.get("id");
-
-    const profile =
-        document.getElementById(
-            "profile"
-        );
-
-    const posts =
-        document.getElementById(
-            "profilePosts"
-        );
-
-    if (!userId) {
-
-        profile.innerHTML =
-            "<p>❌ No user ID provided.</p>";
-
-        return;
-
-    }
 
     try {
 
         const response =
-            await fetch(
-                `/api/users/${userId}`
-            );
+            await fetch("/api/me");
 
         const data =
             await response.json();
@@ -128,138 +220,231 @@ async function loadProfile() {
 
             throw new Error(
                 data.error ||
-                "Could not load profile"
+                "Could not load profile."
             );
-
         }
 
-        profile.innerHTML = `
+        const user =
+            data.user;
 
-            <img
-                class="profile-avatar"
-                src="${
-                    data.avatar ||
-                    "/shrek.webp"
-                }"
-                alt="Avatar"
-            >
 
-            <h2>
-                ${escapeHTML(
-                    data.display_name ||
-                    data.username
-                )}
-            </h2>
+        document.getElementById(
+            "avatar"
+        ).value =
+            user.avatar || "";
 
-            <p>
-                @${escapeHTML(
-                    data.username
-                )}
-            </p>
 
-            <div class="stats">
+        document.getElementById(
+            "avatar-preview"
+        ).src =
+            user.avatar ||
+            "/default-avatar.png";
 
-                <span>
-                    🧌 Ogres:
-                    ${data.ogred ?? 0}
-                </span>
 
-                <span>
-                    🐈 Cats:
-                    ${data.cat ?? 0}
-                </span>
+        document.getElementById(
+            "display-name"
+        ).value =
+            user.display_name || "";
 
-                <span>
-                    🍑 Gyatts:
-                    ${data.gyatt ?? 0}
-                </span>
 
-            </div>
+        document.getElementById(
+            "username"
+        ).value =
+            user.username || "";
 
-        `;
 
-        if (
-            data.posts &&
-            data.posts.length
-        ) {
+        document.getElementById(
+            "bio"
+        ).value =
+            user.bio || "";
 
-            posts.innerHTML = "";
 
-            data.posts.forEach(post => {
+        document.getElementById(
+            "gyatt"
+        ).value =
+            user.gyatt || 0;
 
-                const element =
-                    document.createElement(
-                        "div"
-                    );
 
-                element.className =
-                    "post";
+        document.getElementById(
+            "cat"
+        ).value =
+            user.cat || 0;
 
-                element.innerHTML = `
 
-                    <p>
-                        ${escapeHTML(
-                            post.content
-                        )}
-                    </p>
+        document.getElementById(
+            "ogres"
+        ).value =
+            user.ogres || 0;
 
-                    <small>
-                        ${new Date(
-                            post.created_at
-                        ).toLocaleString()}
-                    </small>
-
-                `;
-
-                posts.appendChild(
-                    element
-                );
-
-            });
-
-        } else {
-
-            posts.innerHTML =
-                "<p>No posts yet.</p>";
-
-        }
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "PROFILE LOAD ERROR:",
+            error
+        );
 
-        profile.innerHTML = `
-
-            <p class="error">
-                ❌ ${escapeHTML(
-                    error.message
-                )}
-            </p>
-
-        `;
-
+        document.getElementById(
+            "status"
+        ).textContent =
+            "❌ " + error.message;
     }
-
 }
 
 
-function escapeHTML(value) {
+/* =========================================
+   AVATAR PREVIEW
+========================================= */
 
-    const div =
-        document.createElement("div");
+document
+    .getElementById("avatar")
+    .addEventListener(
+        "input",
+        function () {
 
-    div.textContent =
-        value ?? "";
+            const url =
+                this.value.trim();
 
-    return div.innerHTML;
+            document.getElementById(
+                "avatar-preview"
+            ).src =
+                url ||
+                "/default-avatar.png";
+        }
+    );
 
+
+/* =========================================
+   SAVE PROFILE
+========================================= */
+
+async function saveProfile() {
+
+    const status =
+        document.getElementById(
+            "status"
+        );
+
+    status.textContent =
+        "Saving...";
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/profile",
+                {
+                    method: "PUT",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                        avatar:
+                            document.getElementById(
+                                "avatar"
+                            ).value.trim(),
+
+                        display_name:
+                            document.getElementById(
+                                "display-name"
+                            ).value.trim(),
+
+                        bio:
+                            document.getElementById(
+                                "bio"
+                            ).value.trim(),
+
+                        gyatt:
+                            Number(
+                                document.getElementById(
+                                    "gyatt"
+                                ).value
+                            ) || 0,
+
+                        cat:
+                            Number(
+                                document.getElementById(
+                                    "cat"
+                                ).value
+                            ) || 0,
+
+                        ogres:
+                            Number(
+                                document.getElementById(
+                                    "ogres"
+                                ).value
+                            ) || 0
+                    })
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not save profile."
+            );
+        }
+
+
+        status.textContent =
+            "✅ Profile saved!";
+
+
+        document.getElementById(
+            "avatar-preview"
+        ).src =
+            data.user.avatar ||
+            "/default-avatar.png";
+
+
+    } catch (error) {
+
+        console.error(
+            "PROFILE SAVE ERROR:",
+            error
+        );
+
+        status.textContent =
+            "❌ " + error.message;
+    }
 }
 
+
+/* =========================================
+   LOGOUT
+========================================= */
+
+async function logout() {
+
+    await fetch(
+        "/api/logout",
+        {
+            method: "POST"
+        }
+    );
+
+    location.href = "/";
+}
+
+
+/* =========================================
+   START
+========================================= */
 
 loadProfile();
 
 </script>
 
 </body>
-
 </html>

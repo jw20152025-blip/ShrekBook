@@ -1,69 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <title>ShrekBook 🧌</title>
 
-    <title>ShrekBook</title>
-
-    <link
-        rel="stylesheet"
-        href="/styles.css"
-    >
-
+    <link rel="stylesheet" href="/styles.css">
 </head>
 
 <body>
 
-<header>
+<header class="navbar">
 
-    <div class="brand">
-
-        <div class="logo">
-            🧌
-        </div>
-
-        <h1>
-            ShrekBook
-        </h1>
-
+    <div class="logo">
+        🧌 ShrekBook
     </div>
 
-
     <nav>
-
-        <a href="/">
-            Home
-        </a>
-
-        <a
-            href="/login.html"
-            id="loginLink"
-        >
-            Login
-        </a>
-
-        <a
-            href="/signup.html"
-            id="signupLink"
-        >
-            Sign Up
-        </a>
-
-        <button
-            id="logoutButton"
-            onclick="logout()"
-            style="display:none;"
-        >
-            Logout
-        </button>
-
+        <a href="/">Home</a>
+        <a href="/profile.html">Profile</a>
+        <button onclick="logout()">Logout</button>
     </nav>
 
 </header>
@@ -71,48 +28,36 @@
 
 <main class="container">
 
+    <!-- ========================= -->
+    <!-- CREATE POST -->
+    <!-- ========================= -->
 
-    <section class="welcome">
+    <section class="create-post">
 
-        <h2>
-            Welcome to ShrekBook 🧌
-        </h2>
-
-        <p id="loginStatus">
-            Loading...
-        </p>
-
-    </section>
-
-
-    <section
-        id="createPostSection"
-        style="display:none;"
-    >
-
-        <h2>
-            Create a Post
-        </h2>
+        <h2>What's on your mind? 🧌</h2>
 
         <textarea
-            id="postContent"
-            placeholder="What's on your mind?"
-        ></textarea>
+            id="post-content"
+            placeholder="Say something..."
+            maxlength="5000">
+        </textarea>
 
-        <button
-            onclick="createPost()"
-        >
-            Post 🧌
+        <button onclick="createPost()">
+            📝 Post
         </button>
+
+        <p id="post-status"></p>
 
     </section>
 
+
+    <!-- ========================= -->
+    <!-- POSTS -->
+    <!-- ========================= -->
 
     <section>
 
-        <h2>
-            📝 Posts
-        </h2>
+        <h2>Feed</h2>
 
         <div id="posts">
             Loading posts...
@@ -121,11 +66,13 @@
     </section>
 
 
-    <section>
+    <!-- ========================= -->
+    <!-- PEOPLE -->
+    <!-- ========================= -->
 
-        <h2>
-            👥 People
-        </h2>
+    <section class="people-section">
+
+        <h2>People 👥</h2>
 
         <div id="people">
             Loading people...
@@ -136,8 +83,561 @@
 </main>
 
 
-<script src="/script.js"></script>
+<script>
+
+/* =========================================
+   HTML ESCAPE
+========================================= */
+
+function escapeHtml(text) {
+
+    const div = document.createElement("div");
+
+    div.textContent = text ?? "";
+
+    return div.innerHTML;
+}
+
+
+/* =========================================
+   LOAD POSTS
+========================================= */
+
+async function loadPosts() {
+
+    const container =
+        document.getElementById("posts");
+
+    try {
+
+        const response =
+            await fetch("/api/posts");
+
+        const posts =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                posts.error ||
+                "Could not load posts."
+            );
+        }
+
+        if (!posts.length) {
+
+            container.innerHTML =
+                "<p>No posts yet. Be the first! 🧌</p>";
+
+            return;
+        }
+
+        container.innerHTML =
+            posts.map(post => {
+
+                const username =
+                    post.username ||
+                    post.profiles?.username ||
+                    "Unknown";
+
+                const avatar =
+                    post.avatar ||
+                    post.profiles?.avatar ||
+                    "/default-avatar.png";
+
+                return `
+
+                <article class="post">
+
+                    <div class="post-header">
+
+                        <img
+                            class="avatar"
+                            src="${escapeHtml(avatar)}"
+                            alt="Avatar"
+                        >
+
+                        <strong>
+                            ${escapeHtml(username)}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="post-content">
+
+                        ${escapeHtml(post.content)}
+
+                    </div>
+
+
+                    <div class="post-actions">
+
+                        <button
+                            onclick="toggleComments('${post.id}')">
+
+                            💬 Comments
+
+                        </button>
+
+                    </div>
+
+
+                    <section
+                        id="comments-${post.id}"
+                        class="comments"
+                        style="display:none;">
+
+                        <div
+                            id="comment-list-${post.id}">
+
+                            Loading...
+
+                        </div>
+
+
+                        <div class="comment-form">
+
+                            <input
+                                id="comment-input-${post.id}"
+                                type="text"
+                                maxlength="500"
+                                placeholder="Write a comment..."
+                            >
+
+                            <button
+                                onclick="submitComment('${post.id}')">
+
+                                💬 Send
+
+                            </button>
+
+                        </div>
+
+                    </section>
+
+                </article>
+
+                `;
+
+            }).join("");
+
+    } catch (error) {
+
+        console.error(
+            "POST LOAD ERROR:",
+            error
+        );
+
+        container.innerHTML = `
+            <p>
+                ❌ ${escapeHtml(error.message)}
+            </p>
+        `;
+    }
+}
+
+
+/* =========================================
+   CREATE POST
+========================================= */
+
+async function createPost() {
+
+    const input =
+        document.getElementById(
+            "post-content"
+        );
+
+    const status =
+        document.getElementById(
+            "post-status"
+        );
+
+    const content =
+        input.value.trim();
+
+    if (!content) {
+
+        status.textContent =
+            "❌ Write something first.";
+
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/posts",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        content
+                    })
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not create post."
+            );
+        }
+
+        input.value = "";
+
+        status.textContent =
+            "✅ Posted!";
+
+        await loadPosts();
+
+    } catch (error) {
+
+        console.error(
+            "POST ERROR:",
+            error
+        );
+
+        status.textContent =
+            "❌ " + error.message;
+    }
+}
+
+
+/* =========================================
+   COMMENTS
+========================================= */
+
+async function toggleComments(postId) {
+
+    const section =
+        document.getElementById(
+            `comments-${postId}`
+        );
+
+    if (!section) {
+
+        console.error(
+            "Comments section missing:",
+            postId
+        );
+
+        return;
+    }
+
+    if (
+        section.style.display ===
+        "none"
+    ) {
+
+        section.style.display =
+            "block";
+
+        await loadComments(postId);
+
+    } else {
+
+        section.style.display =
+            "none";
+    }
+}
+
+
+/* =========================================
+   LOAD COMMENTS
+========================================= */
+
+async function loadComments(postId) {
+
+    const list =
+        document.getElementById(
+            `comment-list-${postId}`
+        );
+
+    if (!list) return;
+
+    list.innerHTML =
+        "Loading comments...";
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/posts/${postId}/comments`
+            );
+
+        const comments =
+            await response.json();
+
+        if (!response.ok) {
+
+            throw new Error(
+                comments.error ||
+                "Could not load comments."
+            );
+        }
+
+        if (!comments.length) {
+
+            list.innerHTML =
+                "<p>No comments yet 😼</p>";
+
+            return;
+        }
+
+        list.innerHTML =
+            comments.map(comment => {
+
+                const username =
+                    comment.username ||
+                    comment.profiles?.username ||
+                    "User";
+
+                const avatar =
+                    comment.avatar ||
+                    comment.profiles?.avatar ||
+                    "/default-avatar.png";
+
+                return `
+
+                <div class="comment">
+
+                    <img
+                        class="avatar-small"
+                        src="${escapeHtml(avatar)}"
+                        alt="Avatar"
+                    >
+
+                    <div>
+
+                        <strong>
+                            ${escapeHtml(username)}
+                        </strong>
+
+                        <p>
+                            ${escapeHtml(
+                                comment.content
+                            )}
+                        </p>
+
+                    </div>
+
+                </div>
+
+                `;
+
+            }).join("");
+
+    } catch (error) {
+
+        console.error(
+            "COMMENT LOAD ERROR:",
+            error
+        );
+
+        list.innerHTML = `
+            <p>
+                ❌ ${escapeHtml(error.message)}
+            </p>
+        `;
+    }
+}
+
+
+/* =========================================
+   SUBMIT COMMENT
+========================================= */
+
+async function submitComment(postId) {
+
+    const input =
+        document.getElementById(
+            `comment-input-${postId}`
+        );
+
+    if (!input) {
+
+        console.error(
+            "Comment input missing:",
+            postId
+        );
+
+        return;
+    }
+
+    const content =
+        input.value.trim();
+
+    if (!content) return;
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/posts/${postId}/comments`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        content
+                    })
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not comment."
+            );
+        }
+
+        input.value = "";
+
+        await loadComments(postId);
+
+    } catch (error) {
+
+        console.error(
+            "COMMENT ERROR:",
+            error
+        );
+
+        alert(
+            "❌ " + error.message
+        );
+    }
+}
+
+
+/* =========================================
+   PEOPLE
+========================================= */
+
+async function loadPeople() {
+
+    const container =
+        document.getElementById(
+            "people"
+        );
+
+    try {
+
+        const response =
+            await fetch("/api/users");
+
+        const users =
+            await response.json();
+
+        if (!response.ok) {
+
+            throw new Error(
+                users.error ||
+                "Could not load people."
+            );
+        }
+
+        if (!users.length) {
+
+            container.innerHTML =
+                "<p>No users yet.</p>";
+
+            return;
+        }
+
+        container.innerHTML =
+            users.map(user => `
+
+                <div class="person">
+
+                    <img
+                        class="avatar"
+                        src="${escapeHtml(
+                            user.avatar ||
+                            "/default-avatar.png"
+                        )}"
+                        alt="Avatar"
+                    >
+
+                    <div>
+
+                        <strong>
+                            ${escapeHtml(
+                                user.display_name ||
+                                user.username
+                            )}
+                        </strong>
+
+                        <p>
+                            @${escapeHtml(
+                                user.username
+                            )}
+                        </p>
+
+                    </div>
+
+                </div>
+
+            `).join("");
+
+    } catch (error) {
+
+        console.error(
+            "PEOPLE ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            `<p>❌ ${escapeHtml(
+                error.message
+            )}</p>`;
+    }
+}
+
+
+/* =========================================
+   LOGOUT
+========================================= */
+
+async function logout() {
+
+    await fetch(
+        "/api/logout",
+        {
+            method: "POST"
+        }
+    );
+
+    location.href = "/";
+}
+
+
+/* =========================================
+   START
+========================================= */
+
+loadPosts();
+loadPeople();
+
+</script>
 
 </body>
-
 </html>
