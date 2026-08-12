@@ -1,4 +1,23 @@
+console.log("🧌 ShrekBook frontend loaded!");
+
+
+// ================================
+// HELPER
+// ================================
+
+function escapeHTML(value) {
+    const div = document.createElement("div");
+    div.textContent = value ?? "";
+    return div.innerHTML;
+}
+
+
+// ================================
+// LOAD POSTS
+// ================================
+
 async function loadPosts() {
+
     const container = document.getElementById("posts");
 
     if (!container) return;
@@ -6,42 +25,60 @@ async function loadPosts() {
     container.innerHTML = "Loading posts...";
 
     try {
+
         const response = await fetch("/api/posts");
+
         const data = await response.json();
 
-        console.log("Posts response:", data);
+        console.log("Posts:", data);
 
         if (!response.ok) {
-            throw new Error(data.error || "Failed to load posts");
+            throw new Error(
+                data.error || "Could not load posts"
+            );
         }
 
         container.innerHTML = "";
 
-        if (data.length === 0) {
-            container.innerHTML = "<p>No posts yet.</p>";
+        if (!Array.isArray(data) || data.length === 0) {
+
+            container.innerHTML =
+                "<p>No posts yet.</p>";
+
             return;
         }
 
         data.forEach(post => {
-            const element = document.createElement("div");
 
-            element.className = "post";
+            const postElement =
+                document.createElement("div");
 
-            element.innerHTML = `
-                <h3>
-                    ${escapeHTML(
-                        post.display_name ||
-                        post.username ||
-                        "Unknown User"
-                    )}
-                </h3>
+            postElement.className = "post";
 
-                <p>
+            postElement.innerHTML = `
+
+                <div class="post-header">
+
+                    <h3>
+                        ${escapeHTML(
+                            post.display_name ||
+                            post.username ||
+                            "Unknown User"
+                        )}
+                    </h3>
+
+                </div>
+
+                <p class="post-content">
                     ${escapeHTML(post.content)}
                 </p>
 
                 <small>
-                    ${new Date(post.created_at).toLocaleString()}
+                    ${post.created_at
+                        ? new Date(
+                            post.created_at
+                        ).toLocaleString()
+                        : ""}
                 </small>
 
                 <div class="post-actions">
@@ -57,21 +94,26 @@ async function loadPosts() {
                 <div
                     id="comments-${post.id}"
                     class="comments"
-                    style="display: none;"
+                    style="display:none;"
                 ></div>
+
             `;
 
-            container.appendChild(element);
+            container.appendChild(postElement);
         });
 
     } catch (error) {
 
-        console.error("Posts error:", error);
+        console.error(
+            "❌ Posts error:",
+            error
+        );
 
         container.innerHTML = `
             <p class="error">
                 ❌ Could not load posts.
             </p>
+
             <p>
                 ${escapeHTML(error.message)}
             </p>
@@ -79,6 +121,10 @@ async function loadPosts() {
     }
 }
 
+
+// ================================
+// CREATE POST
+// ================================
 
 async function createPost() {
 
@@ -91,34 +137,43 @@ async function createPost() {
         input.value.trim();
 
     if (!content) {
-        alert("Write something first!");
+
+        alert("Write something first! 🧌");
+
         return;
     }
 
     try {
 
-        const response = await fetch("/api/posts", {
+        const response = await fetch(
+            "/api/posts",
+            {
+                method: "POST",
 
-            method: "POST",
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
 
-            headers: {
-                "Content-Type": "application/json"
-            },
-
-            body: JSON.stringify({
-                content: content
-            })
-
-        });
+                body: JSON.stringify({
+                    content: content
+                })
+            }
+        );
 
         const data =
             await response.json();
 
-        console.log("Create post:", data);
+        console.log(
+            "Create post:",
+            data
+        );
 
         if (!response.ok) {
+
             throw new Error(
-                data.error || "Failed to create post"
+                data.error ||
+                "Could not create post"
             );
         }
 
@@ -129,7 +184,7 @@ async function createPost() {
     } catch (error) {
 
         console.error(
-            "Create post error:",
+            "❌ Create post error:",
             error
         );
 
@@ -141,7 +196,16 @@ async function createPost() {
 }
 
 
+// ================================
+// COMMENTS
+// ================================
+
 async function toggleComments(postId) {
+
+    console.log(
+        "Comments clicked:",
+        postId
+    );
 
     const container =
         document.getElementById(
@@ -149,14 +213,19 @@ async function toggleComments(postId) {
         );
 
     if (!container) {
+
         console.error(
-            "Comments container not found:",
+            "❌ Comments container not found:",
             postId
         );
+
         return;
     }
 
-    if (container.style.display === "none") {
+    if (
+        container.style.display === "none" ||
+        container.style.display === ""
+    ) {
 
         container.style.display = "block";
 
@@ -179,7 +248,7 @@ async function loadComments(postId) {
     if (!container) return;
 
     container.innerHTML =
-        "Loading comments...";
+        "<p>Loading comments...</p>";
 
     try {
 
@@ -192,7 +261,7 @@ async function loadComments(postId) {
             await response.json();
 
         console.log(
-            "Comments response:",
+            "Comments:",
             data
         );
 
@@ -200,15 +269,17 @@ async function loadComments(postId) {
 
             throw new Error(
                 data.error ||
-                "Failed to load comments"
+                "Could not load comments"
             );
         }
 
         container.innerHTML = `
+
             <div class="comment-input">
 
                 <input
                     id="comment-input-${postId}"
+                    type="text"
                     placeholder="Write a comment..."
                 >
 
@@ -219,9 +290,13 @@ async function loadComments(postId) {
                 </button>
 
             </div>
+
         `;
 
-        if (data.length === 0) {
+        if (
+            !Array.isArray(data) ||
+            data.length === 0
+        ) {
 
             container.innerHTML +=
                 "<p>No comments yet.</p>";
@@ -237,15 +312,21 @@ async function loadComments(postId) {
             element.className = "comment";
 
             element.innerHTML = `
+
                 <p>
-                    ${escapeHTML(comment.content)}
+                    ${escapeHTML(
+                        comment.content
+                    )}
                 </p>
 
                 <small>
-                    ${new Date(
-                        comment.created_at
-                    ).toLocaleString()}
+                    ${comment.created_at
+                        ? new Date(
+                            comment.created_at
+                        ).toLocaleString()
+                        : ""}
                 </small>
+
             `;
 
             container.appendChild(element);
@@ -254,18 +335,26 @@ async function loadComments(postId) {
     } catch (error) {
 
         console.error(
-            "Comments error:",
+            "❌ Comments error:",
             error
         );
 
         container.innerHTML = `
             <p class="error">
-                ❌ ${escapeHTML(error.message)}
+                ❌ Could not load comments.
+            </p>
+
+            <p>
+                ${escapeHTML(error.message)}
             </p>
         `;
     }
 }
 
+
+// ================================
+// CREATE COMMENT
+// ================================
 
 async function createComment(postId) {
 
@@ -287,7 +376,6 @@ async function createComment(postId) {
             await fetch(
                 `/api/posts/${postId}/comments`,
                 {
-
                     method: "POST",
 
                     headers: {
@@ -313,7 +401,7 @@ async function createComment(postId) {
 
             throw new Error(
                 data.error ||
-                "Failed to create comment"
+                "Could not create comment"
             );
         }
 
@@ -322,7 +410,7 @@ async function createComment(postId) {
     } catch (error) {
 
         console.error(
-            "Create comment error:",
+            "❌ Create comment error:",
             error
         );
 
@@ -334,31 +422,128 @@ async function createComment(postId) {
 }
 
 
-function escapeHTML(value) {
+// ================================
+// LOAD PEOPLE
+// ================================
 
-    const div =
-        document.createElement("div");
+async function loadPeople() {
 
-    div.textContent =
-        value ?? "";
+    const container =
+        document.getElementById("people");
 
-    return div.innerHTML;
+    if (!container) return;
+
+    container.innerHTML =
+        "Loading people...";
+
+    try {
+
+        const response =
+            await fetch("/api/users");
+
+        const users =
+            await response.json();
+
+        console.log(
+            "Users:",
+            users
+        );
+
+        if (!response.ok) {
+
+            throw new Error(
+                users.error ||
+                "Could not load users"
+            );
+        }
+
+        container.innerHTML = "";
+
+        if (
+            !Array.isArray(users) ||
+            users.length === 0
+        ) {
+
+            container.innerHTML =
+                "<p>No people have joined yet.</p>";
+
+            return;
+        }
+
+        users.forEach(user => {
+
+            const person =
+                document.createElement("div");
+
+            person.className = "person";
+
+            person.innerHTML = `
+
+                <img
+                    class="profile-avatar"
+                    src="${
+                        user.avatar ||
+                        "/shrek.webp"
+                    }"
+                    alt="Avatar"
+                >
+
+                <h3>
+                    ${escapeHTML(
+                        user.display_name ||
+                        user.displayName ||
+                        user.username ||
+                        "Unknown"
+                    )}
+                </h3>
+
+                <p>
+                    @${escapeHTML(
+                        user.username || ""
+                    )}
+                </p>
+
+                <a
+                    href="/profile.html?id=${user.id}"
+                >
+                    View Profile
+                </a>
+
+            `;
+
+            container.appendChild(person);
+        });
+
+    } catch (error) {
+
+        console.error(
+            "❌ Users error:",
+            error
+        );
+
+        container.innerHTML = `
+            <p class="error">
+                ❌ Could not load people.
+            </p>
+        `;
+    }
 }
 
 
-/*
-    START SHREKBOOK
-*/
+// ================================
+// START
+// ================================
 
 document.addEventListener(
     "DOMContentLoaded",
     () => {
 
         console.log(
-            "🧌 ShrekBook frontend loaded!"
+            "🧌 DOM loaded!"
         );
 
         loadPosts();
 
+        loadPeople();
     }
 );
