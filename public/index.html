@@ -5,92 +5,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+    <link rel="stylesheet" type="text/css" href="styles.css">
 
 <title>ShrekBook</title>
 
-<style>
-    body {
-        margin: 0;
-        font-family: Arial, sans-serif;
-        background: #f1f1f1;
-    }
 
-    header {
-        background: #4c8f29;
-        color: white;
-        padding: 20px;
-    }
-
-    header h1 {
-        margin: 0;
-    }
-
-    nav {
-        margin-top: 10px;
-    }
-
-    nav a {
-        color: white;
-        text-decoration: none;
-        margin-right: 20px;
-    }
-
-    .container {
-        max-width: 1000px;
-        margin: 30px auto;
-        padding: 20px;
-    }
-
-    .welcome {
-        background: white;
-        padding: 25px;
-        border-radius: 15px;
-        margin-bottom: 30px;
-    }
-
-    .people {
-        display: grid;
-        grid-template-columns: repeat(
-            auto-fill,
-            minmax(220px, 1fr)
-        );
-
-        gap: 20px;
-    }
-
-    .person {
-        background: white;
-        padding: 20px;
-        text-align: center;
-        border-radius: 15px;
-        box-shadow: 0 3px 10px rgba(0,0,0,.1);
-    }
-
-    .person img {
-        width: 100px;
-        height: 100px;
-        object-fit: cover;
-        border-radius: 50%;
-    }
-
-    .person h3 {
-        margin-bottom: 5px;
-    }
-
-    .person p {
-        color: #777;
-    }
-
-    .person a {
-        display: inline-block;
-        padding: 8px 15px;
-        background: #4c8f29;
-        color: white;
-        border-radius: 8px;
-        text-decoration: none;
-    }
-</style>
 
 
 </head>
@@ -98,9 +17,12 @@
 <body>
 
 <header>
+<div>
+    <img class="avatar" alt="shrek" src="data:image/webp;base64,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">
+    <h1> ShrekBook</h1>
+</div>
 
 
-<h1>🧌 ShrekBook</h1>
 
 <nav>
     <a href="/">Home</a>
