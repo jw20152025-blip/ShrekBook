@@ -212,101 +212,38 @@ app.get("/api/profile/:id", async (req, res) => {
 // SIGNUP
 // ============================================
 
-app.post("/api/posts", async (req, res) => {
+aapp.get("/api/posts", async (req, res) => {
     try {
-
-        if (!req.session.user) {
-            return res.status(401).json({
-                error: "You must be logged in."
-            });
-        }
-
-        const { content } = req.body;
-
-        if (!content || !content.trim()) {
-            return res.status(400).json({
-                error: "Post cannot be empty."
-            });
-        }
-
         const { data, error } = await supabase
             .from("posts")
-            .insert({
-                user_id: req.session.user.id,
-                content: content.trim()
-            })
-            .select()
-            .single();
+            .select(`
+                id,
+                content,
+                created_at,
+                user_id
+            `)
+            .order("created_at", {
+                ascending: false
+            });
 
         if (error) {
-            console.error("Supabase post error:", error);
+            console.error("❌ Supabase posts error:", error);
 
             return res.status(500).json({
                 error: error.message
             });
         }
 
+        console.log("✅ Loaded posts:", data);
+
         res.json(data);
 
     } catch (error) {
 
-        console.error("POST ERROR:", error);
+        console.error("❌ GET POSTS ERROR:", error);
 
         res.status(500).json({
-            error: "Server error"
-        });
-    }
-});
-
-app.post("/api/posts", async (req, res) => {
-
-    try {
-
-        const {
-            user_id,
-            content
-        } = req.body;
-
-
-        if (!user_id || !content?.trim()) {
-
-            return res.status(400).json({
-                error:
-                    "User ID and content are required."
-            });
-        }
-
-
-        const { data, error } =
-            await supabase
-                .from("posts")
-                .insert({
-
-                    user_id: user_id,
-
-                    content: content.trim()
-
-                })
-                .select()
-                .single();
-
-
-        if (error) {
-
-            return res.status(400).json({
-                error: error.message
-            });
-        }
-
-
-        res.status(201).json(data);
-
-    } catch (error) {
-
-        console.error(error);
-
-        res.status(500).json({
-            error: "Server error"
+            error: error.message
         });
     }
 });
