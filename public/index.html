@@ -3,95 +3,20 @@
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-<title>ShrekBook</title>
+    <title>ShrekBook</title>
 
-<style>
-    body {
-        margin: 0;
-        font-family: Arial, sans-serif;
-        background: #f1f1f1;
-    }
-
-    header {
-        background: #4c8f29;
-        color: white;
-        padding: 20px;
-    }
-
-    header h1 {
-        margin: 0;
-    }
-
-    nav {
-        margin-top: 10px;
-    }
-
-    nav a {
-        color: white;
-        text-decoration: none;
-        margin-right: 20px;
-    }
-
-    .container {
-        max-width: 1000px;
-        margin: 30px auto;
-        padding: 20px;
-    }
-
-    .welcome {
-        background: white;
-        padding: 25px;
-        border-radius: 15px;
-        margin-bottom: 30px;
-    }
-
-    .people {
-        display: grid;
-        grid-template-columns: repeat(
-            auto-fill,
-            minmax(220px, 1fr)
-        );
-
-        gap: 20px;
-    }
-
-    .person {
-        background: white;
-        padding: 20px;
-        text-align: center;
-        border-radius: 15px;
-        box-shadow: 0 3px 10px rgba(0,0,0,.1);
-    }
-
-    .person img {
-        width: 100px;
-        height: 100px;
-        object-fit: cover;
-        border-radius: 50%;
-    }
-
-    .person h3 {
-        margin-bottom: 5px;
-    }
-
-    .person p {
-        color: #777;
-    }
-
-    .person a {
-        display: inline-block;
-        padding: 8px 15px;
-        background: #4c8f29;
-        color: white;
-        border-radius: 8px;
-        text-decoration: none;
-    }
-</style>
-
+    <link
+        rel="stylesheet"
+        href="styles.css"
+    >
 
 </head>
 
@@ -99,89 +24,595 @@
 
 <header>
 
+    <div class="brand">
 
-<h1>🧌 ShrekBook</h1>
+        <div class="brand-avatar">
+            🧌
+        </div>
 
-<nav>
-    <a href="/">Home</a>
-    <a href="/login.html">Login</a>
-    <a href="/signup.html">Create Account</a>
-</nav>
+        <h1>ShrekBook</h1>
+
+    </div>
+
+
+    <nav>
+
+        <a href="/">Home</a>
+
+        <a href="/login.html">
+            Login
+        </a>
+
+        <a href="/signup.html">
+            Create Account
+        </a>
+
+        <button
+            onclick="logout()"
+            class="logout-button"
+        >
+            Logout
+        </button>
+
+    </nav>
 
 </header>
 
-<div class="container">
+
+<main class="container">
+
+    <section class="welcome">
+
+        <h2>
+            Welcome to ShrekBook! 🧌
+        </h2>
+
+        <p>
+            The social network for
+            absolutely normal people.
+        </p>
+
+    </section>
 
 
-<div class="welcome">
+    <section class="post-box">
 
-    <h2>Welcome to ShrekBook!</h2>
+        <h2>Create a Post</h2>
 
-    <p>
-        The social network for absolutely normal people.
-    </p>
+        <textarea
+            id="postContent"
+            placeholder="What's on your mind?"
+        ></textarea>
 
-</div>
+        <button onclick="createPost()">
+            Post 🧌
+        </button>
 
-<h2>People</h2>
+        <p id="postMessage"></p>
 
-<div id="people">
-    Loading people...
-</div>
+    </section>
 
 
-</div>
+    <h2>Posts</h2>
+
+    <div id="posts">
+        Loading posts...
+    </div>
+
+
+    <h2>People</h2>
+
+    <div id="people">
+        Loading people...
+    </div>
+
+</main>
+
 
 <script>
 
-async function loadPeople() {
+function escapeHTML(text) {
+
+    const div =
+        document.createElement("div");
+
+    div.textContent = text;
+
+    return div.innerHTML;
+}
+
+
+// ==========================================
+// POSTS
+// ==========================================
+
+async function loadPosts() {
 
     const container =
-        document.getElementById("people");
+        document.getElementById("posts");
+
 
     try {
 
         const response =
-            await fetch("/api/users");
+            await fetch("/api/posts");
+
+
+        const posts =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                posts.error
+            );
+
+        }
+
+
+        container.innerHTML = "";
+
+
+        if (posts.length === 0) {
+
+            container.innerHTML =
+                "<p>No posts yet! Be the first.</p>";
+
+            return;
+        }
+
+
+        posts.forEach(post => {
+
+            const element =
+                document.createElement("article");
+
+
+            element.className =
+                "post";
+
+
+            element.innerHTML = `
+
+                <div class="post-header">
+
+                    <strong>
+                        User
+                    </strong>
+
+                    <small>
+                        ${new Date(
+                            post.created_at
+                        ).toLocaleString()}
+                    </small>
+
+                </div>
+
+                <p class="post-content">
+                    ${escapeHTML(
+                        post.content
+                    )}
+                </p>
+
+                <div class="post-actions">
+
+                    <button
+                        onclick="likePost('${post.id}')"
+                    >
+                        👍 Like
+                    </button>
+
+                    <button
+                        onclick="loadComments('${post.id}')"
+                    >
+                        💬 Comments
+                    </button>
+
+                </div>
+
+                <div
+                    id="comments-${post.id}"
+                    class="comments"
+                ></div>
+
+            `;
+
+
+            container.appendChild(element);
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        container.innerHTML =
+            "<p>Could not load posts.</p>";
+
+    }
+
+}
+
+
+// ==========================================
+// CREATE POST
+// ==========================================
+
+async function createPost() {
+
+    const input =
+        document.getElementById(
+            "postContent"
+        );
+
+
+    const message =
+        document.getElementById(
+            "postMessage"
+        );
+
+
+    const userId =
+        localStorage.getItem(
+            "shrekbook_user_id"
+        );
+
+
+    if (!userId) {
+
+        message.textContent =
+            "You need to log in first.";
+
+        return;
+    }
+
+
+    if (!input.value.trim()) {
+
+        message.textContent =
+            "Your post is empty.";
+
+        return;
+    }
+
+
+    const response =
+        await fetch(
+            "/api/posts",
+            {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+
+                    user_id:
+                        userId,
+
+                    content:
+                        input.value
+
+                })
+
+            }
+        );
+
+
+    const data =
+        await response.json();
+
+
+    if (!response.ok) {
+
+        message.textContent =
+            data.error ||
+            "Could not post.";
+
+        return;
+    }
+
+
+    input.value = "";
+
+    message.textContent =
+        "Posted! 🧌";
+
+
+    loadPosts();
+
+}
+
+
+// ==========================================
+// COMMENTS
+// ==========================================
+
+async function loadComments(postId) {
+
+    const container =
+        document.getElementById(
+            `comments-${postId}`
+        );
+
+
+    const response =
+        await fetch(
+            `/api/posts/${postId}/comments`
+        );
+
+
+    const comments =
+        await response.json();
+
+
+    container.innerHTML = `
+
+        <div class="comment-input">
+
+            <input
+                id="comment-input-${postId}"
+                placeholder="Write a comment..."
+            >
+
+            <button
+                onclick="createComment('${postId}')"
+            >
+                Comment
+            </button>
+
+        </div>
+
+    `;
+
+
+    comments.forEach(comment => {
+
+        const element =
+            document.createElement("div");
+
+
+        element.className =
+            "comment";
+
+
+        element.innerHTML = `
+
+            <p>
+                ${escapeHTML(
+                    comment.content
+                )}
+            </p>
+
+            <small>
+                ${new Date(
+                    comment.created_at
+                ).toLocaleString()}
+            </small>
+
+        `;
+
+
+        container.appendChild(element);
+
+    });
+
+}
+
+
+async function createComment(postId) {
+
+    const userId =
+        localStorage.getItem(
+            "shrekbook_user_id"
+        );
+
+
+    if (!userId) {
+
+        alert(
+            "You need to log in first."
+        );
+
+        return;
+    }
+
+
+    const input =
+        document.getElementById(
+            `comment-input-${postId}`
+        );
+
+
+    if (!input.value.trim()) {
+
+        return;
+    }
+
+
+    const response =
+        await fetch(
+            `/api/posts/${postId}/comments`,
+            {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+
+                    user_id:
+                        userId,
+
+                    content:
+                        input.value
+
+                })
+
+            }
+        );
+
+
+    if (!response.ok) {
+
+        const data =
+            await response.json();
+
+        alert(
+            data.error ||
+            "Could not comment."
+        );
+
+        return;
+    }
+
+
+    loadComments(postId);
+
+}
+
+
+// ==========================================
+// LIKES
+// ==========================================
+
+async function likePost(postId) {
+
+    const userId =
+        localStorage.getItem(
+            "shrekbook_user_id"
+        );
+
+
+    if (!userId) {
+
+        alert(
+            "You need to log in first."
+        );
+
+        return;
+    }
+
+
+    const response =
+        await fetch(
+            `/api/posts/${postId}/like`,
+            {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+
+                    user_id:
+                        userId
+
+                })
+
+            }
+        );
+
+
+    if (!response.ok) {
+
+        const data =
+            await response.json();
+
+        alert(
+            data.error ||
+            "Could not like post."
+        );
+
+    }
+
+}
+
+
+// ==========================================
+// PEOPLE
+// ==========================================
+
+async function loadPeople() {
+
+    const container =
+        document.getElementById(
+            "people"
+        );
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/users"
+            );
+
 
         const users =
             await response.json();
 
+
         container.innerHTML = "";
 
-        if (users.length === 0) {
-            container.innerHTML =
-                "<p>No people have joined yet.</p>";
-            return;
-        }
 
         users.forEach(user => {
 
-            const person =
+            const element =
                 document.createElement("div");
 
-            person.className = "person";
 
-            person.innerHTML = `
+            element.className =
+                "person";
+
+
+            element.innerHTML = `
+
                 <img
-                    src="${user.avatar}"
+                    class="avatar"
+                    src="${escapeHTML(
+                        user.avatar
+                    )}"
                     alt="Avatar"
                 >
 
-                <h3>
-                    ${user.displayName}
-                </h3>
+                <div>
 
-                <p>
-                    @${user.username}
-                </p>
+                    <h3>
+                        ${escapeHTML(
+                            user.display_name
+                        )}
+                    </h3>
 
-                <a href="/profile.html?id=${user.id}">
-                    View Profile
-                </a>
+                    <p>
+                        @${escapeHTML(
+                            user.username
+                        )}
+                    </p>
+
+                    <a
+                        href="/profile.html?id=${user.id}"
+                    >
+                        View Profile
+                    </a>
+
+                </div>
+
             `;
 
-            container.appendChild(person);
+
+            container.appendChild(element);
+
         });
 
     } catch (error) {
@@ -190,8 +621,42 @@ async function loadPeople() {
 
         container.innerHTML =
             "<p>Could not load people.</p>";
+
     }
+
 }
+
+
+// ==========================================
+// LOGOUT
+// ==========================================
+
+async function logout() {
+
+    await fetch(
+        "/api/logout",
+        {
+            method: "POST"
+        }
+    );
+
+
+    localStorage.removeItem(
+        "shrekbook_user_id"
+    );
+
+    localStorage.removeItem(
+        "shrekbook_token"
+    );
+
+
+    window.location.href =
+        "/login.html";
+
+}
+
+
+loadPosts();
 
 loadPeople();
 

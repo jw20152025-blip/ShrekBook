@@ -1,297 +1,762 @@
+require("dotenv").config();
+
 const express = require("express");
-const fs = require("fs");
-const path = require("path");
 const session = require("express-session");
+const path = require("path");
+
+const {
+    createClient
+} = require("@supabase/supabase-js");
+
 
 const app = express();
 
+const PORT = process.env.PORT || 3000;
 
-const DATA_DIR = path.join(__dirname, "data");
-const USERS_FILE = path.join(DATA_DIR, "users.json");
 
-// Make sure data folder exists
-if (!fs.existsSync(DATA_DIR)) {
-fs.mkdirSync(DATA_DIR);
+if (
+    !process.env.SUPABASE_URL ||
+    !process.env.SUPABASE_SERVICE_ROLE_KEY
+) {
+    console.error("❌ Missing Supabase environment variables.");
+
+    process.exit(1);
 }
 
-// Make sure users.json exists
-if (!fs.existsSync(USERS_FILE)) {
-fs.writeFileSync(USERS_FILE, "[]");
-}
+
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+
+// ============================================
+// MIDDLEWARE
+// ============================================
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+app.use(express.urlencoded({
+    extended: true
+}));
+
 
 app.use(
-session({
-secret: process.env.SESSION_SECRET || "shrekbook-test-secret",
-resave: false,
-saveUninitialized: false,
-cookie: {
-httpOnly: true,
-secure: false
-}
-})
+    session({
+        secret:
+            process.env.SESSION_SECRET ||
+            "change-this-secret",
+
+        resave: false,
+
+        saveUninitialized: false,
+
+        cookie: {
+            httpOnly: true,
+            secure: false,
+            maxAge: 1000 * 60 * 60 * 24 * 7
+        }
+    })
 );
 
-app.use(express.static(path.join(__dirname, "public")));
 
-// -------------------------
-// Read users
-// -------------------------
-
-function getUsers() {
-try {
-return JSON.parse(
-fs.readFileSync(USERS_FILE, "utf8")
-);
-} catch (error) {
-console.error("Could not read users.json:", error);
-return [];
-}
-}
-
-// -------------------------
-// Save users
-// -------------------------
-
-function saveUsers(users) {
-fs.writeFileSync(
-USERS_FILE,
-JSON.stringify(users, null, 4)
-);
-}
-
-// -------------------------
-// Create account
-// -------------------------
-
-app.post("/api/register", (req, res) => {
+app.use(express.static(
+    path.join(__dirname, "public")
+));
 
 
-const {
-    username,
-    password,
-    displayName,
-    avatar,
-    bio
-} = req.body;
+// ============================================
+// TEST SUPABASE
+// ============================================
 
-if (!username || !password) {
-    return res.status(400).json({
-        error: "Username and password are required."
-    });
-}
+app.get("/api/test-supabase", async (req, res) => {
 
-const users = getUsers();
+    try {
 
-const existingUser = users.find(
-    user =>
-        user.username.toLowerCase() ===
-        username.toLowerCase()
-);
+        const { data, error } =
+            await supabase
+                .from("profiles")
+                .select("*")
+                .limit(5);
 
-if (existingUser) {
-    return res.status(400).json({
-        error: "Username already exists."
-    });
-}
 
-const newUser = {
-    id: Date.now(),
-    username: username,
-    password: password,
-    displayName: displayName || username,
-    avatar: avatar || "https://placehold.co/200x200",
-    bio: bio || "No bio yet."
-};
+        if (error) {
 
-users.push(newUser);
+            console.error(
+                "Supabase test error:",
+                error
+            );
 
-saveUsers(users);
+            return res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
 
-req.session.userId = newUser.id;
 
-res.json({
-    success: true,
-    user: {
-        id: newUser.id,
-        username: newUser.username,
-        displayName: newUser.displayName,
-        avatar: newUser.avatar,
-        bio: newUser.bio
+        res.json({
+            success: true,
+            users: data
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
 });
 
 
-});
+// ============================================
+// USERS
+// ============================================
 
-// -------------------------
-// Login
-// -------------------------
+app.get("/api/users", async (req, res) => {
 
-app.post("/api/login", (req, res) => {
+    try {
+
+        const { data, error } =
+            await supabase
+                .from("profiles")
+                .select(`
+                    id,
+                    username,
+                    display_name,
+                    avatar,
+                    gyatt,
+                    cat,
+                    ogred
+                `)
+                .order("username");
 
 
-const {
-    username,
-    password
-} = req.body;
+        if (error) {
 
-if (!username || !password) {
-    return res.status(400).json({
-        error: "Username and password are required."
-    });
-}
+            console.error(
+                "Users error:",
+                error
+            );
 
-const users = getUsers();
+            return res.status(500).json({
+                error: error.message
+            });
+        }
 
-const user = users.find(
-    user =>
-        user.username.toLowerCase() ===
-        username.toLowerCase()
-);
 
-if (!user || user.password !== password) {
-    return res.status(401).json({
-        error: "Invalid username or password."
-    });
-}
+        res.json(data);
 
-req.session.userId = user.id;
+    } catch (error) {
 
-res.json({
-    success: true,
-    user: {
-        id: user.id,
-        username: user.username,
-        displayName: user.displayName,
-        avatar: user.avatar,
-        bio: user.bio
+        console.error(error);
+
+        res.status(500).json({
+            error: "Server error"
+        });
     }
 });
 
 
+// ============================================
+// GET PROFILE
+// ============================================
+
+app.get("/api/profile/:id", async (req, res) => {
+
+    try {
+
+        const { id } = req.params;
+
+
+        const { data, error } =
+            await supabase
+                .from("profiles")
+                .select(`
+                    id,
+                    username,
+                    display_name,
+                    avatar,
+                    gyatt,
+                    cat,
+                    ogred
+                `)
+                .eq("id", id)
+                .single();
+
+
+        if (error) {
+
+            return res.status(404).json({
+                error: error.message
+            });
+        }
+
+
+        res.json(data);
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            error: "Server error"
+        });
+    }
 });
 
-// -------------------------
-// Logout
-// -------------------------
+
+// ============================================
+// SIGNUP
+// ============================================
+
+app.post("/api/signup", async (req, res) => {
+
+    try {
+
+        const {
+            username,
+            displayName,
+            email,
+            password,
+            avatar
+        } = req.body;
+
+
+        if (
+            !username ||
+            !displayName ||
+            !email ||
+            !password
+        ) {
+
+            return res.status(400).json({
+                error: "All fields are required."
+            });
+        }
+
+
+        // Create Supabase Auth account
+
+        const {
+            data: authData,
+            error: authError
+        } = await supabase.auth.admin.createUser({
+
+            email: email,
+
+            password: password,
+
+            email_confirm: true
+        });
+
+
+        if (authError) {
+
+            return res.status(400).json({
+                error: authError.message
+            });
+        }
+
+
+        const userId =
+            authData.user.id;
+
+
+        // Create profile
+
+        const {
+            data: profile,
+            error: profileError
+        } = await supabase
+            .from("profiles")
+            .insert({
+
+                id: userId,
+
+                username: username,
+
+                display_name: displayName,
+
+                avatar:
+                    avatar ||
+                    "https://placehold.co/150",
+
+                gyatt: 0,
+
+                cat: 0,
+
+                ogred: 0
+
+            })
+            .select()
+            .single();
+
+
+        if (profileError) {
+
+            // Remove Auth account if
+            // profile creation failed.
+
+            await supabase.auth.admin
+                .deleteUser(userId);
+
+
+            return res.status(400).json({
+                error:
+                    profileError.message
+            });
+        }
+
+
+        res.status(201).json({
+            success: true,
+            user: profile
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            error: "Server error"
+        });
+    }
+});
+
+
+// ============================================
+// LOGIN
+// ============================================
+
+app.post("/api/login", async (req, res) => {
+
+    try {
+
+        const {
+            email,
+            password
+        } = req.body;
+
+
+        if (!email || !password) {
+
+            return res.status(400).json({
+                error:
+                    "Email and password are required."
+            });
+        }
+
+
+        const {
+            data,
+            error
+        } = await supabase.auth.signInWithPassword({
+
+            email: email,
+
+            password: password
+        });
+
+
+        if (error) {
+
+            return res.status(401).json({
+                error: error.message
+            });
+        }
+
+
+        req.session.userId =
+            data.user.id;
+
+
+        res.json({
+
+            success: true,
+
+            user: {
+                id: data.user.id,
+                email: data.user.email
+            },
+
+            access_token:
+                data.session.access_token
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            error: "Server error"
+        });
+    }
+});
+
+
+// ============================================
+// LOGOUT
+// ============================================
 
 app.post("/api/logout", (req, res) => {
 
+    req.session.destroy(() => {
 
-req.session.destroy(() => {
-    res.json({
-        success: true
+        res.json({
+            success: true
+        });
+
     });
+
 });
 
 
+// ============================================
+// POSTS
+// ============================================
+
+app.get("/api/posts", async (req, res) => {
+
+    try {
+
+        const { data, error } =
+            await supabase
+                .from("posts")
+                .select(`
+                    id,
+                    user_id,
+                    content,
+                    created_at
+                `)
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                );
+
+
+        if (error) {
+
+            return res.status(500).json({
+                error: error.message
+            });
+        }
+
+
+        res.json(data);
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            error: "Server error"
+        });
+    }
 });
 
-// -------------------------
-// Current user
-// -------------------------
 
-app.get("/api/me", (req, res) => {
+app.post("/api/posts", async (req, res) => {
+
+    try {
+
+        const {
+            user_id,
+            content
+        } = req.body;
 
 
-if (!req.session.userId) {
-    return res.status(401).json({
-        error: "Not logged in."
-    });
-}
+        if (!user_id || !content?.trim()) {
 
-const users = getUsers();
+            return res.status(400).json({
+                error:
+                    "User ID and content are required."
+            });
+        }
 
-const user = users.find(
-    user => user.id === req.session.userId
+
+        const { data, error } =
+            await supabase
+                .from("posts")
+                .insert({
+
+                    user_id: user_id,
+
+                    content: content.trim()
+
+                })
+                .select()
+                .single();
+
+
+        if (error) {
+
+            return res.status(400).json({
+                error: error.message
+            });
+        }
+
+
+        res.status(201).json(data);
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            error: "Server error"
+        });
+    }
+});
+
+
+// ============================================
+// COMMENTS
+// ============================================
+
+app.get(
+    "/api/posts/:id/comments",
+    async (req, res) => {
+
+        try {
+
+            const { data, error } =
+                await supabase
+                    .from("comments")
+                    .select(`
+                        id,
+                        post_id,
+                        user_id,
+                        content,
+                        created_at
+                    `)
+                    .eq(
+                        "post_id",
+                        req.params.id
+                    )
+                    .order(
+                        "created_at",
+                        {
+                            ascending: true
+                        }
+                    );
+
+
+            if (error) {
+
+                return res.status(500).json({
+                    error: error.message
+                });
+            }
+
+
+            res.json(data);
+
+        } catch (error) {
+
+            console.error(error);
+
+            res.status(500).json({
+                error: "Server error"
+            });
+        }
+    }
 );
 
-if (!user) {
-    return res.status(404).json({
-        error: "User not found."
-    });
-}
 
-res.json({
-    id: user.id,
-    username: user.username,
-    displayName: user.displayName,
-    avatar: user.avatar,
-    bio: user.bio
-});
+app.post(
+    "/api/posts/:id/comments",
+    async (req, res) => {
+
+        try {
+
+            const {
+                user_id,
+                content
+            } = req.body;
 
 
-});
+            if (
+                !user_id ||
+                !content?.trim()
+            ) {
 
-// -------------------------
-// All users
-// -------------------------
-
-app.get("/api/users", (req, res) => {
-
-
-const users = getUsers();
-
-const safeUsers = users.map(user => ({
-    id: user.id,
-    username: user.username,
-    displayName: user.displayName,
-    avatar: user.avatar,
-    bio: user.bio
-}));
-
-res.json(safeUsers);
+                return res.status(400).json({
+                    error:
+                        "User ID and content are required."
+                });
+            }
 
 
-});
+            const { data, error } =
+                await supabase
+                    .from("comments")
+                    .insert({
 
-// -------------------------
-// One user
-// -------------------------
+                        post_id:
+                            req.params.id,
 
-app.get("/api/users/:id", (req, res) => {
+                        user_id:
+                            user_id,
+
+                        content:
+                            content.trim()
+
+                    })
+                    .select()
+                    .single();
 
 
-const users = getUsers();
+            if (error) {
 
-const user = users.find(
-    user =>
-        String(user.id) ===
-        String(req.params.id)
+                return res.status(400).json({
+                    error: error.message
+                });
+            }
+
+
+            res.status(201).json(data);
+
+        } catch (error) {
+
+            console.error(error);
+
+            res.status(500).json({
+                error: "Server error"
+            });
+        }
+    }
 );
 
-if (!user) {
-    return res.status(404).json({
-        error: "User not found."
-    });
-}
 
-res.json({
-    id: user.id,
-    username: user.username,
-    displayName: user.displayName,
-    avatar: user.avatar,
-    bio: user.bio
-});
+// ============================================
+// LIKES
+// ============================================
+
+app.post(
+    "/api/posts/:id/like",
+    async (req, res) => {
+
+        try {
+
+            const {
+                user_id
+            } = req.body;
 
 
-});
+            if (!user_id) {
 
-// -------------------------
-// Start server
-// -------------------------
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, "0.0.0.0", () => {
-console.log(`ShrekBook running on port ${PORT}`);
-});
-console.log("EXPRESS SESSION TEST:");
+                return res.status(400).json({
+                    error:
+                        "User ID is required."
+                });
+            }
 
-try {
-    console.log(require.resolve("express-session"));
-} catch (err) {
-    console.log("EXPRESS-SESSION IS MISSING");
-    console.log(err);
-}
+
+            const { data, error } =
+                await supabase
+                    .from("likes")
+                    .insert({
+
+                        post_id:
+                            req.params.id,
+
+                        user_id:
+                            user_id
+
+                    })
+                    .select()
+                    .single();
+
+
+            if (error) {
+
+                return res.status(400).json({
+                    error: error.message
+                });
+            }
+
+
+            res.status(201).json(data);
+
+        } catch (error) {
+
+            console.error(error);
+
+            res.status(500).json({
+                error: "Server error"
+            });
+        }
+    }
+);
+
+
+app.delete(
+    "/api/posts/:id/like",
+    async (req, res) => {
+
+        try {
+
+            const {
+                user_id
+            } = req.body;
+
+
+            const { error } =
+                await supabase
+                    .from("likes")
+                    .delete()
+                    .eq(
+                        "post_id",
+                        req.params.id
+                    )
+                    .eq(
+                        "user_id",
+                        user_id
+                    );
+
+
+            if (error) {
+
+                return res.status(400).json({
+                    error: error.message
+                });
+            }
+
+
+            res.json({
+                success: true
+            });
+
+        } catch (error) {
+
+            console.error(error);
+
+            res.status(500).json({
+                error: "Server error"
+            });
+        }
+    }
+);
+
+
+// ============================================
+// START SERVER
+// ============================================
+
+app.listen(
+    PORT,
+    "0.0.0.0",
+    () => {
+
+        console.log(
+            `🧌 ShrekBook running on port ${PORT}`
+        );
+
+    }
+);
