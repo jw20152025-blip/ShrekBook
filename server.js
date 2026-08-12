@@ -130,170 +130,85 @@ app.get("/api/health", (req, res) => {
 // ========================================
 
 app.post("/api/signup", async (req, res) => {
-
     try {
-
         const {
-            username,
-            displayName,
             email,
-            password
+            password,
+            username,
+            display_name
         } = req.body;
 
-
-        if (
-            !username ||
-            !displayName ||
-            !email ||
-            !password
-        ) {
-
+        if (!email || !password || !username) {
             return res.status(400).json({
-                error:
-                    "All fields are required."
+                error: "Email, password, and username are required."
             });
-
         }
 
-
-        if (password.length < 6) {
-
-            return res.status(400).json({
-                error:
-                    "Password must be at least 6 characters."
-            });
-
-        }
-
-
-        const {
-            data: existing
-        } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq(
-                "username",
-                username
-            )
-            .maybeSingle();
-
-
-        if (existing) {
-
-            return res.status(400).json({
-                error:
-                    "Username is already taken."
-            });
-
-        }
-
-
-        // Create Auth account
-
+        // Create Supabase Auth account
         const {
             data: authData,
             error: authError
         } = await supabase.auth.admin.createUser({
-
-            email,
-
-            password,
-
+            email: email,
+            password: password,
             email_confirm: true
-
         });
 
-
         if (authError) {
-
-            console.error(
-                authError
-            );
+            console.error("AUTH SIGNUP ERROR:", authError);
 
             return res.status(400).json({
-                error:
-                    authError.message
+                error: authError.message
             });
-
         }
 
+        const userId = authData.user.id;
 
-        const user =
-            authData.user;
-
-
-        // Create profile
-
+        // Create ShrekBook profile
         const {
             data: profile,
             error: profileError
         } = await supabase
             .from("profiles")
             .insert({
-
-                id: user.id,
-
-                username,
-
-                display_name:
-                    displayName,
-
+                id: userId,
+                username: username,
+                display_name: display_name || username,
                 avatar: null,
-
                 bio: "",
-
                 gyatt: 0,
-
                 cat: 0,
-
                 ogres: 0
-
             })
             .select()
-            .single();
-
+            .maybeSingle();
 
         if (profileError) {
-
             console.error(
+                "PROFILE SIGNUP ERROR:",
                 profileError
             );
 
-            await supabase.auth.admin.deleteUser(
-                user.id
-            );
+            // Remove Auth account if profile creation failed
+            await supabase.auth.admin.deleteUser(userId);
 
             return res.status(500).json({
-                error:
-                    profileError.message
+                error: profileError.message
             });
-
         }
 
-
         res.json({
-
             success: true,
-
             user: profile
-
         });
-
 
     } catch (error) {
-
-        console.error(
-            "SIGNUP ERROR:",
-            error
-        );
+        console.error("SIGNUP SERVER ERROR:", error);
 
         res.status(500).json({
-            error:
-                error.message
+            error: error.message
         });
-
     }
-
 });
 
 
