@@ -1,6 +1,4 @@
-
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -9,27 +7,25 @@
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+        content="width=device-width, initial-scale=1.0">
+
+    <title>ShrekBook - Profile</title>
 
     <link
         rel="stylesheet"
-        href="styles.css"
-    >
-
-    <title>Profile - ShrekBook</title>
+        href="/style.css">
 
 </head>
 
+
 <body>
+
 
 <header>
 
-    <div class="brand">
-
-        <h1>🧌 ShrekBook</h1>
-
-    </div>
+    <h1>
+        🧌 ShrekBook
+    </h1>
 
     <nav>
 
@@ -41,83 +37,295 @@
             Login
         </a>
 
+        <a href="/signup.html">
+            Create Account
+        </a>
+
     </nav>
 
 </header>
 
 
-<div class="container">
+<main class="container">
 
-    <div id="profile">
 
-        Loading profile...
+    <!-- ================================= -->
+    <!-- PROFILE -->
+    <!-- ================================= -->
 
-    </div>
+    <section id="profile">
 
-</div>
+        <p>
+            Loading profile...
+        </p>
+
+    </section>
+
+
+    <!-- ================================= -->
+    <!-- EDIT PROFILE -->
+    <!-- ================================= -->
+
+    <section
+        id="edit-section"
+        class="edit-profile">
+
+        <h2>
+            ✏️ Edit Profile
+        </h2>
+
+
+        <form id="edit-profile">
+
+
+            <!-- Avatar -->
+
+            <label for="avatar">
+                Avatar URL
+            </label>
+
+            <input
+                id="avatar"
+                type="text"
+                placeholder="https://example.com/avatar.png">
+
+
+            <!-- Avatar preview -->
+
+            <img
+                id="avatar-preview"
+                class="profile-avatar"
+                src="https://placehold.co/200x200"
+                alt="Avatar preview">
+
+
+            <!-- Display name -->
+
+            <label for="display-name">
+                Display Name
+            </label>
+
+            <input
+                id="display-name"
+                type="text"
+                placeholder="Your display name">
+
+
+            <!-- Bio -->
+
+            <label for="bio">
+                Bio
+            </label>
+
+            <textarea
+                id="bio"
+                placeholder="Tell people about yourself..."></textarea>
+
+
+            <!-- Gyatt -->
+
+            <label for="gyatt">
+                💀 Gyatt
+            </label>
+
+            <input
+                id="gyatt"
+                type="number"
+                min="0"
+                value="0">
+
+
+            <!-- Cat -->
+
+            <label for="cat">
+                🐱 Cat
+            </label>
+
+            <input
+                id="cat"
+                type="number"
+                min="0"
+                value="0">
+
+
+            <!-- Ogred -->
+
+            <label for="ogred">
+                🧌 Ogred
+            </label>
+
+            <input
+                id="ogred"
+                type="number"
+                min="0"
+                value="0">
+
+
+            <button
+                type="submit">
+
+                💾 Save Profile
+
+            </button>
+
+
+        </form>
+
+
+        <p id="status"></p>
+
+
+    </section>
+
+
+    <!-- ================================= -->
+    <!-- LOGOUT -->
+    <!-- ================================= -->
+
+    <button
+        type="button"
+        onclick="logout()">
+
+        🚪 Logout
+
+    </button>
+
+
+</main>
 
 
 <script>
 
+
+// ==================================================
+// CURRENT USER
+// ==================================================
+
+let currentUser = null;
+
+
+// ==================================================
+// HTML ESCAPE
+// ==================================================
+
+function escapeHtml(text) {
+
+    const div =
+        document.createElement("div");
+
+    div.textContent =
+        text ?? "";
+
+    return div.innerHTML;
+
+}
+
+
+// ==================================================
+// LOAD PROFILE
+// ==================================================
+
 async function loadProfile() {
 
-    const params =
-        new URLSearchParams(
-            window.location.search
-        );
-
-    const id =
-        params.get("id");
-
-    if (!id) {
-
+    const profile =
         document.getElementById(
             "profile"
-        ).innerHTML =
-            "<h2>No profile specified.</h2>";
+        );
 
-        return;
-
-    }
 
     try {
 
-        const response =
-            await fetch(`/api/users/${id}`);
-
-        if (!response.ok) {
-            throw new Error(
-                "Profile not found"
+        const params =
+            new URLSearchParams(
+                window.location.search
             );
+
+
+        const userId =
+            params.get("id");
+
+
+        if (!userId) {
+
+            throw new Error(
+                "No profile ID was provided."
+            );
+
         }
 
-        const user =
+
+        const response =
+            await fetch(
+                `/api/users/${encodeURIComponent(
+                    userId
+                )}`
+            );
+
+
+        const data =
             await response.json();
 
-        document.getElementById(
-            "profile"
-        ).innerHTML = `
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not load profile."
+            );
+
+        }
+
+
+        currentUser =
+            data;
+
+
+        // =========================================
+        // DISPLAY PROFILE
+        // =========================================
+
+        profile.innerHTML = `
 
             <img
                 class="profile-avatar"
-                src="${user.avatar || "https://placehold.co/200x200"}"
-                alt="Avatar"
-            >
+                src="${escapeHtml(
+                    data.avatar ||
+                    "https://placehold.co/200x200"
+                )}"
+                alt="Avatar">
+
 
             <h2>
-                ${user.display_name}
+                ${escapeHtml(
+                    data.display_name ||
+                    data.username
+                )}
             </h2>
 
+
             <p>
-                @${user.username}
+                @${escapeHtml(
+                    data.username
+                )}
             </p>
 
+
+            <p>
+                ${escapeHtml(
+                    data.bio || ""
+                )}
+            </p>
+
+
             <div class="profile-stats">
+
 
                 <div class="stat">
 
                     <strong>
-                        ${user.gyatt}
+                        ${Number(
+                            data.gyatt || 0
+                        )}
                     </strong>
 
                     <span>
@@ -130,7 +338,9 @@ async function loadProfile() {
                 <div class="stat">
 
                     <strong>
-                        ${user.cat}
+                        ${Number(
+                            data.cat || 0
+                        )}
                     </strong>
 
                     <span>
@@ -143,7 +353,9 @@ async function loadProfile() {
                 <div class="stat">
 
                     <strong>
-                        ${user.ogred}
+                        ${Number(
+                            data.ogred || 0
+                        )}
                     </strong>
 
                     <span>
@@ -152,28 +364,424 @@ async function loadProfile() {
 
                 </div>
 
+
             </div>
 
         `;
 
+
+        // =========================================
+        // FILL EDIT FORM
+        // =========================================
+
+        const avatar =
+            document.getElementById(
+                "avatar"
+            );
+
+        const displayName =
+            document.getElementById(
+                "display-name"
+            );
+
+        const bio =
+            document.getElementById(
+                "bio"
+            );
+
+        const gyatt =
+            document.getElementById(
+                "gyatt"
+            );
+
+        const cat =
+            document.getElementById(
+                "cat"
+            );
+
+        const ogred =
+            document.getElementById(
+                "ogred"
+            );
+
+
+        if (avatar) {
+
+            avatar.value =
+                data.avatar || "";
+
+        }
+
+
+        if (displayName) {
+
+            displayName.value =
+                data.display_name || "";
+
+        }
+
+
+        if (bio) {
+
+            bio.value =
+                data.bio || "";
+
+        }
+
+
+        if (gyatt) {
+
+            gyatt.value =
+                data.gyatt || 0;
+
+        }
+
+
+        if (cat) {
+
+            cat.value =
+                data.cat || 0;
+
+        }
+
+
+        if (ogred) {
+
+            ogred.value =
+                data.ogred || 0;
+
+        }
+
+
+        // =========================================
+        // AVATAR PREVIEW
+        // =========================================
+
+        updateAvatarPreview();
+
+
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "PROFILE LOAD ERROR:",
+            error
+        );
 
-        document.getElementById(
-            "profile"
-        ).innerHTML =
-            "<h2>Profile not found 😭</h2>";
+
+        profile.innerHTML = `
+
+            <h2>
+                Profile not found 😭
+            </h2>
+
+            <p>
+                ${escapeHtml(
+                    error.message
+                )}
+            </p>
+
+        `;
 
     }
 
 }
 
+
+// ==================================================
+// AVATAR PREVIEW
+// ==================================================
+
+function updateAvatarPreview() {
+
+    const input =
+        document.getElementById(
+            "avatar"
+        );
+
+
+    const preview =
+        document.getElementById(
+            "avatar-preview"
+        );
+
+
+    if (!input || !preview) {
+
+        return;
+
+    }
+
+
+    const url =
+        input.value.trim();
+
+
+    preview.src =
+        url ||
+        "https://placehold.co/200x200";
+
+}
+
+
+// ==================================================
+// SAVE PROFILE
+// ==================================================
+
+async function saveProfile(event) {
+
+    event.preventDefault();
+
+
+    const status =
+        document.getElementById(
+            "status"
+        );
+
+
+    try {
+
+
+        if (!currentUser) {
+
+            throw new Error(
+                "Profile hasn't loaded yet."
+            );
+
+        }
+
+
+        // =========================================
+        // GET FORM VALUES
+        // =========================================
+
+        const avatar =
+            document.getElementById(
+                "avatar"
+            )
+            .value
+            .trim();
+
+
+        const displayName =
+            document.getElementById(
+                "display-name"
+            )
+            .value
+            .trim();
+
+
+        const bio =
+            document.getElementById(
+                "bio"
+            )
+            .value
+            .trim();
+
+
+        const gyatt =
+            Number(
+                document.getElementById(
+                    "gyatt"
+                ).value
+            ) || 0;
+
+
+        const cat =
+            Number(
+                document.getElementById(
+                    "cat"
+                ).value
+            ) || 0;
+
+
+        const ogred =
+            Number(
+                document.getElementById(
+                    "ogred"
+                ).value
+            ) || 0;
+
+
+        // =========================================
+        // SEND UPDATE
+        // =========================================
+
+        const response =
+            await fetch(
+                `/api/users/${encodeURIComponent(
+                    currentUser.id
+                )}`,
+                {
+
+                    method: "PUT",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    body: JSON.stringify({
+
+                        displayName:
+                            displayName,
+
+                        avatar:
+                            avatar,
+
+                        bio:
+                            bio,
+
+                        gyatt:
+                            gyatt,
+
+                        cat:
+                            cat,
+
+                        ogred:
+                            ogred
+
+                    })
+
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not save profile."
+            );
+
+        }
+
+
+        // =========================================
+        // SUCCESS
+        // =========================================
+
+        currentUser =
+            data;
+
+
+        status.textContent =
+            "✅ Profile saved!";
+
+
+        updateAvatarPreview();
+
+
+        // Reload displayed profile
+
+        await loadProfile();
+
+
+    } catch (error) {
+
+        console.error(
+            "PROFILE SAVE ERROR:",
+            error
+        );
+
+
+        status.textContent =
+            "❌ " +
+            error.message;
+
+    }
+
+}
+
+
+// ==================================================
+// LOGOUT
+// ==================================================
+
+async function logout() {
+
+    try {
+
+        localStorage.removeItem(
+            "access_token"
+        );
+
+
+        await fetch(
+            "/api/logout",
+            {
+                method: "POST"
+            }
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Logout error:",
+            error
+        );
+
+    }
+
+
+    window.location.href =
+        "/";
+
+}
+
+
+// ==================================================
+// EVENT LISTENERS
+// ==================================================
+
+const editForm =
+    document.getElementById(
+        "edit-profile"
+    );
+
+
+if (editForm) {
+
+    editForm.addEventListener(
+        "submit",
+        saveProfile
+    );
+
+}
+
+
+const avatarInput =
+    document.getElementById(
+        "avatar"
+    );
+
+
+if (avatarInput) {
+
+    avatarInput.addEventListener(
+        "input",
+        updateAvatarPreview
+    );
+
+}
+
+
+// ==================================================
+// START
+// ==================================================
+
 loadProfile();
 
+
 </script>
+
 
 </body>
 
 </html>
-

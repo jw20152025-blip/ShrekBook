@@ -11,9 +11,17 @@
         content="width=device-width, initial-scale=1.0"
     >
 
+
     <link rel="stylesheet" href="styles.css">
 
     <title>Login - ShrekBook</title>
+
+    <title>Login - ShrekBook</title>
+
+    <link
+        rel="stylesheet"
+        href="/styles.css"
+    >
 
 </head>
 
@@ -22,7 +30,18 @@
 <header>
 
     <div class="brand">
+
         <h1>🧌 ShrekBook</h1>
+
+
+        <div class="logo">
+            🧌
+        </div>
+
+        <h1>
+            ShrekBook
+        </h1>
+
     </div>
 
     <nav>
@@ -32,12 +51,17 @@
         </a>
 
         <a href="/signup.html">
+
             Create Account
+
+            Sign Up
+
         </a>
 
     </nav>
 
 </header>
+
 
 
 <div class="container">
@@ -55,12 +79,22 @@
                 required
             >
 
+<main class="container">
+
+<section class="form-box">
+
+    <h2>
+        Login
+    </h2>
+
+
             <input
                 type="password"
                 id="password"
                 placeholder="Password"
                 required
             >
+
 
             <button type="submit">
                 Login
@@ -74,14 +108,59 @@
 
 </div>
 
+    <form id="loginForm">
+
+        <label>
+            Email
+        </label>
+
+        <input
+            id="email"
+            type="email"
+            required
+        >
+
+
+        <label>
+            Password
+        </label>
+
+        <input
+            id="password"
+            type="password"
+            required
+        >
+
+
+        <button type="submit">
+            Login
+        </button>
+
+    </form>
+
+
+    <p id="loginMessage"></p>
+
+</section>
+
+</main>
+
+
 
 <script>
 
 document
     .getElementById("loginForm")
+
     .addEventListener("submit", async (event) => {
 
-        event.preventDefault();
+    form.addEventListener(
+        "submit",
+        async event => {
+
+
+            event.preventDefault();
+
 
         const message =
             document.getElementById("message");
@@ -156,8 +235,96 @@ document
 
     });
 
+
+            const email =
+                document.getElementById(
+                    "email"
+                ).value;
+
+
+            const password =
+                document.getElementById(
+                    "password"
+                ).value;
+
+
+            const message =
+                document.getElementById(
+                    "loginMessage"
+                );
+
+
+            message.textContent =
+                "Logging in...";
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        "/api/login",
+                        {
+
+                            method: "POST",
+
+                            credentials:
+                                "include",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body:
+                                JSON.stringify({
+
+                                    email,
+
+                                    password
+
+                                })
+
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        data.error ||
+                        "Login failed."
+                    );
+
+                }
+
+
+                window.location.href =
+                    "/";
+
+
+            } catch (error) {
+
+                message.textContent =
+                    "❌ " +
+                    error.message;
+
+            }
+
+        }
+    );
+
+
 </script>
 
 </body>
+
+</html>
+
+
+
 </html>
 

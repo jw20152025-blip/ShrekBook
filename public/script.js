@@ -1,8 +1,8 @@
 // ==================================================
-// ShrekBook Frontend
+// SHREKBOOK SCRIPT.JS
 // ==================================================
 
-console.log("🧌 ShrekBook frontend loaded!");
+console.log("🧌 ShrekBook script loaded!");
 
 
 // ==================================================
@@ -14,18 +14,18 @@ function getToken() {
 }
 
 
-function escapeHtml(text) {
+function escapeHtml(value) {
 
     const div = document.createElement("div");
 
-    div.textContent = text ?? "";
+    div.textContent = value ?? "";
 
     return div.innerHTML;
 }
 
 
 // ==================================================
-// PEOPLE
+// LOAD PEOPLE
 // ==================================================
 
 async function loadPeople() {
@@ -47,15 +47,17 @@ async function loadPeople() {
             await response.json();
 
         if (!response.ok) {
+
             throw new Error(
                 users.error ||
                 "Could not load people."
             );
+
         }
 
         container.innerHTML = "";
 
-        if (users.length === 0) {
+        if (!users.length) {
 
             container.innerHTML =
                 "<p>No people have joined yet.</p>";
@@ -78,18 +80,25 @@ async function loadPeople() {
                 <h3>
                     ${escapeHtml(
                         user.display_name ||
-                        user.username
+                        user.username ||
+                        "User"
                     )}
                 </h3>
 
                 <p>
                     @${escapeHtml(
-                        user.username
+                        user.username ||
+                        ""
                     )}
                 </p>
 
-                <a href="/profile.html?id=${encodeURIComponent(user.id)}">
+                <a
+                    href="/profile.html?id=${encodeURIComponent(
+                        user.id
+                    )}">
+
                     View Profile
+
                 </a>
 
             `;
@@ -103,7 +112,7 @@ async function loadPeople() {
     } catch (error) {
 
         console.error(
-            "People error:",
+            "PEOPLE ERROR:",
             error
         );
 
@@ -118,7 +127,7 @@ async function loadPeople() {
 
 
 // ==================================================
-// POSTS
+// LOAD POSTS
 // ==================================================
 
 async function loadPosts() {
@@ -137,6 +146,7 @@ async function loadPosts() {
         const response =
             await fetch("/api/posts");
 
+
         const posts =
             await response.json();
 
@@ -154,7 +164,7 @@ async function loadPosts() {
         container.innerHTML = "";
 
 
-        if (posts.length === 0) {
+        if (!posts.length) {
 
             container.innerHTML =
                 "<p>No posts yet.</p>";
@@ -166,36 +176,49 @@ async function loadPosts() {
 
         posts.forEach(post => {
 
-            const article =
+            const postElement =
                 document.createElement("article");
 
-            article.className =
+            postElement.className =
                 "post";
 
 
-            article.innerHTML = `
+            postElement.innerHTML = `
 
                 <h3>
+
                     ${escapeHtml(
                         post.display_name ||
                         post.username ||
                         "User"
                     )}
+
                 </h3>
 
-                <p>
+
+                <p class="post-content">
+
                     ${escapeHtml(
                         post.content
                     )}
+
                 </p>
 
+
                 <small>
-                    ${new Date(
-                        post.created_at
-                    ).toLocaleString()}
+
+                    ${post.created_at
+                        ? new Date(
+                            post.created_at
+                          ).toLocaleString()
+                        : ""
+                    }
+
                 </small>
 
-                <br><br>
+
+                <br>
+
 
                 <button
                     class="comments-button"
@@ -212,7 +235,10 @@ async function loadPosts() {
                     style="display:none;">
 
                     <div
+                        class="comment-list"
                         id="comment-list-${post.id}">
+
+                        Loading comments...
 
                     </div>
 
@@ -223,6 +249,7 @@ async function loadPosts() {
                             type="text"
                             id="comment-input-${post.id}"
                             placeholder="Write a comment...">
+
 
                         <button
                             class="comment-submit"
@@ -239,24 +266,52 @@ async function loadPosts() {
             `;
 
 
-            container.appendChild(article);
+            container.appendChild(
+                postElement
+            );
 
         });
 
 
-        // Add comment button events
+        // Comment buttons
 
         document
-            .querySelectorAll(".comments-button")
+            .querySelectorAll(
+                ".comments-button"
+            )
             .forEach(button => {
 
                 button.addEventListener(
                     "click",
-                    () => {
+                    async () => {
 
-                        toggleComments(
-                            button.dataset.postId
-                        );
+                        const postId =
+                            button.dataset.postId;
+
+                        const box =
+                            document.getElementById(
+                                `comments-${postId}`
+                            );
+
+
+                        if (
+                            box.style.display ===
+                            "none"
+                        ) {
+
+                            box.style.display =
+                                "block";
+
+                            await loadComments(
+                                postId
+                            );
+
+                        } else {
+
+                            box.style.display =
+                                "none";
+
+                        }
 
                     }
                 );
@@ -264,17 +319,19 @@ async function loadPosts() {
             });
 
 
-        // Add submit events
+        // Comment submit buttons
 
         document
-            .querySelectorAll(".comment-submit")
+            .querySelectorAll(
+                ".comment-submit"
+            )
             .forEach(button => {
 
                 button.addEventListener(
                     "click",
-                    () => {
+                    async () => {
 
-                        submitComment(
+                        await submitComment(
                             button.dataset.postId
                         );
 
@@ -287,7 +344,7 @@ async function loadPosts() {
     } catch (error) {
 
         console.error(
-            "Posts error:",
+            "POST ERROR:",
             error
         );
 
@@ -295,36 +352,6 @@ async function loadPosts() {
             `<p>❌ ${escapeHtml(
                 error.message
             )}</p>`;
-
-    }
-
-}
-
-
-// ==================================================
-// TOGGLE COMMENTS
-// ==================================================
-
-async function toggleComments(postId) {
-
-    const box =
-        document.getElementById(
-            `comments-${postId}`
-        );
-
-
-    if (!box) return;
-
-
-    if (box.style.display === "none") {
-
-        box.style.display = "block";
-
-        await loadComments(postId);
-
-    } else {
-
-        box.style.display = "none";
 
     }
 
@@ -354,7 +381,9 @@ async function loadComments(postId) {
 
         const response =
             await fetch(
-                `/api/posts/${encodeURIComponent(postId)}/comments`
+                `/api/posts/${encodeURIComponent(
+                    postId
+                )}/comments`
             );
 
 
@@ -375,7 +404,7 @@ async function loadComments(postId) {
         list.innerHTML = "";
 
 
-        if (comments.length === 0) {
+        if (!comments.length) {
 
             list.innerHTML =
                 "<p>No comments yet.</p>";
@@ -390,39 +419,53 @@ async function loadComments(postId) {
             const element =
                 document.createElement("div");
 
+
             element.className =
                 "comment";
 
 
-            // IMPORTANT:
-            // No avatar is requested or displayed.
+            // NO AVATAR HERE.
+            // Only name + comment.
 
             element.innerHTML = `
 
                 <strong>
+
                     ${escapeHtml(
                         comment.display_name ||
                         comment.username ||
                         "User"
                     )}
+
                 </strong>
 
+
                 <p>
+
                     ${escapeHtml(
                         comment.content
                     )}
+
                 </p>
 
+
                 <small>
-                    ${new Date(
-                        comment.created_at
-                    ).toLocaleString()}
+
+                    ${comment.created_at
+                        ? new Date(
+                            comment.created_at
+                          ).toLocaleString()
+                        : ""
+                    }
+
                 </small>
 
             `;
 
 
-            list.appendChild(element);
+            list.appendChild(
+                element
+            );
 
         });
 
@@ -430,7 +473,7 @@ async function loadComments(postId) {
     } catch (error) {
 
         console.error(
-            "Comments error:",
+            "COMMENT LOAD ERROR:",
             error
         );
 
@@ -445,7 +488,7 @@ async function loadComments(postId) {
 
 
 // ==================================================
-// SUBMIT COMMENT
+// CREATE COMMENT
 // ==================================================
 
 async function submitComment(postId) {
@@ -477,7 +520,7 @@ async function submitComment(postId) {
     if (!token) {
 
         alert(
-            "You need to log in before commenting."
+            "❌ You need to log in first."
         );
 
         return;
@@ -489,23 +532,27 @@ async function submitComment(postId) {
 
         const response =
             await fetch(
-                `/api/posts/${encodeURIComponent(postId)}/comments`,
+                `/api/posts/${encodeURIComponent(
+                    postId
+                )}/comments`,
                 {
 
                     method: "POST",
 
                     headers: {
+
                         "Content-Type":
-                            "application/json"
+                            "application/json",
+
+                        "Authorization":
+                            `Bearer ${token}`
+
                     },
 
                     body: JSON.stringify({
 
                         content:
-                            content,
-
-                        access_token:
-                            token
+                            content
 
                     })
 
@@ -521,7 +568,7 @@ async function submitComment(postId) {
 
             throw new Error(
                 data.error ||
-                "Could not post comment."
+                "Could not create comment."
             );
 
         }
@@ -530,13 +577,15 @@ async function submitComment(postId) {
         input.value = "";
 
 
-        await loadComments(postId);
+        await loadComments(
+            postId
+        );
 
 
     } catch (error) {
 
         console.error(
-            "Submit comment error:",
+            "COMMENT POST ERROR:",
             error
         );
 
@@ -583,7 +632,7 @@ async function createPost() {
     if (!token) {
 
         alert(
-            "You need to log in before posting."
+            "❌ You need to log in first."
         );
 
         return;
@@ -601,17 +650,19 @@ async function createPost() {
                     method: "POST",
 
                     headers: {
+
                         "Content-Type":
-                            "application/json"
+                            "application/json",
+
+                        "Authorization":
+                            `Bearer ${token}`
+
                     },
 
                     body: JSON.stringify({
 
                         content:
-                            content,
-
-                        access_token:
-                            token
+                            content
 
                     })
 
@@ -642,7 +693,7 @@ async function createPost() {
     } catch (error) {
 
         console.error(
-            "Create post error:",
+            "POST CREATE ERROR:",
             error
         );
 
@@ -657,7 +708,7 @@ async function createPost() {
 
 
 // ==================================================
-// ENTER KEY FOR COMMENTS
+// ENTER TO COMMENT
 // ==================================================
 
 document.addEventListener(
@@ -673,19 +724,39 @@ document.addEventListener(
 
             event.preventDefault();
 
-            const postId =
-                event.target.id
-                    .replace(
-                        "comment-input-",
-                        ""
-                    );
 
-            submitComment(postId);
+            const postId =
+                event.target.id.replace(
+                    "comment-input-",
+                    ""
+                );
+
+
+            submitComment(
+                postId
+            );
 
         }
 
     }
 );
+
+
+// ==================================================
+// LOGOUT
+// ==================================================
+
+function logout() {
+
+    localStorage.removeItem(
+        "access_token"
+    );
+
+
+    window.location.href =
+        "/login.html";
+
+}
 
 
 // ==================================================
