@@ -1,104 +1,117 @@
 <!DOCTYPE html>
-
-<html>
+<html lang="en">
 
 <head>
 
+    <meta charset="UTF-8">
 
-<meta charset="UTF-8">
-<link
-    rel="stylesheet"
-    href="styles.css"
->
-<title>Profile - ShrekBook</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-<style>
+    <title>Profile - ShrekBook</title>
 
-    body {
-        margin: 0;
-        font-family: Arial, sans-serif;
-        background: #f1f1f1;
-    }
-
-    .profile {
-        max-width: 600px;
-        margin: 50px auto;
-        padding: 30px;
-        background: white;
-        border-radius: 15px;
-        text-align: center;
-    }
-
-    .avatar {
-        width: 150px;
-        height: 150px;
-        border-radius: 50%;
-        object-fit: cover;
-    }
-
-    .username {
-        color: #777;
-    }
-
-</style>
-
+    <link
+        rel="stylesheet"
+        href="/styles.css"
+    >
 
 </head>
 
 <body>
 
-<div class="profile">
+<header>
+
+    <div class="brand">
+
+        <img
+            class="avatar"
+            src="/shrek.webp"
+            alt="Shrek"
+        >
+
+        <h1>ShrekBook</h1>
+
+    </div>
+
+    <nav>
+
+        <a href="/">
+            Home
+        </a>
+
+        <a href="/login.html">
+            Login
+        </a>
+
+        <a href="/signup.html">
+            Create Account
+        </a>
+
+    </nav>
+
+</header>
 
 
-<img
-    id="avatar"
-    class="avatar"
-    src="https://placehold.co/200x200"
-    alt="Avatar"
->
+<main class="container">
 
-<h1 id="displayName">
-    Loading...
-</h1>
+    <section
+        class="profile"
+        id="profile"
+    >
 
-<p
-    id="username"
-    class="username"
->
-    Loading...
-</p>
+        <p>
+            Loading profile...
+        </p>
 
-<p id="bio"></p>
-
-<br>
-
-<a href="/">
-    ← Back to ShrekBook
-</a>
+    </section>
 
 
-</div>
+    <section>
+
+        <h2>Posts</h2>
+
+        <div id="profilePosts">
+
+            Loading posts...
+
+        </div>
+
+    </section>
+
+</main>
+
 
 <script>
 
-const params =
-    new URLSearchParams(
-        window.location.search
-    );
-
-const userId =
-    params.get("id");
-
 async function loadProfile() {
+
+    const params =
+        new URLSearchParams(
+            window.location.search
+        );
+
+    const userId =
+        params.get("id");
+
+    const profile =
+        document.getElementById(
+            "profile"
+        );
+
+    const posts =
+        document.getElementById(
+            "profilePosts"
+        );
 
     if (!userId) {
 
-        document.getElementById(
-            "displayName"
-        ).textContent =
-            "No user specified";
+        profile.innerHTML =
+            "<p>❌ No user ID provided.</p>";
 
         return;
+
     }
 
     try {
@@ -108,57 +121,140 @@ async function loadProfile() {
                 `/api/users/${userId}`
             );
 
-        const user =
+        const data =
             await response.json();
 
         if (!response.ok) {
+
             throw new Error(
-                "User not found"
+                data.error ||
+                "Could not load profile"
             );
+
         }
 
-        document.getElementById(
-            "displayName"
-        ).textContent =
-            user.displayName;
+        profile.innerHTML = `
 
-        document.getElementById(
-            "username"
-        ).textContent =
-            "@" + user.username;
+            <img
+                class="profile-avatar"
+                src="${
+                    data.avatar ||
+                    "/shrek.webp"
+                }"
+                alt="Avatar"
+            >
 
-        document.getElementById(
-            "avatar"
-        ).src =
-            user.avatar;
+            <h2>
+                ${escapeHTML(
+                    data.display_name ||
+                    data.username
+                )}
+            </h2>
 
-        document.getElementById(
-            "bio"
-        ).textContent =
-            user.bio;
+            <p>
+                @${escapeHTML(
+                    data.username
+                )}
+            </p>
 
-        document.title =
-            user.displayName +
-            " - ShrekBook";
+            <div class="stats">
+
+                <span>
+                    🧌 Ogres:
+                    ${data.ogred ?? 0}
+                </span>
+
+                <span>
+                    🐈 Cats:
+                    ${data.cat ?? 0}
+                </span>
+
+                <span>
+                    🍑 Gyatts:
+                    ${data.gyatt ?? 0}
+                </span>
+
+            </div>
+
+        `;
+
+        if (
+            data.posts &&
+            data.posts.length
+        ) {
+
+            posts.innerHTML = "";
+
+            data.posts.forEach(post => {
+
+                const element =
+                    document.createElement(
+                        "div"
+                    );
+
+                element.className =
+                    "post";
+
+                element.innerHTML = `
+
+                    <p>
+                        ${escapeHTML(
+                            post.content
+                        )}
+                    </p>
+
+                    <small>
+                        ${new Date(
+                            post.created_at
+                        ).toLocaleString()}
+                    </small>
+
+                `;
+
+                posts.appendChild(
+                    element
+                );
+
+            });
+
+        } else {
+
+            posts.innerHTML =
+                "<p>No posts yet.</p>";
+
+        }
 
     } catch (error) {
 
-        document.getElementById(
-            "displayName"
-        ).textContent =
-            "User not found";
+        console.error(error);
 
-        document.getElementById(
-            "username"
-        ).textContent = "";
+        profile.innerHTML = `
 
-        document.getElementById(
-            "bio"
-        ).textContent =
-            "This profile doesn't exist.";
+            <p class="error">
+                ❌ ${escapeHTML(
+                    error.message
+                )}
+            </p>
+
+        `;
 
     }
+
 }
+
+
+function escapeHTML(value) {
+
+    const div =
+        document.createElement("div");
+
+    div.textContent =
+        value ?? "";
+
+    return div.innerHTML;
+
+}
+
 
 loadProfile();
 
