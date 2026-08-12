@@ -311,7 +311,7 @@ app.post("/api/login", async (req, res) => {
             });
         }
 
-        // Log into Supabase Auth
+        // Authenticate with Supabase
         const {
             data: authData,
             error: authError
@@ -328,16 +328,18 @@ app.post("/api/login", async (req, res) => {
             });
         }
 
-        const userId = authData.user.id;
+        const user = authData.user;
 
-        // Find the ShrekBook profile
+        console.log("✅ Auth user:", user.id);
+
+        // Look for the profile using the Auth UUID
         const {
             data: profile,
             error: profileError
         } = await supabase
             .from("profiles")
             .select("*")
-            .eq("id", userId)
+            .eq("id", user.id)
             .maybeSingle();
 
         if (profileError) {
@@ -351,28 +353,152 @@ app.post("/api/login", async (req, res) => {
             });
         }
 
-        // Auth account exists, but profile doesn't
-        if (!profile) {
-            return res.status(404).json({
-                error:
-                    "Your login account exists, but your ShrekBook profile does not. Create a new account or create the missing profile."
-            });
+        let finalProfile = profile;
+
+        // ==========================================
+        // CREATE MISSING PROFILE
+        // ==========================================
+
+        if (!finalProfile) {
+
+            console.log(
+                "⚠️ No profile found. Creating one..."
+            );
+
+            let username =
+                (user.email || "user")
+                    .split("@")[0]
+                    .toLowerCase()
+                    .replace(/[^a-z0-9_]/g, "")
+                    .slice(0, 20);
+
+            if (!username) {
+                username = "user";
+            }
+
+            // Make username unique
+            let originalUsername = username;
+            let number = 1;
+
+            while (true) {
+
+                const {
+                    data: existingUser,
+                    error: usernameError
+                } = await supabase
+                    .from("profiles")
+                    .select("id")
+                    .eq("username", username)
+                    .maybeSingle();
+
+                if (usernameError) {
+                    console.error(
+                        "USERNAME CHECK ERROR:",
+                        usernameError
+                    );
+
+                    return res.status(500).json({
+                        error:
+                            usernameError.message
+                    });
+                }
+
+                if (!existingUser) {
+                    break;
+                }
+
+                username =
+                    `${originalUsername}${number}`;
+
+                number++;
+            }
+
+            const {
+                data: newProfile,
+                error: createError
+            } = await supabase
+                .from("profiles")
+                .insert({
+                    id: user.id,
+                    username: username,
+                    display_name: username,
+                    avatar: null,
+                    bio: "",
+                    gyatt: 0,
+                    cat: 0,
+                    ogres: 0
+                })
+                .select()
+                .maybeSingle();
+
+            if (createError) {
+
+                console.error(
+                    "PROFILE CREATE ERROR:",
+                    createError
+                );
+
+                return res.status(500).json({
+                    error:
+                        "Could not create your ShrekBook profile: " +
+                        createError.message
+                });
+            }
+
+            if (!newProfile) {
+
+                return res.status(500).json({
+                    error:
+                        "Profile creation returned no profile."
+                });
+            }
+
+            finalProfile = newProfile;
+
+            console.log(
+                "✅ Created profile:",
+                finalProfile.username
+            );
         }
 
-        // Create Express session
+        // ==========================================
+        // CREATE LOGIN SESSION
+        // ==========================================
+
         req.session.user = {
-            id: profile.id,
-            username: profile.username,
-            display_name: profile.display_name
+            id: finalProfile.id,
+            username: finalProfile.username,
+            display_name: finalProfile.display_name
         };
 
-        res.json({
-            success: true,
-            user: profile
+        req.session.save(error => {
+
+            if (error) {
+
+                console.error(
+                    "SESSION SAVE ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        "Login succeeded but session could not be saved."
+                });
+            }
+
+            res.json({
+                success: true,
+                user: finalProfile
+            });
+
         });
 
     } catch (error) {
-        console.error("LOGIN SERVER ERROR:", error);
+
+        console.error(
+            "LOGIN SERVER ERROR:",
+            error
+        );
 
         res.status(500).json({
             error: error.message
