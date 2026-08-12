@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/jw20152025-blip/ShrekBook#readme",
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
     "express": "^5.2.1",
     "express-session": "^1.19.0"
   }

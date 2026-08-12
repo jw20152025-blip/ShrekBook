@@ -1,160 +1,172 @@
+
 <!DOCTYPE html>
 
-<html>
+<html lang="en">
 
 <head>
 
+    <meta charset="UTF-8">
 
-<meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-<title>Profile - ShrekBook</title>
+    <link
+        rel="stylesheet"
+        href="styles.css"
+    >
 
-<style>
-
-    body {
-        margin: 0;
-        font-family: Arial, sans-serif;
-        background: #f1f1f1;
-    }
-
-    .profile {
-        max-width: 600px;
-        margin: 50px auto;
-        padding: 30px;
-        background: white;
-        border-radius: 15px;
-        text-align: center;
-    }
-
-    .avatar {
-        width: 150px;
-        height: 150px;
-        border-radius: 50%;
-        object-fit: cover;
-    }
-
-    .username {
-        color: #777;
-    }
-
-</style>
-
+    <title>Profile - ShrekBook</title>
 
 </head>
 
 <body>
 
-<div class="profile">
+<header>
+
+    <div class="brand">
+
+        <h1>🧌 ShrekBook</h1>
+
+    </div>
+
+    <nav>
+
+        <a href="/">
+            Home
+        </a>
+
+        <a href="/login.html">
+            Login
+        </a>
+
+    </nav>
+
+</header>
 
 
-<img
-    id="avatar"
-    class="avatar"
-    src="https://placehold.co/200x200"
-    alt="Avatar"
->
+<div class="container">
 
-<h1 id="displayName">
-    Loading...
-</h1>
+    <div id="profile">
 
-<p
-    id="username"
-    class="username"
->
-    Loading...
-</p>
+        Loading profile...
 
-<p id="bio"></p>
-
-<br>
-
-<a href="/">
-    ← Back to ShrekBook
-</a>
-
+    </div>
 
 </div>
 
+
 <script>
-
-const params =
-    new URLSearchParams(
-        window.location.search
-    );
-
-const userId =
-    params.get("id");
 
 async function loadProfile() {
 
-    if (!userId) {
+    const params =
+        new URLSearchParams(
+            window.location.search
+        );
+
+    const id =
+        params.get("id");
+
+    if (!id) {
 
         document.getElementById(
-            "displayName"
-        ).textContent =
-            "No user specified";
+            "profile"
+        ).innerHTML =
+            "<h2>No profile specified.</h2>";
 
         return;
+
     }
 
     try {
 
         const response =
-            await fetch(
-                `/api/users/${userId}`
+            await fetch(`/api/users/${id}`);
+
+        if (!response.ok) {
+            throw new Error(
+                "Profile not found"
             );
+        }
 
         const user =
             await response.json();
 
-        if (!response.ok) {
-            throw new Error(
-                "User not found"
-            );
-        }
-
         document.getElementById(
-            "displayName"
-        ).textContent =
-            user.displayName;
+            "profile"
+        ).innerHTML = `
 
-        document.getElementById(
-            "username"
-        ).textContent =
-            "@" + user.username;
+            <img
+                class="profile-avatar"
+                src="${user.avatar || "https://placehold.co/200x200"}"
+                alt="Avatar"
+            >
 
-        document.getElementById(
-            "avatar"
-        ).src =
-            user.avatar;
+            <h2>
+                ${user.display_name}
+            </h2>
 
-        document.getElementById(
-            "bio"
-        ).textContent =
-            user.bio;
+            <p>
+                @${user.username}
+            </p>
 
-        document.title =
-            user.displayName +
-            " - ShrekBook";
+            <div class="profile-stats">
+
+                <div class="stat">
+
+                    <strong>
+                        ${user.gyatt}
+                    </strong>
+
+                    <span>
+                        💀 Gyatt
+                    </span>
+
+                </div>
+
+
+                <div class="stat">
+
+                    <strong>
+                        ${user.cat}
+                    </strong>
+
+                    <span>
+                        🐱 Cat
+                    </span>
+
+                </div>
+
+
+                <div class="stat">
+
+                    <strong>
+                        ${user.ogred}
+                    </strong>
+
+                    <span>
+                        🧌 Ogred
+                    </span>
+
+                </div>
+
+            </div>
+
+        `;
 
     } catch (error) {
 
-        document.getElementById(
-            "displayName"
-        ).textContent =
-            "User not found";
+        console.error(error);
 
         document.getElementById(
-            "username"
-        ).textContent = "";
-
-        document.getElementById(
-            "bio"
-        ).textContent =
-            "This profile doesn't exist.";
+            "profile"
+        ).innerHTML =
+            "<h2>Profile not found 😭</h2>";
 
     }
+
 }
 
 loadProfile();
@@ -164,3 +176,4 @@ loadProfile();
 </body>
 
 </html>
+

@@ -1,138 +1,183 @@
-<!DOCTYPE html>
 
-<html>
+<!DOCTYPE html>
+<html lang="en">
 
 <head>
+    <meta charset="UTF-8">
 
-<meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-<title>Create Account - ShrekBook</title>
+    <link rel="stylesheet" href="styles.css">
 
-
+    <title>Create Account - ShrekBook</title>
 </head>
 
 <body>
 
-<h1>Create a ShrekBook Account 🧌</h1>
+<header>
 
-<form id="signupForm">
+    <div class="brand">
+        <h1>🧌 ShrekBook</h1>
+    </div>
 
-<input
-    id="username"
-    placeholder="Username"
-    required
->
+    <nav>
+        <a href="/">Home</a>
+        <a href="/login.html">Login</a>
+    </nav>
 
-<br><br>
-
-<input
-    id="displayName"
-    placeholder="Display name"
->
-
-<br><br>
-
-<input
-    id="password"
-    type="password"
-    placeholder="Password"
-    required
->
-
-<br><br>
-
-<input
-    id="avatar"
-    placeholder="Avatar image URL"
->
-
-<br><br>
-
-<textarea
-    id="bio"
-    placeholder="Bio"
-></textarea>
-
-<br><br>
-
-<button type="submit">
-    Create Account
-</button>
+</header>
 
 
-</form>
+<div class="container">
 
-<p id="message"></p>
+    <div class="welcome">
 
-<a href="/login.html">
-    Already have an account? Login
-</a>
+        <h2>Create your ShrekBook account</h2>
+
+        <form id="signupForm">
+
+            <input
+                type="text"
+                id="username"
+                placeholder="Username"
+                required
+            >
+
+            <input
+                type="text"
+                id="displayName"
+                placeholder="Display name"
+                required
+            >
+
+            <input
+                type="email"
+                id="email"
+                placeholder="Email"
+                required
+            >
+
+            <input
+                type="password"
+                id="password"
+                placeholder="Password"
+                required
+            >
+
+            <input
+                type="url"
+                id="avatar"
+                placeholder="Avatar URL (optional)"
+            >
+
+            <button type="submit">
+                Create Account
+            </button>
+
+        </form>
+
+        <p id="message"></p>
+
+    </div>
+
+</div>
+
 
 <script>
 
 document
     .getElementById("signupForm")
-    .addEventListener("submit", async event => {
+    .addEventListener("submit", async (event) => {
 
         event.preventDefault();
 
-        const response = await fetch(
-            "/api/register",
-            {
-                method: "POST",
+        const message =
+            document.getElementById("message");
 
-                headers: {
-                    "Content-Type": "application/json"
-                },
+        message.textContent =
+            "Creating account...";
 
-                body: JSON.stringify({
+        try {
 
-                    username:
-                        document.getElementById(
-                            "username"
-                        ).value,
+            const response = await fetch(
+                "/api/signup",
+                {
+                    method: "POST",
 
-                    displayName:
-                        document.getElementById(
-                            "displayName"
-                        ).value,
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-                    password:
-                        document.getElementById(
-                            "password"
-                        ).value,
+                    body: JSON.stringify({
 
-                    avatar:
-                        document.getElementById(
-                            "avatar"
-                        ).value,
+                        username:
+                            document.getElementById(
+                                "username"
+                            ).value,
 
-                    bio:
-                        document.getElementById(
-                            "bio"
-                        ).value
-                })
+                        displayName:
+                            document.getElementById(
+                                "displayName"
+                            ).value,
+
+                        email:
+                            document.getElementById(
+                                "email"
+                            ).value,
+
+                        password:
+                            document.getElementById(
+                                "password"
+                            ).value,
+
+                        avatar:
+                            document.getElementById(
+                                "avatar"
+                            ).value
+
+                    })
+                }
+            );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+
+                message.textContent =
+                    data.error ||
+                    "Signup failed.";
+
+                return;
             }
-        );
 
-        const data =
-            await response.json();
+            message.textContent =
+                "Account created! 🎉";
 
-        if (!response.ok) {
+            setTimeout(() => {
 
-            document.getElementById(
-                "message"
-            ).textContent = data.error;
+                window.location.href =
+                    "/login.html";
 
-            return;
+            }, 1000);
+
+        } catch (error) {
+
+            console.error(error);
+
+            message.textContent =
+                "Something went wrong.";
+
         }
 
-        window.location.href =
-            "/profile.html?id=" + data.user.id;
     });
 
 </script>
 
 </body>
-
 </html>
+

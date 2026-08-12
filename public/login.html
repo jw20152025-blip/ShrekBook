@@ -1,103 +1,163 @@
-<!DOCTYPE html>
 
-<html>
+<!DOCTYPE html>
+<html lang="en">
 
 <head>
 
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
 
-<title>Login - ShrekBook</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
+    <link rel="stylesheet" href="styles.css">
+
+    <title>Login - ShrekBook</title>
 
 </head>
 
 <body>
 
-<h1>Login to ShrekBook 🧌</h1>
+<header>
 
-<form id="loginForm">
+    <div class="brand">
+        <h1>🧌 ShrekBook</h1>
+    </div>
 
+    <nav>
 
-<input
-    id="username"
-    placeholder="Username"
-    required
->
+        <a href="/">
+            Home
+        </a>
 
-<br><br>
+        <a href="/signup.html">
+            Create Account
+        </a>
 
-<input
-    id="password"
-    type="password"
-    placeholder="Password"
-    required
->
+    </nav>
 
-<br><br>
-
-<button type="submit">
-    Login
-</button>
+</header>
 
 
-</form>
+<div class="container">
 
-<p id="message"></p>
+    <div class="welcome">
 
-<a href="/signup.html">
-    Create an account
-</a>
+        <h2>Login</h2>
+
+        <form id="loginForm">
+
+            <input
+                type="email"
+                id="email"
+                placeholder="Email"
+                required
+            >
+
+            <input
+                type="password"
+                id="password"
+                placeholder="Password"
+                required
+            >
+
+            <button type="submit">
+                Login
+            </button>
+
+        </form>
+
+        <p id="message"></p>
+
+    </div>
+
+</div>
+
 
 <script>
 
 document
     .getElementById("loginForm")
-    .addEventListener("submit", async event => {
+    .addEventListener("submit", async (event) => {
 
         event.preventDefault();
 
-        const response = await fetch(
-            "/api/login",
-            {
-                method: "POST",
+        const message =
+            document.getElementById("message");
 
-                headers: {
-                    "Content-Type": "application/json"
-                },
+        message.textContent =
+            "Logging in...";
 
-                body: JSON.stringify({
+        try {
 
-                    username:
-                        document.getElementById(
-                            "username"
-                        ).value,
+            const response = await fetch(
+                "/api/login",
+                {
+                    method: "POST",
 
-                    password:
-                        document.getElementById(
-                            "password"
-                        ).value
-                })
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                        email:
+                            document.getElementById(
+                                "email"
+                            ).value,
+
+                        password:
+                            document.getElementById(
+                                "password"
+                            ).value
+
+                    })
+                }
+            );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+
+                message.textContent =
+                    data.error ||
+                    "Login failed.";
+
+                return;
+
             }
-        );
 
-        const data =
-            await response.json();
+            localStorage.setItem(
+                "shrekbook_token",
+                data.access_token
+            );
 
-        if (!response.ok) {
+            message.textContent =
+                "Logged in! 🧌";
 
-            document.getElementById(
-                "message"
-            ).textContent = data.error;
+            setTimeout(() => {
 
-            return;
+                window.location.href =
+                    "/";
+
+            }, 500);
+
+        } catch (error) {
+
+            console.error(error);
+
+            message.textContent =
+                "Something went wrong.";
+
         }
 
-        window.location.href =
-            "/";
     });
 
 </script>
 
 </body>
-
 </html>
+
