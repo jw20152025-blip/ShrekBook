@@ -1,11 +1,10 @@
 <!DOCTYPE html>
-
-<html>
+<html lang="en">
 
 <head>
 
     <meta charset="UTF-8">
-    <
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -15,7 +14,7 @@
 
     <link
         rel="stylesheet"
-        href="styles.css"
+        href="/styles.css"
     >
 
 </head>
@@ -24,59 +23,76 @@
 
 <header>
 
-    <h1>🧌 ShrekBook</h1>
+    <div class="brand">
+
+        <div class="logo">
+            🧌
+        </div>
+
+        <h1>
+            ShrekBook
+        </h1>
+
+    </div>
 
     <nav>
-        <a href="/">Home</a>
-        <a href="/signup.html">
-            Create Account
+
+        <a href="/">
+            Home
         </a>
+
+        <a href="/signup.html">
+            Sign Up
+        </a>
+
     </nav>
 
 </header>
 
 
-<main class="auth-container">
+<main class="container">
 
-    <div class="auth-card">
+<section class="form-box">
 
-        <h2>Login</h2>
-
-        <form id="loginForm">
-
-            <input
-                id="email"
-                type="email"
-                placeholder="Email"
-                required
-            >
-
-            <input
-                id="password"
-                type="password"
-                placeholder="Password"
-                required
-            >
-
-            <button type="submit">
-                Login
-            </button>
-
-        </form>
+    <h2>
+        Login
+    </h2>
 
 
-        <p id="message"></p>
+    <form id="loginForm">
+
+        <label>
+            Email
+        </label>
+
+        <input
+            id="email"
+            type="email"
+            required
+        >
 
 
-        <p>
-            Don't have an account?
+        <label>
+            Password
+        </label>
 
-            <a href="/signup.html">
-                Create one
-            </a>
-        </p>
+        <input
+            id="password"
+            type="password"
+            required
+        >
 
-    </div>
+
+        <button type="submit">
+            Login
+        </button>
+
+    </form>
+
+
+    <p id="loginMessage"></p>
+
+</section>
 
 </main>
 
@@ -106,61 +122,69 @@ document
 
             const message =
                 document.getElementById(
-                    "message"
+                    "loginMessage"
                 );
 
 
-            const response =
-                await fetch(
-                    "/api/login",
-                    {
-
-                        method: "POST",
-
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
-
-                        body: JSON.stringify({
-
-                            email,
-                            password
-
-                        })
-
-                    }
-                );
+            message.textContent =
+                "Logging in...";
 
 
-            const data =
-                await response.json();
+            try {
+
+                const response =
+                    await fetch(
+                        "/api/login",
+                        {
+
+                            method: "POST",
+
+                            credentials:
+                                "include",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body:
+                                JSON.stringify({
+
+                                    email,
+
+                                    password
+
+                                })
+
+                        }
+                    );
 
 
-            if (!response.ok) {
+                const data =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        data.error ||
+                        "Login failed."
+                    );
+
+                }
+
+
+                window.location.href =
+                    "/";
+
+
+            } catch (error) {
 
                 message.textContent =
-                    data.error ||
-                    "Login failed.";
+                    "❌ " +
+                    error.message;
 
-                return;
             }
-
-
-            localStorage.setItem(
-                "shrekbook_user_id",
-                data.user.id
-            );
-
-
-            localStorage.setItem(
-                "shrekbook_token",
-                data.access_token
-            );
-
-
-            window.location.href =
-                "/";
 
         }
     );

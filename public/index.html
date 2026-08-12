@@ -25,15 +25,16 @@
 
     <div class="brand">
 
-        <img
-            class="avatar"
-            src="/shrek.webp"
-            alt="Shrek"
-        >
+        <div class="logo">
+            🧌
+        </div>
 
-        <h1>ShrekBook</h1>
+        <h1>
+            ShrekBook
+        </h1>
 
     </div>
+
 
     <nav>
 
@@ -41,13 +42,27 @@
             Home
         </a>
 
-        <a href="/login.html">
+        <a
+            href="/login.html"
+            id="loginLink"
+        >
             Login
         </a>
 
-        <a href="/signup.html">
-            Create Account
+        <a
+            href="/signup.html"
+            id="signupLink"
+        >
+            Sign Up
         </a>
+
+        <button
+            id="logoutButton"
+            onclick="logout()"
+            style="display:none;"
+        >
+            Logout
+        </button>
 
     </nav>
 
@@ -57,25 +72,23 @@
 <main class="container">
 
 
-    <!-- WELCOME -->
-
     <section class="welcome">
 
         <h2>
-            Welcome to ShrekBook! 🧌
+            Welcome to ShrekBook 🧌
         </h2>
 
-        <p>
-            The social network for
-            absolutely normal people.
+        <p id="loginStatus">
+            Loading...
         </p>
 
     </section>
 
 
-    <!-- CREATE POST -->
-
-    <section class="create-post">
+    <section
+        id="createPostSection"
+        style="display:none;"
+    >
 
         <h2>
             Create a Post
@@ -95,44 +108,33 @@
     </section>
 
 
-    <!-- POSTS -->
-
     <section>
 
         <h2>
-            Posts
+            📝 Posts
         </h2>
 
         <div id="posts">
-
             Loading posts...
-
         </div>
 
     </section>
 
-
-    <!-- PEOPLE -->
 
     <section>
 
         <h2>
-            People
+            👥 People
         </h2>
 
         <div id="people">
-
             Loading people...
-
         </div>
 
     </section>
 
-
 </main>
 
-
-<!-- FRONTEND JAVASCRIPT -->
 
 <script src="/script.js"></script>
 

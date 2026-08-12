@@ -2,148 +2,518 @@ require("dotenv").config();
 
 const express = require("express");
 const session = require("express-session");
-const path = require("path");
-
-const {
-    createClient
-} = require("@supabase/supabase-js");
-
+const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 
 const PORT = process.env.PORT || 3000;
 
+const SUPABASE_URL =
+    process.env.SUPABASE_URL;
 
-if (
-    !process.env.SUPABASE_URL ||
-    !process.env.SUPABASE_SERVICE_ROLE_KEY
-) {
-    console.error("❌ Missing Supabase environment variables.");
+const SUPABASE_SERVICE_ROLE_KEY =
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const SESSION_SECRET =
+    process.env.SESSION_SECRET;
+
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+
+    console.error(
+        "❌ Missing Supabase environment variables."
+    );
+
+    process.exit(1);
+}
+
+
+if (!SESSION_SECRET) {
+
+    console.error(
+        "❌ Missing SESSION_SECRET."
+    );
 
     process.exit(1);
 }
 
 
 const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY
 );
 
 
-// ============================================
-// MIDDLEWARE
-// ============================================
+// ========================================
+// EXPRESS
+// ========================================
 
 app.use(express.json());
 
-app.use(express.urlencoded({
-    extended: true
-}));
+app.use(
+    express.urlencoded({
+        extended: true
+    })
+);
 
+
+app.set(
+    "trust proxy",
+    1
+);
+
+
+// ========================================
+// SESSION
+// ========================================
 
 app.use(
     session({
-        secret:
-            process.env.SESSION_SECRET ||
-            "change-this-secret",
+
+        secret: SESSION_SECRET,
 
         resave: false,
 
         saveUninitialized: false,
 
         cookie: {
+
             httpOnly: true,
-            secure: false,
-            maxAge: 1000 * 60 * 60 * 24 * 7
+
+            secure:
+                process.env.NODE_ENV === "production",
+
+            sameSite: "lax",
+
+            maxAge:
+                1000 *
+                60 *
+                60 *
+                24 *
+                30
+
         }
+
     })
 );
 
 
-app.use(express.static(
-    path.join(__dirname, "public")
-));
+// ========================================
+// FRONTEND
+// ========================================
+
+app.use(
+    express.static("public")
+);
 
 
-// ============================================
-// TEST SUPABASE
-// ============================================
+// ========================================
+// HEALTH
+// ========================================
 
-app.get("/api/test-supabase", async (req, res) => {
+app.get("/api/health", (req, res) => {
+
+    res.json({
+
+        ok: true,
+
+        loggedIn:
+            !!req.session.user
+
+    });
+
+});
+
+
+// ========================================
+// SIGNUP
+// ========================================
+
+app.post("/api/signup", async (req, res) => {
 
     try {
 
-        const { data, error } =
-            await supabase
-                .from("profiles")
-                .select("*")
-                .limit(5);
+        const {
+            username,
+            displayName,
+            email,
+            password
+        } = req.body;
 
 
-        if (error) {
+        if (
+            !username ||
+            !displayName ||
+            !email ||
+            !password
+        ) {
+
+            return res.status(400).json({
+                error:
+                    "All fields are required."
+            });
+
+        }
+
+
+        if (password.length < 6) {
+
+            return res.status(400).json({
+                error:
+                    "Password must be at least 6 characters."
+            });
+
+        }
+
+
+        const {
+            data: existing
+        } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq(
+                "username",
+                username
+            )
+            .maybeSingle();
+
+
+        if (existing) {
+
+            return res.status(400).json({
+                error:
+                    "Username is already taken."
+            });
+
+        }
+
+
+        // Create Auth account
+
+        const {
+            data: authData,
+            error: authError
+        } = await supabase.auth.admin.createUser({
+
+            email,
+
+            password,
+
+            email_confirm: true
+
+        });
+
+
+        if (authError) {
 
             console.error(
-                "Supabase test error:",
-                error
+                authError
+            );
+
+            return res.status(400).json({
+                error:
+                    authError.message
+            });
+
+        }
+
+
+        const user =
+            authData.user;
+
+
+        // Create profile
+
+        const {
+            data: profile,
+            error: profileError
+        } = await supabase
+            .from("profiles")
+            .insert({
+
+                id: user.id,
+
+                username,
+
+                display_name:
+                    displayName,
+
+                avatar: null,
+
+                bio: "",
+
+                gyatt: 0,
+
+                cat: 0,
+
+                ogres: 0
+
+            })
+            .select()
+            .single();
+
+
+        if (profileError) {
+
+            console.error(
+                profileError
+            );
+
+            await supabase.auth.admin.deleteUser(
+                user.id
             );
 
             return res.status(500).json({
-                success: false,
-                error: error.message
+                error:
+                    profileError.message
             });
+
         }
 
 
         res.json({
+
             success: true,
-            users: data
+
+            user: profile
+
         });
+
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "SIGNUP ERROR:",
+            error
+        );
 
         res.status(500).json({
-            success: false,
-            error: error.message
+            error:
+                error.message
         });
+
     }
+
 });
 
 
-// ============================================
+// ========================================
+// LOGIN
+// ========================================
+
+app.post("/api/login", async (req, res) => {
+
+    try {
+
+        const {
+            email,
+            password
+        } = req.body;
+
+
+        const {
+            data,
+            error
+        } = await supabase.auth.signInWithPassword({
+
+            email,
+
+            password
+
+        });
+
+
+        if (error) {
+
+            return res.status(401).json({
+                error:
+                    error.message
+            });
+
+        }
+
+
+        const {
+            data: profile,
+            error: profileError
+        } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq(
+                "id",
+                data.user.id
+            )
+            .single();
+
+
+        if (profileError) {
+
+            return res.status(500).json({
+                error:
+                    profileError.message
+            });
+
+        }
+
+
+        req.session.user = {
+
+            id: profile.id,
+
+            username:
+                profile.username,
+
+            display_name:
+                profile.display_name
+
+        };
+
+
+        res.json({
+
+            success: true,
+
+            user: profile
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "LOGIN ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error:
+                error.message
+        });
+
+    }
+
+});
+
+
+// ========================================
+// LOGOUT
+// ========================================
+
+app.post("/api/logout", (req, res) => {
+
+    req.session.destroy(error => {
+
+        if (error) {
+
+            return res.status(500).json({
+                error:
+                    "Logout failed."
+            });
+
+        }
+
+
+        res.json({
+            success: true
+        });
+
+    });
+
+});
+
+
+// ========================================
+// CURRENT USER
+// ========================================
+
+app.get("/api/me", async (req, res) => {
+
+    if (!req.session.user) {
+
+        return res.json({
+            loggedIn: false
+        });
+
+    }
+
+
+    const {
+        data,
+        error
+    } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq(
+            "id",
+            req.session.user.id
+        )
+        .single();
+
+
+    if (error) {
+
+        return res.status(500).json({
+            error:
+                error.message
+        });
+
+    }
+
+
+    res.json({
+
+        loggedIn: true,
+
+        user: data
+
+    });
+
+});
+
+
+// ========================================
 // USERS
-// ============================================
+// ========================================
 
 app.get("/api/users", async (req, res) => {
 
     try {
 
-        const { data, error } =
-            await supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar,
-                    gyatt,
-                    cat,
-                    ogred
-                `)
-                .order("username");
+        const {
+            data,
+            error
+        } = await supabase
+            .from("profiles")
+            .select(`
+                id,
+                username,
+                display_name,
+                avatar,
+                bio,
+                gyatt,
+                cat,
+                ogres,
+                created_at
+            `)
+            .order(
+                "created_at",
+                {
+                    ascending: false
+                }
+            );
 
 
         if (error) {
 
             console.error(
-                "Users error:",
                 error
             );
 
             return res.status(500).json({
-                error: error.message
+                error:
+                    error.message
             });
+
         }
 
 
@@ -151,107 +521,615 @@ app.get("/api/users", async (req, res) => {
 
     } catch (error) {
 
-        console.error(error);
-
         res.status(500).json({
-            error: "Server error"
+            error:
+                error.message
         });
+
     }
+
 });
 
 
-// ============================================
-// GET PROFILE
-// ============================================
+// ========================================
+// PROFILE
+// ========================================
 
-app.get("/api/profile/:id", async (req, res) => {
+app.get(
+    "/api/users/:id",
+    async (req, res) => {
 
-    try {
+        try {
 
-        const { id } = req.params;
-
-
-        const { data, error } =
-            await supabase
+            const {
+                data: profile,
+                error
+            } = await supabase
                 .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar,
-                    gyatt,
-                    cat,
-                    ogred
-                `)
-                .eq("id", id)
+                .select("*")
+                .eq(
+                    "id",
+                    req.params.id
+                )
                 .single();
 
 
-        if (error) {
+            if (error) {
 
-            return res.status(404).json({
-                error: error.message
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+
+            }
+
+
+            const {
+                data: posts,
+                error: postsError
+            } = await supabase
+                .from("posts")
+                .select("*")
+                .eq(
+                    "user_id",
+                    req.params.id
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                );
+
+
+            if (postsError) {
+
+                return res.status(500).json({
+                    error:
+                        postsError.message
+                });
+
+            }
+
+
+            res.json({
+
+                ...profile,
+
+                posts
+
             });
+
+
+        } catch (error) {
+
+            res.status(500).json({
+                error:
+                    error.message
+            });
+
         }
 
-
-        res.json(data);
-
-    } catch (error) {
-
-        console.error(error);
-
-        res.status(500).json({
-            error: "Server error"
-        });
     }
-});
+);
 
 
-// ============================================
-// SIGNUP
-// ============================================
+// ========================================
+// UPDATE PROFILE
+// ========================================
 
-aapp.get("/api/posts", async (req, res) => {
-    try {
-        const { data, error } = await supabase
-            .from("posts")
-            .select(`
-                id,
-                content,
-                created_at,
-                user_id
-            `)
-            .order("created_at", {
-                ascending: false
+app.put(
+    "/api/profile",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.user) {
+
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+
+            }
+
+
+            const userId =
+                req.session.user.id;
+
+
+            const {
+
+                display_name,
+
+                bio,
+
+                avatar,
+
+                gyatt,
+
+                cat,
+
+                ogres
+
+            } = req.body;
+
+
+            const {
+                data,
+                error
+            } = await supabase
+                .from("profiles")
+                .update({
+
+                    display_name:
+                        String(
+                            display_name || ""
+                        ).trim(),
+
+                    bio:
+                        String(
+                            bio || ""
+                        ).trim(),
+
+                    avatar:
+                        avatar || null,
+
+                    gyatt:
+                        Math.max(
+                            0,
+                            parseInt(
+                                gyatt
+                            ) || 0
+                        ),
+
+                    cat:
+                        Math.max(
+                            0,
+                            parseInt(
+                                cat
+                            ) || 0
+                        ),
+
+                    ogres:
+                        Math.max(
+                            0,
+                            parseInt(
+                                ogres
+                            ) || 0
+                        )
+
+                })
+                .eq(
+                    "id",
+                    userId
+                )
+                .select()
+                .single();
+
+
+            if (error) {
+
+                console.error(
+                    "PROFILE UPDATE:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+
+            req.session.user.display_name =
+                data.display_name;
+
+
+            res.json({
+
+                success: true,
+
+                user: data
+
             });
 
+
+        } catch (error) {
+
+            res.status(500).json({
+                error:
+                    error.message
+            });
+
+        }
+
+    }
+);
+
+
+// ========================================
+// AVATAR UPLOAD
+// ========================================
+
+app.post(
+    "/api/profile/avatar",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.user) {
+
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+
+            }
+
+
+            const {
+                fileName,
+                fileType,
+                fileData
+            } = req.body;
+
+
+            if (
+                !fileName ||
+                !fileType ||
+                !fileData
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Missing image data."
+                });
+
+            }
+
+
+            if (
+                !fileType.startsWith("image/")
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "File must be an image."
+                });
+
+            }
+
+
+            // Limit roughly 5MB
+
+            const buffer =
+                Buffer.from(
+                    fileData,
+                    "base64"
+                );
+
+
+            if (
+                buffer.length >
+                5 * 1024 * 1024
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Image must be under 5MB."
+                });
+
+            }
+
+
+            const extension =
+                fileName
+                    .split(".")
+                    .pop()
+                    .toLowerCase();
+
+
+            const allowed = [
+                "png",
+                "jpg",
+                "jpeg",
+                "webp",
+                "gif"
+            ];
+
+
+            if (
+                !allowed.includes(
+                    extension
+                )
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Unsupported image type."
+                });
+
+            }
+
+
+            const path =
+                `${req.session.user.id}/${Date.now()}.${extension}`;
+
+
+            const {
+                error: uploadError
+            } = await supabase.storage
+                .from("avatars")
+                .upload(
+                    path,
+                    buffer,
+                    {
+
+                        contentType:
+                            fileType,
+
+                        upsert: true
+
+                    }
+                );
+
+
+            if (uploadError) {
+
+                console.error(
+                    "AVATAR UPLOAD:",
+                    uploadError
+                );
+
+                return res.status(500).json({
+                    error:
+                        uploadError.message
+                });
+
+            }
+
+
+            const {
+                data: publicData
+            } = supabase.storage
+                .from("avatars")
+                .getPublicUrl(path);
+
+
+            const avatarUrl =
+                publicData.publicUrl;
+
+
+            const {
+                data: profile,
+                error: profileError
+            } = await supabase
+                .from("profiles")
+                .update({
+
+                    avatar:
+                        avatarUrl
+
+                })
+                .eq(
+                    "id",
+                    req.session.user.id
+                )
+                .select()
+                .single();
+
+
+            if (profileError) {
+
+                return res.status(500).json({
+                    error:
+                        profileError.message
+                });
+
+            }
+
+
+            res.json({
+
+                success: true,
+
+                avatar:
+                    avatarUrl,
+
+                user:
+                    profile
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "AVATAR ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message
+            });
+
+        }
+
+    }
+);
+
+
+// ========================================
+// POSTS
+// ========================================
+
+app.get("/api/posts", async (req, res) => {
+
+    try {
+
+        const {
+            data: posts,
+            error
+        } = await supabase
+            .from("posts")
+            .select("*")
+            .order(
+                "created_at",
+                {
+                    ascending: false
+                }
+            );
+
+
         if (error) {
-            console.error("❌ Supabase posts error:", error);
 
             return res.status(500).json({
-                error: error.message
+                error:
+                    error.message
             });
+
         }
 
-        console.log("✅ Loaded posts:", data);
 
-        res.json(data);
+        const result = [];
+
+
+        for (
+            const post of posts
+        ) {
+
+            const {
+                data: profile
+            } = await supabase
+                .from("profiles")
+                .select(
+                    "username, display_name, avatar"
+                )
+                .eq(
+                    "id",
+                    post.user_id
+                )
+                .maybeSingle();
+
+
+            result.push({
+
+                ...post,
+
+                username:
+                    profile?.username ||
+                    "Unknown",
+
+                display_name:
+                    profile?.display_name ||
+                    "Unknown",
+
+                avatar:
+                    profile?.avatar ||
+                    null
+
+            });
+
+        }
+
+
+        res.json(result);
+
 
     } catch (error) {
 
-        console.error("❌ GET POSTS ERROR:", error);
-
         res.status(500).json({
-            error: error.message
+            error:
+                error.message
         });
+
     }
+
 });
 
 
-// ============================================
+// ========================================
+// CREATE POST
+// ========================================
+
+app.post("/api/posts", async (req, res) => {
+
+    try {
+
+        if (!req.session.user) {
+
+            return res.status(401).json({
+                error:
+                    "You must be logged in."
+            });
+
+        }
+
+
+        const content =
+            String(
+                req.body.content || ""
+            ).trim();
+
+
+        if (!content) {
+
+            return res.status(400).json({
+                error:
+                    "Post cannot be empty."
+            });
+
+        }
+
+
+        const {
+            data,
+            error
+        } = await supabase
+            .from("posts")
+            .insert({
+
+                user_id:
+                    req.session.user.id,
+
+                content
+
+            })
+            .select()
+            .single();
+
+
+        if (error) {
+
+            return res.status(500).json({
+                error:
+                    error.message
+            });
+
+        }
+
+
+        res.json(data);
+
+
+    } catch (error) {
+
+        res.status(500).json({
+            error:
+                error.message
+        });
+
+    }
+
+});
+
+
+// ========================================
 // COMMENTS
-// ============================================
+// ========================================
 
 app.get(
     "/api/posts/:id/comments",
@@ -259,33 +1137,31 @@ app.get(
 
         try {
 
-            const { data, error } =
-                await supabase
-                    .from("comments")
-                    .select(`
-                        id,
-                        post_id,
-                        user_id,
-                        content,
-                        created_at
-                    `)
-                    .eq(
-                        "post_id",
-                        req.params.id
-                    )
-                    .order(
-                        "created_at",
-                        {
-                            ascending: true
-                        }
-                    );
+            const {
+                data,
+                error
+            } = await supabase
+                .from("comments")
+                .select("*")
+                .eq(
+                    "post_id",
+                    req.params.id
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending: true
+                    }
+                );
 
 
             if (error) {
 
                 return res.status(500).json({
-                    error: error.message
+                    error:
+                        error.message
                 });
+
             }
 
 
@@ -293,12 +1169,13 @@ app.get(
 
         } catch (error) {
 
-            console.error(error);
-
             res.status(500).json({
-                error: "Server error"
+                error:
+                    error.message
             });
+
         }
+
     }
 );
 
@@ -309,179 +1186,81 @@ app.post(
 
         try {
 
-            const {
-                user_id,
-                content
-            } = req.body;
+            if (!req.session.user) {
+
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+
+            }
 
 
-            if (
-                !user_id ||
-                !content?.trim()
-            ) {
+            const content =
+                String(
+                    req.body.content || ""
+                ).trim();
+
+
+            if (!content) {
 
                 return res.status(400).json({
                     error:
-                        "User ID and content are required."
+                        "Comment cannot be empty."
                 });
+
             }
 
 
-            const { data, error } =
-                await supabase
-                    .from("comments")
-                    .insert({
+            const {
+                data,
+                error
+            } = await supabase
+                .from("comments")
+                .insert({
 
-                        post_id:
-                            req.params.id,
+                    post_id:
+                        req.params.id,
 
-                        user_id:
-                            user_id,
+                    user_id:
+                        req.session.user.id,
 
-                        content:
-                            content.trim()
+                    content
 
-                    })
-                    .select()
-                    .single();
+                })
+                .select()
+                .single();
 
 
             if (error) {
 
-                return res.status(400).json({
-                    error: error.message
-                });
-            }
-
-
-            res.status(201).json(data);
-
-        } catch (error) {
-
-            console.error(error);
-
-            res.status(500).json({
-                error: "Server error"
-            });
-        }
-    }
-);
-
-
-// ============================================
-// LIKES
-// ============================================
-
-app.post(
-    "/api/posts/:id/like",
-    async (req, res) => {
-
-        try {
-
-            const {
-                user_id
-            } = req.body;
-
-
-            if (!user_id) {
-
-                return res.status(400).json({
+                return res.status(500).json({
                     error:
-                        "User ID is required."
+                        error.message
                 });
+
             }
 
 
-            const { data, error } =
-                await supabase
-                    .from("likes")
-                    .insert({
+            res.json(data);
 
-                        post_id:
-                            req.params.id,
-
-                        user_id:
-                            user_id
-
-                    })
-                    .select()
-                    .single();
-
-
-            if (error) {
-
-                return res.status(400).json({
-                    error: error.message
-                });
-            }
-
-
-            res.status(201).json(data);
 
         } catch (error) {
 
-            console.error(error);
-
             res.status(500).json({
-                error: "Server error"
+                error:
+                    error.message
             });
+
         }
+
     }
 );
 
 
-app.delete(
-    "/api/posts/:id/like",
-    async (req, res) => {
-
-        try {
-
-            const {
-                user_id
-            } = req.body;
-
-
-            const { error } =
-                await supabase
-                    .from("likes")
-                    .delete()
-                    .eq(
-                        "post_id",
-                        req.params.id
-                    )
-                    .eq(
-                        "user_id",
-                        user_id
-                    );
-
-
-            if (error) {
-
-                return res.status(400).json({
-                    error: error.message
-                });
-            }
-
-
-            res.json({
-                success: true
-            });
-
-        } catch (error) {
-
-            console.error(error);
-
-            res.status(500).json({
-                error: "Server error"
-            });
-        }
-    }
-);
-
-
-// ============================================
-// START SERVER
-// ============================================
+// ========================================
+// SERVER
+// ========================================
 
 app.listen(
     PORT,

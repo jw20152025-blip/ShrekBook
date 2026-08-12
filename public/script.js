@@ -1,4 +1,6 @@
-console.log("🧌 ShrekBook frontend loaded!");
+console.log(
+    "🧌 ShrekBook loaded"
+);
 
 
 // ========================================
@@ -6,44 +8,232 @@ console.log("🧌 ShrekBook frontend loaded!");
 // ========================================
 
 function escapeHTML(value) {
-    const div = document.createElement("div");
-    div.textContent = value ?? "";
+
+    const div =
+        document.createElement("div");
+
+    div.textContent =
+        value ?? "";
+
     return div.innerHTML;
+
 }
 
 
-async function api(url, options = {}) {
+async function api(
+    url,
+    options = {}
+) {
 
-    const response = await fetch(url, {
-        credentials: "include",
-        ...options,
-        headers: {
-            ...(options.body
-                ? { "Content-Type": "application/json" }
-                : {}),
-            ...(options.headers || {})
-        }
-    });
+    const response =
+        await fetch(
+            url,
+            {
 
-    let data;
+                credentials:
+                    "include",
+
+                ...options,
+
+                headers: {
+
+                    ...(options.body
+                        ? {
+                            "Content-Type":
+                                "application/json"
+                        }
+                        : {}),
+
+                    ...(options.headers || {})
+
+                }
+
+            }
+        );
+
+
+    let data = {};
 
     try {
-        data = await response.json();
-    } catch {
-        data = {};
-    }
 
-    console.log("API:", url, response.status, data);
+        data =
+            await response.json();
+
+    } catch {}
+
 
     if (!response.ok) {
+
         throw new Error(
             data.error ||
-            data.message ||
             `Server error ${response.status}`
         );
+
     }
 
+
     return data;
+
+}
+
+
+// ========================================
+// LOGIN STATUS
+// ========================================
+
+async function loadLoginStatus() {
+
+    const status =
+        document.getElementById(
+            "loginStatus"
+        );
+
+
+    if (!status)
+        return;
+
+
+    try {
+
+        const data =
+            await api(
+                "/api/me"
+            );
+
+
+        const logoutButton =
+            document.getElementById(
+                "logoutButton"
+            );
+
+
+        const loginLink =
+            document.getElementById(
+                "loginLink"
+            );
+
+
+        const signupLink =
+            document.getElementById(
+                "signupLink"
+            );
+
+
+        const createPost =
+            document.getElementById(
+                "createPostSection"
+            );
+
+
+        if (data.loggedIn) {
+
+            status.innerHTML = `
+
+                🧌 Logged in as
+
+                <strong>
+                    ${escapeHTML(
+                        data.user.display_name
+                    )}
+                </strong>
+
+                <br>
+
+                <a
+                    href="/profile.html?id=${
+                        encodeURIComponent(
+                            data.user.id
+                        )
+                    }"
+                >
+                    View Profile
+                </a>
+
+            `;
+
+
+            if (logoutButton)
+                logoutButton.style.display =
+                    "inline-block";
+
+
+            if (loginLink)
+                loginLink.style.display =
+                    "none";
+
+
+            if (signupLink)
+                signupLink.style.display =
+                    "none";
+
+
+            if (createPost)
+                createPost.style.display =
+                    "block";
+
+        } else {
+
+            status.innerHTML = `
+
+                You're not logged in.
+
+                <a href="/login.html">
+                    Login
+                </a>
+
+            `;
+
+
+            if (logoutButton)
+                logoutButton.style.display =
+                    "none";
+
+
+            if (createPost)
+                createPost.style.display =
+                    "none";
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            error
+        );
+
+    }
+
+}
+
+
+// ========================================
+// LOGOUT
+// ========================================
+
+async function logout() {
+
+    try {
+
+        await api(
+            "/api/logout",
+            {
+                method:
+                    "POST"
+            }
+        );
+
+
+        location.reload();
+
+
+    } catch (error) {
+
+        alert(
+            error.message
+        );
+
+    }
+
 }
 
 
@@ -53,102 +243,161 @@ async function api(url, options = {}) {
 
 async function loadPeople() {
 
-    const people =
-        document.getElementById("people");
+    const container =
+        document.getElementById(
+            "people"
+        );
 
-    if (!people) return;
 
-    people.innerHTML =
-        "<p>Loading people...</p>";
+    if (!container)
+        return;
+
 
     try {
 
         const users =
-            await api("/api/users");
-
-        console.log("👥 Users:", users);
-
-        people.innerHTML = "";
-
-        if (!Array.isArray(users)) {
-            throw new Error(
-                "Server did not return a user list."
+            await api(
+                "/api/users"
             );
-        }
 
-        if (users.length === 0) {
 
-            people.innerHTML =
-                "<p>No people have joined yet.</p>";
+        container.innerHTML =
+            "";
+
+
+        if (!users.length) {
+
+            container.innerHTML =
+                "<p>No people yet.</p>";
 
             return;
+
         }
 
-        users.forEach(user => {
 
-            const person =
-                document.createElement("div");
+        users.forEach(
+            user => {
 
-            person.className = "person";
+                const element =
+                    document.createElement(
+                        "div"
+                    );
 
-            person.innerHTML = `
 
-                <img
-                    class="profile-avatar"
-                    src="${
-                        user.avatar ||
-                        "/shrek.webp"
-                    }"
-                    alt="Avatar"
-                >
+                element.className =
+                    "person";
 
-                <h3>
-                    ${escapeHTML(
-                        user.display_name ||
-                        user.displayName ||
-                        user.username ||
-                        "Unknown"
-                    )}
-                </h3>
 
-                <p>
-                    @${escapeHTML(
-                        user.username || ""
-                    )}
-                </p>
+                element.innerHTML = `
 
-                <a
-                    href="/profile.html?id=${encodeURIComponent(
-                        user.id
-                    )}"
-                >
-                    View Profile
-                </a>
+                    <div class="person-avatar">
 
-            `;
+                        ${
+                            user.avatar
 
-            people.appendChild(person);
-        });
+                            ?
+
+                            `<img
+                                src="${escapeHTML(
+                                    user.avatar
+                                )}"
+                            >`
+
+                            :
+
+                            "🧌"
+                        }
+
+                    </div>
+
+
+                    <h3>
+
+                        ${escapeHTML(
+                            user.display_name
+                        )}
+
+                    </h3>
+
+
+                    <p>
+
+                        @${escapeHTML(
+                            user.username
+                        )}
+
+                    </p>
+
+
+                    <p class="person-bio">
+
+                        ${
+                            user.bio
+
+                            ?
+
+                            escapeHTML(
+                                user.bio
+                            )
+
+                            :
+
+                            "No bio yet."
+
+                        }
+
+                    </p>
+
+
+                    <a
+                        href="/profile.html?id=${
+                            encodeURIComponent(
+                                user.id
+                            )
+                        }"
+                    >
+                        View Profile
+                    </a>
+
+                `;
+
+
+                container.appendChild(
+                    element
+                );
+
+            }
+        );
+
 
     } catch (error) {
 
         console.error(
-            "❌ PEOPLE ERROR:",
+            "PEOPLE:",
             error
         );
 
-        people.innerHTML = `
+
+        container.innerHTML = `
 
             <p class="error">
+
                 ❌ Could not load people.
+
             </p>
 
             <p>
-                ${escapeHTML(error.message)}
+
+                ${escapeHTML(
+                    error.message
+                )}
+
             </p>
 
         `;
+
     }
+
 }
 
 
@@ -158,72 +407,108 @@ async function loadPeople() {
 
 async function loadPosts() {
 
-    const posts =
-        document.getElementById("posts");
+    const container =
+        document.getElementById(
+            "posts"
+        );
 
-    if (!posts) return;
 
-    posts.innerHTML =
-        "<p>Loading posts...</p>";
+    if (!container)
+        return;
+
 
     try {
 
-        const data =
-            await api("/api/posts");
-
-        console.log("📝 Posts:", data);
-
-        posts.innerHTML = "";
-
-        if (!Array.isArray(data)) {
-
-            throw new Error(
-                "Server did not return a post list."
+        const posts =
+            await api(
+                "/api/posts"
             );
-        }
 
-        if (data.length === 0) {
 
-            posts.innerHTML =
+        container.innerHTML =
+            "";
+
+
+        if (!posts.length) {
+
+            container.innerHTML =
                 "<p>No posts yet.</p>";
 
             return;
+
         }
 
-        data.forEach(post => {
 
-            const element =
-                document.createElement("div");
+        posts.forEach(
+            post => {
 
-            element.className = "post";
+                const element =
+                    document.createElement(
+                        "div"
+                    );
 
-            element.innerHTML = `
 
-                <h3>
-                    ${escapeHTML(
-                        post.display_name ||
-                        post.username ||
-                        "Anonymous"
-                    )}
-                </h3>
+                element.className =
+                    "post";
 
-                <p>
-                    ${escapeHTML(
-                        post.content
-                    )}
-                </p>
 
-                <small>
-                    ${
-                        post.created_at
-                        ? new Date(
-                            post.created_at
-                        ).toLocaleString()
-                        : ""
-                    }
-                </small>
+                element.innerHTML = `
 
-                <div class="post-actions">
+                    <div class="post-header">
+
+
+                        <div>
+
+                            <strong>
+
+                                ${escapeHTML(
+                                    post.display_name
+                                )}
+
+                            </strong>
+
+
+                            <small>
+
+                                @${escapeHTML(
+                                    post.username
+                                )}
+
+                            </small>
+
+                        </div>
+
+
+                        <small>
+
+                            ${
+                                post.created_at
+
+                                ?
+
+                                new Date(
+                                    post.created_at
+                                ).toLocaleString()
+
+                                :
+
+                                ""
+
+                            }
+
+                        </small>
+
+                    </div>
+
+
+                    <p>
+
+                        ${escapeHTML(
+                            post.content
+                        )}
+
+                    </p>
+
 
                     <button
                         onclick="toggleComments('${post.id}')"
@@ -231,38 +516,52 @@ async function loadPosts() {
                         💬 Comments
                     </button>
 
-                </div>
 
-                <div
-                    id="comments-${post.id}"
-                    class="comments"
-                    style="display:none;"
-                ></div>
+                    <div
+                        id="comments-${post.id}"
+                        class="comments"
+                        style="display:none;"
+                    ></div>
 
-            `;
+                `;
 
-            posts.appendChild(element);
-        });
+
+                container.appendChild(
+                    element
+                );
+
+            }
+        );
+
 
     } catch (error) {
 
         console.error(
-            "❌ POSTS ERROR:",
+            "POSTS:",
             error
         );
 
-        posts.innerHTML = `
+
+        container.innerHTML = `
 
             <p class="error">
+
                 ❌ Could not load posts.
+
             </p>
 
             <p>
-                ${escapeHTML(error.message)}
+
+                ${escapeHTML(
+                    error.message
+                )}
+
             </p>
 
         `;
+
     }
+
 }
 
 
@@ -277,49 +576,48 @@ async function createPost() {
             "postContent"
         );
 
-    if (!input) return;
 
     const content =
         input.value.trim();
 
-    if (!content) {
 
-        alert(
-            "You can't post nothing 💀"
-        );
-
+    if (!content)
         return;
-    }
+
 
     try {
 
         await api(
             "/api/posts",
             {
-                method: "POST",
 
-                body: JSON.stringify({
-                    content
-                })
+                method:
+                    "POST",
+
+                body:
+                    JSON.stringify({
+                        content
+                    })
+
             }
         );
 
-        input.value = "";
+
+        input.value =
+            "";
+
 
         await loadPosts();
 
+
     } catch (error) {
 
-        console.error(
-            "❌ CREATE POST ERROR:",
-            error
-        );
-
         alert(
-            "Could not create post:\n\n" +
             error.message
         );
+
     }
+
 }
 
 
@@ -327,42 +625,52 @@ async function createPost() {
 // COMMENTS
 // ========================================
 
-async function toggleComments(postId) {
+async function toggleComments(
+    postId
+) {
 
     const box =
         document.getElementById(
             `comments-${postId}`
         );
 
-    if (!box) return;
 
     if (
-        box.style.display === "none" ||
-        box.style.display === ""
+        box.style.display ===
+        "none"
     ) {
 
-        box.style.display = "block";
+        box.style.display =
+            "block";
 
-        await loadComments(postId);
+
+        await loadComments(
+            postId
+        );
 
     } else {
 
-        box.style.display = "none";
+        box.style.display =
+            "none";
+
     }
+
 }
 
 
-async function loadComments(postId) {
+async function loadComments(
+    postId
+) {
 
     const box =
         document.getElementById(
             `comments-${postId}`
         );
 
-    if (!box) return;
 
     box.innerHTML =
-        "<p>Loading comments...</p>";
+        "<p>Loading...</p>";
+
 
     try {
 
@@ -370,6 +678,7 @@ async function loadComments(postId) {
             await api(
                 `/api/posts/${postId}/comments`
             );
+
 
         box.innerHTML = `
 
@@ -390,117 +699,130 @@ async function loadComments(postId) {
 
         `;
 
-        if (
-            !Array.isArray(comments) ||
-            comments.length === 0
-        ) {
+
+        comments.forEach(
+            comment => {
+
+                const element =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                element.className =
+                    "comment";
+
+
+                element.innerHTML = `
+
+                    <p>
+
+                        ${escapeHTML(
+                            comment.content
+                        )}
+
+                    </p>
+
+                    <small>
+
+                        ${
+                            comment.created_at
+
+                            ?
+
+                            new Date(
+                                comment.created_at
+                            ).toLocaleString()
+
+                            :
+
+                            ""
+
+                        }
+
+                    </small>
+
+                `;
+
+
+                box.appendChild(
+                    element
+                );
+
+            }
+        );
+
+
+        if (!comments.length) {
 
             box.innerHTML +=
                 "<p>No comments yet.</p>";
 
-            return;
         }
 
-        comments.forEach(comment => {
-
-            const element =
-                document.createElement("div");
-
-            element.className =
-                "comment";
-
-            element.innerHTML = `
-
-                <p>
-                    ${escapeHTML(
-                        comment.content
-                    )}
-                </p>
-
-                <small>
-                    ${
-                        comment.created_at
-                        ? new Date(
-                            comment.created_at
-                        ).toLocaleString()
-                        : ""
-                    }
-                </small>
-
-            `;
-
-            box.appendChild(element);
-        });
 
     } catch (error) {
 
-        console.error(
-            "❌ COMMENTS ERROR:",
-            error
-        );
+        box.innerHTML =
+            "❌ " +
+            escapeHTML(
+                error.message
+            );
 
-        box.innerHTML = `
-
-            <p class="error">
-                ❌ Could not load comments.
-            </p>
-
-            <p>
-                ${escapeHTML(
-                    error.message
-                )}
-            </p>
-
-        `;
     }
+
 }
 
 
-// ========================================
-// CREATE COMMENT
-// ========================================
-
-async function createComment(postId) {
+async function createComment(
+    postId
+) {
 
     const input =
         document.getElementById(
             `comment-input-${postId}`
         );
 
-    if (!input) return;
 
     const content =
         input.value.trim();
 
-    if (!content) return;
+
+    if (!content)
+        return;
+
 
     try {
 
         await api(
             `/api/posts/${postId}/comments`,
             {
-                method: "POST",
 
-                body: JSON.stringify({
-                    content
-                })
+                method:
+                    "POST",
+
+                body:
+                    JSON.stringify({
+                        content
+                    })
+
             }
         );
 
-        await loadComments(postId);
+
+        await loadComments(
+            postId
+        );
+
 
     } catch (error) {
 
-        console.error(
-            "❌ CREATE COMMENT ERROR:",
-            error
-        );
-
         alert(
-            "Could not create comment:\n\n" +
             error.message
         );
+
     }
+
 }
 
 
@@ -512,11 +834,10 @@ document.addEventListener(
     "DOMContentLoaded",
     () => {
 
-        console.log(
-            "🧌 Loading ShrekBook data..."
-        );
+        loadLoginStatus();
 
         loadPeople();
+
         loadPosts();
 
     }

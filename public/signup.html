@@ -10,7 +10,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Create Account - ShrekBook</title>
+    <title>Sign Up - ShrekBook</title>
 
     <link
         rel="stylesheet"
@@ -25,13 +25,13 @@
 
     <div class="brand">
 
-        <img
-            class="avatar"
-            src="/shrek.webp"
-            alt="Shrek"
-        >
+        <div class="logo">
+            🧌
+        </div>
 
-        <h1>ShrekBook</h1>
+        <h1>
+            ShrekBook
+        </h1>
 
     </div>
 
@@ -52,82 +52,70 @@
 
 <main class="container">
 
-    <section class="form-box">
+<section class="form-box">
 
-        <h2>Create Account 🧌</h2>
-
-        <form id="signupForm">
-
-
-            <label for="displayName">
-                Display Name
-            </label>
-
-            <input
-                id="displayName"
-                type="text"
-                required
-                maxlength="50"
-            >
+    <h2>
+        Create Account 🧌
+    </h2>
 
 
-            <label for="username">
-                Username
-            </label>
+    <form id="signupForm">
 
-            <input
-                id="username"
-                type="text"
-                required
-                maxlength="30"
-            >
+        <label>
+            Display Name
+        </label>
 
-
-            <label for="email">
-                Email
-            </label>
-
-            <input
-                id="email"
-                type="email"
-                required
-                autocomplete="email"
-            >
+        <input
+            id="displayName"
+            maxlength="50"
+            required
+        >
 
 
-            <label for="password">
-                Password
-            </label>
+        <label>
+            Username
+        </label>
 
-            <input
-                id="password"
-                type="password"
-                required
-                minlength="6"
-                autocomplete="new-password"
-            >
+        <input
+            id="username"
+            maxlength="30"
+            required
+        >
 
 
-            <button type="submit">
-                Create Account
-            </button>
+        <label>
+            Email
+        </label>
 
-        </form>
+        <input
+            id="email"
+            type="email"
+            required
+        >
 
 
-        <p id="signupMessage"></p>
+        <label>
+            Password
+        </label>
 
-        <p>
+        <input
+            id="password"
+            type="password"
+            minlength="6"
+            required
+        >
 
-            Already have an account?
 
-            <a href="/login.html">
-                Login
-            </a>
+        <button type="submit">
+            Create Account
+        </button>
 
-        </p>
+    </form>
 
-    </section>
+
+    <p id="signupMessage"></p>
+
+</section>
 
 </main>
 
@@ -136,93 +124,108 @@
 
 document
     .getElementById("signupForm")
-    .addEventListener("submit", async function(event) {
+    .addEventListener(
+        "submit",
+        async event => {
 
-        event.preventDefault();
+            event.preventDefault();
 
-        const displayName =
-            document.getElementById(
-                "displayName"
-            ).value.trim();
 
-        const username =
-            document.getElementById(
-                "username"
-            ).value.trim();
+            const body = {
 
-        const email =
-            document.getElementById(
-                "email"
-            ).value.trim();
+                displayName:
+                    document.getElementById(
+                        "displayName"
+                    ).value.trim(),
 
-        const password =
-            document.getElementById(
-                "password"
-            ).value;
+                username:
+                    document.getElementById(
+                        "username"
+                    ).value.trim(),
 
-        const message =
-            document.getElementById(
-                "signupMessage"
-            );
+                email:
+                    document.getElementById(
+                        "email"
+                    ).value.trim(),
 
-        message.textContent =
-            "Creating account...";
+                password:
+                    document.getElementById(
+                        "password"
+                    ).value
 
-        try {
+            };
 
-            const response =
-                await fetch("/api/signup", {
 
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    body: JSON.stringify({
-
-                        displayName,
-                        username,
-                        email,
-                        password
-
-                    })
-
-                });
-
-            const data =
-                await response.json();
-
-            if (!response.ok) {
-
-                throw new Error(
-                    data.error ||
-                    "Signup failed"
+            const message =
+                document.getElementById(
+                    "signupMessage"
                 );
+
+
+            message.textContent =
+                "Creating account...";
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        "/api/signup",
+                        {
+
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body:
+                                JSON.stringify(body)
+
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        data.error ||
+                        "Signup failed."
+                    );
+
+                }
+
+
+                message.textContent =
+                    "✅ Account created!";
+
+
+                setTimeout(
+                    () => {
+
+                        location.href =
+                            "/login.html";
+
+                    },
+                    1000
+                );
+
+
+            } catch (error) {
+
+                message.textContent =
+                    "❌ " +
+                    error.message;
 
             }
 
-            message.textContent =
-                "✅ Account created!";
-
-            setTimeout(() => {
-
-                window.location.href =
-                    "/login.html";
-
-            }, 1000);
-
-        } catch (error) {
-
-            console.error(error);
-
-            message.textContent =
-                "❌ " + error.message;
-
         }
-
-    });
+    );
 
 </script>
 
