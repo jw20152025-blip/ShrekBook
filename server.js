@@ -506,7 +506,51 @@ app.get("/api/me", async (req, res) => {
 
 });
 
+app.post("/api/posts/:postId/comments", async (req, res) => {
+    try {
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
 
+        const { postId } = req.params;
+        const { content } = req.body;
+
+        if (!content || !content.trim()) {
+            return res.status(400).json({
+                error: "Comment cannot be empty."
+            });
+        }
+
+        const { data, error } = await supabase
+            .from("comments")
+            .insert({
+                post_id: postId,
+                user_id: req.session.user.id,
+                content: content.trim()
+            })
+            .select()
+            .maybeSingle();
+
+        if (error) {
+            console.error("COMMENT CREATE ERROR:", error);
+
+            return res.status(500).json({
+                error: error.message
+            });
+        }
+
+        res.json(data);
+
+    } catch (error) {
+        console.error("COMMENT SERVER ERROR:", error);
+
+        res.status(500).json({
+            error: error.message
+        });
+    }
+});
 // ========================================
 // USERS
 // ========================================
