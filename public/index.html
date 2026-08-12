@@ -2,12 +2,21 @@
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>ShrekBook</title>
 
-    <link rel="stylesheet" href="/styles.css">
+    <link
+        rel="stylesheet"
+        href="/styles.css"
+    >
+
 </head>
 
 <body>
@@ -15,6 +24,7 @@
 <header>
 
     <div class="brand">
+
         <img
             class="avatar"
             src="/shrek.webp"
@@ -22,56 +32,107 @@
         >
 
         <h1>ShrekBook</h1>
+
     </div>
 
     <nav>
-        <a href="/">Home</a>
-        <a href="/login.html">Login</a>
-        <a href="/signup.html">Create Account</a>
+
+        <a href="/">
+            Home
+        </a>
+
+        <a href="/login.html">
+            Login
+        </a>
+
+        <a href="/signup.html">
+            Create Account
+        </a>
+
     </nav>
 
 </header>
 
+
 <main class="container">
+
+
+    <!-- WELCOME -->
 
     <section class="welcome">
 
-        <h2>Welcome to ShrekBook! 🧌</h2>
+        <h2>
+            Welcome to ShrekBook! 🧌
+        </h2>
 
         <p>
-            The social network for absolutely normal people.
+            The social network for
+            absolutely normal people.
         </p>
 
     </section>
 
 
+    <!-- CREATE POST -->
+
     <section class="create-post">
 
-        <h2>Create a Post</h2>
+        <h2>
+            Create a Post
+        </h2>
 
         <textarea
             id="postContent"
             placeholder="What's on your mind?"
         ></textarea>
 
-        <button onclick="createPost()">
+        <button
+            onclick="createPost()"
+        >
             Post 🧌
         </button>
 
     </section>
 
 
+    <!-- POSTS -->
+
     <section>
 
-        <h2>Posts</h2>
+        <h2>
+            Posts
+        </h2>
 
         <div id="posts">
+
             Loading posts...
+
         </div>
 
     </section>
 
+
+    <!-- PEOPLE -->
+
+    <section>
+
+        <h2>
+            People
+        </h2>
+
+        <div id="people">
+
+            Loading people...
+
+        </div>
+
+    </section>
+
+
 </main>
+
+
+<!-- FRONTEND JAVASCRIPT -->
 
 <script src="/script.js"></script>
 
