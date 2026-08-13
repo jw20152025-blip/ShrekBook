@@ -1,0 +1,118 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>ShrekChat - ShrekBook Telecom</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>🧌 ShrekChat</h1>
+
+        <p>
+            Welcome to ShrekBook Telecom's chat system.
+        </p>
+
+        <!-- ROOM LIST -->
+
+        <section id="room-section">
+
+            <h2>💬 Rooms</h2>
+
+            <div id="rooms">
+                Loading rooms...
+            </div>
+
+            <div class="create-room">
+
+                <input
+                    id="room-name"
+                    type="text"
+                    maxlength="50"
+                    placeholder="New room name..."
+                >
+
+                <button id="create-room-button">
+                    ➕ Create Room
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <!-- CHAT -->
+
+        <section
+            id="chat-section"
+            style="display: none;"
+        >
+
+            <div class="chat-header">
+
+                <button id="leave-button">
+                    🚪 Leave
+                </button>
+
+                <h2 id="current-room">
+                    Room
+                </h2>
+
+            </div>
+
+
+            <div
+                id="messages"
+                class="chat-messages"
+            >
+                Loading messages...
+            </div>
+
+
+            <form id="message-form">
+
+                <input
+                    id="message-input"
+                    type="text"
+                    maxlength="2000"
+                    autocomplete="off"
+                    placeholder="Type a message..."
+                >
+
+                <button type="submit">
+                    Send 💬
+                </button>
+
+            </form>
+
+        </section>
+
+
+        <p id="status"></p>
+
+    </div>
+
+
+    <script src="shrekchat.js"></script>
+
+</body>
+
+</html>
+```

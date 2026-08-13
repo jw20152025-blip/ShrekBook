@@ -1374,7 +1374,372 @@ app.post(
 
     }
 );
+// ========================================
+// SHREKCHAT - GET ROOMS
+// ========================================
 
+app.get("/api/chat/rooms", async (req, res) => {
+
+    try {
+
+        const { data, error } = await supabase
+            .from("chat_rooms")
+            .select("*")
+            .order("created_at", {
+                ascending: true
+            });
+
+        if (error) {
+            console.error("CHAT ROOMS ERROR:", error);
+
+            return res.status(500).json({
+                error: error.message
+            });
+        }
+
+        res.json(data || []);
+
+    } catch (error) {
+
+        console.error("CHAT ROOMS SERVER ERROR:", error);
+
+        res.status(500).json({
+            error: error.message
+        });
+
+    }
+
+});
+
+
+// ========================================
+// SHREKCHAT - CREATE ROOM
+// ========================================
+
+app.post("/api/chat/rooms", async (req, res) => {
+
+    try {
+
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+        const name = String(
+            req.body.name || ""
+        ).trim();
+
+        if (!name) {
+            return res.status(400).json({
+                error: "Room name cannot be empty."
+            });
+        }
+
+        if (name.length > 50) {
+            return res.status(400).json({
+                error: "Room name must be 50 characters or less."
+            });
+        }
+
+        const { data, error } = await supabase
+            .from("chat_rooms")
+            .insert({
+                name: name
+            })
+            .select()
+            .single();
+
+        if (error) {
+
+            console.error(
+                "CREATE ROOM ERROR:",
+                error
+            );
+
+            return res.status(400).json({
+                error: error.message
+            });
+
+        }
+
+        res.status(201).json(data);
+
+    } catch (error) {
+
+        console.error(
+            "CREATE ROOM SERVER ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: error.message
+        });
+
+    }
+
+});
+
+
+// ========================================
+// SHREKCHAT - GET MESSAGES
+// ========================================
+
+app.get(
+    "/api/chat/rooms/:roomId/messages",
+    async (req, res) => {
+
+        try {
+
+            const roomId =
+                req.params.roomId;
+
+            const {
+                data,
+                error
+            } = await supabase
+                .from("chat_messages")
+                .select(`
+                    id,
+                    room_id,
+                    user_id,
+                    content,
+                    created_at
+                `)
+                .eq(
+                    "room_id",
+                    roomId
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending: true
+                    }
+                );
+
+            if (error) {
+
+                console.error(
+                    "MESSAGES LOAD ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error: error.message
+                });
+
+            }
+
+            // Get usernames separately.
+            // No avatars are loaded.
+
+            const messages =
+                data || [];
+
+            for (
+                const message of messages
+            ) {
+
+                const {
+                    data: profile
+                } = await supabase
+                    .from("profiles")
+                    .select(
+                        "username, display_name"
+                    )
+                    .eq(
+                        "id",
+                        message.user_id
+                    )
+                    .maybeSingle();
+
+                message.username =
+                    profile?.username ||
+                    "Unknown";
+
+                message.display_name =
+                    profile?.display_name ||
+                    "Unknown";
+
+            }
+
+            res.json(messages);
+
+        } catch (error) {
+
+            console.error(
+                "MESSAGES SERVER ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error: error.message
+            });
+
+        }
+
+    }
+);
+
+
+// ========================================
+// SHREKCHAT - SEND MESSAGE
+// ========================================
+
+app.post(
+    "/api/chat/rooms/:roomId/messages",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.user) {
+
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+
+            }
+
+            const roomId =
+                req.params.roomId;
+
+            const content =
+                String(
+                    req.body.content || ""
+                ).trim();
+
+            if (!content) {
+
+                return res.status(400).json({
+                    error:
+                        "Message cannot be empty."
+                });
+
+            }
+
+            if (content.length > 2000) {
+
+                return res.status(400).json({
+                    error:
+                        "Message is too long."
+                });
+
+            }
+
+            // Make sure the room exists
+
+            const {
+                data: room,
+                error: roomError
+            } = await supabase
+                .from("chat_rooms")
+                .select("id")
+                .eq(
+                    "id",
+                    roomId
+                )
+                .maybeSingle();
+
+            if (roomError) {
+
+                return res.status(500).json({
+                    error:
+                        roomError.message
+                });
+
+            }
+
+            if (!room) {
+
+                return res.status(404).json({
+                    error:
+                        "Room not found."
+                });
+
+            }
+
+            // Create message
+
+            const {
+                data: message,
+                error
+            } = await supabase
+                .from("chat_messages")
+                .insert({
+
+                    room_id:
+                        roomId,
+
+                    user_id:
+                        req.session.user.id,
+
+                    content:
+                        content
+
+                })
+                .select()
+                .single();
+
+            if (error) {
+
+                console.error(
+                    "SEND MESSAGE ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+            // Get sender name
+
+            const {
+                data: profile
+            } = await supabase
+                .from("profiles")
+                .select(
+                    "username, display_name"
+                )
+                .eq(
+                    "id",
+                    req.session.user.id
+                )
+                .maybeSingle();
+
+            res.json({
+
+                ...message,
+
+                username:
+                    profile?.username ||
+                    "Unknown",
+
+                display_name:
+                    profile?.display_name ||
+                    "Unknown"
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "SEND MESSAGE SERVER ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message
+            });
+
+        }
+
+    }
+);
 // ==================================================
 // SERVER
 // ==================================================
