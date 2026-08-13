@@ -79,7 +79,78 @@ function fileToBase64(file) {
 
 }
 
+async function giveReaction(type) {
 
+    const userId =
+        new URLSearchParams(
+            window.location.search
+        ).get("id");
+
+    if (!userId) {
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/users/${userId}/${type}`,
+                {
+                    method: "POST"
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            alert(
+                "❌ " +
+                data.error
+            );
+
+            return;
+        }
+
+        if (type === "gyatt") {
+
+            document.getElementById(
+                "gyatt-count"
+            ).textContent =
+                data.gyatt;
+
+        }
+
+        if (type === "cat") {
+
+            document.getElementById(
+                "cat-count"
+            ).textContent =
+                data.cat;
+
+        }
+
+        if (type === "ogred") {
+
+            document.getElementById(
+                "ogred-count"
+            ).textContent =
+                data.ogred;
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "REACTION ERROR:",
+            error
+        );
+
+        alert(
+            "❌ Could not react."
+        );
+    }
+}
 /* ==================================================
 MAKE IMAGE OBJECT
 ================================================== */

@@ -1158,7 +1158,330 @@ app.post(
 
     }
 );
+app.post("/api/users/:id/gyatt", async (req, res) => {
+    try {
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
 
+        const fromUserId =
+            req.session.user.id;
+
+        const toUserId =
+            req.params.id;
+
+        if (fromUserId === toUserId) {
+            return res.status(400).json({
+                error: "You cannot react to yourself."
+            });
+        }
+
+        const {
+            error: insertError
+        } = await supabase
+            .from("reactions")
+            .insert({
+                from_user_id: fromUserId,
+                to_user_id: toUserId,
+                type: "gyatt"
+            });
+
+        if (insertError) {
+
+            if (
+                insertError.code === "23505"
+            ) {
+                return res.status(400).json({
+                    error:
+                        "You already gave this person a Gyatt."
+                });
+            }
+
+            return res.status(500).json({
+                error: insertError.message
+            });
+        }
+
+        const {
+            count,
+            error: countError
+        } = await supabase
+            .from("reactions")
+            .select("*", {
+                count: "exact",
+                head: true
+            })
+            .eq("to_user_id", toUserId)
+            .eq("type", "gyatt");
+
+        if (countError) {
+            return res.status(500).json({
+                error: countError.message
+            });
+        }
+
+        res.json({
+            success: true,
+            gyatt: count || 0
+        });
+
+    } catch (error) {
+
+        console.error(
+            "GYATT ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Server error."
+        });
+    }
+});
+app.post("/api/users/:id/cat", async (req, res) => {
+    try {
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+        const fromUserId =
+            req.session.user.id;
+
+        const toUserId =
+            req.params.id;
+
+        if (fromUserId === toUserId) {
+            return res.status(400).json({
+                error: "You cannot react to yourself."
+            });
+        }
+
+        const {
+            error: insertError
+        } = await supabase
+            .from("reactions")
+            .insert({
+                from_user_id: fromUserId,
+                to_user_id: toUserId,
+                type: "cat"
+            });
+
+        if (insertError) {
+
+            if (
+                insertError.code === "23505"
+            ) {
+                return res.status(400).json({
+                    error:
+                        "You already gave this person a Cat."
+                });
+            }
+
+            return res.status(500).json({
+                error: insertError.message
+            });
+        }
+
+        const {
+            count,
+            error: countError
+        } = await supabase
+            .from("reactions")
+            .select("*", {
+                count: "exact",
+                head: true
+            })
+            .eq("to_user_id", toUserId)
+            .eq("type", "cat");
+
+        if (countError) {
+            return res.status(500).json({
+                error: countError.message
+            });
+        }
+
+        res.json({
+            success: true,
+            cat: count || 0
+        });
+
+    } catch (error) {
+
+        console.error(
+            "CAT ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Server error."
+        });
+    }
+});
+app.post("/api/users/:id/gyatt", async (req, res) => {
+    try {
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+        const fromUserId =
+            req.session.user.id;
+
+        const toUserId =
+            req.params.id;
+
+        if (fromUserId === toUserId) {
+            return res.status(400).json({
+                error: "You cannot react to yourself."
+            });
+        }
+
+        const {
+            error: insertError
+        } = await supabase
+            .from("reactions")
+            .insert({
+                from_user_id: fromUserId,
+                to_user_id: toUserId,
+                type: "gyatt"
+            });
+
+        if (insertError) {
+
+            if (
+                insertError.code === "23505"
+            ) {
+                return res.status(400).json({
+                    error:
+                        "You already gave this person a Gyatt."
+                });
+            }
+
+            return res.status(500).json({
+                error: insertError.message
+            });
+        }
+
+        const {
+            count,
+            error: countError
+        } = await supabase
+            .from("reactions")
+            .select("*", {
+                count: "exact",
+                head: true
+            })
+            .eq("to_user_id", toUserId)
+            .eq("type", "gyatt");
+
+        if (countError) {
+            return res.status(500).json({
+                error: countError.message
+            });
+        }
+
+        res.json({
+            success: true,
+            gyatt: count || 0
+        });
+
+    } catch (error) {
+
+        console.error(
+            "GYATT ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Server error."
+        });
+    }
+});
+app.post("/api/users/:id/ogred", async (req, res) => {
+    try {
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+        const fromUserId =
+            req.session.user.id;
+
+        const toUserId =
+            req.params.id;
+
+        if (fromUserId === toUserId) {
+            return res.status(400).json({
+                error: "You cannot react to yourself."
+            });
+        }
+
+        const {
+            error: insertError
+        } = await supabase
+            .from("reactions")
+            .insert({
+                from_user_id: fromUserId,
+                to_user_id: toUserId,
+                type: "ogred"
+            });
+
+        if (insertError) {
+
+            if (
+                insertError.code === "23505"
+            ) {
+                return res.status(400).json({
+                    error:
+                        "You already Ogred this person."
+                });
+            }
+
+            return res.status(500).json({
+                error: insertError.message
+            });
+        }
+
+        const {
+            count,
+            error: countError
+        } = await supabase
+            .from("reactions")
+            .select("*", {
+                count: "exact",
+                head: true
+            })
+            .eq("to_user_id", toUserId)
+            .eq("type", "ogred");
+
+        if (countError) {
+            return res.status(500).json({
+                error: countError.message
+            });
+        }
+
+        res.json({
+            success: true,
+            ogred: count || 0
+        });
+
+    } catch (error) {
+
+        console.error(
+            "OGRED ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Server error."
+        });
+    }
+});
 // ==================================================
 // SHREKCHAT
 // ==================================================
