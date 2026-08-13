@@ -1,5 +1,3 @@
-console.log("🔥 ShrekBook clean server starting...");
-
 require("dotenv").config();
 
 const express = require("express");
@@ -8,15 +6,13 @@ const session = require("express-session");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// ==================================================
-// ENVIRONMENT
-// ==================================================
+const PORT = process.env.PORT || 3000;
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY =
     process.env.SUPABASE_SERVICE_ROLE_KEY;
+
 const SESSION_SECRET = process.env.SESSION_SECRET;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -29,10 +25,6 @@ if (!SESSION_SECRET) {
     process.exit(1);
 }
 
-// ==================================================
-// SUPABASE
-// ==================================================
-
 const supabase = createClient(
     SUPABASE_URL,
     SUPABASE_SERVICE_ROLE_KEY
@@ -44,38 +36,30 @@ const supabase = createClient(
 
 app.set("trust proxy", 1);
 
-app.use(express.json());
+app.use(express.json({
+    limit: "10mb"
+}));
 
-app.use(
-    express.urlencoded({
-        extended: true
-    })
-);
+app.use(express.urlencoded({
+    extended: true
+}));
 
-app.use(
-    express.static(
-        path.join(__dirname, "public")
-    )
-);
+app.use(session({
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
 
-// ==================================================
-// SESSION
-// ==================================================
+    cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 1000 * 60 * 60 * 24 * 30
+    }
+}));
 
-app.use(
-    session({
-        secret: SESSION_SECRET,
-        resave: false,
-        saveUninitialized: false,
-
-        cookie: {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            maxAge: 1000 * 60 * 60 * 24 * 30
-        }
-    })
-);
+app.use(express.static(
+    path.join(__dirname, "public")
+));
 
 // ==================================================
 // TEST
@@ -87,10 +71,6 @@ app.get("/api/test", (req, res) => {
         message: "ShrekBook server is alive 🧌"
     });
 });
-
-// ==================================================
-// HEALTH
-// ==================================================
 
 app.get("/api/health", (req, res) => {
     res.json({
@@ -105,12 +85,19 @@ app.get("/api/health", (req, res) => {
 
 app.post("/api/signup", async (req, res) => {
     try {
-        const {
-            username,
-            display_name,
-            email,
-            password
-        } = req.body;
+        const username =
+            String(req.body.username || "").trim();
+
+        const display_name =
+            String(
+                req.body.display_name || username
+            ).trim();
+
+        const email =
+            String(req.body.email || "").trim();
+
+        const password =
+            String(req.body.password || "");
 
         if (!username || !email || !password) {
             return res.status(400).json({
@@ -119,19 +106,13 @@ app.post("/api/signup", async (req, res) => {
             });
         }
 
-        const cleanUsername = username
-            .trim()
-            .toLowerCase();
-
-        // Check username
-
         const {
-            data: existingProfile,
+            data: existing,
             error: usernameError
         } = await supabase
             .from("profiles")
             .select("id")
-            .eq("username", cleanUsername)
+            .eq("username", username)
             .maybeSingle();
 
         if (usernameError) {
@@ -140,19 +121,17 @@ app.post("/api/signup", async (req, res) => {
             });
         }
 
-        if (existingProfile) {
+        if (existing) {
             return res.status(400).json({
                 error: "That username is already taken."
             });
         }
 
-        // Create Auth account
-
         const {
             data: authData,
             error: authError
         } = await supabase.auth.admin.createUser({
-            email: email.trim(),
+            email,
             password,
             email_confirm: true
         });
@@ -165,8 +144,6 @@ app.post("/api/signup", async (req, res) => {
 
         const userId = authData.user.id;
 
-        // Create profile
-
         const {
             data: profile,
             error: profileError
@@ -174,10 +151,8 @@ app.post("/api/signup", async (req, res) => {
             .from("profiles")
             .insert({
                 id: userId,
-                username: cleanUsername,
-                display_name:
-                    display_name?.trim() ||
-                    cleanUsername,
+                username,
+                display_name: display_name || username,
                 avatar: null,
                 bio: "",
                 gyatt: 0,
@@ -188,9 +163,7 @@ app.post("/api/signup", async (req, res) => {
             .single();
 
         if (profileError) {
-            await supabase.auth.admin.deleteUser(
-                userId
-            );
+            await supabase.auth.admin.deleteUser(userId);
 
             return res.status(500).json({
                 error: profileError.message
@@ -217,10 +190,11 @@ app.post("/api/signup", async (req, res) => {
 
 app.post("/api/login", async (req, res) => {
     try {
-        const {
-            email,
-            password
-        } = req.body;
+        const email =
+            String(req.body.email || "").trim();
+
+        const password =
+            String(req.body.password || "");
 
         if (!email || !password) {
             return res.status(400).json({
@@ -230,30 +204,28 @@ app.post("/api/login", async (req, res) => {
         }
 
         const {
-            data,
-            error
+            data: authData,
+            error: authError
         } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
+            email,
             password
         });
 
-        if (error) {
+        if (authError) {
             return res.status(401).json({
-                error: error.message
+                error: authError.message
             });
         }
 
-        const user = data.user;
+        const authUser = authData.user;
 
-        // Get profile
-
-        const {
+        let {
             data: profile,
             error: profileError
         } = await supabase
             .from("profiles")
             .select("*")
-            .eq("id", user.id)
+            .eq("id", authUser.id)
             .maybeSingle();
 
         if (profileError) {
@@ -262,13 +234,10 @@ app.post("/api/login", async (req, res) => {
             });
         }
 
-        let finalProfile = profile;
-
-        // Create missing profile
-
-        if (!finalProfile) {
+        // Create missing profile automatically
+        if (!profile) {
             let username =
-                (user.email || "user")
+                (authUser.email || "user")
                     .split("@")[0]
                     .toLowerCase()
                     .replace(/[^a-z0-9_]/g, "")
@@ -278,35 +247,34 @@ app.post("/api/login", async (req, res) => {
                 username = "user";
             }
 
-            let baseUsername = username;
+            const original = username;
             let number = 1;
 
             while (true) {
-                const {
-                    data: existing
-                } = await supabase
-                    .from("profiles")
-                    .select("id")
-                    .eq("username", username)
-                    .maybeSingle();
+                const { data: taken } =
+                    await supabase
+                        .from("profiles")
+                        .select("id")
+                        .eq("username", username)
+                        .maybeSingle();
 
-                if (!existing) {
+                if (!taken) {
                     break;
                 }
 
                 username =
-                    `${baseUsername}${number}`;
+                    `${original}${number}`;
 
                 number++;
             }
 
             const {
-                data: newProfile,
+                data: created,
                 error: createError
             } = await supabase
                 .from("profiles")
                 .insert({
-                    id: user.id,
+                    id: authUser.id,
                     username,
                     display_name: username,
                     avatar: null,
@@ -324,25 +292,17 @@ app.post("/api/login", async (req, res) => {
                 });
             }
 
-            finalProfile = newProfile;
+            profile = created;
         }
 
-        // Create session
-
         req.session.user = {
-            id: finalProfile.id,
-            username: finalProfile.username,
-            display_name:
-                finalProfile.display_name
+            id: profile.id,
+            username: profile.username,
+            display_name: profile.display_name
         };
 
         req.session.save(error => {
             if (error) {
-                console.error(
-                    "SESSION ERROR:",
-                    error
-                );
-
                 return res.status(500).json({
                     error:
                         "Could not save login session."
@@ -351,7 +311,7 @@ app.post("/api/login", async (req, res) => {
 
             res.json({
                 success: true,
-                user: finalProfile
+                user: profile
             });
         });
 
@@ -375,6 +335,8 @@ app.post("/api/logout", (req, res) => {
                 error: "Logout failed."
             });
         }
+
+        res.clearCookie("connect.sid");
 
         res.json({
             success: true
@@ -400,15 +362,12 @@ app.get("/api/me", async (req, res) => {
         } = await supabase
             .from("profiles")
             .select("*")
-            .eq(
-                "id",
-                req.session.user.id
-            )
+            .eq("id", req.session.user.id)
             .single();
 
-        if (error) {
-            return res.status(500).json({
-                error: error.message
+        if (error || !data) {
+            return res.json({
+                loggedIn: false
             });
         }
 
@@ -419,13 +378,13 @@ app.get("/api/me", async (req, res) => {
 
     } catch (error) {
         res.status(500).json({
-            error: error.message
+            error: "Server error."
         });
     }
 });
 
 // ==================================================
-// GET USERS
+// USERS
 // ==================================================
 
 app.get("/api/users", async (req, res) => {
@@ -446,12 +405,9 @@ app.get("/api/users", async (req, res) => {
                 ogred,
                 created_at
             `)
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
+            .order("created_at", {
+                ascending: false
+            });
 
         if (error) {
             return res.status(500).json({
@@ -469,21 +425,39 @@ app.get("/api/users", async (req, res) => {
 });
 
 // ==================================================
-// GET ONE USER
+// ONE USER
 // ==================================================
 
 app.get("/api/users/:id", async (req, res) => {
     try {
+        const id = req.params.id;
+
+        if (!id) {
+            return res.status(400).json({
+                error: "No profile ID was provided."
+            });
+        }
+
         const {
             data: profile,
-            error: profileError
+            error
         } = await supabase
             .from("profiles")
-            .select("*")
-            .eq("id", req.params.id)
+            .select(`
+                id,
+                username,
+                display_name,
+                avatar,
+                bio,
+                gyatt,
+                cat,
+                ogred,
+                created_at
+            `)
+            .eq("id", id)
             .single();
 
-        if (profileError || !profile) {
+        if (error || !profile) {
             return res.status(404).json({
                 error: "User not found."
             });
@@ -494,17 +468,16 @@ app.get("/api/users/:id", async (req, res) => {
             error: postsError
         } = await supabase
             .from("posts")
-            .select("*")
-            .eq(
-                "user_id",
-                req.params.id
-            )
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
+            .select(`
+                id,
+                user_id,
+                content,
+                created_at
+            `)
+            .eq("user_id", id)
+            .order("created_at", {
+                ascending: false
+            });
 
         if (postsError) {
             return res.status(500).json({
@@ -519,7 +492,7 @@ app.get("/api/users/:id", async (req, res) => {
 
     } catch (error) {
         res.status(500).json({
-            error: error.message
+            error: "Server error."
         });
     }
 });
@@ -532,8 +505,7 @@ app.put("/api/profile", async (req, res) => {
     try {
         if (!req.session.user) {
             return res.status(401).json({
-                error:
-                    "You must be logged in."
+                error: "You must be logged in."
             });
         }
 
@@ -553,40 +525,24 @@ app.put("/api/profile", async (req, res) => {
             .from("profiles")
             .update({
                 display_name:
-                    String(
-                        display_name || ""
-                    ).trim(),
+                    String(display_name || "").trim(),
 
                 bio:
-                    String(
-                        bio || ""
-                    ).trim(),
+                    String(bio || "").trim(),
 
                 avatar:
                     avatar || null,
 
                 gyatt:
-                    Math.max(
-                        0,
-                        parseInt(gyatt) || 0
-                    ),
+                    Math.max(0, parseInt(gyatt) || 0),
 
                 cat:
-                    Math.max(
-                        0,
-                        parseInt(cat) || 0
-                    ),
+                    Math.max(0, parseInt(cat) || 0),
 
                 ogred:
-                    Math.max(
-                        0,
-                        parseInt(ogred) || 0
-                    )
+                    Math.max(0, parseInt(ogred) || 0)
             })
-            .eq(
-                "id",
-                req.session.user.id
-            )
+            .eq("id", req.session.user.id)
             .select()
             .single();
 
@@ -606,7 +562,127 @@ app.put("/api/profile", async (req, res) => {
 
     } catch (error) {
         res.status(500).json({
-            error: error.message
+            error: "Server error."
+        });
+    }
+});
+
+// ==================================================
+// AVATAR UPLOAD
+// ==================================================
+
+app.post("/api/profile/avatar", async (req, res) => {
+    try {
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+        const {
+            fileName,
+            fileType,
+            fileData
+        } = req.body;
+
+        if (!fileName || !fileType || !fileData) {
+            return res.status(400).json({
+                error: "Missing image data."
+            });
+        }
+
+        if (!fileType.startsWith("image/")) {
+            return res.status(400).json({
+                error: "File must be an image."
+            });
+        }
+
+        const buffer =
+            Buffer.from(fileData, "base64");
+
+        if (buffer.length > 5 * 1024 * 1024) {
+            return res.status(400).json({
+                error: "Image must be under 5MB."
+            });
+        }
+
+        const extension =
+            fileName.split(".").pop().toLowerCase();
+
+        const allowed = [
+            "png",
+            "jpg",
+            "jpeg",
+            "webp",
+            "gif"
+        ];
+
+        if (!allowed.includes(extension)) {
+            return res.status(400).json({
+                error: "Unsupported image type."
+            });
+        }
+
+        const filePath =
+            `${req.session.user.id}/${Date.now()}.${extension}`;
+
+        const {
+            error: uploadError
+        } = await supabase.storage
+            .from("avatars")
+            .upload(
+                filePath,
+                buffer,
+                {
+                    contentType: fileType,
+                    upsert: true
+                }
+            );
+
+        if (uploadError) {
+            return res.status(500).json({
+                error: uploadError.message
+            });
+        }
+
+        const {
+            data: publicData
+        } = supabase.storage
+            .from("avatars")
+            .getPublicUrl(filePath);
+
+        const avatarUrl =
+            publicData.publicUrl;
+
+        const {
+            data: profile,
+            error: profileError
+        } = await supabase
+            .from("profiles")
+            .update({
+                avatar: avatarUrl
+            })
+            .eq("id", req.session.user.id)
+            .select()
+            .single();
+
+        if (profileError) {
+            return res.status(500).json({
+                error: profileError.message
+            });
+        }
+
+        res.json({
+            success: true,
+            avatar: avatarUrl,
+            user: profile
+        });
+
+    } catch (error) {
+        console.error("AVATAR ERROR:", error);
+
+        res.status(500).json({
+            error: "Server error."
         });
     }
 });
@@ -622,13 +698,15 @@ app.get("/api/posts", async (req, res) => {
             error
         } = await supabase
             .from("posts")
-            .select("*")
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
+            .select(`
+                id,
+                user_id,
+                content,
+                created_at
+            `)
+            .order("created_at", {
+                ascending: false
+            });
 
         if (error) {
             return res.status(500).json({
@@ -646,18 +724,14 @@ app.get("/api/posts", async (req, res) => {
                 .select(
                     "username, display_name"
                 )
-                .eq(
-                    "id",
-                    post.user_id
-                )
+                .eq("id", post.user_id)
                 .maybeSingle();
 
             result.push({
                 ...post,
 
                 username:
-                    profile?.username ||
-                    "User",
+                    profile?.username || "User",
 
                 display_name:
                     profile?.display_name ||
@@ -670,33 +744,31 @@ app.get("/api/posts", async (req, res) => {
 
     } catch (error) {
         res.status(500).json({
-            error: error.message
+            error: "Server error."
         });
     }
 });
-
-// ==================================================
-// CREATE POST
-// ==================================================
 
 app.post("/api/posts", async (req, res) => {
     try {
         if (!req.session.user) {
             return res.status(401).json({
-                error:
-                    "You must be logged in."
+                error: "You must be logged in."
             });
         }
 
         const content =
-            String(
-                req.body.content || ""
-            ).trim();
+            String(req.body.content || "").trim();
 
         if (!content) {
             return res.status(400).json({
-                error:
-                    "Post cannot be empty."
+                error: "Post cannot be empty."
+            });
+        }
+
+        if (content.length > 5000) {
+            return res.status(400).json({
+                error: "Post is too long."
             });
         }
 
@@ -706,8 +778,7 @@ app.post("/api/posts", async (req, res) => {
         } = await supabase
             .from("posts")
             .insert({
-                user_id:
-                    req.session.user.id,
+                user_id: req.session.user.id,
                 content
             })
             .select()
@@ -719,17 +790,17 @@ app.post("/api/posts", async (req, res) => {
             });
         }
 
-        res.json(data);
+        res.status(201).json(data);
 
     } catch (error) {
         res.status(500).json({
-            error: error.message
+            error: "Server error."
         });
     }
 });
 
 // ==================================================
-// GET COMMENTS
+// COMMENTS
 // ==================================================
 
 app.get(
@@ -741,17 +812,20 @@ app.get(
                 error
             } = await supabase
                 .from("comments")
-                .select("*")
+                .select(`
+                    id,
+                    post_id,
+                    user_id,
+                    content,
+                    created_at
+                `)
                 .eq(
                     "post_id",
                     req.params.postId
                 )
-                .order(
-                    "created_at",
-                    {
-                        ascending: true
-                    }
-                );
+                .order("created_at", {
+                    ascending: true
+                });
 
             if (error) {
                 return res.status(500).json({
@@ -761,9 +835,7 @@ app.get(
 
             const result = [];
 
-            for (
-                const comment of comments || []
-            ) {
+            for (const comment of comments || []) {
                 const {
                     data: profile
                 } = await supabase
@@ -795,15 +867,11 @@ app.get(
 
         } catch (error) {
             res.status(500).json({
-                error: error.message
+                error: "Server error."
             });
         }
     }
 );
-
-// ==================================================
-// CREATE COMMENT
-// ==================================================
 
 app.post(
     "/api/posts/:postId/comments",
@@ -825,6 +893,13 @@ app.post(
                 return res.status(400).json({
                     error:
                         "Comment cannot be empty."
+                });
+            }
+
+            if (content.length > 500) {
+                return res.status(400).json({
+                    error:
+                        "Comment is too long."
                 });
             }
 
@@ -851,18 +926,355 @@ app.post(
                 });
             }
 
-            res.json(data);
+            res.status(201).json(data);
 
         } catch (error) {
             res.status(500).json({
-                error: error.message
+                error: "Server error."
             });
         }
     }
 );
 
 // ==================================================
-// START SERVER
+// SHREKCHAT - ROOMS
+// ==================================================
+
+app.get("/api/chat/rooms", async (req, res) => {
+    try {
+        const {
+            data,
+            error
+        } = await supabase
+            .from("chat_rooms")
+            .select(`
+                id,
+                name,
+                created_by,
+                created_at
+            `)
+            .order("created_at", {
+                ascending: true
+            });
+
+        if (error) {
+            return res.status(500).json({
+                error: error.message
+            });
+        }
+
+        res.json(data || []);
+
+    } catch (error) {
+        res.status(500).json({
+            error: "Server error."
+        });
+    }
+});
+
+// CREATE ROOM
+
+app.post("/api/chat/rooms", async (req, res) => {
+    try {
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+        const name =
+            String(req.body.name || "").trim();
+
+        if (!name) {
+            return res.status(400).json({
+                error:
+                    "Room name cannot be empty."
+            });
+        }
+
+        if (name.length > 50) {
+            return res.status(400).json({
+                error:
+                    "Room name is too long."
+            });
+        }
+
+        const {
+            data,
+            error
+        } = await supabase
+            .from("chat_rooms")
+            .insert({
+                name,
+                created_by:
+                    req.session.user.id
+            })
+            .select()
+            .single();
+
+        if (error) {
+            return res.status(400).json({
+                error:
+                    "That room may already exist."
+            });
+        }
+
+        res.status(201).json(data);
+
+    } catch (error) {
+        res.status(500).json({
+            error: "Server error."
+        });
+    }
+});
+
+// JOIN ROOM
+
+app.post(
+    "/api/chat/rooms/:roomId/join",
+    async (req, res) => {
+        try {
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
+
+            const {
+                error
+            } = await supabase
+                .from("chat_members")
+                .upsert({
+                    room_id:
+                        req.params.roomId,
+
+                    user_id:
+                        req.session.user.id
+                }, {
+                    onConflict:
+                        "room_id,user_id"
+                });
+
+            if (error) {
+                return res.status(500).json({
+                    error: error.message
+                });
+            }
+
+            res.json({
+                success: true
+            });
+
+        } catch (error) {
+            res.status(500).json({
+                error: "Server error."
+            });
+        }
+    }
+);
+
+// LEAVE ROOM
+
+app.post(
+    "/api/chat/rooms/:roomId/leave",
+    async (req, res) => {
+        try {
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
+
+            const {
+                error
+            } = await supabase
+                .from("chat_members")
+                .delete()
+                .eq(
+                    "room_id",
+                    req.params.roomId
+                )
+                .eq(
+                    "user_id",
+                    req.session.user.id
+                );
+
+            if (error) {
+                return res.status(500).json({
+                    error: error.message
+                });
+            }
+
+            res.json({
+                success: true
+            });
+
+        } catch (error) {
+            res.status(500).json({
+                error: "Server error."
+            });
+        }
+    }
+);
+
+// ==================================================
+// SHREKCHAT - MESSAGES
+// ==================================================
+
+app.get(
+    "/api/chat/rooms/:roomId/messages",
+    async (req, res) => {
+        try {
+            const {
+                data: messages,
+                error
+            } = await supabase
+                .from("chat_messages")
+                .select(`
+                    id,
+                    room_id,
+                    user_id,
+                    content,
+                    created_at
+                `)
+                .eq(
+                    "room_id",
+                    req.params.roomId
+                )
+                .order("created_at", {
+                    ascending: true
+                })
+                .limit(200);
+
+            if (error) {
+                return res.status(500).json({
+                    error: error.message
+                });
+            }
+
+            const result = [];
+
+            for (const message of messages || []) {
+                const {
+                    data: profile
+                } = await supabase
+                    .from("profiles")
+                    .select(
+                        "username, display_name"
+                    )
+                    .eq(
+                        "id",
+                        message.user_id
+                    )
+                    .maybeSingle();
+
+                result.push({
+                    ...message,
+
+                    username:
+                        profile?.username ||
+                        "User",
+
+                    display_name:
+                        profile?.display_name ||
+                        profile?.username ||
+                        "User"
+                });
+            }
+
+            res.json(result);
+
+        } catch (error) {
+            res.status(500).json({
+                error: "Server error."
+            });
+        }
+    }
+);
+
+// SEND MESSAGE
+
+app.post(
+    "/api/chat/rooms/:roomId/messages",
+    async (req, res) => {
+        try {
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
+
+            const content =
+                String(
+                    req.body.content || ""
+                ).trim();
+
+            if (!content) {
+                return res.status(400).json({
+                    error:
+                        "Message cannot be empty."
+                });
+            }
+
+            if (content.length > 1000) {
+                return res.status(400).json({
+                    error:
+                        "Message is too long."
+                });
+            }
+
+            const {
+                data,
+                error
+            } = await supabase
+                .from("chat_messages")
+                .insert({
+                    room_id:
+                        req.params.roomId,
+
+                    user_id:
+                        req.session.user.id,
+
+                    content
+                })
+                .select()
+                .single();
+
+            if (error) {
+                return res.status(500).json({
+                    error: error.message
+                });
+            }
+
+            res.status(201).json(data);
+
+        } catch (error) {
+            res.status(500).json({
+                error: "Server error."
+            });
+        }
+    }
+);
+
+// ==================================================
+// FRONTEND
+// ==================================================
+
+app.get("/{*splat}", (req, res) => {
+    res.sendFile(
+        path.join(
+            __dirname,
+            "public",
+            "index.html"
+        )
+    );
+});
+
+// ==================================================
+// START
 // ==================================================
 
 app.listen(

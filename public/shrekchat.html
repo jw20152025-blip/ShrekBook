@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -8,108 +7,519 @@
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+        content="width=device-width, initial-scale=1.0">
 
-    <title>ShrekChat - ShrekBook Telecom</title>
+    <title>ShrekChat 💬</title>
 
-    <link rel="stylesheet" href="styles.css">
+    <link
+        rel="stylesheet"
+        href="/styles.css">
 
 </head>
 
 <body>
 
-    <div class="container">
+<header class="navbar">
 
-        <h1>🧌 ShrekChat</h1>
+    <div class="navbar-inner">
 
-        <p>
-            Welcome to ShrekBook Telecom's chat system.
-        </p>
+        <a
+            href="/"
+            class="logo">
 
-        <!-- ROOM LIST -->
+            🧌 ShrekBook
 
-        <section id="room-section">
+        </a>
 
-            <h2>💬 Rooms</h2>
+        <nav>
 
-            <div id="rooms">
-                Loading rooms...
-            </div>
+            <a href="/">
+                Home
+            </a>
 
-            <div class="create-room">
+            <a href="/profile.html">
+                Profile
+            </a>
 
-                <input
-                    id="room-name"
-                    type="text"
-                    maxlength="50"
-                    placeholder="New room name..."
-                >
-
-                <button id="create-room-button">
-                    ➕ Create Room
-                </button>
-
-            </div>
-
-        </section>
-
-
-        <!-- CHAT -->
-
-        <section
-            id="chat-section"
-            style="display: none;"
-        >
-
-            <div class="chat-header">
-
-                <button id="leave-button">
-                    🚪 Leave
-                </button>
-
-                <h2 id="current-room">
-                    Room
-                </h2>
-
-            </div>
-
-
-            <div
-                id="messages"
-                class="chat-messages"
-            >
-                Loading messages...
-            </div>
-
-
-            <form id="message-form">
-
-                <input
-                    id="message-input"
-                    type="text"
-                    maxlength="2000"
-                    autocomplete="off"
-                    placeholder="Type a message..."
-                >
-
-                <button type="submit">
-                    Send 💬
-                </button>
-
-            </form>
-
-        </section>
-
-
-        <p id="status"></p>
+        </nav>
 
     </div>
 
+</header>
 
-    <script src="shrekchat.js"></script>
+<main class="container">
+
+    <h1>
+        💬 ShrekChat
+    </h1>
+
+    <p>
+        Create a room. Join a room.
+        Talk about absolutely anything.
+    </p>
+
+    <section class="chat-create">
+
+        <h2>
+            Create a room
+        </h2>
+
+        <input
+            id="room-name"
+            maxlength="50"
+            placeholder="Room name...">
+
+        <button onclick="createRoom()">
+            ➕ Create Room
+        </button>
+
+        <p id="room-status"></p>
+
+    </section>
+
+    <section>
+
+        <h2>
+            Rooms
+        </h2>
+
+        <div id="rooms">
+            Loading rooms...
+        </div>
+
+    </section>
+
+    <section
+        id="chat-section"
+        style="display:none;">
+
+        <h2 id="current-room-name">
+            Room
+        </h2>
+
+        <button onclick="leaveRoom()">
+            🚪 Leave Room
+        </button>
+
+        <div
+            id="messages"
+            class="chat-messages">
+        </div>
+
+        <div class="chat-input">
+
+            <input
+                id="message-input"
+                maxlength="1000"
+                placeholder="Type a message...">
+
+            <button onclick="sendMessage()">
+                Send
+            </button>
+
+        </div>
+
+    </section>
+
+</main>
+
+<script>
+
+let currentRoom = null;
+
+function escapeHtml(value) {
+
+    const div =
+        document.createElement("div");
+
+    div.textContent =
+        value ?? "";
+
+    return div.innerHTML;
+}
+
+async function checkLogin() {
+
+    const response =
+        await fetch("/api/me");
+
+    const data =
+        await response.json();
+
+    if (!data.loggedIn) {
+        location.href = "/";
+    }
+}
+
+async function loadRooms() {
+
+    const container =
+        document.getElementById("rooms");
+
+    try {
+
+        const response =
+            await fetch("/api/chat/rooms");
+
+        const rooms =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                rooms.error ||
+                "Could not load rooms."
+            );
+        }
+
+        if (!rooms.length) {
+
+            container.innerHTML = `
+                <div class="empty-box">
+                    No rooms yet.
+                    Create the first one! 🧌
+                </div>
+            `;
+
+            return;
+        }
+
+        container.innerHTML =
+            rooms.map(room => `
+
+                <div class="room">
+
+                    <strong>
+                        💬 ${escapeHtml(
+                            room.name
+                        )}
+                    </strong>
+
+                    <button
+                        onclick="joinRoom('${room.id}')">
+
+                        Join
+
+                    </button>
+
+                </div>
+
+            `).join("");
+
+    } catch (error) {
+
+        container.innerHTML =
+            `<p>❌ ${escapeHtml(
+                error.message
+            )}</p>`;
+    }
+}
+
+async function createRoom() {
+
+    const input =
+        document.getElementById(
+            "room-name"
+        );
+
+    const status =
+        document.getElementById(
+            "room-status"
+        );
+
+    const name =
+        input.value.trim();
+
+    if (!name) {
+        status.textContent =
+            "❌ Enter a room name.";
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/chat/rooms",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        name
+                    })
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Could not create room."
+            );
+        }
+
+        input.value = "";
+
+        status.textContent =
+            "✅ Room created!";
+
+        await loadRooms();
+
+        joinRoom(data.id);
+
+    } catch (error) {
+
+        status.textContent =
+            "❌ " + error.message;
+    }
+}
+
+async function joinRoom(roomId) {
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/chat/rooms/${roomId}/join`,
+                {
+                    method: "POST"
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Could not join room."
+            );
+        }
+
+        const roomsResponse =
+            await fetch(
+                "/api/chat/rooms"
+            );
+
+        const rooms =
+            await roomsResponse.json();
+
+        currentRoom =
+            rooms.find(
+                room =>
+                    String(room.id) ===
+                    String(roomId)
+            );
+
+        if (!currentRoom) {
+            throw new Error(
+                "Room not found."
+            );
+        }
+
+        document.getElementById(
+            "chat-section"
+        ).style.display = "block";
+
+        document.getElementById(
+            "current-room-name"
+        ).textContent =
+            "💬 " + currentRoom.name;
+
+        loadMessages();
+
+    } catch (error) {
+
+        alert(
+            "❌ " + error.message
+        );
+    }
+}
+
+async function leaveRoom() {
+
+    if (!currentRoom) return;
+
+    await fetch(
+        `/api/chat/rooms/${currentRoom.id}/leave`,
+        {
+            method: "POST"
+        }
+    );
+
+    currentRoom = null;
+
+    document.getElementById(
+        "chat-section"
+    ).style.display = "none";
+
+    document.getElementById(
+        "messages"
+    ).innerHTML = "";
+
+    loadRooms();
+}
+
+async function loadMessages() {
+
+    if (!currentRoom) return;
+
+    const container =
+        document.getElementById(
+            "messages"
+        );
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/chat/rooms/${currentRoom.id}/messages`
+            );
+
+        const messages =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                messages.error ||
+                "Could not load messages."
+            );
+        }
+
+        if (!messages.length) {
+
+            container.innerHTML =
+                "<p>No messages yet. Say hi! 👋</p>";
+
+            return;
+        }
+
+        container.innerHTML =
+            messages.map(message => `
+
+                <div class="chat-message">
+
+                    <strong>
+                        ${escapeHtml(
+                            message.display_name
+                        )}
+                    </strong>
+
+                    <span>
+                        @${escapeHtml(
+                            message.username
+                        )}
+                    </span>
+
+                    <p>
+                        ${escapeHtml(
+                            message.content
+                        )}
+                    </p>
+
+                </div>
+
+            `).join("");
+
+        container.scrollTop =
+            container.scrollHeight;
+
+    } catch (error) {
+
+        container.innerHTML =
+            `<p>❌ ${escapeHtml(
+                error.message
+            )}</p>`;
+    }
+}
+
+async function sendMessage() {
+
+    if (!currentRoom) return;
+
+    const input =
+        document.getElementById(
+            "message-input"
+        );
+
+    const content =
+        input.value.trim();
+
+    if (!content) return;
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/chat/rooms/${currentRoom.id}/messages`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        content
+                    })
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Could not send message."
+            );
+        }
+
+        input.value = "";
+
+        loadMessages();
+
+    } catch (error) {
+
+        alert(
+            "❌ " + error.message
+        );
+    }
+}
+
+document
+    .getElementById("message-input")
+    ?.addEventListener(
+        "keydown",
+        event => {
+
+            if (event.key === "Enter") {
+                sendMessage();
+            }
+
+        }
+    );
+
+checkLogin();
+loadRooms();
+
+// Refresh chat every 3 seconds
+setInterval(() => {
+
+    if (currentRoom) {
+        loadMessages();
+    }
+
+}, 3000);
+
+</script>
 
 </body>
-
 </html>
-

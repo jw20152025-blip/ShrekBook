@@ -1,330 +1,166 @@
-
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <title>Login - ShrekBook 🧌</title>
 
-
-    <link rel="stylesheet" href="styles.css">
-
-    <title>Login - ShrekBook</title>
-
-    <title>Login - ShrekBook</title>
-
-    <link
-        rel="stylesheet"
-        href="/styles.css"
-    >
-
+    <link rel="stylesheet" href="/styles.css">
 </head>
 
 <body>
 
-<header>
+<header class="navbar">
+    <div class="navbar-inner">
 
-    <div class="brand">
+        <a href="/" class="logo">
+            🧌 ShrekBook
+        </a>
 
-        <h1>🧌 ShrekBook</h1>
-
-
-        <div class="logo">
-            🧌
-        </div>
-
-        <h1>
-            ShrekBook
-        </h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/signup.html">Sign Up</a>
+        </nav>
 
     </div>
-
-    <nav>
-
-        <a href="/">
-            Home
-        </a>
-
-        <a href="/signup.html">
-
-            Create Account
-
-            Sign Up
-
-        </a>
-
-    </nav>
-
 </header>
 
 
-
-<div class="container">
-
-    <div class="welcome">
-
-        <h2>Login</h2>
-
-        <form id="loginForm">
-
-            <input
-                type="email"
-                id="email"
-                placeholder="Email"
-                required
-            >
-
 <main class="container">
 
-<section class="form-box">
+    <section class="auth-section">
 
-    <h2>
-        Login
-    </h2>
+        <div class="auth-box">
+
+            <h1>Welcome Back 🧌</h1>
+
+            <p>
+                Log back into ShrekBook.
+            </p>
 
 
             <input
-                type="password"
-                id="password"
-                placeholder="Password"
-                required
+                id="email"
+                type="email"
+                placeholder="Email"
+                autocomplete="email"
             >
 
 
-            <button type="submit">
-                Login
+            <input
+                id="password"
+                type="password"
+                placeholder="Password"
+                autocomplete="current-password"
+            >
+
+
+            <button onclick="login()">
+                🔐 Login
             </button>
 
-        </form>
 
-        <p id="message"></p>
-
-    </div>
-
-</div>
-
-    <form id="loginForm">
-
-        <label>
-            Email
-        </label>
-
-        <input
-            id="email"
-            type="email"
-            required
-        >
+            <p id="status"></p>
 
 
-        <label>
-            Password
-        </label>
+            <p>
+                Don't have an account?
+                <a href="/signup.html">
+                    Create one
+                </a>
+            </p>
 
-        <input
-            id="password"
-            type="password"
-            required
-        >
+        </div>
 
-
-        <button type="submit">
-            Login
-        </button>
-
-    </form>
-
-
-    <p id="loginMessage"></p>
-
-</section>
+    </section>
 
 </main>
 
 
-
 <script>
 
-document
-    .getElementById("loginForm")
+async function login() {
 
-    .addEventListener("submit", async (event) => {
+    const email =
+        document.getElementById("email")
+            .value.trim();
 
-    form.addEventListener(
-        "submit",
-        async event => {
+    const password =
+        document.getElementById("password")
+            .value;
+
+    const status =
+        document.getElementById("status");
 
 
-            event.preventDefault();
+    if (!email || !password) {
+
+        status.textContent =
+            "❌ Enter your email and password.";
+
+        return;
+    }
 
 
-        const message =
-            document.getElementById("message");
+    status.textContent =
+        "Logging in...";
 
-        message.textContent =
-            "Logging in...";
 
-        try {
+    try {
 
-            const response = await fetch(
-                "/api/login",
-                {
-                    method: "POST",
+        const response =
+            await fetch("/api/login", {
 
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
+                method: "POST",
 
-                    body: JSON.stringify({
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
 
-                        email:
-                            document.getElementById(
-                                "email"
-                            ).value,
+                body: JSON.stringify({
+                    email,
+                    password
+                })
 
-                        password:
-                            document.getElementById(
-                                "password"
-                            ).value
+            });
 
-                    })
-                }
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Login failed."
             );
-
-            const data =
-                await response.json();
-
-            if (!response.ok) {
-
-                message.textContent =
-                    data.error ||
-                    "Login failed.";
-
-                return;
-
-            }
-
-            localStorage.setItem(
-                "shrekbook_token",
-                data.access_token
-            );
-
-            message.textContent =
-                "Logged in! 🧌";
-
-            setTimeout(() => {
-
-                window.location.href =
-                    "/";
-
-            }, 500);
-
-        } catch (error) {
-
-            console.error(error);
-
-            message.textContent =
-                "Something went wrong.";
 
         }
 
-    });
+
+        status.textContent =
+            "✅ Login successful!";
 
 
-            const email =
-                document.getElementById(
-                    "email"
-                ).value;
+        window.location.href = "/";
 
 
-            const password =
-                document.getElementById(
-                    "password"
-                ).value;
+    } catch (error) {
 
+        console.error(
+            "LOGIN ERROR:",
+            error
+        );
 
-            const message =
-                document.getElementById(
-                    "loginMessage"
-                );
-
-
-            message.textContent =
-                "Logging in...";
-
-
-            try {
-
-                const response =
-                    await fetch(
-                        "/api/login",
-                        {
-
-                            method: "POST",
-
-                            credentials:
-                                "include",
-
-                            headers: {
-                                "Content-Type":
-                                    "application/json"
-                            },
-
-                            body:
-                                JSON.stringify({
-
-                                    email,
-
-                                    password
-
-                                })
-
-                        }
-                    );
-
-
-                const data =
-                    await response.json();
-
-
-                if (!response.ok) {
-
-                    throw new Error(
-                        data.error ||
-                        "Login failed."
-                    );
-
-                }
-
-
-                window.location.href =
-                    "/";
-
-
-            } catch (error) {
-
-                message.textContent =
-                    "❌ " +
-                    error.message;
-
-            }
-
-        }
-    );
-
+        status.textContent =
+            "❌ " + error.message;
+    }
+}
 
 </script>
 
 </body>
-
 </html>
-
-
-
-</html>
-

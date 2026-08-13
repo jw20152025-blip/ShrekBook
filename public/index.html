@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
 
     <meta
@@ -13,6 +14,7 @@
     <link
         rel="stylesheet"
         href="/styles.css">
+
 </head>
 
 <body>
@@ -43,10 +45,16 @@
 
             </a>
 
+            <a href="/shrekchat.html">
+
+                💬 ShrekChat
+
+            </a>
+
             <button
                 id="logout-button"
-                style="display:none;"
-                onclick="logout()">
+                onclick="logout()"
+                style="display:none;">
 
                 Logout
 
@@ -58,15 +66,7 @@
 
 </header>
 
-
 <main class="container">
-
-    <h1>
-        Welcome to ShrekBook 🧌
-    </h1>
-
-
-    <!-- AUTH -->
 
     <section
         id="auth-section"
@@ -74,19 +74,18 @@
 
         <div class="auth-box">
 
+            <h1>
+                Welcome to ShrekBook 🧌
+            </h1>
+
             <p>
                 The social network for ogres,
                 cats, and everyone in between.
             </p>
 
-
-            <!-- LOGIN -->
-
             <div id="login-box">
 
-                <h2>
-                    Login
-                </h2>
+                <h2>Login</h2>
 
                 <input
                     id="login-email"
@@ -98,11 +97,8 @@
                     type="password"
                     placeholder="Password">
 
-                <button
-                    onclick="login()">
-
+                <button onclick="login()">
                     🔐 Login
-
                 </button>
 
                 <p id="login-status"></p>
@@ -118,26 +114,19 @@
 
             </div>
 
-
-            <!-- SIGNUP -->
-
             <div
                 id="signup-box"
                 style="display:none;">
 
-                <h2>
-                    Create Account
-                </h2>
+                <h2>Create Account</h2>
 
                 <input
                     id="signup-username"
-                    type="text"
                     maxlength="30"
                     placeholder="Username">
 
                 <input
                     id="signup-display-name"
-                    type="text"
                     maxlength="50"
                     placeholder="Display name">
 
@@ -151,11 +140,8 @@
                     type="password"
                     placeholder="Password">
 
-                <button
-                    onclick="signup()">
-
+                <button onclick="signup()">
                     📝 Create Account
-
                 </button>
 
                 <p id="signup-status"></p>
@@ -175,15 +161,9 @@
 
     </section>
 
-
-    <!-- APP -->
-
     <section
         id="app-section"
         style="display:none;">
-
-
-        <!-- CREATE POST -->
 
         <section class="create-post">
 
@@ -194,21 +174,16 @@
             <textarea
                 id="post-content"
                 maxlength="5000"
-                placeholder="Say something..."></textarea>
+                placeholder="Say something...">
+            </textarea>
 
-            <button
-                onclick="createPost()">
-
+            <button onclick="createPost()">
                 📝 Post
-
             </button>
 
             <p id="post-status"></p>
 
         </section>
-
-
-        <!-- FEED -->
 
         <section>
 
@@ -222,9 +197,6 @@
 
         </section>
 
-
-        <!-- PEOPLE -->
-
         <section class="people-section">
 
             <h2>
@@ -237,9 +209,6 @@
 
         </section>
 
-
-        <!-- TELECOM -->
-
         <section class="telecom-section">
 
             <h2>
@@ -247,12 +216,16 @@
             </h2>
 
             <p>
-                Connecting the swamp to the
-                rest of the internet since 2026.
+                Connecting the swamp
+                to the internet since 2026.
             </p>
 
-            <a href="/shrekchat.html">
+            <a
+                class="telecom-button"
+                href="/shrekchat.html">
+
                 💬 Open ShrekChat
+
             </a>
 
         </section>
@@ -261,9 +234,7 @@
 
 </main>
 
-
 <script src="/script.js"></script>
 
 </body>
-
 </html>
