@@ -1,166 +1,242 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
 
-    <meta charset="UTF-8">
+<meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0">
 
-    <title>ShrekChat 🧌</title>
+<title>ShrekChat 🧌</title>
 
-    <link
-        rel="stylesheet"
-        href="/styles.css">
+<link
+    rel="stylesheet"
+    href="/styles.css">
 
 </head>
+
 
 <body>
 
 <header class="navbar">
 
-    <div class="navbar-inner">
+<div class="navbar-inner">
 
-        <a
-            href="/"
-            class="logo">
+<a
+    href="/"
+    class="logo">
 
-            🧌 ShrekBook
+    🧌 ShrekBook
 
-        </a>
+</a>
 
-        <nav>
+<nav>
 
-            <a href="/">
-                Home
-            </a>
+<a href="/">
+    Home
+</a>
 
-        </nav>
+</nav>
 
-    </div>
+</div>
 
 </header>
 
 
 <main class="container">
 
-    <h1>
-        🧌 ShrekChat
-    </h1>
+<h1>
+    🧌 ShrekChat
+</h1>
 
-    <p>
-        The swamp's finest chat network.
-    </p>
-
-
-    <!-- CREATE ROOM -->
-
-    <section class="create-post">
-
-        <h2>
-            Create a Room
-        </h2>
-
-        <input
-            id="room-name"
-            type="text"
-            maxlength="50"
-            placeholder="Room name">
-
-        <label>
-
-            <input
-                id="private-room"
-                type="checkbox">
-
-            🔒 Private room
-
-        </label>
-
-        <button onclick="createRoom()">
-            ➕ Create Room
-        </button>
-
-        <p id="room-status"></p>
-
-    </section>
+<p>
+    The swamp's finest chat network.
+</p>
 
 
-    <!-- ROOMS -->
+<!-- ==================================================
+CREATE ROOM
+================================================== -->
 
-    <section>
+<section class="create-post">
 
-        <h2>
-            Rooms
-        </h2>
-
-        <button onclick="loadRooms()">
-            🔄 Refresh
-        </button>
-
-        <div id="rooms">
-            Loading rooms...
-        </div>
-
-    </section>
+<h2>
+    Create a Room
+</h2>
 
 
-    <!-- CHAT -->
+<input
+    id="room-name"
+    type="text"
+    maxlength="50"
+    placeholder="Room name">
 
-    <section
-        id="chat-section"
-        style="display:none;">
 
-        <h2 id="chat-title">
-            Chat
-        </h2>
+<label>
 
-        <button onclick="leaveRoom()">
-            🚪 Leave Room
-        </button>
+<input
+    id="private-room"
+    type="checkbox">
 
-        <button
-            id="delete-room-button"
-            onclick="deleteRoom()"
-            style="display:none;">
+🔒 Private room
 
-            🗑️ Delete Room
+</label>
 
-        </button>
 
-        <div
-            id="messages"
-            style="
-                margin-top:20px;
-                min-height:300px;
-                max-height:500px;
-                overflow-y:auto;
-            ">
+<button
+    onclick="createRoom()">
 
-        </div>
+    ➕ Create Room
 
-        <div
-            style="
-                display:flex;
-                gap:10px;
-                margin-top:15px;
-            ">
+</button>
 
-            <input
-                id="message-input"
-                type="text"
-                maxlength="1000"
-                placeholder="Say something...">
 
-            <button onclick="sendMessage()">
-                Send
-            </button>
+<p id="room-status"></p>
 
-        </div>
+</section>
 
-    </section>
+
+<!-- ==================================================
+ROOMS
+================================================== -->
+
+<section>
+
+<h2>
+    Rooms
+</h2>
+
+
+<button
+    onclick="loadRooms()">
+
+    🔄 Refresh
+
+</button>
+
+
+<div id="rooms">
+
+    Loading rooms...
+
+</div>
+
+</section>
+
+
+<!-- ==================================================
+CHAT
+================================================== -->
+
+<section
+    id="chat-section"
+    style="display:none;">
+
+<h2 id="chat-title">
+    Chat
+</h2>
+
+
+<button
+    onclick="leaveRoom()">
+
+    🚪 Leave Room
+
+</button>
+
+
+<button
+    id="invite-button"
+    onclick="toggleInvitePanel()"
+    style="display:none;">
+
+    👥 Invite People
+
+</button>
+
+
+<button
+    id="delete-room-button"
+    onclick="deleteRoom()"
+    style="display:none;">
+
+    🗑️ Delete Room
+
+</button>
+
+
+<!-- ==================================================
+INVITES
+================================================== -->
+
+<div
+    id="invite-panel"
+    style="
+        display:none;
+        margin-top:20px;
+    ">
+
+<h3>
+    👥 Invite People
+</h3>
+
+
+<div id="invite-users">
+
+    Loading users...
+
+</div>
+
+</div>
+
+
+<!-- ==================================================
+MESSAGES
+================================================== -->
+
+<div
+    id="messages"
+    style="
+        margin-top:20px;
+        min-height:300px;
+        max-height:500px;
+        overflow-y:auto;
+    ">
+
+</div>
+
+
+<!-- ==================================================
+SEND MESSAGE
+================================================== -->
+
+<div
+    style="
+        display:flex;
+        gap:10px;
+        margin-top:15px;
+    ">
+
+<input
+    id="message-input"
+    type="text"
+    maxlength="1000"
+    placeholder="Say something...">
+
+
+<button
+    onclick="sendMessage()">
+
+    Send
+
+</button>
+
+</div>
+
+</section>
 
 </main>
 
@@ -168,6 +244,9 @@
 <script>
 
 let currentRoom = null;
+
+let currentUserId = null;
+
 let messageTimer = null;
 
 
@@ -184,114 +263,13 @@ function escapeHtml(text) {
         text ?? "";
 
     return div.innerHTML;
-}
 
-
-// ==================================================
-// LOAD ROOMS
-// ==================================================
-
-async function loadRooms() {
-
-    const container =
-        document.getElementById("rooms");
-
-    try {
-
-        const response =
-            await fetch("/api/chat/rooms");
-
-        const rooms =
-            await response.json();
-
-        if (!response.ok) {
-            throw new Error(
-                rooms.error ||
-                "Could not load rooms."
-            );
-        }
-
-        if (!rooms.length) {
-
-            container.innerHTML =
-                "<p>No rooms yet. Create the first one! 🧌</p>";
-
-            return;
-        }
-
-        container.innerHTML =
-            rooms.map(room => {
-
-                const isCreator =
-                    currentUserId ===
-                    room.created_by;
-
-                return `
-
-                    <div class="post">
-
-                        <h3>
-                            ${
-                                room.is_private
-                                    ? "🔒"
-                                    : "🟢"
-                            }
-
-                            ${escapeHtml(
-                                room.name
-                            )}
-                        </h3>
-
-                        <p>
-                            ${
-                                room.is_private
-                                    ? "Private room"
-                                    : "Public room"
-                            }
-                        </p>
-
-                        <button
-                            onclick="joinRoom('${room.id}')">
-
-                            💬 Enter
-
-                        </button>
-
-                        ${
-                            isCreator
-                                ? `
-                                    <button
-                                        onclick="deleteRoomById('${room.id}')">
-
-                                        🗑️ Delete
-
-                                    </button>
-                                  `
-                                : ""
-                        }
-
-                    </div>
-
-                `;
-
-            }).join("");
-
-    } catch (error) {
-
-        container.innerHTML =
-            `<p>❌ ${escapeHtml(
-                error.message
-            )}</p>`;
-
-    }
 }
 
 
 // ==================================================
 // CURRENT USER
 // ==================================================
-
-let currentUserId = null;
 
 async function getCurrentUser() {
 
@@ -302,6 +280,7 @@ async function getCurrentUser() {
 
         const data =
             await response.json();
+
 
         if (
             response.ok &&
@@ -314,21 +293,138 @@ async function getCurrentUser() {
 
         } else {
 
-            alert(
-                "You must be logged in to use ShrekChat."
-            );
-
             window.location.href = "/";
 
         }
 
     } catch {
 
-        alert(
-            "Could not check login."
-        );
+        window.location.href = "/";
 
     }
+
+}
+
+
+// ==================================================
+// LOAD ROOMS
+// ==================================================
+
+async function loadRooms() {
+
+    const container =
+        document.getElementById(
+            "rooms"
+        );
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/chat/rooms"
+            );
+
+
+        const rooms =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                rooms.error ||
+                "Could not load rooms."
+            );
+
+        }
+
+
+        if (!rooms.length) {
+
+            container.innerHTML =
+                "<p>No rooms yet. Create one! 🧌</p>";
+
+            return;
+
+        }
+
+
+        container.innerHTML =
+            rooms.map(room => {
+
+                const creator =
+                    room.created_by ===
+                    currentUserId;
+
+
+                return `
+
+<div class="post">
+
+<h3>
+
+${
+    room.is_private
+        ? "🔒"
+        : "🟢"
+}
+
+${escapeHtml(room.name)}
+
+</h3>
+
+
+<p>
+
+${
+    room.is_private
+        ? "Private room"
+        : "Public room"
+}
+
+</p>
+
+
+<button
+    onclick="joinRoom('${room.id}')">
+
+    💬 Enter
+
+</button>
+
+
+${
+    creator
+        ? `
+
+<button
+    onclick="deleteRoomById('${room.id}')">
+
+    🗑️ Delete
+
+</button>
+
+`
+        : ""
+}
+
+</div>
+
+`;
+
+            }).join("");
+
+
+    } catch (error) {
+
+        container.innerHTML =
+            `<p>❌ ${escapeHtml(
+                error.message
+            )}</p>`;
+
+    }
+
 }
 
 
@@ -338,23 +434,27 @@ async function getCurrentUser() {
 
 async function createRoom() {
 
-    const input =
+    const nameInput =
         document.getElementById(
             "room-name"
         );
 
-    const privateCheckbox =
+
+    const privateInput =
         document.getElementById(
             "private-room"
         );
+
 
     const status =
         document.getElementById(
             "room-status"
         );
 
+
     const name =
-        input.value.trim();
+        nameInput.value.trim();
+
 
     if (!name) {
 
@@ -362,10 +462,13 @@ async function createRoom() {
             "❌ Enter a room name.";
 
         return;
+
     }
+
 
     status.textContent =
         "Creating room...";
+
 
     try {
 
@@ -381,15 +484,21 @@ async function createRoom() {
                     },
 
                     body: JSON.stringify({
+
                         name,
+
                         is_private:
-                            privateCheckbox.checked
+                            privateInput.checked
+
                     })
+
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -400,17 +509,21 @@ async function createRoom() {
 
         }
 
-        input.value = "";
 
-        privateCheckbox.checked =
+        nameInput.value = "";
+
+        privateInput.checked =
             false;
+
 
         status.textContent =
             "✅ Room created!";
 
+
         await loadRooms();
 
         openRoom(data);
+
 
     } catch (error) {
 
@@ -419,11 +532,12 @@ async function createRoom() {
             error.message;
 
     }
+
 }
 
 
 // ==================================================
-// JOIN / OPEN ROOM
+// JOIN ROOM
 // ==================================================
 
 async function joinRoom(roomId) {
@@ -438,34 +552,44 @@ async function joinRoom(roomId) {
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (!response.ok) {
 
             throw new Error(
                 data.error ||
-                "Could not join room."
+                "Could not enter room."
             );
 
         }
+
 
         const roomsResponse =
             await fetch(
                 "/api/chat/rooms"
             );
 
+
         const rooms =
             await roomsResponse.json();
 
+
         const room =
             rooms.find(
-                r => r.id === roomId
+                r =>
+                    r.id === roomId
             );
 
+
         if (room) {
+
             openRoom(room);
+
         }
+
 
     } catch (error) {
 
@@ -475,6 +599,7 @@ async function joinRoom(roomId) {
         );
 
     }
+
 }
 
 
@@ -487,10 +612,12 @@ function openRoom(room) {
     currentRoom =
         room;
 
+
     document.getElementById(
         "chat-section"
     ).style.display =
         "block";
+
 
     document.getElementById(
         "chat-title"
@@ -501,18 +628,45 @@ function openRoom(room) {
                 : "🟢"
         } ${room.name}`;
 
+
+    const creator =
+        room.created_by ===
+        currentUserId;
+
+
     document.getElementById(
-        "delete-room-button"
+        "invite-button"
     ).style.display =
-        room.created_by === currentUserId
+        creator
             ? "inline-block"
             : "none";
 
+
+    document.getElementById(
+        "delete-room-button"
+    ).style.display =
+        creator
+            ? "inline-block"
+            : "none";
+
+
+    document.getElementById(
+        "invite-panel"
+    ).style.display =
+        "none";
+
+
     loadMessages();
 
+
     if (messageTimer) {
-        clearInterval(messageTimer);
+
+        clearInterval(
+            messageTimer
+        );
+
     }
+
 
     messageTimer =
         setInterval(
@@ -529,7 +683,9 @@ function openRoom(room) {
 
 async function leaveRoom() {
 
-    if (!currentRoom) return;
+    if (!currentRoom)
+        return;
+
 
     try {
 
@@ -542,7 +698,9 @@ async function leaveRoom() {
 
     } catch {}
 
+
     currentRoom = null;
+
 
     if (messageTimer) {
 
@@ -554,32 +712,34 @@ async function leaveRoom() {
 
     }
 
+
     document.getElementById(
         "chat-section"
     ).style.display =
         "none";
 
+
     loadRooms();
+
 }
 
 
 // ==================================================
-// DELETE CURRENT ROOM
+// DELETE
 // ==================================================
 
 async function deleteRoom() {
 
-    if (!currentRoom) return;
+    if (!currentRoom)
+        return;
+
 
     await deleteRoomById(
         currentRoom.id
     );
+
 }
 
-
-// ==================================================
-// DELETE ROOM
-// ==================================================
 
 async function deleteRoomById(roomId) {
 
@@ -588,8 +748,11 @@ async function deleteRoomById(roomId) {
             "Delete this room permanently?"
         )
     ) {
+
         return;
+
     }
+
 
     try {
 
@@ -601,8 +764,10 @@ async function deleteRoomById(roomId) {
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -613,12 +778,15 @@ async function deleteRoomById(roomId) {
 
         }
 
+
         if (
             currentRoom &&
-            currentRoom.id === roomId
+            currentRoom.id ===
+            roomId
         ) {
 
             currentRoom = null;
+
 
             if (messageTimer) {
 
@@ -630,13 +798,17 @@ async function deleteRoomById(roomId) {
 
             }
 
+
             document.getElementById(
                 "chat-section"
             ).style.display =
                 "none";
+
         }
 
+
         loadRooms();
+
 
     } catch (error) {
 
@@ -646,6 +818,229 @@ async function deleteRoomById(roomId) {
         );
 
     }
+
+}
+
+
+// ==================================================
+// INVITE PANEL
+// ==================================================
+
+function toggleInvitePanel() {
+
+    const panel =
+        document.getElementById(
+            "invite-panel"
+        );
+
+
+    if (
+        panel.style.display ===
+        "none"
+    ) {
+
+        panel.style.display =
+            "block";
+
+        loadInviteUsers();
+
+    } else {
+
+        panel.style.display =
+            "none";
+
+    }
+
+}
+
+
+// ==================================================
+// LOAD INVITE USERS
+// ==================================================
+
+async function loadInviteUsers() {
+
+    const container =
+        document.getElementById(
+            "invite-users"
+        );
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/chat/rooms/${currentRoom.id}/invite-users`
+            );
+
+
+        const users =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                users.error ||
+                "Could not load users."
+            );
+
+        }
+
+
+        if (!users.length) {
+
+            container.innerHTML =
+                "<p>Everyone is already here! 🧌</p>";
+
+            return;
+
+        }
+
+
+        container.innerHTML =
+            users.map(user => `
+
+<div
+    style="
+        display:flex;
+        align-items:center;
+        gap:10px;
+        margin-bottom:10px;
+    ">
+
+
+<img
+    src="${
+        escapeHtml(
+            user.avatar ||
+            "/default-avatar.png"
+        )
+    }"
+    style="
+        width:40px;
+        height:40px;
+        border-radius:50%;
+        object-fit:cover;
+    ">
+
+
+<div>
+
+<strong>
+
+${escapeHtml(
+    user.display_name ||
+    user.username
+)}
+
+</strong>
+
+
+<div>
+
+@${escapeHtml(
+    user.username
+)}
+
+</div>
+
+</div>
+
+
+<button
+    onclick="inviteUser('${user.id}')">
+
+    ➕ Invite
+
+</button>
+
+
+</div>
+
+`).join("");
+
+
+    } catch (error) {
+
+        container.innerHTML =
+            `<p>❌ ${escapeHtml(
+                error.message
+            )}</p>`;
+
+    }
+
+}
+
+
+// ==================================================
+// INVITE USER
+// ==================================================
+
+async function inviteUser(userId) {
+
+    if (!currentRoom)
+        return;
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/chat/rooms/${currentRoom.id}/invite`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                        user_id:
+                            userId
+
+                    })
+
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not invite user."
+            );
+
+        }
+
+
+        alert(
+            "✅ User invited!"
+        );
+
+
+        loadInviteUsers();
+
+
+        loadRooms();
+
+
+    } catch (error) {
+
+        alert(
+            "❌ " +
+            error.message
+        );
+
+    }
+
 }
 
 
@@ -655,12 +1050,15 @@ async function deleteRoomById(roomId) {
 
 async function loadMessages() {
 
-    if (!currentRoom) return;
+    if (!currentRoom)
+        return;
+
 
     const container =
         document.getElementById(
             "messages"
         );
+
 
     try {
 
@@ -669,45 +1067,112 @@ async function loadMessages() {
                 `/api/chat/rooms/${currentRoom.id}/messages`
             );
 
+
         const messages =
             await response.json();
 
+
         if (!response.ok) {
+
             throw new Error(
                 messages.error ||
                 "Could not load messages."
             );
+
         }
+
 
         container.innerHTML =
             messages.map(message => `
 
-                <div
-                    style="
-                        margin-bottom:12px;
-                        padding:8px;
-                    ">
+<div
+    style="
+        display:flex;
+        gap:10px;
+        margin-bottom:15px;
+    ">
 
-                    <strong>
-                        ${escapeHtml(
-                            message.display_name ||
-                            message.username ||
-                            "User"
-                        )}
-                    </strong>
 
-                    <p>
-                        ${escapeHtml(
-                            message.content
-                        )}
-                    </p>
+<img
+    src="${
+        escapeHtml(
+            message.avatar ||
+            "/default-avatar.png"
+        )
+    }"
+    style="
+        width:45px;
+        height:45px;
+        border-radius:50%;
+        object-fit:cover;
+    ">
 
-                </div>
 
-            `).join("");
+<div>
+
+<strong>
+
+${escapeHtml(
+    message.display_name ||
+    message.username ||
+    "User"
+)}
+
+</strong>
+
+
+<div
+    style="
+        font-size:12px;
+        opacity:.7;
+    ">
+
+@${escapeHtml(
+    message.username ||
+    "user"
+)}
+
+</div>
+
+
+<p>
+
+${escapeHtml(
+    message.content
+)}
+
+</p>
+
+
+<div
+    style="
+        font-size:12px;
+        opacity:.7;
+    ">
+
+🐱 ${message.cat || 0}
+
+&nbsp;
+
+🍑 ${message.gyatt || 0}
+
+&nbsp;
+
+🧌 ${message.ogred || 0}
+
+</div>
+
+
+</div>
+
+</div>
+
+`).join("");
+
 
         container.scrollTop =
             container.scrollHeight;
+
 
     } catch (error) {
 
@@ -717,6 +1182,7 @@ async function loadMessages() {
         );
 
     }
+
 }
 
 
@@ -726,17 +1192,23 @@ async function loadMessages() {
 
 async function sendMessage() {
 
-    if (!currentRoom) return;
+    if (!currentRoom)
+        return;
+
 
     const input =
         document.getElementById(
             "message-input"
         );
 
+
     const content =
         input.value.trim();
 
-    if (!content) return;
+
+    if (!content)
+        return;
+
 
     try {
 
@@ -754,11 +1226,14 @@ async function sendMessage() {
                     body: JSON.stringify({
                         content
                     })
+
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -769,9 +1244,11 @@ async function sendMessage() {
 
         }
 
+
         input.value = "";
 
         loadMessages();
+
 
     } catch (error) {
 
@@ -781,6 +1258,7 @@ async function sendMessage() {
         );
 
     }
+
 }
 
 
@@ -789,13 +1267,16 @@ async function sendMessage() {
 // ==================================================
 
 document
-    .getElementById("message-input")
+    .getElementById(
+        "message-input"
+    )
     .addEventListener(
         "keydown",
         event => {
 
             if (
-                event.key === "Enter"
+                event.key ===
+                "Enter"
             ) {
 
                 sendMessage();
@@ -823,3 +1304,4 @@ document
 </body>
 
 </html>
+

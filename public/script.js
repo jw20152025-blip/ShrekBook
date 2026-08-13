@@ -1061,13 +1061,8 @@ START
 ================================================== */
 
 document.addEventListener(
-"DOMContentLoaded",
-() => {
-
-
-    checkLogin();
-
-}
-
-
+    "DOMContentLoaded",
+    () => {
+        checkLogin();
+    }
 );
