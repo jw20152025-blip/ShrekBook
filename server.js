@@ -697,6 +697,91 @@ app.post("/api/profile/avatar", async (req, res) => {
         });
     }
 });
+
+// ==================================================
+// GENERIC IMAGE UPLOAD
+// ==================================================
+
+async function uploadImage(
+    fileData,
+    fileType,
+    fileName,
+    userId
+) {
+
+    if (!fileData || !fileType || !fileName) {
+        throw new Error("Missing image data.");
+    }
+
+    if (!fileType.startsWith("image/")) {
+        throw new Error("File must be an image.");
+    }
+
+    const buffer = Buffer.from(
+        fileData,
+        "base64"
+    );
+
+    if (buffer.length > 5 * 1024 * 1024) {
+        throw new Error(
+            "Image must be under 5MB."
+        );
+    }
+
+    const extension =
+        fileName
+            .split(".")
+            .pop()
+            .toLowerCase();
+
+    const allowed = [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp",
+        "gif"
+    ];
+
+    if (!allowed.includes(extension)) {
+        throw new Error(
+            "Unsupported image type."
+        );
+    }
+
+    const filePath =
+        `posts/${userId}/${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2)}.${extension}`;
+
+    const {
+        error: uploadError
+    } = await supabase.storage
+        .from("avatars")
+        .upload(
+            filePath,
+            buffer,
+            {
+                contentType: fileType,
+                upsert: false
+            }
+        );
+
+    if (uploadError) {
+        throw new Error(
+            uploadError.message
+        );
+    }
+
+    const {
+        data: publicData
+    } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+    return publicData.publicUrl;
+}
+
+
 // ==================================================
 // POSTS
 // ==================================================
