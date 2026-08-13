@@ -940,39 +940,100 @@ app.post(
 // SHREKCHAT - ROOMS
 // ==================================================
 
+// GET PUBLIC ROOMS
 app.get("/api/chat/rooms", async (req, res) => {
     try {
-        const {
-            data,
-            error
-        } = await supabase
-            .from("chat_rooms")
-            .select(`
-                id,
-                name,
-                created_by,
-                created_at
-            `)
-            .order("created_at", {
-                ascending: true
-            });
-
-        if (error) {
-            return res.status(500).json({
-                error: error.message
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
             });
         }
 
-        res.json(data || []);
+        const userId = req.session.user.id;
+
+        // Get public rooms
+        const { data: publicRooms, error: publicError } =
+            await supabase
+                .from("chat_rooms")
+                .select(`
+                    id,
+                    name,
+                    created_by,
+                    is_private,
+                    created_at
+                `)
+                .eq("is_private", false)
+                .order("created_at", {
+                    ascending: false
+                });
+
+        if (publicError) {
+            return res.status(500).json({
+                error: publicError.message
+            });
+        }
+
+        // Get private rooms this user belongs to
+        const { data: memberships, error: memberError } =
+            await supabase
+                .from("chat_members")
+                .select("room_id")
+                .eq("user_id", userId);
+
+        if (memberError) {
+            return res.status(500).json({
+                error: memberError.message
+            });
+        }
+
+        const privateRoomIds =
+            (memberships || []).map(
+                member => member.room_id
+            );
+
+        let privateRooms = [];
+
+        if (privateRoomIds.length > 0) {
+            const { data, error } =
+                await supabase
+                    .from("chat_rooms")
+                    .select(`
+                        id,
+                        name,
+                        created_by,
+                        is_private,
+                        created_at
+                    `)
+                    .eq("is_private", true)
+                    .in("id", privateRoomIds);
+
+            if (error) {
+                return res.status(500).json({
+                    error: error.message
+                });
+            }
+
+            privateRooms = data || [];
+        }
+
+        res.json([
+            ...(publicRooms || []),
+            ...privateRooms
+        ]);
 
     } catch (error) {
+        console.error("GET ROOMS ERROR:", error);
+
         res.status(500).json({
             error: "Server error."
         });
     }
 });
 
+
+// ==================================================
 // CREATE ROOM
+// ==================================================
 
 app.post("/api/chat/rooms", async (req, res) => {
     try {
@@ -985,59 +1046,123 @@ app.post("/api/chat/rooms", async (req, res) => {
         const name =
             String(req.body.name || "").trim();
 
+        const isPrivate =
+            Boolean(req.body.is_private);
+
         if (!name) {
             return res.status(400).json({
-                error:
-                    "Room name cannot be empty."
+                error: "Room name cannot be empty."
             });
         }
 
         if (name.length > 50) {
             return res.status(400).json({
-                error:
-                    "Room name is too long."
+                error: "Room name is too long."
             });
         }
 
         const {
-            data,
+            data: room,
             error
         } = await supabase
             .from("chat_rooms")
             .insert({
                 name,
-                created_by:
-                    req.session.user.id
+                created_by: req.session.user.id,
+                is_private: isPrivate
             })
             .select()
             .single();
 
         if (error) {
+            console.error("CREATE ROOM ERROR:", error);
+
             return res.status(400).json({
-                error:
-                    "That room may already exist."
+                error: error.message
             });
         }
 
-        res.status(201).json(data);
+        // Automatically join creator
+        const { error: memberError } =
+            await supabase
+                .from("chat_members")
+                .insert({
+                    room_id: room.id,
+                    user_id: req.session.user.id
+                });
+
+        if (memberError) {
+            // Delete room if membership creation failed
+            await supabase
+                .from("chat_rooms")
+                .delete()
+                .eq("id", room.id);
+
+            return res.status(500).json({
+                error: memberError.message
+            });
+        }
+
+        res.status(201).json(room);
 
     } catch (error) {
+        console.error("CREATE ROOM ERROR:", error);
+
         res.status(500).json({
             error: "Server error."
         });
     }
 });
 
+
+// ==================================================
 // JOIN ROOM
+// ==================================================
 
 app.post(
     "/api/chat/rooms/:roomId/join",
     async (req, res) => {
+
         try {
             if (!req.session.user) {
                 return res.status(401).json({
+                    error: "You must be logged in."
+                });
+            }
+
+            const roomId =
+                req.params.roomId;
+
+            // Check room exists
+            const {
+                data: room,
+                error: roomError
+            } = await supabase
+                .from("chat_rooms")
+                .select(`
+                    id,
+                    is_private
+                `)
+                .eq("id", roomId)
+                .maybeSingle();
+
+            if (roomError) {
+                return res.status(500).json({
+                    error: roomError.message
+                });
+            }
+
+            if (!room) {
+                return res.status(404).json({
+                    error: "Room not found."
+                });
+            }
+
+            // Private rooms cannot be freely joined
+            if (room.is_private) {
+                return res.status(403).json({
                     error:
-                        "You must be logged in."
+                        "This is a private room."
                 });
             }
 
@@ -1046,11 +1171,8 @@ app.post(
             } = await supabase
                 .from("chat_members")
                 .upsert({
-                    room_id:
-                        req.params.roomId,
-
-                    user_id:
-                        req.session.user.id
+                    room_id: roomId,
+                    user_id: req.session.user.id
                 }, {
                     onConflict:
                         "room_id,user_id"
@@ -1067,6 +1189,8 @@ app.post(
             });
 
         } catch (error) {
+            console.error("JOIN ROOM ERROR:", error);
+
             res.status(500).json({
                 error: "Server error."
             });
@@ -1074,16 +1198,19 @@ app.post(
     }
 );
 
+
+// ==================================================
 // LEAVE ROOM
+// ==================================================
 
 app.post(
     "/api/chat/rooms/:roomId/leave",
     async (req, res) => {
+
         try {
             if (!req.session.user) {
                 return res.status(401).json({
-                    error:
-                        "You must be logged in."
+                    error: "You must be logged in."
                 });
             }
 
@@ -1112,6 +1239,135 @@ app.post(
             });
 
         } catch (error) {
+            console.error("LEAVE ROOM ERROR:", error);
+
+            res.status(500).json({
+                error: "Server error."
+            });
+        }
+    }
+);
+
+
+// ==================================================
+// DELETE ROOM
+// ONLY ROOM CREATOR CAN DO THIS
+// ==================================================
+
+app.delete(
+    "/api/chat/rooms/:roomId",
+    async (req, res) => {
+
+        try {
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error: "You must be logged in."
+                });
+            }
+
+            const roomId =
+                req.params.roomId;
+
+            // Get room
+            const {
+                data: room,
+                error: roomError
+            } = await supabase
+                .from("chat_rooms")
+                .select(`
+                    id,
+                    created_by
+                `)
+                .eq("id", roomId)
+                .maybeSingle();
+
+            if (roomError) {
+                return res.status(500).json({
+                    error: roomError.message
+                });
+            }
+
+            if (!room) {
+                return res.status(404).json({
+                    error: "Room not found."
+                });
+            }
+
+            // Check ownership
+            if (
+                room.created_by !==
+                req.session.user.id
+            ) {
+                return res.status(403).json({
+                    error:
+                        "Only the room creator can delete this room."
+                });
+            }
+
+            // Delete messages first
+            const {
+                error: messageError
+            } = await supabase
+                .from("chat_messages")
+                .delete()
+                .eq(
+                    "room_id",
+                    roomId
+                );
+
+            if (messageError) {
+                return res.status(500).json({
+                    error:
+                        messageError.message
+                });
+            }
+
+            // Delete memberships
+            const {
+                error: memberError
+            } = await supabase
+                .from("chat_members")
+                .delete()
+                .eq(
+                    "room_id",
+                    roomId
+                );
+
+            if (memberError) {
+                return res.status(500).json({
+                    error:
+                        memberError.message
+                });
+            }
+
+            // Delete room
+            const {
+                error: deleteError
+            } = await supabase
+                .from("chat_rooms")
+                .delete()
+                .eq(
+                    "id",
+                    roomId
+                );
+
+            if (deleteError) {
+                return res.status(500).json({
+                    error:
+                        deleteError.message
+                });
+            }
+
+            res.json({
+                success: true
+            });
+
+        } catch (error) {
+            console.error(
+                "DELETE ROOM ERROR:",
+                error
+            );
+
             res.status(500).json({
                 error: "Server error."
             });
