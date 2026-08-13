@@ -2,443 +2,355 @@
     box-sizing: border-box;
 }
 
-
 body {
     margin: 0;
-
-    font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
-
-    background: #f2f2f2;
-
+    font-family: Arial, sans-serif;
+    background: #f1f5e8;
     color: #222;
 }
 
-
-header {
-    background: #222;
-
-    color: white;
-
-    padding: 15px 30px;
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
-
-    flex-wrap: wrap;
-
-    gap: 15px;
-}
-
-
-.brand {
-    display: flex;
-
-    align-items: center;
-
-    gap: 12px;
-}
-
-
-.brand h1 {
-    margin: 0;
-}
-
-
-.logo {
-    width: 50px;
-
-    height: 50px;
-
-    border-radius: 50%;
-
-    background: #eee;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    font-size: 30px;
-}
-
-
-nav {
-    display: flex;
-
-    align-items: center;
-
-    gap: 15px;
-}
-
-
-nav a,
-nav button {
-    color: white;
-
+a {
+    color: inherit;
     text-decoration: none;
-
-    background: none;
-
-    border: none;
-
-    cursor: pointer;
-
-    font-size: 15px;
 }
-
-
-nav a:hover {
-    text-decoration: underline;
-}
-
-
-.container {
-    width:
-        min(
-            1000px,
-            calc(100% - 30px)
-        );
-
-    margin:
-        30px auto;
-}
-
-
-section {
-    background: white;
-
-    padding: 20px;
-
-    margin-bottom: 25px;
-
-    border-radius: 12px;
-
-    box-shadow:
-        0 2px 8px
-        rgba(
-            0,
-            0,
-            0,
-            0.08
-        );
-}
-
-
-textarea,
-input {
-    width: 100%;
-
-    padding: 12px;
-
-    margin:
-        8px 0 15px;
-
-    border:
-        1px solid #ccc;
-
-    border-radius: 8px;
-
-    font: inherit;
-}
-
-
-textarea {
-    min-height: 120px;
-
-    resize: vertical;
-}
-
 
 button {
-    padding:
-        10px 16px;
-
     border: none;
-
-    border-radius: 8px;
-
+    border-radius: 10px;
+    padding: 10px 16px;
     cursor: pointer;
-
-    background: #333;
-
-    color: white;
+    font-weight: bold;
 }
-
 
 button:hover {
     opacity: 0.85;
 }
 
-
-.form-box {
-    max-width: 550px;
-
-    margin:
-        0 auto;
-}
-
-
-.form-box label {
-    display: block;
-
-    font-weight: bold;
-
-    margin-top: 10px;
-}
-
-
-/* ========================================
-   POSTS
-======================================== */
-
-.post {
-    border:
-        1px solid #ddd;
-
+input,
+textarea {
+    width: 100%;
+    padding: 12px;
+    margin: 6px 0;
+    border: 1px solid #bbb;
     border-radius: 10px;
-
-    padding: 15px;
-
-    margin-bottom: 15px;
+    font-size: 15px;
 }
 
+textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+/* ==================================================
+   NAVBAR
+================================================== */
+
+.navbar {
+    background: #4b7f2c;
+    color: white;
+    padding: 14px 20px;
+}
+
+.navbar-inner {
+    max-width: 1100px;
+    margin: auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.logo {
+    font-size: 22px;
+    font-weight: bold;
+}
+
+nav {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+nav a {
+    font-weight: bold;
+}
+
+/* ==================================================
+   CONTAINER
+================================================== */
+
+.container {
+    max-width: 1000px;
+    margin: 30px auto;
+    padding: 0 20px;
+}
+
+/* ==================================================
+   AUTH
+================================================== */
+
+.auth-section {
+    display: flex;
+    justify-content: center;
+}
+
+.auth-box {
+    width: 100%;
+    max-width: 500px;
+    background: white;
+    padding: 30px;
+    border-radius: 18px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+/* ==================================================
+   POSTS
+================================================== */
+
+.create-post,
+.post,
+.people-section,
+.telecom-section,
+.chat-create,
+.profile-card,
+.profile-posts {
+    background: white;
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
 
 .post-header {
     display: flex;
-
-    justify-content:
-        space-between;
-
     gap: 10px;
-}
-
-
-.post p {
-    white-space: pre-wrap;
-
-    overflow-wrap: anywhere;
-}
-
-
-/* ========================================
-   PEOPLE
-======================================== */
-
-.person {
-    border:
-        1px solid #ddd;
-
-    border-radius: 10px;
-
-    padding: 15px;
-
+    align-items: baseline;
     margin-bottom: 12px;
 }
 
-
-.person-avatar {
-    width: 65px;
-
-    height: 65px;
-
-    border-radius: 50%;
-
-    overflow: hidden;
-
-    background: #eee;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    font-size: 35px;
-}
-
-
-.person-avatar img {
-    width: 100%;
-
-    height: 100%;
-
-    object-fit: cover;
-}
-
-
-.person-bio {
-    color: #666;
-}
-
-
-/* ========================================
-   PROFILE
-======================================== */
-
-.profile-card {
-    text-align: center;
-
-    padding: 20px;
-}
-
-
-.profile-avatar-big {
-    width: 150px;
-
-    height: 150px;
-
-    margin:
-        0 auto 20px;
-
-    border-radius: 50%;
-
-    overflow: hidden;
-
-    background: #eee;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    font-size: 80px;
-}
-
-
-.profile-avatar-big img {
-    width: 100%;
-
-    height: 100%;
-
-    object-fit: cover;
-}
-
-
-.username {
+.post-header span {
     color: #777;
 }
 
-
-.bio {
-    max-width: 650px;
-
-    margin:
-        20px auto;
-
+.post-content {
     white-space: pre-wrap;
-
-    overflow-wrap: anywhere;
-
     line-height: 1.5;
+    margin-bottom: 15px;
 }
 
+/* ==================================================
+   PEOPLE
+================================================== */
 
-.stats {
+.person {
     display: flex;
-
-    justify-content: center;
-
-    gap: 20px;
-
-    flex-wrap: wrap;
-
-    margin:
-        25px 0;
-}
-
-
-.stat {
-    width: 130px;
-
-    padding: 18px;
-
-    background: #f1f1f1;
-
-    border-radius: 12px;
-
-    display: flex;
-
-    flex-direction: column;
-
     align-items: center;
-
-    gap: 5px;
+    gap: 15px;
+    padding: 12px;
+    margin: 8px 0;
+    border-radius: 12px;
+    background: #f5f5f5;
 }
 
-
-.stat span {
-    font-size: 35px;
+.person:hover {
+    background: #e8eee1;
 }
 
-
-.stat strong {
-    font-size: 26px;
+.avatar,
+.avatar-placeholder {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
 }
 
-
-.stat small {
-    color: #666;
+.avatar {
+    object-fit: cover;
 }
 
-
-.joined {
-    color: #888;
-
-    font-size: 14px;
+.avatar-placeholder {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #d9e8c9;
+    font-size: 25px;
 }
 
-
-/* ========================================
+/* ==================================================
    COMMENTS
-======================================== */
+================================================== */
 
 .comments {
-    border-top:
-        1px solid #ddd;
-
     margin-top: 15px;
-
-    padding-top: 10px;
+    padding: 15px;
+    background: #f4f6f1;
+    border-radius: 12px;
 }
-
 
 .comment {
-    border-bottom:
-        1px solid #eee;
-
-    padding:
-        8px 0;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
 }
 
+.comment:last-child {
+    border-bottom: none;
+}
 
-.comment-input {
+.comment span {
+    color: #777;
+    font-size: 13px;
+}
+
+.comment p {
+    margin-bottom: 0;
+}
+
+.comment-form {
     display: flex;
-
     gap: 8px;
+    margin-top: 12px;
 }
 
-
-.comment-input input {
-    flex: 1;
-
+.comment-form input {
     margin: 0;
 }
 
+/* ==================================================
+   PROFILE
+================================================== */
 
-/* ========================================
-   ERRORS
-======================================== */
+.profile-card {
+    text-align: center;
+}
 
-.error {
-    color: #b00020;
+.profile-avatar {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 50%;
+}
 
+.profile-bio {
+    color: #666;
+    max-width: 600px;
+    margin: 15px auto;
+}
+
+.profile-stats {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.stat {
+    background: #eef4e8;
+    padding: 15px 25px;
+    border-radius: 12px;
+}
+
+.stat strong,
+.stat span {
+    display: block;
+}
+
+.stat strong {
+    font-size: 25px;
+}
+
+/* ==================================================
+   TELECOM
+================================================== */
+
+.telecom-section {
+    text-align: center;
+}
+
+.telecom-button {
+    display: inline-block;
+    background: #4b7f2c;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 10px;
     font-weight: bold;
+}
+
+/* ==================================================
+   SHREKCHAT
+================================================== */
+
+.room {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+}
+
+.chat-messages {
+    background: white;
+    border-radius: 15px;
+    padding: 15px;
+    height: 500px;
+    overflow-y: auto;
+    margin: 15px 0;
+}
+
+.chat-message {
+    padding: 10px;
+    margin-bottom: 8px;
+    background: #f1f5e8;
+    border-radius: 10px;
+}
+
+.chat-message span {
+    color: #777;
+    font-size: 13px;
+}
+
+.chat-message p {
+    margin: 5px 0 0;
+}
+
+.chat-input {
+    display: flex;
+    gap: 10px;
+}
+
+.chat-input input {
+    margin: 0;
+}
+
+.empty-box,
+.error-box {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+}
+
+/* ==================================================
+   MOBILE
+================================================== */
+
+@media (max-width: 700px) {
+
+    .navbar-inner {
+        flex-direction: column;
+    }
+
+    nav {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .comment-form,
+    .chat-input {
+        flex-direction: column;
+    }
+
+    .profile-stats {
+        flex-direction: column;
+    }
 }

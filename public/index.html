@@ -1,183 +1,253 @@
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0">
 
-    <title>ShrekBook 🧌</title>
+<meta charset="UTF-8">
 
-    <link
-        rel="stylesheet"
-        href="/styles.css">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0">
+
+<title>ShrekBook 🧌</title>
+
+<link
+    rel="stylesheet"
+    href="/styles.css">
+
+
 </head>
 
 <body>
 
-
-
-<div>
-    
-    <h1> ShrekBook</h1>
-
-
-
-
 <header class="navbar">
 
-    <div class="navbar-inner">
+
+<div class="navbar-inner">
+
+    <a
+        href="/"
+        class="logo">
+
+        🧌 ShrekBook
+
+    </a>
+
+    <nav>
+
+        <a href="/">
+            Home
+        </a>
 
         <a
-            href="/"
-            class="logo">
+            href="/profile.html"
+            id="profile-link">
 
-            🧌 ShrekBook
+            Profile
 
         </a>
 
+        <a href="/shrekchat.html">
 
-        <nav id="nav">
+            💬 ShrekChat
 
+        </a>
 
-            <a href="/">
-                Home
-            </a>
+        <button
+            id="logout-button"
+            onclick="logout()"
+            style="display:none;">
 
-            <a
-                href="/profile.html"
-                id="profile-link">
+            Logout
 
-                Profile
+        </button>
 
-            </a>
+    </nav>
 
-            <button
-                id="logout-button"
-                onclick="logout()"
-                style="display:none;">
+</div>
 
-                Logout
-
-            </button>
-
-        </nav>
-
-    </div>
 
 </header>
 
-
 <main class="container">
 
-    <!-- ================================= -->
-    <!-- LOGIN / SIGNUP -->
-    <!-- ================================= -->
-    <h1>
-        Welcome to ShrekBook 🧌
-    </h1>
-    <section
-        id="auth-section"
-        class="auth-section">
 
-        <div class="auth-box">
+<!-- ==========================================
+     LOGIN / SIGNUP
+     ========================================== -->
 
+<section
+    id="auth-section"
+    class="auth-section">
 
+    <div class="auth-box">
 
-            <p>
-                The social network for ogres,
-                cats, and everyone in between.
-            </p>
+        <h1>
+            Welcome to ShrekBook 🧌
+        </h1>
 
-
-            <!-- LOGIN -->
-
-            <div id="login-box">
-
-                <h2>
-                    Login
-                </h2>
-
-                <input
-                    id="login-email"
-                    type="email"
-                    placeholder="Email">
-
-                <input
-                    id="login-password"
-                    type="password"
-                    placeholder="Password">
-
-                <button
-                    onclick="login()">
-
-                    🔐 Login
-
-                </button>
-
-                <p id="login-status"></p>
-
-                <button
-                    class="secondary-button"
-                    onclick="showSignup()">
-
-                    Don't have an account?
-                    Sign up
-
-                </button>
-
-            </div>
+        <p>
+            The social network for ogres,
+            cats, and everyone in between.
+        </p>
 
 
-            <!-- SIGNUP -->
+        <!-- LOGIN -->
+
+        <div id="login-box">
+
+            <h2>
+                Login
+            </h2>
+
+            <input
+                id="login-email"
+                type="email"
+                placeholder="Email">
+
+            <input
+                id="login-password"
+                type="password"
+                placeholder="Password">
+
+            <button onclick="login()">
+
+                🔐 Login
+
+            </button>
+
+            <p id="login-status"></p>
+
+            <button
+                class="secondary-button"
+                onclick="showSignup()">
+
+                Don't have an account?
+                Sign up
+
+            </button>
+
+        </div>
+
+
+        <!-- SIGNUP -->
+
+        <div
+            id="signup-box"
+            style="display:none;">
+
+            <h2>
+                Create Account
+            </h2>
+
+            <input
+                id="signup-username"
+                maxlength="30"
+                placeholder="Username">
+
+            <input
+                id="signup-display-name"
+                maxlength="50"
+                placeholder="Display name">
+
+            <input
+                id="signup-email"
+                type="email"
+                placeholder="Email">
+
+            <input
+                id="signup-password"
+                type="password"
+                placeholder="Password">
+
+            <button onclick="signup()">
+
+                📝 Create Account
+
+            </button>
+
+            <p id="signup-status"></p>
+
+            <button
+                class="secondary-button"
+                onclick="showLogin()">
+
+                Already have an account?
+                Login
+
+            </button>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ==========================================
+     MAIN APP
+     ========================================== -->
+
+<section
+    id="app-section"
+    style="display:none;">
+
+
+    <!-- ======================================
+         CREATE POST
+         ====================================== -->
+
+    <section class="create-post">
+
+        <h2>
+            What's on your mind? 🧌
+        </h2>
+
+        <textarea
+            id="post-content"
+            maxlength="5000"
+            placeholder="Say something...">
+        </textarea>
+
+
+        <!-- IMAGE PICKER -->
+
+        <div class="image-upload">
+
+            <label for="post-image">
+
+                🖼️ Add an image
+
+            </label>
+
+            <input
+                id="post-image"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif">
 
             <div
-                id="signup-box"
+                id="post-image-preview"
                 style="display:none;">
 
-                <h2>
-                    Create Account
-                </h2>
+                <img
+                    id="post-preview-image"
+                    alt="Post image preview"
+                    style="
+                        max-width:100%;
+                        max-height:400px;
+                        border-radius:12px;
+                        margin-top:10px;
+                    ">
 
-                <input
-                    id="signup-username"
-                    type="text"
-                    maxlength="30"
-                    placeholder="Username">
-
-                <input
-                    id="signup-display-name"
-                    type="text"
-                    maxlength="50"
-                    placeholder="Display name">
-
-                <input
-                    id="signup-email"
-                    type="email"
-                    placeholder="Email">
-
-                <input
-                    id="signup-password"
-                    type="password"
-                    placeholder="Password">
+                <br>
 
                 <button
-                    onclick="signup()">
+                    type="button"
+                    onclick="clearPostImage()">
 
-                    📝 Create Account
-
-                </button>
-
-                <p id="signup-status"></p>
-
-                <button
-                    class="secondary-button"
-                    onclick="showLogin()">
-
-                    Already have an account?
-                    Login
+                    ❌ Remove image
 
                 </button>
 
@@ -185,866 +255,402 @@
 
         </div>
 
+
+        <button onclick="createPost()">
+
+            📝 Post
+
+        </button>
+
+        <p id="post-status"></p>
+
+    </section>
+
+
+    <!-- ======================================
+         FEED
+         ====================================== -->
+
+    <section>
+
+        <h2>
+            Feed
+        </h2>
+
+        <div id="posts">
+
+            Loading posts...
+
+        </div>
+
     </section>
 
 
-    <!-- ================================= -->
-    <!-- APP -->
-    <!-- ================================= -->
+    <!-- ======================================
+         PEOPLE
+         ====================================== -->
 
-    <section
-        id="app-section"
-        style="display:none;">
+    <section class="people-section">
 
+        <h2>
+            People 👥
+        </h2>
 
-        <!-- CREATE POST -->
+        <div id="people">
 
-        <section class="create-post">
+            Loading people...
 
-            <h2>
-                What's on your mind? 🧌
-            </h2>
-
-            <textarea
-                id="post-content"
-                maxlength="5000"
-                placeholder="Say something...">
-            </textarea>
-
-            <button
-                onclick="createPost()">
-
-                📝 Post
-
-            </button>
-
-            <p id="post-status"></p>
-
-        </section>
-
-
-        <!-- POSTS -->
-
-        <section>
-
-            <h2>
-                Feed
-            </h2>
-
-            <div id="posts">
-                Loading posts...
-            </div>
-
-        </section>
-
-
-        <!-- PEOPLE -->
-
-        <section class="people-section">
-
-            <h2>
-                People 👥
-            </h2>
-
-            <div id="people">
-                Loading people...
-            </div>
-
-        </section>
+        </div>
 
     </section>
+
+
+    <!-- ======================================
+         SHREKBOOK TELECOM
+         ====================================== -->
+
+    <section class="telecom-section">
+
+        <h2>
+            🧌 ShrekBook Telecom
+        </h2>
+
+        <p>
+            Connecting the swamp
+            to the internet since 2026.
+        </p>
+
+        <a
+            class="telecom-button"
+            href="/shrekchat.html">
+
+            💬 Open ShrekChat
+
+        </a>
+
+    </section>
+
+</section>
+
 
 </main>
 
-
 <script>
 
-/* =========================================
-   ESCAPE HTML
-========================================= */
+/* ==================================================
+POST IMAGE PREVIEW
+================================================== */
 
-function escapeHtml(text) {
+const postImageInput =
+    document.getElementById("post-image");
 
-    const div =
-        document.createElement("div");
+const postImagePreview =
+    document.getElementById("post-image-preview");
 
-    div.textContent =
-        text ?? "";
+const postPreviewImage =
+    document.getElementById("post-preview-image");
 
-    return div.innerHTML;
-}
 
+if (postImageInput) {
 
-/* =========================================
-   LOGIN
-========================================= */
+    postImageInput.addEventListener(
+        "change",
+        () => {
 
-async function login() {
+            const file =
+                postImageInput.files[0];
 
-    const email =
-        document.getElementById(
-            "login-email"
-        ).value.trim();
+            if (!file) {
 
-    const password =
-        document.getElementById(
-            "login-password"
-        ).value;
+                clearPostImage();
 
-    const status =
-        document.getElementById(
-            "login-status"
-        );
+                return;
+            }
 
-    if (!email || !password) {
 
-        status.textContent =
-            "❌ Enter your email and password.";
+            if (!file.type.startsWith("image/")) {
 
-        return;
-    }
+                alert(
+                    "❌ Please select an image."
+                );
 
-    status.textContent =
-        "Logging in...";
+                clearPostImage();
 
-    try {
+                return;
+            }
 
-        const response =
-            await fetch(
-                "/api/login",
-                {
-                    method: "POST",
 
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
+            if (file.size > 5 * 1024 * 1024) {
 
-                    body: JSON.stringify({
-                        email,
-                        password
-                    })
-                }
-            );
+                alert(
+                    "❌ Images must be under 5MB."
+                );
 
-        const data =
-            await response.json();
+                clearPostImage();
 
-        if (!response.ok) {
+                return;
+            }
 
-            throw new Error(
-                data.error ||
-                "Login failed."
-            );
-        }
 
-        status.textContent =
-            "✅ Logged in!";
+            const reader =
+                new FileReader();
 
-        showApp();
 
-    } catch (error) {
+            reader.onload =
+                event => {
 
-        console.error(
-            "LOGIN ERROR:",
-            error
-        );
+                    postPreviewImage.src =
+                        event.target.result;
 
-        status.textContent =
-            "❌ " + error.message;
-    }
-}
+                    postImagePreview.style.display =
+                        "block";
 
+                };
 
-/* =========================================
-   SIGNUP
-========================================= */
 
-async function signup() {
+            reader.readAsDataURL(file);
 
-    const username =
-        document.getElementById(
-            "signup-username"
-        ).value.trim();
-
-    const display_name =
-        document.getElementById(
-            "signup-display-name"
-        ).value.trim();
-
-    const email =
-        document.getElementById(
-            "signup-email"
-        ).value.trim();
-
-    const password =
-        document.getElementById(
-            "signup-password"
-        ).value;
-
-    const status =
-        document.getElementById(
-            "signup-status"
-        );
-
-
-    if (
-        !username ||
-        !email ||
-        !password
-    ) {
-
-        status.textContent =
-            "❌ Fill in all required fields.";
-
-        return;
-    }
-
-
-    status.textContent =
-        "Creating account...";
-
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/signup",
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    body: JSON.stringify({
-
-                        username,
-
-                        display_name:
-                            display_name ||
-                            username,
-
-                        email,
-
-                        password
-                    })
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Signup failed."
-            );
-        }
-
-
-        status.textContent =
-            "✅ Account created!";
-
-        showLogin();
-
-
-    } catch (error) {
-
-        console.error(
-            "SIGNUP ERROR:",
-            error
-        );
-
-        status.textContent =
-            "❌ " + error.message;
-    }
-}
-
-
-/* =========================================
-   AUTH UI
-========================================= */
-
-function showSignup() {
-
-    document.getElementById(
-        "login-box"
-    ).style.display =
-        "none";
-
-    document.getElementById(
-        "signup-box"
-    ).style.display =
-        "block";
-}
-
-
-function showLogin() {
-
-    document.getElementById(
-        "signup-box"
-    ).style.display =
-        "none";
-
-    document.getElementById(
-        "login-box"
-    ).style.display =
-        "block";
-}
-
-
-/* =========================================
-   CHECK SESSION
-========================================= */
-
-async function checkLogin() {
-
-    try {
-
-        const response =
-            await fetch("/api/me");
-
-        if (!response.ok) {
-
-            showAuth();
-
-            return;
-        }
-
-        const data =
-            await response.json();
-
-        if (data.user) {
-
-            showApp();
-
-        } else {
-
-            showAuth();
-        }
-
-    } catch {
-
-        showAuth();
-
-    }
-}
-
-
-function showAuth() {
-
-    document.getElementById(
-        "auth-section"
-    ).style.display =
-        "block";
-
-    document.getElementById(
-        "app-section"
-    ).style.display =
-        "none";
-
-    document.getElementById(
-        "logout-button"
-    ).style.display =
-        "none";
-}
-
-
-function showApp() {
-
-    document.getElementById(
-        "auth-section"
-    ).style.display =
-        "none";
-
-    document.getElementById(
-        "app-section"
-    ).style.display =
-        "block";
-
-    document.getElementById(
-        "logout-button"
-    ).style.display =
-        "inline-block";
-
-    loadPosts();
-
-    loadPeople();
-}
-
-
-/* =========================================
-   LOGOUT
-========================================= */
-
-async function logout() {
-
-    await fetch(
-        "/api/logout",
-        {
-            method: "POST"
         }
     );
 
-    showAuth();
 }
 
 
-/* =========================================
-   POSTS
-========================================= */
+/* ==================================================
+CLEAR POST IMAGE
+================================================== */
 
-async function loadPosts() {
+function clearPostImage() {
 
-    const container =
-        document.getElementById(
-            "posts"
-        );
+    if (postImageInput) {
 
-    try {
+        postImageInput.value =
+            "";
 
-        const response =
-            await fetch("/api/posts");
-
-        const posts =
-            await response.json();
-
-        if (!response.ok) {
-
-            throw new Error(
-                posts.error ||
-                "Could not load posts."
-            );
-        }
-
-
-        if (!posts.length) {
-
-            container.innerHTML =
-                "<p>No posts yet. Be the first! 🧌</p>";
-
-            return;
-        }
-
-
-        container.innerHTML =
-            posts.map(post => {
-
-                const username =
-                    post.username ||
-                    post.profiles?.username ||
-                    "User";
-
-                const avatar =
-                    post.avatar ||
-                    post.profiles?.avatar ||
-                    "/default-avatar.png";
-
-
-                return `
-
-                <article class="post">
-
-                    <div class="post-header">
-
-                        <img
-                            class="avatar"
-                            src="${escapeHtml(avatar)}">
-
-                        <strong>
-                            ${escapeHtml(username)}
-                        </strong>
-
-                    </div>
-
-
-                    <div class="post-content">
-
-                        ${escapeHtml(
-                            post.content
-                        )}
-
-                    </div>
-
-
-                    <button
-                        onclick="toggleComments('${post.id}')">
-
-                        💬 Comments
-
-                    </button>
-
-
-                    <div
-                        id="comments-${post.id}"
-                        class="comments"
-                        style="display:none;">
-
-                        <div
-                            id="comment-list-${post.id}">
-
-                            Loading...
-
-                        </div>
-
-
-                        <div class="comment-form">
-
-                            <input
-                                id="comment-input-${post.id}"
-                                placeholder="Write a comment..."
-                                maxlength="500">
-
-                            <button
-                                onclick="submitComment('${post.id}')">
-
-                                Send
-
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                </article>
-
-                `;
-
-            }).join("");
-
-
-    } catch (error) {
-
-        console.error(
-            "POST ERROR:",
-            error
-        );
-
-        container.innerHTML =
-            `<p>❌ ${escapeHtml(
-                error.message
-            )}</p>`;
-    }
-}
-
-
-/* =========================================
-   CREATE POST
-========================================= */
-
-async function createPost() {
-
-    const input =
-        document.getElementById(
-            "post-content"
-        );
-
-    const content =
-        input.value.trim();
-
-    if (!content) return;
-
-
-    const response =
-        await fetch(
-            "/api/posts",
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
-
-                body: JSON.stringify({
-                    content
-                })
-            }
-        );
-
-
-    const data =
-        await response.json();
-
-
-    if (!response.ok) {
-
-        document.getElementById(
-            "post-status"
-        ).textContent =
-            "❌ " +
-            (data.error ||
-                "Could not post.");
-
-        return;
     }
 
+    if (postPreviewImage) {
 
-    input.value = "";
+        postPreviewImage.src =
+            "";
 
-    document.getElementById(
-        "post-status"
-    ).textContent =
-        "✅ Posted!";
+    }
 
+    if (postImagePreview) {
 
-    loadPosts();
-}
-
-
-/* =========================================
-   COMMENTS
-========================================= */
-
-async function toggleComments(postId) {
-
-    const box =
-        document.getElementById(
-            `comments-${postId}`
-        );
-
-    if (!box) return;
-
-
-    if (
-        box.style.display ===
-        "none"
-    ) {
-
-        box.style.display =
-            "block";
-
-        loadComments(postId);
-
-    } else {
-
-        box.style.display =
+        postImagePreview.style.display =
             "none";
+
     }
+
 }
 
 
-async function loadComments(postId) {
+/* ==================================================
+COMMENT IMAGE PICKER
+================================================== */
 
-    const list =
-        document.getElementById(
-            `comment-list-${postId}`
-        );
+/*
+    Comment image inputs are created dynamically
+    by script.js.
 
-    try {
+    This function is called by the comment UI
+    after the input exists.
+*/
 
-        const response =
-            await fetch(
-                `/api/posts/${postId}/comments`
-            );
-
-        const comments =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                comments.error ||
-                "Could not load comments."
-            );
-        }
-
-
-        if (!comments.length) {
-
-            list.innerHTML =
-                "<p>No comments yet 😼</p>";
-
-            return;
-        }
-
-
-        list.innerHTML =
-            comments.map(comment => `
-
-                <div class="comment">
-
-                    <strong>
-                        ${escapeHtml(
-                            comment.username ||
-                            "User"
-                        )}
-                    </strong>
-
-                    <p>
-                        ${escapeHtml(
-                            comment.content
-                        )}
-                    </p>
-
-                </div>
-
-            `).join("");
-
-
-    } catch (error) {
-
-        console.error(
-            "COMMENTS ERROR:",
-            error
-        );
-
-        list.innerHTML =
-            `<p>❌ ${escapeHtml(
-                error.message
-            )}</p>`;
-    }
-}
-
-
-async function submitComment(postId) {
+function setupCommentImagePreview(postId) {
 
     const input =
         document.getElementById(
-            `comment-input-${postId}`
+            `comment-image-${postId}`
         );
 
-    const content =
-        input.value.trim();
-
-    if (!content) return;
-
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/posts/${postId}/comments`,
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    body: JSON.stringify({
-                        content
-                    })
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Could not comment."
-            );
-        }
-
-
-        input.value = "";
-
-        loadComments(postId);
-
-
-    } catch (error) {
-
-        alert(
-            "❌ " + error.message
-        );
-    }
-}
-
-
-/* =========================================
-   PEOPLE
-========================================= */
-
-async function loadPeople() {
-
-    const container =
+    const preview =
         document.getElementById(
-            "people"
+            `comment-preview-${postId}`
         );
 
-    try {
-
-        const response =
-            await fetch(
-                "/api/users"
-            );
-
-        const users =
-            await response.json();
+    const image =
+        document.getElementById(
+            `comment-preview-image-${postId}`
+        );
 
 
-        if (!response.ok) {
+    if (!input) return;
 
-            throw new Error(
-                users.error ||
-                "Could not load people."
-            );
+
+    input.addEventListener(
+        "change",
+        () => {
+
+            const file =
+                input.files[0];
+
+            if (!file) {
+
+                if (preview) {
+
+                    preview.style.display =
+                        "none";
+
+                }
+
+                return;
+            }
+
+
+            if (!file.type.startsWith("image/")) {
+
+                alert(
+                    "❌ Please select an image."
+                );
+
+                input.value =
+                    "";
+
+                return;
+            }
+
+
+            if (file.size > 5 * 1024 * 1024) {
+
+                alert(
+                    "❌ Images must be under 5MB."
+                );
+
+                input.value =
+                    "";
+
+                return;
+            }
+
+
+            const reader =
+                new FileReader();
+
+
+            reader.onload =
+                event => {
+
+                    if (image) {
+
+                        image.src =
+                            event.target.result;
+
+                    }
+
+                    if (preview) {
+
+                        preview.style.display =
+                            "block";
+
+                    }
+
+                };
+
+
+            reader.readAsDataURL(file);
+
         }
+    );
 
-
-        container.innerHTML =
-            users.map(user => `
-
-                <div class="person">
-
-                    <img
-                        class="avatar"
-                        src="${escapeHtml(
-                            user.avatar ||
-                            "/default-avatar.png"
-                        )}">
-
-                    <div>
-
-                        <strong>
-                            ${escapeHtml(
-                                user.display_name ||
-                                user.username
-                            )}
-                        </strong>
-
-                        <p>
-                            @${escapeHtml(
-                                user.username
-                            )}
-                        </p>
-
-                    </div>
-
-                </div>
-
-            `).join("");
-
-
-    } catch (error) {
-
-        container.innerHTML =
-            `<p>❌ ${escapeHtml(
-                error.message
-            )}</p>`;
-    }
 }
 
 
-/* =========================================
-   START
-========================================= */
+/* ==================================================
+CLEAR COMMENT IMAGE
+================================================== */
 
-checkLogin();
+function clearCommentImage(postId) {
+
+    const input =
+        document.getElementById(
+            `comment-image-${postId}`
+        );
+
+    const preview =
+        document.getElementById(
+            `comment-preview-${postId}`
+        );
+
+    const image =
+        document.getElementById(
+            `comment-preview-image-${postId}`
+        );
+
+
+    if (input) {
+
+        input.value =
+            "";
+
+    }
+
+
+    if (image) {
+
+        image.src =
+            "";
+
+    }
+
+
+    if (preview) {
+
+        preview.style.display =
+            "none";
+
+    }
+
+}
+
+/* ==================================================
+START
+================================================== */
 
 </script>
 
+<h2>Other</h2>
+<h3>Account Management</h3>
+<p>Currently, if you would like to delete or edit you username, you must contact ShrekBook's support team.</p>
+<a href="mailto:jw20152025@gmail.com">Contact Support</a>
+<div>
+<ol>
+    <li>Do not post inappropriate content.</li>
+    <li>Respect other users and their opinions.</li>
+    <li>Do not share personal information or sensitive data.</li>
+    <li>Do not engage in harassment or bullying.</li>
+    <li>Do not use ShrekBook for illegal activities.</li>
+    <li>Do not create multiple accounts to manipulate the platform.</li>
+    <li>Do not impersonate other users or public figures.</li>
+    <li>Do not post spam or advertisements.</li>
+    <li>Do not attempt to hack or exploit the platform.</li>
+    <li>Do not share content that violates copyright or intellectual property rights.</li>
+    <li>Do not post content that promotes violence or hate speech.</li>
+    <li>Do not post content that is misleading or false.</li>
+    <li>Do not post content that is sexually explicit or pornographic.</li>
+    <li>Do not post content that is discriminatory or offensive.</li>
+    <li>Do not message developers multiple times about the same issue.</li>
+    <li>Do not contact developers multiple times per day.</li>
+    <li>Do not contact developers about issues that are not related to the platform.</li>
+    <li>Do not contact developers about issues that are not your own.</li>
+    <li>Do not contact developers about issues that are not urgent.</li>
+    <li>If you suspect any violations of these policies, please contact our support team.</li>
+</ol>
+</div>
+<small>We may take up to 24 hours to respond, and are not responsible for any delays.</small>
+<small>Please do not send multiple emails about the same issue or request.</small>
+<h3>ShrekBook Policies</h3>
+
+<h3>Meet the Developers!</h3>
+<ul>
+    <li>Jayden</li>
+    <li>Luca</li>
+    <li>Arzan</li>
+    <li>Oliver</li>
+</ul>
+<script src="/script.js"></script>
+
 </body>
+
 </html>

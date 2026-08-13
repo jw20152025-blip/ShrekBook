@@ -1,155 +1,598 @@
-// ==================================================
-// SHREKBOOK SCRIPT.JS
-// ==================================================
-
-console.log("🧌 ShrekBook script loaded!");
+/* ==================================================
+SHREKBOOK CLIENT SCRIPT
+================================================== */
 
 
-// ==================================================
-// HELPERS
-// ==================================================
+/* ==================================================
+ESCAPE HTML
+================================================== */
 
-function getToken() {
-    return localStorage.getItem("access_token");
-}
+function escapeHtml(text) {
 
+    const div =
+        document.createElement("div");
 
-function escapeHtml(value) {
-
-    const div = document.createElement("div");
-
-    div.textContent = value ?? "";
+    div.textContent =
+        text ?? "";
 
     return div.innerHTML;
 }
 
 
-// ==================================================
-// LOAD PEOPLE
-// ==================================================
+/* ==================================================
+WARNING
+================================================== */
 
-async function loadPeople() {
+function warn() {
 
-    const container =
-        document.getElementById("people");
-
-    if (!container) return;
-
-    container.innerHTML =
-        "Loading people...";
-
-    try {
-
-        const response =
-            await fetch("/api/users");
-
-        const users =
-            await response.json();
-
-        if (!response.ok) {
-
-            throw new Error(
-                users.error ||
-                "Could not load people."
-            );
-
-        }
-
-        container.innerHTML = "";
-
-        if (!users.length) {
-
-            container.innerHTML =
-                "<p>No people have joined yet.</p>";
-
-            return;
-        }
-
-
-        users.forEach(user => {
-
-            const person =
-                document.createElement("div");
-
-            person.className =
-                "person";
-
-
-            person.innerHTML = `
-
-                <h3>
-                    ${escapeHtml(
-                        user.display_name ||
-                        user.username ||
-                        "User"
-                    )}
-                </h3>
-
-                <p>
-                    @${escapeHtml(
-                        user.username ||
-                        ""
-                    )}
-                </p>
-
-                <a
-                    href="/profile.html?id=${encodeURIComponent(
-                        user.id
-                    )}">
-
-                    View Profile
-
-                </a>
-
-            `;
-
-
-            container.appendChild(person);
-
-        });
-
-
-    } catch (error) {
-
-        console.error(
-            "PEOPLE ERROR:",
-            error
+    const element =
+        document.getElementById(
+            "upload-avatar-button-warn"
         );
 
-        container.innerHTML =
-            `<p>❌ ${escapeHtml(
-                error.message
-            )}</p>`;
+    if (element) {
+
+        element.innerHTML =
+            "When changing your avatar, do not press the Save Profile button. Instead, press Upload Avatar.";
 
     }
 
 }
 
 
-// ==================================================
-// LOAD POSTS
-// ==================================================
+/* ==================================================
+FILE -> BASE64
+================================================== */
 
-async function loadPosts() {
+function fileToBase64(file) {
 
-    const container =
-        document.getElementById("posts");
+    return new Promise((resolve, reject) => {
 
-    if (!container) return;
+        const reader =
+            new FileReader();
 
-    container.innerHTML =
-        "Loading posts...";
+        reader.onload = () => {
 
+            const result =
+                reader.result;
+
+            const base64 =
+                result.split(",")[1];
+
+            resolve(base64);
+
+        };
+
+        reader.onerror = () => {
+
+            reject(
+                new Error(
+                    "Could not read image."
+                )
+            );
+
+        };
+
+        reader.readAsDataURL(file);
+
+    });
+
+}
+
+
+/* ==================================================
+MAKE IMAGE OBJECT
+================================================== */
+
+async function prepareImage(file) {
+
+    if (!file) {
+        return null;
+    }
+
+    if (!file.type.startsWith("image/")) {
+
+        throw new Error(
+            "Selected file is not an image."
+        );
+
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+
+        throw new Error(
+            "Image must be under 5MB."
+        );
+
+    }
+
+    const data =
+        await fileToBase64(file);
+
+    return {
+
+        data: data,
+
+        type:
+            file.type,
+
+        name:
+            file.name
+
+    };
+
+}
+
+
+/* ==================================================
+LOGIN
+================================================== */
+
+async function login() {
+
+    const email =
+        document.getElementById(
+            "login-email"
+        ).value.trim();
+
+    const password =
+        document.getElementById(
+            "login-password"
+        ).value;
+
+    const status =
+        document.getElementById(
+            "login-status"
+        );
+
+    if (!email || !password) {
+
+        status.textContent =
+            "❌ Enter your email and password.";
+
+        return;
+
+    }
+
+    status.textContent =
+        "Logging in...";
 
     try {
 
         const response =
-            await fetch("/api/posts");
+            await fetch(
+                "/api/login",
+                {
 
+                    method:
+                        "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            email:
+                                email,
+
+                            password:
+                                password
+
+                        })
+
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Login failed."
+            );
+
+        }
+
+        status.textContent =
+            "✅ Logged in!";
+
+        showApp();
+
+    } catch (error) {
+
+        console.error(
+            "LOGIN ERROR:",
+            error
+        );
+
+        status.textContent =
+            "❌ " +
+            error.message;
+
+    }
+
+}
+
+
+/* ==================================================
+SIGNUP
+================================================== */
+
+async function signup() {
+
+    const username =
+        document.getElementById(
+            "signup-username"
+        ).value.trim();
+
+    const displayName =
+        document.getElementById(
+            "signup-display-name"
+        ).value.trim();
+
+    const email =
+        document.getElementById(
+            "signup-email"
+        ).value.trim();
+
+    const password =
+        document.getElementById(
+            "signup-password"
+        ).value;
+
+    const status =
+        document.getElementById(
+            "signup-status"
+        );
+
+    if (
+        !username ||
+        !email ||
+        !password
+    ) {
+
+        status.textContent =
+            "❌ Fill in all required fields.";
+
+        return;
+
+    }
+
+    status.textContent =
+        "Creating account...";
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/signup",
+                {
+
+                    method:
+                        "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            username:
+                                username,
+
+                            display_name:
+                                displayName ||
+                                username,
+
+                            email:
+                                email,
+
+                            password:
+                                password
+
+                        })
+
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Signup failed."
+            );
+
+        }
+
+        status.textContent =
+            "✅ Account created!";
+
+        showLogin();
+
+    } catch (error) {
+
+        console.error(
+            "SIGNUP ERROR:",
+            error
+        );
+
+        status.textContent =
+            "❌ " +
+            error.message;
+
+    }
+
+}
+
+
+/* ==================================================
+AUTH UI
+================================================== */
+
+function showSignup() {
+
+    const loginBox =
+        document.getElementById(
+            "login-box"
+        );
+
+    const signupBox =
+        document.getElementById(
+            "signup-box"
+        );
+
+    if (loginBox) {
+
+        loginBox.style.display =
+            "none";
+
+    }
+
+    if (signupBox) {
+
+        signupBox.style.display =
+            "block";
+
+    }
+
+}
+
+
+function showLogin() {
+
+    const loginBox =
+        document.getElementById(
+            "login-box"
+        );
+
+    const signupBox =
+        document.getElementById(
+            "signup-box"
+        );
+
+    if (loginBox) {
+
+        loginBox.style.display =
+            "block";
+
+    }
+
+    if (signupBox) {
+
+        signupBox.style.display =
+            "none";
+
+    }
+
+}
+
+
+/* ==================================================
+SESSION CHECK
+================================================== */
+
+async function checkLogin() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/me"
+            );
+
+        const data =
+            await response.json();
+
+        if (
+            response.ok &&
+            data.loggedIn &&
+            data.user
+        ) {
+
+            showApp();
+
+        } else {
+
+            showAuth();
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "SESSION ERROR:",
+            error
+        );
+
+        showAuth();
+
+    }
+
+}
+
+
+/* ==================================================
+SHOW AUTH
+================================================== */
+
+function showAuth() {
+
+    const auth =
+        document.getElementById(
+            "auth-section"
+        );
+
+    const app =
+        document.getElementById(
+            "app-section"
+        );
+
+    const logoutButton =
+        document.getElementById(
+            "logout-button"
+        );
+
+    if (auth) {
+
+        auth.style.display =
+            "block";
+
+    }
+
+    if (app) {
+
+        app.style.display =
+            "none";
+
+    }
+
+    if (logoutButton) {
+
+        logoutButton.style.display =
+            "none";
+
+    }
+
+}
+
+
+/* ==================================================
+SHOW APP
+================================================== */
+
+function showApp() {
+
+    const auth =
+        document.getElementById(
+            "auth-section"
+        );
+
+    const app =
+        document.getElementById(
+            "app-section"
+        );
+
+    const logoutButton =
+        document.getElementById(
+            "logout-button"
+        );
+
+    if (auth) {
+
+        auth.style.display =
+            "none";
+
+    }
+
+    if (app) {
+
+        app.style.display =
+            "block";
+
+    }
+
+    if (logoutButton) {
+
+        logoutButton.style.display =
+            "inline-block";
+
+    }
+
+    loadPosts();
+
+    loadPeople();
+
+}
+
+
+/* ==================================================
+LOGOUT
+================================================== */
+
+async function logout() {
+
+    try {
+
+        await fetch(
+            "/api/logout",
+            {
+                method:
+                    "POST"
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "LOGOUT ERROR:",
+            error
+        );
+
+    }
+
+    showAuth();
+
+}
+
+
+/* ==================================================
+LOAD POSTS
+================================================== */
+
+async function loadPosts() {
+
+    const container =
+        document.getElementById(
+            "posts"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/posts"
+            );
 
         const posts =
             await response.json();
-
 
         if (!response.ok) {
 
@@ -160,186 +603,346 @@ async function loadPosts() {
 
         }
 
-
-        container.innerHTML = "";
-
-
         if (!posts.length) {
 
             container.innerHTML =
-                "<p>No posts yet.</p>";
+                "<p>No posts yet. Be the first! 🧌</p>";
 
             return;
 
         }
 
+        container.innerHTML =
+            posts.map(post => {
 
-        posts.forEach(post => {
+                const avatar =
+                    post.avatar ||
+                    "/default-avatar.png";
 
-            const postElement =
-                document.createElement("article");
+                const displayName =
+                    post.display_name ||
+                    post.username ||
+                    "User";
 
-            postElement.className =
-                "post";
+                let imageHTML =
+                    "";
+
+                /*
+                 * IMPORTANT:
+                 * Server uses image_url
+                 */
+
+                if (post.image_url) {
+
+                    imageHTML = `
+
+                        <div
+                            class="post-image-container"
+                            style="
+                                margin-top:12px;
+                            ">
+
+                            <img
+                                src="${escapeHtml(
+                                    post.image_url
+                                )}"
+                                alt="Post image"
+                                style="
+                                    max-width:100%;
+                                    max-height:600px;
+                                    border-radius:12px;
+                                    object-fit:contain;
+                                    display:block;
+                                ">
+
+                        </div>
+
+                    `;
+
+                }
+
+                return `
+
+                    <article
+                        class="post">
+
+                        <div
+                            class="post-header"
+                            style="
+                                display:flex;
+                                align-items:center;
+                                gap:10px;
+                            ">
+
+                            <img
+                                src="${escapeHtml(
+                                    avatar
+                                )}"
+                                alt="Avatar"
+                                style="
+                                    width:45px;
+                                    height:45px;
+                                    border-radius:50%;
+                                    object-fit:cover;
+                                "
+                                onerror="
+                                    this.src='/default-avatar.png';
+                                ">
+
+                            <a
+                                href="/profile.html?id=${encodeURIComponent(
+                                    post.user_id
+                                )}"
+                                style="
+                                    text-decoration:none;
+                                    color:inherit;
+                                ">
+
+                                <strong>
+                                    ${escapeHtml(
+                                        displayName
+                                    )}
+                                </strong>
+
+                                <div>
+                                    @${escapeHtml(
+                                        post.username ||
+                                        "user"
+                                    )}
+                                </div>
+
+                            </a>
+
+                        </div>
 
 
-            postElement.innerHTML = `
+                        ${
+                            post.content
+                                ? `
 
-                <h3>
+                                    <div
+                                        class="post-content"
+                                        style="
+                                            margin-top:10px;
+                                        ">
 
-                    ${escapeHtml(
-                        post.display_name ||
-                        post.username ||
-                        "User"
-                    )}
+                                        ${escapeHtml(
+                                            post.content
+                                        )}
 
-                </h3>
+                                    </div>
 
-
-                <p class="post-content">
-
-                    ${escapeHtml(
-                        post.content
-                    )}
-
-                </p>
-
-
-                <small>
-
-                    ${post.created_at
-                        ? new Date(
-                            post.created_at
-                          ).toLocaleString()
-                        : ""
-                    }
-
-                </small>
+                                  `
+                                : ""
+                        }
 
 
-                <br>
-
-
-                <button
-                    class="comments-button"
-                    data-post-id="${post.id}">
-
-                    💬 Comments
-
-                </button>
-
-
-                <div
-                    class="comments"
-                    id="comments-${post.id}"
-                    style="display:none;">
-
-                    <div
-                        class="comment-list"
-                        id="comment-list-${post.id}">
-
-                        Loading comments...
-
-                    </div>
-
-
-                    <div class="comment-box">
-
-                        <input
-                            type="text"
-                            id="comment-input-${post.id}"
-                            placeholder="Write a comment...">
+                        ${imageHTML}
 
 
                         <button
-                            class="comment-submit"
-                            data-post-id="${post.id}">
+                            onclick="
+                                toggleComments(
+                                    '${escapeHtml(post.id)}'
+                                )
+                            ">
 
-                            Comment
+                            💬 Comments
 
                         </button>
 
-                    </div>
 
-                </div>
+                        <div
+                            id="comments-${escapeHtml(post.id)}"
+                            class="comments"
+                            style="
+                                display:none;
+                            ">
 
-            `;
+                            <div
+                                id="comment-list-${escapeHtml(post.id)}">
+
+                                Loading...
+
+                            </div>
 
 
-            container.appendChild(
-                postElement
+                            <div
+                                class="comment-form"
+                                style="
+                                    margin-top:10px;
+                                ">
+
+                                <input
+                                    id="comment-input-${escapeHtml(post.id)}"
+                                    placeholder="Write a comment..."
+                                    maxlength="500">
+
+
+                                <input
+                                    id="comment-image-${escapeHtml(post.id)}"
+                                    type="file"
+                                    accept="
+                                        image/png,
+                                        image/jpeg,
+                                        image/webp,
+                                        image/gif
+                                    ">
+
+
+                                <button
+                                    onclick="
+                                        submitComment(
+                                            '${escapeHtml(post.id)}'
+                                        )
+                                    ">
+
+                                    Send
+
+                                </button>
+
+
+                                <div
+                                    id="comment-preview-${escapeHtml(post.id)}"
+                                    style="
+                                        display:none;
+                                        margin-top:8px;
+                                    ">
+
+                                    <img
+                                        id="comment-preview-image-${escapeHtml(post.id)}"
+                                        alt="Comment image preview"
+                                        style="
+                                            max-width:200px;
+                                            max-height:200px;
+                                            border-radius:10px;
+                                        ">
+
+
+                                    <br>
+
+
+                                    <button
+                                        type="button"
+                                        onclick="
+                                            clearCommentImage(
+                                                '${escapeHtml(post.id)}'
+                                            )
+                                        ">
+
+                                        ❌ Remove image
+
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </article>
+
+                `;
+
+            }).join("");
+
+
+        /*
+         * Setup comment image previews
+         */
+
+        posts.forEach(post => {
+
+            const input =
+                document.getElementById(
+                    `comment-image-${post.id}`
+                );
+
+            const preview =
+                document.getElementById(
+                    `comment-preview-${post.id}`
+                );
+
+            const previewImage =
+                document.getElementById(
+                    `comment-preview-image-${post.id}`
+                );
+
+            if (!input) {
+                return;
+            }
+
+            input.addEventListener(
+                "change",
+                () => {
+
+                    const file =
+                        input.files[0];
+
+                    if (!file) {
+
+                        preview.style.display =
+                            "none";
+
+                        return;
+
+                    }
+
+                    if (
+                        !file.type.startsWith(
+                            "image/"
+                        )
+                    ) {
+
+                        alert(
+                            "❌ Please choose an image."
+                        );
+
+                        input.value =
+                            "";
+
+                        return;
+
+                    }
+
+                    if (
+                        file.size >
+                        5 * 1024 * 1024
+                    ) {
+
+                        alert(
+                            "❌ Image must be under 5MB."
+                        );
+
+                        input.value =
+                            "";
+
+                        return;
+
+                    }
+
+                    const reader =
+                        new FileReader();
+
+                    reader.onload =
+                        event => {
+
+                            previewImage.src =
+                                event.target.result;
+
+                            preview.style.display =
+                                "block";
+
+                        };
+
+                    reader.readAsDataURL(
+                        file
+                    );
+
+                }
             );
 
         });
-
-
-        // Comment buttons
-
-        document
-            .querySelectorAll(
-                ".comments-button"
-            )
-            .forEach(button => {
-
-                button.addEventListener(
-                    "click",
-                    async () => {
-
-                        const postId =
-                            button.dataset.postId;
-
-                        const box =
-                            document.getElementById(
-                                `comments-${postId}`
-                            );
-
-
-                        if (
-                            box.style.display ===
-                            "none"
-                        ) {
-
-                            box.style.display =
-                                "block";
-
-                            await loadComments(
-                                postId
-                            );
-
-                        } else {
-
-                            box.style.display =
-                                "none";
-
-                        }
-
-                    }
-                );
-
-            });
-
-
-        // Comment submit buttons
-
-        document
-            .querySelectorAll(
-                ".comment-submit"
-            )
-            .forEach(button => {
-
-                button.addEventListener(
-                    "click",
-                    async () => {
-
-                        await submitComment(
-                            button.dataset.postId
-                        );
-
-                    }
-                );
-
-            });
-
 
     } catch (error) {
 
@@ -358,9 +961,199 @@ async function loadPosts() {
 }
 
 
-// ==================================================
-// LOAD COMMENTS
-// ==================================================
+/* ==================================================
+CREATE POST
+================================================== */
+
+async function createPost() {
+
+    const input =
+        document.getElementById(
+            "post-content"
+        );
+
+    const imageInput =
+        document.getElementById(
+            "post-image"
+        );
+
+    const status =
+        document.getElementById(
+            "post-status"
+        );
+
+    const content =
+        input?.value.trim() ||
+        "";
+
+    const file =
+        imageInput?.files?.[0] ||
+        null;
+
+    if (!content && !file) {
+
+        status.textContent =
+            "❌ Write something or select an image.";
+
+        return;
+
+    }
+
+    status.textContent =
+        "Posting...";
+
+    try {
+
+        /*
+         * IMPORTANT:
+         * Server expects:
+         *
+         * image: {
+         *   data,
+         *   type,
+         *   name
+         * }
+         */
+
+        const image =
+            await prepareImage(file);
+
+        const response =
+            await fetch(
+                "/api/posts",
+                {
+
+                    method:
+                        "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            content:
+                                content,
+
+                            image:
+                                image
+
+                        })
+
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not create post."
+            );
+
+        }
+
+        input.value =
+            "";
+
+        if (imageInput) {
+
+            imageInput.value =
+                "";
+
+        }
+
+        const preview =
+            document.getElementById(
+                "post-image-preview"
+            );
+
+        const previewImage =
+            document.getElementById(
+                "post-preview-image"
+            );
+
+        if (preview) {
+
+            preview.style.display =
+                "none";
+
+        }
+
+        if (previewImage) {
+
+            previewImage.src =
+                "";
+
+        }
+
+        status.textContent =
+            "✅ Posted!";
+
+        loadPosts();
+
+    } catch (error) {
+
+        console.error(
+            "CREATE POST ERROR:",
+            error
+        );
+
+        status.textContent =
+            "❌ " +
+            error.message;
+
+    }
+
+}
+
+
+/* ==================================================
+TOGGLE COMMENTS
+================================================== */
+
+async function toggleComments(postId) {
+
+    const box =
+        document.getElementById(
+            `comments-${postId}`
+        );
+
+    if (!box) {
+        return;
+    }
+
+    if (
+        box.style.display ===
+        "none"
+    ) {
+
+        box.style.display =
+            "block";
+
+        loadComments(
+            postId
+        );
+
+    } else {
+
+        box.style.display =
+            "none";
+
+    }
+
+}
+
+
+/* ==================================================
+LOAD COMMENTS
+================================================== */
 
 async function loadComments(postId) {
 
@@ -369,27 +1162,19 @@ async function loadComments(postId) {
             `comment-list-${postId}`
         );
 
-
-    if (!list) return;
-
-
-    list.innerHTML =
-        "Loading comments...";
-
+    if (!list) {
+        return;
+    }
 
     try {
 
         const response =
             await fetch(
-                `/api/posts/${encodeURIComponent(
-                    postId
-                )}/comments`
+                `/api/posts/${postId}/comments`
             );
-
 
         const comments =
             await response.json();
-
 
         if (!response.ok) {
 
@@ -400,80 +1185,128 @@ async function loadComments(postId) {
 
         }
 
-
-        list.innerHTML = "";
-
-
         if (!comments.length) {
 
             list.innerHTML =
-                "<p>No comments yet.</p>";
+                "<p>No comments yet 😼</p>";
 
             return;
 
         }
 
+        list.innerHTML =
+            comments.map(comment => {
 
-        comments.forEach(comment => {
+                const avatar =
+                    comment.avatar ||
+                    "/default-avatar.png";
 
-            const element =
-                document.createElement("div");
+                const displayName =
+                    comment.display_name ||
+                    comment.username ||
+                    "User";
+
+                let imageHTML =
+                    "";
+
+                /*
+                 * IMPORTANT:
+                 * Server uses image_url
+                 */
+
+                if (comment.image_url) {
+
+                    imageHTML = `
+
+                        <img
+                            src="${escapeHtml(
+                                comment.image_url
+                            )}"
+                            alt="Comment image"
+                            style="
+                                max-width:300px;
+                                max-height:300px;
+                                border-radius:10px;
+                                margin-top:8px;
+                                display:block;
+                            "
+                            onerror="
+                                this.style.display='none';
+                            ">
+
+                    `;
+
+                }
+
+                return `
+
+                    <div
+                        class="comment"
+                        style="
+                            padding:10px;
+                            margin-bottom:10px;
+                        ">
+
+                        <div
+                            style="
+                                display:flex;
+                                align-items:center;
+                                gap:8px;
+                            ">
+
+                            <img
+                                src="${escapeHtml(
+                                    avatar
+                                )}"
+                                alt="Avatar"
+                                style="
+                                    width:35px;
+                                    height:35px;
+                                    border-radius:50%;
+                                    object-fit:cover;
+                                "
+                                onerror="
+                                    this.src='/default-avatar.png';
+                                ">
+
+                            <strong>
+
+                                ${escapeHtml(
+                                    displayName
+                                )}
+
+                            </strong>
+
+                        </div>
 
 
-            element.className =
-                "comment";
+                        ${
+                            comment.content
+                                ? `
+
+                                    <p>
+                                        ${escapeHtml(
+                                            comment.content
+                                        )}
+                                    </p>
+
+                                  `
+                                : ""
+                        }
 
 
-            // NO AVATAR HERE.
-            // Only name + comment.
+                        ${imageHTML}
 
-            element.innerHTML = `
+                    </div>
 
-                <strong>
+                `;
 
-                    ${escapeHtml(
-                        comment.display_name ||
-                        comment.username ||
-                        "User"
-                    )}
-
-                </strong>
-
-
-                <p>
-
-                    ${escapeHtml(
-                        comment.content
-                    )}
-
-                </p>
-
-
-                <small>
-
-                    ${comment.created_at
-                        ? new Date(
-                            comment.created_at
-                          ).toLocaleString()
-                        : ""
-                    }
-
-                </small>
-
-            `;
-
-
-            list.appendChild(
-                element
-            );
-
-        });
-
+            }).join("");
 
     } catch (error) {
 
         console.error(
-            "COMMENT LOAD ERROR:",
+            "COMMENTS ERROR:",
             error
         );
 
@@ -487,9 +1320,9 @@ async function loadComments(postId) {
 }
 
 
-// ==================================================
-// CREATE COMMENT
-// ==================================================
+/* ==================================================
+SUBMIT COMMENT
+================================================== */
 
 async function submitComment(postId) {
 
@@ -498,94 +1331,96 @@ async function submitComment(postId) {
             `comment-input-${postId}`
         );
 
-
-    if (!input) return;
-
-
-    const content =
-        input.value.trim();
-
-
-    if (!content) {
-
-        return;
-
-    }
-
-
-    const token =
-        getToken();
-
-
-    if (!token) {
-
-        alert(
-            "❌ You need to log in first."
+    const imageInput =
+        document.getElementById(
+            `comment-image-${postId}`
         );
 
+    const content =
+        input?.value.trim() ||
+        "";
+
+    const file =
+        imageInput?.files?.[0] ||
+        null;
+
+    if (!content && !file) {
         return;
-
     }
-
 
     try {
 
+        /*
+         * Convert file to the exact
+         * object expected by server.
+         */
+
+        const image =
+            await prepareImage(file);
+
         const response =
             await fetch(
-                `/api/posts/${encodeURIComponent(
-                    postId
-                )}/comments`,
+                `/api/posts/${postId}/comments`,
                 {
 
-                    method: "POST",
+                    method:
+                        "POST",
 
                     headers: {
 
                         "Content-Type":
-                            "application/json",
-
-                        "Authorization":
-                            `Bearer ${token}`
+                            "application/json"
 
                     },
 
-                    body: JSON.stringify({
+                    body:
+                        JSON.stringify({
 
-                        content:
-                            content
+                            content:
+                                content,
 
-                    })
+                            image:
+                                image
+
+                        })
 
                 }
             );
 
-
         const data =
             await response.json();
-
 
         if (!response.ok) {
 
             throw new Error(
                 data.error ||
-                "Could not create comment."
+                "Could not comment."
             );
 
         }
 
+        input.value =
+            "";
 
-        input.value = "";
+        if (imageInput) {
 
+            imageInput.value =
+                "";
 
-        await loadComments(
+        }
+
+        clearCommentImage(
             postId
         );
 
+        loadComments(
+            postId
+        );
 
     } catch (error) {
 
         console.error(
-            "COMMENT POST ERROR:",
+            "COMMENT ERROR:",
             error
         );
 
@@ -599,138 +1434,211 @@ async function submitComment(postId) {
 }
 
 
-// ==================================================
-// CREATE POST
-// ==================================================
+/* ==================================================
+CLEAR COMMENT IMAGE
+================================================== */
 
-async function createPost() {
+function clearCommentImage(postId) {
 
     const input =
         document.getElementById(
-            "post-content"
+            `comment-image-${postId}`
         );
 
+    const preview =
+        document.getElementById(
+            `comment-preview-${postId}`
+        );
 
-    if (!input) return;
+    const previewImage =
+        document.getElementById(
+            `comment-preview-image-${postId}`
+        );
 
+    if (input) {
 
-    const content =
-        input.value.trim();
-
-
-    if (!content) {
-
-        return;
+        input.value =
+            "";
 
     }
 
+    if (previewImage) {
 
-    const token =
-        getToken();
-
-
-    if (!token) {
-
-        alert(
-            "❌ You need to log in first."
-        );
-
-        return;
+        previewImage.src =
+            "";
 
     }
 
+    if (preview) {
+
+        preview.style.display =
+            "none";
+
+    }
+
+}
+
+
+/* ==================================================
+PEOPLE
+================================================== */
+
+async function loadPeople() {
+
+    const container =
+        document.getElementById(
+            "people"
+        );
+
+    if (!container) {
+        return;
+    }
 
     try {
 
         const response =
             await fetch(
-                "/api/posts",
-                {
-
-                    method: "POST",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json",
-
-                        "Authorization":
-                            `Bearer ${token}`
-
-                    },
-
-                    body: JSON.stringify({
-
-                        content:
-                            content
-
-                    })
-
-                }
+                "/api/users"
             );
 
-
-        const data =
+        const users =
             await response.json();
-
 
         if (!response.ok) {
 
             throw new Error(
-                data.error ||
-                "Could not create post."
+                users.error ||
+                "Could not load people."
             );
 
         }
 
+        if (!users.length) {
 
-        input.value = "";
+            container.innerHTML =
+                "<p>No users yet. 🧌</p>";
 
+            return;
 
-        await loadPosts();
+        }
 
+        container.innerHTML =
+            users.map(user => {
+
+                const avatar =
+                    user.avatar ||
+                    "/default-avatar.png";
+
+                const displayName =
+                    user.display_name ||
+                    user.username ||
+                    "User";
+
+                return `
+
+                    <a
+                        href="/profile.html?id=${encodeURIComponent(
+                            user.id
+                        )}"
+                        class="person"
+                        style="
+                            text-decoration:none;
+                            color:inherit;
+                            display:flex;
+                            align-items:center;
+                            gap:12px;
+                        ">
+
+                        <img
+                            class="avatar"
+                            src="${escapeHtml(
+                                avatar
+                            )}"
+                            alt="Avatar"
+                            style="
+                                width:50px;
+                                height:50px;
+                                border-radius:50%;
+                                object-fit:cover;
+                            "
+                            onerror="
+                                this.src='/default-avatar.png';
+                            ">
+
+                        <div>
+
+                            <strong>
+                                ${escapeHtml(
+                                    displayName
+                                )}
+                            </strong>
+
+                            <p>
+                                @${escapeHtml(
+                                    user.username
+                                )}
+                            </p>
+
+                        </div>
+
+                    </a>
+
+                `;
+
+            }).join("");
 
     } catch (error) {
 
         console.error(
-            "POST CREATE ERROR:",
+            "PEOPLE ERROR:",
             error
         );
 
-        alert(
-            "❌ " +
-            error.message
-        );
+        container.innerHTML =
+            `<p>❌ ${escapeHtml(
+                error.message
+            )}</p>`;
 
     }
 
 }
 
 
-// ==================================================
-// ENTER TO COMMENT
-// ==================================================
+/* ==================================================
+ENTER KEY FOR COMMENTS
+================================================== */
 
 document.addEventListener(
     "keydown",
     event => {
 
         if (
-            event.key === "Enter" &&
-            event.target.matches(
-                ".comment-box input"
+            event.key !== "Enter" ||
+            event.shiftKey
+        ) {
+
+            return;
+
+        }
+
+        const target =
+            event.target;
+
+        if (
+            target &&
+            target.id &&
+            target.id.startsWith(
+                "comment-input-"
             )
         ) {
 
             event.preventDefault();
 
-
             const postId =
-                event.target.id.replace(
+                target.id.replace(
                     "comment-input-",
                     ""
                 );
-
 
             submitComment(
                 postId
@@ -742,34 +1650,15 @@ document.addEventListener(
 );
 
 
-// ==================================================
-// LOGOUT
-// ==================================================
-
-function logout() {
-
-    localStorage.removeItem(
-        "access_token"
-    );
-
-
-    window.location.href =
-        "/login.html";
-
-}
-
-
-// ==================================================
-// START
-// ==================================================
+/* ==================================================
+START
+================================================== */
 
 document.addEventListener(
     "DOMContentLoaded",
     () => {
 
-        loadPeople();
-
-        loadPosts();
+        checkLogin();
 
     }
 );

@@ -1,211 +1,161 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
-
     <meta charset="UTF-8">
 
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0">
 
-    <title>ShrekBook - Profile</title>
+    <title>Profile 🧌</title>
 
     <link
         rel="stylesheet"
-        href="/style.css">
-
+        href="/styles.css">
 </head>
-
 
 <body>
 
+<header class="navbar">
 
-<header>
+    <div class="navbar-inner">
 
-    <h1>
-        🧌 ShrekBook
-    </h1>
-
-    <nav>
-
-        <a href="/">
-            Home
+        <a
+            href="/"
+            class="logo">
+            🧌 ShrekBook
         </a>
 
-        <a href="/login.html">
-            Login
-        </a>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/profile.html">Profile</a>
+        </nav>
 
-        <a href="/signup.html">
-            Create Account
-        </a>
-
-    </nav>
+    </div>
 
 </header>
 
 
 <main class="container">
 
-
-    <!-- ================================= -->
     <!-- PROFILE -->
-    <!-- ================================= -->
 
-    <section id="profile">
+    <section class="profile-card">
 
-        <p>
-            Loading profile...
+        <img
+            id="profile-avatar"
+            class="profile-avatar"
+            src="/default-avatar.png"
+            alt="Profile avatar">
+
+        <h1 id="profile-display-name">
+            Loading...
+        </h1>
+
+        <p id="profile-username">
+            Loading...
         </p>
+
+        <p id="profile-bio"></p>
+
+        <button
+            id="edit-button"
+            onclick="showEditProfile()">
+
+            ✏️ Edit Profile
+
+        </button>
 
     </section>
 
 
-    <!-- ================================= -->
     <!-- EDIT PROFILE -->
-    <!-- ================================= -->
 
     <section
-        id="edit-section"
-        class="edit-profile">
+        id="edit-profile"
+        class="auth-box"
+        style="display:none;">
 
         <h2>
             ✏️ Edit Profile
         </h2>
 
+        <label>
+            Display name
+        </label>
 
-        <form id="edit-profile">
+        <input
+            id="edit-display-name"
+            type="text"
+            maxlength="50">
 
+        <label>
+            Bio
+        </label>
 
-            <!-- Avatar -->
+        <textarea
+            id="edit-bio"
+            maxlength="500"
+            placeholder="Tell people about yourself...">
+        </textarea>
 
-            <label for="avatar">
-                Avatar URL
-            </label>
+        <h3>
+            🖼️ Change Avatar
+        </h3>
 
-            <input
-                id="avatar"
-                type="text"
-                placeholder="https://example.com/avatar.png">
+        <input
+            id="avatar-input"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif">
 
+        <button id="upload-avatar-button" onclick="uploadAvatar()">
+            📸 Upload Avatar
+        </button>
+        <p id="upload-avatar-button-warn"></p>
 
-            <!-- Avatar preview -->
+        <button onclick="saveProfile()">
+            💾 Save Profile
+        </button>
 
-            <img
-                id="avatar-preview"
-                class="profile-avatar"
-                src="https://placehold.co/200x200"
-                alt="Avatar preview">
+        <button
+            class="secondary-button"
+            onclick="hideEditProfile()">
 
+            Cancel
 
-            <!-- Display name -->
+        </button>
 
-            <label for="display-name">
-                Display Name
-            </label>
-
-            <input
-                id="display-name"
-                type="text"
-                placeholder="Your display name">
-
-
-            <!-- Bio -->
-
-            <label for="bio">
-                Bio
-            </label>
-
-            <textarea
-                id="bio"
-                placeholder="Tell people about yourself..."></textarea>
-
-
-            <!-- Gyatt -->
-
-            <label for="gyatt">
-                💀 Gyatt
-            </label>
-
-            <input
-                id="gyatt"
-                type="number"
-                min="0"
-                value="0">
-
-
-            <!-- Cat -->
-
-            <label for="cat">
-                🐱 Cat
-            </label>
-
-            <input
-                id="cat"
-                type="number"
-                min="0"
-                value="0">
-
-
-            <!-- Ogred -->
-
-            <label for="ogred">
-                🧌 Ogred
-            </label>
-
-            <input
-                id="ogred"
-                type="number"
-                min="0"
-                value="0">
-
-
-            <button
-                type="submit">
-
-                💾 Save Profile
-
-            </button>
-
-
-        </form>
-
-
-        <p id="status"></p>
-
+        <p id="profile-status"></p>
 
     </section>
 
 
-    <!-- ================================= -->
-    <!-- LOGOUT -->
-    <!-- ================================= -->
+    <!-- POSTS -->
 
-    <button
-        type="button"
-        onclick="logout()">
+    <section>
 
-        🚪 Logout
+        <h2>
+            Posts
+        </h2>
 
-    </button>
+        <div id="profile-posts">
+            Loading posts...
+        </div>
 
+    </section>
 
 </main>
 
 
 <script>
 
-
-// ==================================================
-// CURRENT USER
-// ==================================================
-
-let currentUser = null;
+let profileUser = null;
 
 
 // ==================================================
-// HTML ESCAPE
+// ESCAPE HTML
 // ==================================================
 
 function escapeHtml(text) {
@@ -217,7 +167,21 @@ function escapeHtml(text) {
         text ?? "";
 
     return div.innerHTML;
+}
 
+
+// ==================================================
+// GET PROFILE ID
+// ==================================================
+
+function getProfileId() {
+
+    const params =
+        new URLSearchParams(
+            window.location.search
+        );
+
+    return params.get("id");
 }
 
 
@@ -227,44 +191,35 @@ function escapeHtml(text) {
 
 async function loadProfile() {
 
-    const profile =
-        document.getElementById(
-            "profile"
-        );
+    const id =
+        getProfileId();
 
+    let url;
+
+    /*
+       If there is no ?id=...
+       load the currently logged-in user.
+    */
+
+    if (id) {
+
+        url =
+            `/api/users/${encodeURIComponent(id)}`;
+
+    } else {
+
+        url =
+            "/api/me";
+
+    }
 
     try {
 
-        const params =
-            new URLSearchParams(
-                window.location.search
-            );
-
-
-        const userId =
-            params.get("id");
-
-
-        if (!userId) {
-
-            throw new Error(
-                "No profile ID was provided."
-            );
-
-        }
-
-
         const response =
-            await fetch(
-                `/api/users/${encodeURIComponent(
-                    userId
-                )}`
-            );
-
+            await fetch(url);
 
         const data =
             await response.json();
-
 
         if (!response.ok) {
 
@@ -272,192 +227,104 @@ async function loadProfile() {
                 data.error ||
                 "Could not load profile."
             );
-
         }
 
 
-        currentUser =
-            data;
+        /*
+           /api/users/:id returns the
+           profile directly.
+
+           /api/me returns:
+           {
+               loggedIn: true,
+               user: {...}
+           }
+        */
+
+        profileUser =
+            id
+                ? data
+                : data.user;
 
 
-        // =========================================
-        // DISPLAY PROFILE
-        // =========================================
+        if (!profileUser) {
 
-        profile.innerHTML = `
-
-            <img
-                class="profile-avatar"
-                src="${escapeHtml(
-                    data.avatar ||
-                    "https://placehold.co/200x200"
-                )}"
-                alt="Avatar">
-
-
-            <h2>
-                ${escapeHtml(
-                    data.display_name ||
-                    data.username
-                )}
-            </h2>
-
-
-            <p>
-                @${escapeHtml(
-                    data.username
-                )}
-            </p>
-
-
-            <p>
-                ${escapeHtml(
-                    data.bio || ""
-                )}
-            </p>
-
-
-            <div class="profile-stats">
-
-
-                <div class="stat">
-
-                    <strong>
-                        ${Number(
-                            data.gyatt || 0
-                        )}
-                    </strong>
-
-                    <span>
-                        💀 Gyatt
-                    </span>
-
-                </div>
-
-
-                <div class="stat">
-
-                    <strong>
-                        ${Number(
-                            data.cat || 0
-                        )}
-                    </strong>
-
-                    <span>
-                        🐱 Cat
-                    </span>
-
-                </div>
-
-
-                <div class="stat">
-
-                    <strong>
-                        ${Number(
-                            data.ogred || 0
-                        )}
-                    </strong>
-
-                    <span>
-                        🧌 Ogred
-                    </span>
-
-                </div>
-
-
-            </div>
-
-        `;
-
-
-        // =========================================
-        // FILL EDIT FORM
-        // =========================================
-
-        const avatar =
-            document.getElementById(
-                "avatar"
+            throw new Error(
+                "Profile not found."
             );
 
-        const displayName =
+        }
+
+
+        // DISPLAY NAME
+
+        document.getElementById(
+            "profile-display-name"
+        ).textContent =
+            profileUser.display_name ||
+            profileUser.username;
+
+
+        // USERNAME
+
+        document.getElementById(
+            "profile-username"
+        ).textContent =
+            "@" +
+            profileUser.username;
+
+
+        // BIO
+
+        document.getElementById(
+            "profile-bio"
+        ).textContent =
+            profileUser.bio ||
+            "No bio yet.";
+
+
+        // AVATAR
+
+        document.getElementById(
+            "profile-avatar"
+        ).src =
+            profileUser.avatar ||
+            "/default-avatar.png";
+
+
+        // EDIT BUTTON ONLY FOR OWN PROFILE
+
+        const meResponse =
+            await fetch("/api/me");
+
+        const me =
+            await meResponse.json();
+
+        if (
+            me.loggedIn &&
+            me.user &&
+            me.user.id === profileUser.id
+        ) {
+
             document.getElementById(
-                "display-name"
-            );
+                "edit-button"
+            ).style.display =
+                "inline-block";
 
-        const bio =
+        } else {
+
             document.getElementById(
-                "bio"
-            );
-
-        const gyatt =
-            document.getElementById(
-                "gyatt"
-            );
-
-        const cat =
-            document.getElementById(
-                "cat"
-            );
-
-        const ogred =
-            document.getElementById(
-                "ogred"
-            );
-
-
-        if (avatar) {
-
-            avatar.value =
-                data.avatar || "";
-
+                "edit-button"
+            ).style.display =
+                "none";
         }
 
 
-        if (displayName) {
+        // POSTS
 
-            displayName.value =
-                data.display_name || "";
-
-        }
-
-
-        if (bio) {
-
-            bio.value =
-                data.bio || "";
-
-        }
-
-
-        if (gyatt) {
-
-            gyatt.value =
-                data.gyatt || 0;
-
-        }
-
-
-        if (cat) {
-
-            cat.value =
-                data.cat || 0;
-
-        }
-
-
-        if (ogred) {
-
-            ogred.value =
-                data.ogred || 0;
-
-        }
-
-
-        // =========================================
-        // AVATAR PREVIEW
-        // =========================================
-
-        updateAvatarPreview();
+        loadProfilePosts(
+            profileUser.posts || []
+        );
 
 
     } catch (error) {
@@ -467,58 +334,53 @@ async function loadProfile() {
             error
         );
 
-
-        profile.innerHTML = `
-
-            <h2>
-                Profile not found 😭
-            </h2>
-
-            <p>
-                ${escapeHtml(
-                    error.message
-                )}
-            </p>
-
-        `;
-
+        document.getElementById(
+            "profile-display-name"
+        ).textContent =
+            "❌ " + error.message;
     }
+}
+
+
+// ==================================================
+// SHOW EDIT
+// ==================================================
+
+function showEditProfile() {
+
+    if (!profileUser) return;
+
+    document.getElementById(
+        "edit-profile"
+    ).style.display =
+        "block";
+
+    document.getElementById(
+        "edit-display-name"
+    ).value =
+        profileUser.display_name ||
+        profileUser.username ||
+        "";
+
+    document.getElementById(
+        "edit-bio"
+    ).value =
+        profileUser.bio ||
+        "";
 
 }
 
 
 // ==================================================
-// AVATAR PREVIEW
+// HIDE EDIT
 // ==================================================
 
-function updateAvatarPreview() {
+function hideEditProfile() {
 
-    const input =
-        document.getElementById(
-            "avatar"
-        );
-
-
-    const preview =
-        document.getElementById(
-            "avatar-preview"
-        );
-
-
-    if (!input || !preview) {
-
-        return;
-
-    }
-
-
-    const url =
-        input.value.trim();
-
-
-    preview.src =
-        url ||
-        "https://placehold.co/200x200";
+    document.getElementById(
+        "edit-profile"
+    ).style.display =
+        "none";
 
 }
 
@@ -527,130 +389,59 @@ function updateAvatarPreview() {
 // SAVE PROFILE
 // ==================================================
 
-async function saveProfile(event) {
+async function saveProfile() {
 
-    event.preventDefault();
+    const display_name =
+        document.getElementById(
+            "edit-display-name"
+        ).value.trim();
 
+    const bio =
+        document.getElementById(
+            "edit-bio"
+        ).value.trim();
 
     const status =
         document.getElementById(
-            "status"
+            "profile-status"
         );
+
+    if (!display_name) {
+
+        status.textContent =
+            "❌ Display name cannot be empty.";
+
+        return;
+    }
+
+    status.textContent =
+        "Saving...";
 
 
     try {
 
-
-        if (!currentUser) {
-
-            throw new Error(
-                "Profile hasn't loaded yet."
-            );
-
-        }
-
-
-        // =========================================
-        // GET FORM VALUES
-        // =========================================
-
-        const avatar =
-            document.getElementById(
-                "avatar"
-            )
-            .value
-            .trim();
-
-
-        const displayName =
-            document.getElementById(
-                "display-name"
-            )
-            .value
-            .trim();
-
-
-        const bio =
-            document.getElementById(
-                "bio"
-            )
-            .value
-            .trim();
-
-
-        const gyatt =
-            Number(
-                document.getElementById(
-                    "gyatt"
-                ).value
-            ) || 0;
-
-
-        const cat =
-            Number(
-                document.getElementById(
-                    "cat"
-                ).value
-            ) || 0;
-
-
-        const ogred =
-            Number(
-                document.getElementById(
-                    "ogred"
-                ).value
-            ) || 0;
-
-
-        // =========================================
-        // SEND UPDATE
-        // =========================================
-
         const response =
             await fetch(
-                `/api/users/${encodeURIComponent(
-                    currentUser.id
-                )}`,
+                "/api/profile",
                 {
-
                     method: "PUT",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
 
                     body: JSON.stringify({
 
-                        displayName:
-                            displayName,
+                        display_name,
 
-                        avatar:
-                            avatar,
-
-                        bio:
-                            bio,
-
-                        gyatt:
-                            gyatt,
-
-                        cat:
-                            cat,
-
-                        ogred:
-                            ogred
-
+                        bio
                     })
-
                 }
             );
 
-
         const data =
             await response.json();
-
 
         if (!response.ok) {
 
@@ -662,24 +453,31 @@ async function saveProfile(event) {
         }
 
 
-        // =========================================
-        // SUCCESS
-        // =========================================
+        profileUser =
+            data.user;
 
-        currentUser =
-            data;
+
+        document.getElementById(
+            "profile-display-name"
+        ).textContent =
+            profileUser.display_name;
+
+
+        document.getElementById(
+            "profile-bio"
+        ).textContent =
+            profileUser.bio ||
+            "No bio yet.";
 
 
         status.textContent =
             "✅ Profile saved!";
 
 
-        updateAvatarPreview();
-
-
-        // Reload displayed profile
-
-        await loadProfile();
+        setTimeout(
+            hideEditProfile,
+            800
+        );
 
 
     } catch (error) {
@@ -689,86 +487,199 @@ async function saveProfile(event) {
             error
         );
 
+        status.textContent =
+            "❌ " + error.message;
+    }
+}
+
+
+// ==================================================
+// UPLOAD AVATAR
+// ==================================================
+
+async function uploadAvatar() {
+
+    const input =
+        document.getElementById(
+            "avatar-input"
+        );
+
+    const status =
+        document.getElementById(
+            "profile-status"
+        );
+
+    const file =
+        input.files[0];
+
+    if (!file) {
+
+        status.textContent =
+            "❌ Choose an image first.";
+
+        return;
+    }
+
+
+    if (file.size > 5 * 1024 * 1024) {
+
+        status.textContent =
+            "❌ Image must be under 5MB.";
+
+        return;
+    }
+
+
+    status.textContent =
+        "Uploading avatar...";
+
+
+    try {
+
+        const reader =
+            new FileReader();
+
+
+        reader.onload = async function () {
+
+            try {
+
+                const base64 =
+                    reader.result
+                        .split(",")[1];
+
+
+                const response =
+                    await fetch(
+                        "/api/profile/avatar",
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body:
+                                JSON.stringify({
+
+                                    fileName:
+                                        file.name,
+
+                                    fileType:
+                                        file.type,
+
+                                    fileData:
+                                        base64
+
+                                })
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        data.error ||
+                        "Avatar upload failed."
+                    );
+
+                }
+
+
+                profileUser.avatar =
+                    data.avatar;
+
+
+                document.getElementById(
+                    "profile-avatar"
+                ).src =
+                    data.avatar;
+
+
+                status.textContent =
+                    "✅ Avatar updated!";
+
+
+                input.value = "";
+
+
+            } catch (error) {
+
+                status.textContent =
+                    "❌ " +
+                    error.message;
+
+            }
+
+        };
+
+
+        reader.readAsDataURL(file);
+
+
+    } catch (error) {
 
         status.textContent =
             "❌ " +
             error.message;
 
     }
-
 }
 
 
 // ==================================================
-// LOGOUT
+// PROFILE POSTS
 // ==================================================
 
-async function logout() {
+function loadProfilePosts(posts) {
 
-    try {
-
-        localStorage.removeItem(
-            "access_token"
+    const container =
+        document.getElementById(
+            "profile-posts"
         );
 
 
-        await fetch(
-            "/api/logout",
-            {
-                method: "POST"
-            }
-        );
+    if (!posts.length) {
 
+        container.innerHTML =
+            "<p>No posts yet.</p>";
 
-    } catch (error) {
-
-        console.error(
-            "Logout error:",
-            error
-        );
-
+        return;
     }
 
 
-    window.location.href =
-        "/";
+    container.innerHTML =
+        posts.map(post => `
 
-}
+            <article class="post">
 
+                <div class="post-header">
 
-// ==================================================
-// EVENT LISTENERS
-// ==================================================
+                    <strong>
+                        ${escapeHtml(
+                            profileUser.display_name ||
+                            profileUser.username
+                        )}
+                    </strong>
 
-const editForm =
-    document.getElementById(
-        "edit-profile"
-    );
+                </div>
 
+                <div class="post-content">
 
-if (editForm) {
+                    ${escapeHtml(
+                        post.content
+                    )}
 
-    editForm.addEventListener(
-        "submit",
-        saveProfile
-    );
+                </div>
 
-}
+            </article>
 
-
-const avatarInput =
-    document.getElementById(
-        "avatar"
-    );
-
-
-if (avatarInput) {
-
-    avatarInput.addEventListener(
-        "input",
-        updateAvatarPreview
-    );
-
+        `).join("");
 }
 
 
@@ -778,10 +689,8 @@ if (avatarInput) {
 
 loadProfile();
 
-
 </script>
 
-
 </body>
-
 </html>
+

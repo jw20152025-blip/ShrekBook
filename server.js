@@ -1,19 +1,12 @@
-console.log("🔥 THIS IS MY CURRENT SERVER.JS");
-
+require("dotenv").config();
 const express = require("express");
 const path = require("path");
-const { createClient } = require("@supabase/supabase-js");
 const session = require("express-session");
-
-require("dotenv").config();
+const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 
 const PORT = process.env.PORT || 3000;
-
-// ==================================================
-// ENVIRONMENT
-// ==================================================
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY =
@@ -23,8 +16,6 @@ const SESSION_SECRET = process.env.SESSION_SECRET;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     console.error("❌ Missing Supabase environment variables.");
-    console.error("SUPABASE_URL");
-    console.error("SUPABASE_SERVICE_ROLE_KEY");
     process.exit(1);
 }
 
@@ -32,10 +23,6 @@ if (!SESSION_SECRET) {
     console.error("❌ Missing SESSION_SECRET.");
     process.exit(1);
 }
-
-// ==================================================
-// SUPABASE
-// ==================================================
 
 const supabase = createClient(
     SUPABASE_URL,
@@ -48,115 +35,78 @@ const supabase = createClient(
 
 app.set("trust proxy", 1);
 
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({
+    limit: "10mb"
+}));
 
-app.use(
-    express.urlencoded({
-        extended: true
-    })
-);
+app.use(express.urlencoded({
+    extended: true
+}));
 
-app.use(
-    express.static(
-        path.join(__dirname, "public")
-    )
-);
+app.use(session({
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
 
-// ==================================================
-// SESSION
-// ==================================================
+    cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 1000 * 60 * 60 * 24 * 30
+    }
+}));
 
-app.use(
-    session({
-        secret: SESSION_SECRET,
-
-        resave: false,
-
-        saveUninitialized: false,
-
-        cookie: {
-            httpOnly: true,
-
-            secure:
-                process.env.NODE_ENV === "production",
-
-            sameSite: "lax",
-
-            maxAge:
-                1000 *
-                60 *
-                60 *
-                24 *
-                30
-        }
-    })
-);
+app.use(express.static(
+    path.join(__dirname, "public")
+));
 
 // ==================================================
 // TEST
 // ==================================================
 
 app.get("/api/test", (req, res) => {
-
     res.json({
         success: true,
         message: "ShrekBook server is alive 🧌"
     });
-
 });
 
-// ==================================================
-// HEALTH
-// ==================================================
-
 app.get("/api/health", (req, res) => {
-
     res.json({
         ok: true,
         loggedIn: !!req.session.user
     });
-
 });
 
 // ==================================================
-// SIGN UP
+// SIGNUP
 // ==================================================
 
 app.post("/api/signup", async (req, res) => {
-
     try {
+        const username =
+            String(req.body.username || "").trim();
 
-        const {
-            email,
-            password,
-            username,
-            display_name,
-            displayName,
-            avatar
-        } = req.body;
+        const display_name =
+            String(
+                req.body.display_name || username
+            ).trim();
 
-        const finalDisplayName =
-            display_name ||
-            displayName ||
-            username;
+        const email =
+            String(req.body.email || "").trim();
 
-        if (
-            !email ||
-            !password ||
-            !username
-        ) {
+        const password =
+            String(req.body.password || "");
 
+        if (!username || !email || !password) {
             return res.status(400).json({
                 error:
-                    "Email, password, and username are required."
+                    "Username, email, and password are required."
             });
-
         }
 
-        // Check username first
-
         const {
-            data: existingProfile,
+            data: existing,
             error: usernameError
         } = await supabase
             .from("profiles")
@@ -165,156 +115,72 @@ app.post("/api/signup", async (req, res) => {
             .maybeSingle();
 
         if (usernameError) {
-
-            console.error(
-                "USERNAME CHECK ERROR:",
-                usernameError
-            );
-
             return res.status(500).json({
                 error: usernameError.message
             });
-
         }
 
-        if (existingProfile) {
-
+        if (existing) {
             return res.status(400).json({
-                error:
-                    "That username is already taken."
+                error: "That username is already taken."
             });
-
         }
-
-        // Create Auth user
 
         const {
             data: authData,
             error: authError
-        } =
-            await supabase.auth.admin.createUser({
-
-                email,
-
-                password,
-
-                email_confirm: true
-
-            });
+        } = await supabase.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true
+        });
 
         if (authError) {
-
-            console.error(
-                "AUTH SIGNUP ERROR:",
-                authError
-            );
-
             return res.status(400).json({
                 error: authError.message
             });
-
         }
 
-        const userId =
-            authData.user.id;
-
-        // Create profile
+        const userId = authData.user.id;
 
         const {
             data: profile,
             error: profileError
-        } =
-            await supabase
-                .from("profiles")
-                .insert({
-                    id: userId,
-
-                    username,
-
-                    display_name:
-                        finalDisplayName,
-
-                    avatar:
-                        avatar || null,
-
-                    bio: "",
-
-                    gyatt: 0,
-
-                    cat: 0,
-
-                    ogred: 0
-                })
-                .select()
-                .single();
+        } = await supabase
+            .from("profiles")
+            .insert({
+                id: userId,
+                username,
+                display_name: display_name || username,
+                avatar: null,
+                bio: "",
+                gyatt: 0,
+                cat: 0,
+                ogred: 0
+            })
+            .select()
+            .single();
 
         if (profileError) {
-
-            console.error(
-                "PROFILE SIGNUP ERROR:",
-                profileError
-            );
-
-            await supabase.auth.admin.deleteUser(
-                userId
-            );
+            await supabase.auth.admin.deleteUser(userId);
 
             return res.status(500).json({
-                error:
-                    profileError.message
+                error: profileError.message
             });
-
         }
 
-        // Automatically log them in
-
-        req.session.user = {
-            id: profile.id,
-
-            username:
-                profile.username,
-
-            display_name:
-                profile.display_name
-        };
-
-        req.session.save(error => {
-
-            if (error) {
-
-                console.error(
-                    "SIGNUP SESSION ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        "Account created, but session could not be saved."
-                });
-
-            }
-
-            res.status(201).json({
-                success: true,
-
-                user: profile
-            });
-
+        res.status(201).json({
+            success: true,
+            user: profile
         });
 
     } catch (error) {
-
-        console.error(
-            "SIGNUP SERVER ERROR:",
-            error
-        );
+        console.error("SIGNUP ERROR:", error);
 
         res.status(500).json({
-            error: error.message
+            error: "Server error."
         });
-
     }
-
 });
 
 // ==================================================
@@ -322,131 +188,139 @@ app.post("/api/signup", async (req, res) => {
 // ==================================================
 
 app.post("/api/login", async (req, res) => {
-
     try {
+        const email =
+            String(req.body.email || "").trim();
 
-        const {
-            email,
-            password
-        } = req.body;
+        const password =
+            String(req.body.password || "");
 
         if (!email || !password) {
-
             return res.status(400).json({
                 error:
                     "Email and password are required."
             });
-
         }
 
         const {
             data: authData,
             error: authError
-        } =
-            await supabase.auth.signInWithPassword({
-
-                email,
-
-                password
-
-            });
+        } = await supabase.auth.signInWithPassword({
+            email,
+            password
+        });
 
         if (authError) {
-
             return res.status(401).json({
-                error:
-                    authError.message
+                error: authError.message
             });
-
         }
 
-        const user =
-            authData.user;
+        const authUser = authData.user;
 
-        // Find profile
-
-        const {
+        let {
             data: profile,
             error: profileError
-        } =
-            await supabase
-                .from("profiles")
-                .select("*")
-                .eq("id", user.id)
-                .maybeSingle();
+        } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", authUser.id)
+            .maybeSingle();
 
         if (profileError) {
-
-            console.error(
-                "PROFILE LOOKUP ERROR:",
-                profileError
-            );
-
             return res.status(500).json({
-                error:
-                    profileError.message
+                error: profileError.message
             });
-
         }
 
+        // Create missing profile automatically
         if (!profile) {
+            let username =
+                (authUser.email || "user")
+                    .split("@")[0]
+                    .toLowerCase()
+                    .replace(/[^a-z0-9_]/g, "")
+                    .slice(0, 20);
 
-            return res.status(404).json({
-                error:
-                    "Your login account exists, but your ShrekBook profile does not."
-            });
+            if (!username) {
+                username = "user";
+            }
 
+            const original = username;
+            let number = 1;
+
+            while (true) {
+                const { data: taken } =
+                    await supabase
+                        .from("profiles")
+                        .select("id")
+                        .eq("username", username)
+                        .maybeSingle();
+
+                if (!taken) {
+                    break;
+                }
+
+                username =
+                    `${original}${number}`;
+
+                number++;
+            }
+
+            const {
+                data: created,
+                error: createError
+            } = await supabase
+                .from("profiles")
+                .insert({
+                    id: authUser.id,
+                    username,
+                    display_name: username,
+                    avatar: null,
+                    bio: "",
+                    gyatt: 0,
+                    cat: 0,
+                    ogred: 0
+                })
+                .select()
+                .single();
+
+            if (createError) {
+                return res.status(500).json({
+                    error: createError.message
+                });
+            }
+
+            profile = created;
         }
-
-        // Create session
 
         req.session.user = {
             id: profile.id,
-
-            username:
-                profile.username,
-
-            display_name:
-                profile.display_name
+            username: profile.username,
+            display_name: profile.display_name
         };
 
         req.session.save(error => {
-
             if (error) {
-
-                console.error(
-                    "SESSION SAVE ERROR:",
-                    error
-                );
-
                 return res.status(500).json({
                     error:
-                        "Login succeeded but session could not be saved."
+                        "Could not save login session."
                 });
-
             }
 
             res.json({
                 success: true,
-
                 user: profile
             });
-
         });
 
     } catch (error) {
-
-        console.error(
-            "LOGIN SERVER ERROR:",
-            error
-        );
+        console.error("LOGIN ERROR:", error);
 
         res.status(500).json({
-            error: error.message
+            error: "Server error."
         });
-
     }
-
 });
 
 // ==================================================
@@ -454,29 +328,19 @@ app.post("/api/login", async (req, res) => {
 // ==================================================
 
 app.post("/api/logout", (req, res) => {
-
     req.session.destroy(error => {
-
         if (error) {
-
-            console.error(
-                "LOGOUT ERROR:",
-                error
-            );
-
             return res.status(500).json({
-                error:
-                    "Logout failed."
+                error: "Logout failed."
             });
-
         }
+
+        res.clearCookie("connect.sid");
 
         res.json({
             success: true
         });
-
     });
-
 });
 
 // ==================================================
@@ -484,228 +348,152 @@ app.post("/api/logout", (req, res) => {
 // ==================================================
 
 app.get("/api/me", async (req, res) => {
-
     try {
-
         if (!req.session.user) {
-
             return res.json({
                 loggedIn: false
             });
-
         }
 
         const {
             data,
             error
-        } =
-            await supabase
-                .from("profiles")
-                .select("*")
-                .eq(
-                    "id",
-                    req.session.user.id
-                )
-                .maybeSingle();
+        } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", req.session.user.id)
+            .single();
 
-        if (error) {
-
-            return res.status(500).json({
-                error:
-                    error.message
-            });
-
-        }
-
-        if (!data) {
-
+        if (error || !data) {
             return res.json({
                 loggedIn: false
             });
-
         }
 
         res.json({
-
             loggedIn: true,
-
             user: data
-
         });
 
     } catch (error) {
-
         res.status(500).json({
-            error:
-                error.message
+            error: "Server error."
         });
-
     }
-
 });
 
 // ==================================================
-// GET ALL USERS
+// USERS
 // ==================================================
 
 app.get("/api/users", async (req, res) => {
-
     try {
-
         const {
             data,
             error
-        } =
-            await supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar,
-                    bio,
-                    gyatt,
-                    cat,
-                    ogred,
-                    created_at
-                `)
-                .order(
-                    "created_at",
-                    {
-                        ascending: false
-                    }
-                );
-
-        if (error) {
-
-            console.error(
-                "USERS ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    error.message
+        } = await supabase
+            .from("profiles")
+            .select(`
+                id,
+                username,
+                display_name,
+                avatar,
+                bio,
+                gyatt,
+                cat,
+                ogred,
+                created_at
+            `)
+            .order("created_at", {
+                ascending: false
             });
 
+        if (error) {
+            return res.status(500).json({
+                error: error.message
+            });
         }
 
         res.json(data || []);
 
     } catch (error) {
-
-        console.error(
-            "USERS SERVER ERROR:",
-            error
-        );
-
         res.status(500).json({
-            error:
-                error.message
+            error: "Server error."
         });
-
     }
-
 });
 
 // ==================================================
-// GET ONE USER
+// ONE USER
 // ==================================================
 
 app.get("/api/users/:id", async (req, res) => {
-
     try {
+        const id = req.params.id;
 
-        const id =
-            req.params.id;
+        if (!id) {
+            return res.status(400).json({
+                error: "No profile ID was provided."
+            });
+        }
 
         const {
             data: profile,
-            error: profileError
-        } =
-            await supabase
-                .from("profiles")
-                .select("*")
-                .eq("id", id)
-                .maybeSingle();
+            error
+        } = await supabase
+            .from("profiles")
+            .select(`
+                id,
+                username,
+                display_name,
+                avatar,
+                bio,
+                gyatt,
+                cat,
+                ogred,
+                created_at
+            `)
+            .eq("id", id)
+            .single();
 
-        if (profileError) {
-
-            console.error(
-                "PROFILE ERROR:",
-                profileError
-            );
-
-            return res.status(500).json({
-                error:
-                    profileError.message
-            });
-
-        }
-
-        if (!profile) {
-
+        if (error || !profile) {
             return res.status(404).json({
-                error:
-                    "User not found."
+                error: "User not found."
             });
-
         }
-
-        // Get their posts
 
         const {
             data: posts,
             error: postsError
-        } =
-            await supabase
-                .from("posts")
-                .select("*")
-                .eq("user_id", id)
-                .order(
-                    "created_at",
-                    {
-                        ascending: false
-                    }
-                );
-
-        if (postsError) {
-
-            console.error(
-                "PROFILE POSTS ERROR:",
-                postsError
-            );
-
-            return res.status(500).json({
-                error:
-                    postsError.message
+        } = await supabase
+            .from("posts")
+            .select(`
+                id,
+                user_id,
+                content,
+                created_at
+            `)
+            .eq("user_id", id)
+            .order("created_at", {
+                ascending: false
             });
 
+        if (postsError) {
+            return res.status(500).json({
+                error: postsError.message
+            });
         }
 
         res.json({
-
             ...profile,
-
-            posts:
-                posts || []
-
+            posts: posts || []
         });
 
     } catch (error) {
-
-        console.error(
-            "PROFILE SERVER ERROR:",
-            error
-        );
-
         res.status(500).json({
-            error:
-                error.message
+            error: "Server error."
         });
-
     }
-
 });
 
 // ==================================================
@@ -713,20 +501,12 @@ app.get("/api/users/:id", async (req, res) => {
 // ==================================================
 
 app.put("/api/profile", async (req, res) => {
-
     try {
-
         if (!req.session.user) {
-
             return res.status(401).json({
-                error:
-                    "You must be logged in."
+                error: "You must be logged in."
             });
-
         }
-
-        const userId =
-            req.session.user.id;
 
         const {
             display_name,
@@ -740,89 +520,50 @@ app.put("/api/profile", async (req, res) => {
         const {
             data,
             error
-        } =
-            await supabase
-                .from("profiles")
-                .update({
+        } = await supabase
+            .from("profiles")
+            .update({
+                display_name:
+                    String(display_name || "").trim(),
 
-                    display_name:
-                        String(
-                            display_name || ""
-                        ).trim(),
+                bio:
+                    String(bio || "").trim(),
 
-                    bio:
-                        String(
-                            bio || ""
-                        ).trim(),
+                avatar:
+                    avatar || null,
 
-                    avatar:
-                        avatar || null,
+                gyatt:
+                    Math.max(0, parseInt(gyatt) || 0),
 
-                    gyatt:
-                        Math.max(
-                            0,
-                            parseInt(gyatt) || 0
-                        ),
+                cat:
+                    Math.max(0, parseInt(cat) || 0),
 
-                    cat:
-                        Math.max(
-                            0,
-                            parseInt(cat) || 0
-                        ),
-
-                    ogred:
-                        Math.max(
-                            0,
-                            parseInt(ogred) || 0
-                        )
-
-                })
-                .eq(
-                    "id",
-                    userId
-                )
-                .select()
-                .single();
+                ogred:
+                    Math.max(0, parseInt(ogred) || 0)
+            })
+            .eq("id", req.session.user.id)
+            .select()
+            .single();
 
         if (error) {
-
-            console.error(
-                "PROFILE UPDATE ERROR:",
-                error
-            );
-
             return res.status(500).json({
-                error:
-                    error.message
+                error: error.message
             });
-
         }
 
         req.session.user.display_name =
             data.display_name;
 
         res.json({
-
             success: true,
-
             user: data
-
         });
 
     } catch (error) {
-
-        console.error(
-            "PROFILE UPDATE SERVER ERROR:",
-            error
-        );
-
         res.status(500).json({
-            error:
-                error.message
+            error: "Server error."
         });
-
     }
-
 });
 
 // ==================================================
@@ -830,16 +571,11 @@ app.put("/api/profile", async (req, res) => {
 // ==================================================
 
 app.post("/api/profile/avatar", async (req, res) => {
-
     try {
-
         if (!req.session.user) {
-
             return res.status(401).json({
-                error:
-                    "You must be logged in."
+                error: "You must be logged in."
             });
-
         }
 
         const {
@@ -848,46 +584,27 @@ app.post("/api/profile/avatar", async (req, res) => {
             fileData
         } = req.body;
 
-        if (
-            !fileName ||
-            !fileType ||
-            !fileData
-        ) {
-
+        if (!fileName || !fileType || !fileData) {
             return res.status(400).json({
-                error:
-                    "Missing image data."
+                error: "Missing image data."
             });
-
         }
 
-        if (
-            !fileType.startsWith("image/")
-        ) {
-
+        if (!fileType.startsWith("image/")) {
             return res.status(400).json({
-                error:
-                    "File must be an image."
+                error: "File must be an image."
             });
-
         }
 
-        const buffer =
-            Buffer.from(
-                fileData,
-                "base64"
-            );
+        const buffer = Buffer.from(
+            fileData,
+            "base64"
+        );
 
-        if (
-            buffer.length >
-            5 * 1024 * 1024
-        ) {
-
+        if (buffer.length > 5 * 1024 * 1024) {
             return res.status(400).json({
-                error:
-                    "Image must be under 5MB."
+                error: "Image must be under 5MB."
             });
-
         }
 
         const extension =
@@ -904,60 +621,39 @@ app.post("/api/profile/avatar", async (req, res) => {
             "gif"
         ];
 
-        if (
-            !allowed.includes(
-                extension
-            )
-        ) {
-
+        if (!allowed.includes(extension)) {
             return res.status(400).json({
-                error:
-                    "Unsupported image type."
+                error: "Unsupported image type."
             });
-
         }
 
-        const storagePath =
+        const filePath =
             `${req.session.user.id}/${Date.now()}.${extension}`;
 
         const {
             error: uploadError
-        } =
-            await supabase.storage
-                .from("avatars")
-                .upload(
-                    storagePath,
-                    buffer,
-                    {
-                        contentType:
-                            fileType,
-
-                        upsert: true
-                    }
-                );
-
-        if (uploadError) {
-
-            console.error(
-                "AVATAR UPLOAD ERROR:",
-                uploadError
+        } = await supabase.storage
+            .from("avatars")
+            .upload(
+                filePath,
+                buffer,
+                {
+                    contentType: fileType,
+                    upsert: true
+                }
             );
 
+        if (uploadError) {
             return res.status(500).json({
-                error:
-                    uploadError.message
+                error: uploadError.message
             });
-
         }
 
         const {
             data: publicData
-        } =
-            supabase.storage
-                .from("avatars")
-                .getPublicUrl(
-                    storagePath
-                );
+        } = supabase.storage
+            .from("avatars")
+            .getPublicUrl(filePath);
 
         const avatarUrl =
             publicData.publicUrl;
@@ -965,56 +661,126 @@ app.post("/api/profile/avatar", async (req, res) => {
         const {
             data: profile,
             error: profileError
-        } =
-            await supabase
-                .from("profiles")
-                .update({
-                    avatar:
-                        avatarUrl
-                })
-                .eq(
-                    "id",
-                    req.session.user.id
-                )
-                .select()
-                .single();
+        } = await supabase
+            .from("profiles")
+            .update({
+                avatar: avatarUrl
+            })
+            .eq(
+                "id",
+                req.session.user.id
+            )
+            .select()
+            .single();
 
         if (profileError) {
-
             return res.status(500).json({
-                error:
-                    profileError.message
+                error: profileError.message
             });
-
         }
 
         res.json({
-
             success: true,
-
-            avatar:
-                avatarUrl,
-
-            user:
-                profile
-
+            avatar: avatarUrl,
+            user: profile
         });
 
     } catch (error) {
 
         console.error(
-            "AVATAR SERVER ERROR:",
+            "AVATAR ERROR:",
             error
         );
 
         res.status(500).json({
-            error:
-                error.message
+            error: "Server error."
         });
+    }
+});
 
+// ==================================================
+// GENERIC IMAGE UPLOAD
+// ==================================================
+
+async function uploadImage(
+    fileData,
+    fileType,
+    fileName,
+    userId
+) {
+
+    if (!fileData || !fileType || !fileName) {
+        throw new Error("Missing image data.");
     }
 
-});
+    if (!fileType.startsWith("image/")) {
+        throw new Error("File must be an image.");
+    }
+
+    const buffer = Buffer.from(
+        fileData,
+        "base64"
+    );
+
+    if (buffer.length > 5 * 1024 * 1024) {
+        throw new Error(
+            "Image must be under 5MB."
+        );
+    }
+
+    const extension =
+        fileName
+            .split(".")
+            .pop()
+            .toLowerCase();
+
+    const allowed = [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp",
+        "gif"
+    ];
+
+    if (!allowed.includes(extension)) {
+        throw new Error(
+            "Unsupported image type."
+        );
+    }
+
+    const filePath =
+        `posts/${userId}/${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2)}.${extension}`;
+
+    const {
+        error: uploadError
+    } = await supabase.storage
+        .from("avatars")
+        .upload(
+            filePath,
+            buffer,
+            {
+                contentType: fileType,
+                upsert: false
+            }
+        );
+
+    if (uploadError) {
+        throw new Error(
+            uploadError.message
+        );
+    }
+
+    const {
+        data: publicData
+    } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+    return publicData.publicUrl;
+}
+
 
 // ==================================================
 // GET POSTS
@@ -1027,45 +793,53 @@ app.get("/api/posts", async (req, res) => {
         const {
             data: posts,
             error
-        } =
-            await supabase
-                .from("posts")
-                .select("*")
-                .order(
-                    "created_at",
-                    {
-                        ascending: false
-                    }
-                );
+        } = await supabase
+            .from("posts")
+            .select(`
+                id,
+                user_id,
+                content,
+                image_url,
+                created_at
+            `)
+            .order("created_at", {
+                ascending: false
+            })
+            .limit(100);
 
         if (error) {
 
+            console.error(
+                "GET POSTS ERROR:",
+                error
+            );
+
             return res.status(500).json({
-                error:
-                    error.message
+                error: error.message
             });
 
         }
 
         const result = [];
 
-        for (
-            const post of posts || []
-        ) {
+        for (const post of posts || []) {
 
             const {
                 data: profile
-            } =
+            } = 
                 await supabase
                     .from("profiles")
-                    .select(
-                        "username, display_name"
-                    )
+                    .select(`
+                        username,
+                        display_name,
+                        avatar
+                    `)
                     .eq(
                         "id",
                         post.user_id
                     )
                     .maybeSingle();
+
 
             result.push({
 
@@ -1073,11 +847,12 @@ app.get("/api/posts", async (req, res) => {
 
                 username:
                     profile?.username ||
-                    "Unknown",
+                    "User",
 
                 display_name:
                     profile?.display_name ||
-                    "Unknown",
+                    profile?.username ||
+                    "User",
 
                 avatar:
                     profile?.avatar ||
@@ -1092,21 +867,21 @@ app.get("/api/posts", async (req, res) => {
     } catch (error) {
 
         console.error(
-            "POSTS ERROR:",
+            "GET POSTS ERROR:",
             error
         );
 
         res.status(500).json({
-            error:
-                error.message
+            error: "Server error."
         });
 
     }
 
 });
 
+
 // ==================================================
-// CREATE POST
+// POSTS
 // ==================================================
 
 app.post("/api/posts", async (req, res) => {
@@ -1114,55 +889,74 @@ app.post("/api/posts", async (req, res) => {
     try {
 
         if (!req.session.user) {
-
             return res.status(401).json({
-                error:
-                    "You must be logged in."
+                error: "You must be logged in."
             });
-
         }
 
         const content =
-            String(
-                req.body.content || ""
-            ).trim();
+            String(req.body.content || "").trim();
 
-        if (!content) {
-
+        if (content.length > 5000) {
             return res.status(400).json({
-                error:
-                    "Post cannot be empty."
+                error: "Post is too long."
             });
+        }
 
+        let imageUrl = null;
+
+        if (
+            req.body.image &&
+            req.body.image.data &&
+            req.body.image.type &&
+            req.body.image.name
+        ) {
+
+            try {
+
+                imageUrl = await uploadImage(
+                    req.body.image.data,
+                    req.body.image.type,
+                    req.body.image.name,
+                    req.session.user.id
+                );
+
+            } catch (error) {
+
+                return res.status(400).json({
+                    error: error.message
+                });
+
+            }
+        }
+
+        if (!content && !imageUrl) {
+            return res.status(400).json({
+                error: "Post cannot be empty."
+            });
         }
 
         const {
             data,
             error
-        } =
-            await supabase
-                .from("posts")
-                .insert({
+        } = await supabase
+            .from("posts")
+            .insert({
+                user_id:
+                    req.session.user.id,
 
-                    user_id:
-                        req.session.user.id,
+                content,
 
-                    content
-
-                })
-                .select()
-                .single();
+                image_url:
+                    imageUrl
+            })
+            .select()
+            .single();
 
         if (error) {
 
-            console.error(
-                "POST CREATE ERROR:",
-                error
-            );
-
             return res.status(500).json({
-                error:
-                    error.message
+                error: error.message
             });
 
         }
@@ -1172,13 +966,12 @@ app.post("/api/posts", async (req, res) => {
     } catch (error) {
 
         console.error(
-            "POST SERVER ERROR:",
+            "CREATE POST ERROR:",
             error
         );
 
         res.status(500).json({
-            error:
-                error.message
+            error: "Server error."
         });
 
     }
@@ -1186,74 +979,78 @@ app.post("/api/posts", async (req, res) => {
 });
 
 // ==================================================
-// GET COMMENTS
+// COMMENTS
 // ==================================================
 
 app.get(
     "/api/posts/:postId/comments",
     async (req, res) => {
-
         try {
-
-            const postId =
-                req.params.postId;
-
             const {
                 data: comments,
                 error
-            } =
-                await supabase
-                    .from("comments")
-                    .select("*")
-                    .eq(
-                        "post_id",
-                        postId
-                    )
-                    .order(
-                        "created_at",
-                        {
-                            ascending: true
-                        }
-                    );
-
-            if (error) {
-
-                console.error(
-                    "COMMENTS LOAD ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        error.message
+            } = await supabase
+                .from("comments")
+                .select(`
+                    id,
+                    post_id,
+                    user_id,
+                    content,
+                    created_at
+                `)
+                .eq(
+                    "post_id",
+                    req.params.postId
+                )
+                .order("created_at", {
+                    ascending: true
                 });
 
+            if (error) {
+                return res.status(500).json({
+                    error: error.message
+                });
             }
 
-            res.json(
-                comments || []
-            );
+            const result = [];
+
+            for (const comment of comments || []) {
+                const {
+                    data: profile
+                } = await supabase
+                    .from("profiles")
+                    .select(
+                        "username, display_name"
+                    )
+                    .eq(
+                        "id",
+                        comment.user_id
+                    )
+                    .maybeSingle();
+
+                result.push({
+                    ...comment,
+
+                    username:
+                        profile?.username ||
+                        "User",
+
+                    display_name:
+                        profile?.display_name ||
+                        profile?.username ||
+                        "User"
+                });
+            }
+
+            res.json(result);
 
         } catch (error) {
-
-            console.error(
-                "COMMENTS SERVER ERROR:",
-                error
-            );
-
             res.status(500).json({
-                error:
-                    error.message
+                error: "Server error."
             });
-
         }
-
     }
 );
-
-// ==================================================
-// CREATE COMMENT
-// ==================================================
 
 app.post(
     "/api/posts/:postId/comments",
@@ -1262,112 +1059,99 @@ app.post(
         try {
 
             if (!req.session.user) {
-
                 return res.status(401).json({
-                    error:
-                        "You must be logged in."
+                    error: "You must be logged in."
                 });
-
             }
-
-            const postId =
-                req.params.postId;
 
             const content =
                 String(
                     req.body.content || ""
                 ).trim();
 
-            if (!content) {
+            if (content.length > 500) {
+                return res.status(400).json({
+                    error: "Comment is too long."
+                });
+            }
 
+            let imageUrl = null;
+
+            if (
+                req.body.image &&
+                req.body.image.data &&
+                req.body.image.type &&
+                req.body.image.name
+            ) {
+
+                try {
+
+                    imageUrl =
+                        await uploadImage(
+                            req.body.image.data,
+                            req.body.image.type,
+                            req.body.image.name,
+                            req.session.user.id
+                        );
+
+                } catch (error) {
+
+                    return res.status(400).json({
+                        error: error.message
+                    });
+
+                }
+
+            }
+
+            if (!content && !imageUrl) {
                 return res.status(400).json({
                     error:
                         "Comment cannot be empty."
                 });
-
-            }
-
-            // Make sure the post exists
-
-            const {
-                data: post,
-                error: postError
-            } =
-                await supabase
-                    .from("posts")
-                    .select("id")
-                    .eq(
-                        "id",
-                        postId
-                    )
-                    .maybeSingle();
-
-            if (postError) {
-
-                return res.status(500).json({
-                    error:
-                        postError.message
-                });
-
-            }
-
-            if (!post) {
-
-                return res.status(404).json({
-                    error:
-                        "Post not found."
-                });
-
             }
 
             const {
-                data: comment,
+                data,
                 error
-            } =
-                await supabase
-                    .from("comments")
-                    .insert({
+            } = await supabase
+                .from("comments")
+                .insert({
 
-                        post_id:
-                            postId,
+                    post_id:
+                        req.params.postId,
 
-                        user_id:
-                            req.session.user.id,
+                    user_id:
+                        req.session.user.id,
 
-                        content
+                    content,
 
-                    })
-                    .select()
-                    .single();
+                    image_url:
+                        imageUrl
+
+                })
+                .select()
+                .single();
 
             if (error) {
 
-                console.error(
-                    "COMMENT CREATE ERROR:",
-                    error
-                );
-
                 return res.status(500).json({
-                    error:
-                        error.message
+                    error: error.message
                 });
 
             }
 
-            res.status(201).json(
-                comment
-            );
+            res.status(201).json(data);
 
         } catch (error) {
 
             console.error(
-                "COMMENT SERVER ERROR:",
+                "COMMENT ERROR:",
                 error
             );
 
             res.status(500).json({
-                error:
-                    error.message
+                error: "Server error."
             });
 
         }
@@ -1376,17 +1160,1087 @@ app.post(
 );
 
 // ==================================================
-// SERVER
+// SHREKCHAT
+// ==================================================
+
+
+// ==================================================
+// GET ROOMS
+// ==================================================
+
+app.get("/api/chat/rooms", async (req, res) => {
+
+    try {
+
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+        const userId =
+            req.session.user.id;
+
+
+        const {
+            data: rooms,
+            error: roomError
+        } = await supabase
+            .from("chat_rooms")
+            .select(`
+                id,
+                name,
+                created_by,
+                is_private,
+                created_at
+            `)
+            .order("created_at", {
+                ascending: true
+            });
+
+
+        if (roomError) {
+            return res.status(500).json({
+                error: roomError.message
+            });
+        }
+
+
+        const {
+            data: memberships,
+            error: memberError
+        } = await supabase
+            .from("chat_members")
+            .select("room_id")
+            .eq("user_id", userId);
+
+
+        if (memberError) {
+            return res.status(500).json({
+                error: memberError.message
+            });
+        }
+
+
+        const memberRooms =
+            new Set(
+                (memberships || [])
+                    .map(member =>
+                        member.room_id
+                    )
+            );
+
+
+        const visibleRooms =
+            (rooms || []).filter(room => {
+
+                if (!room.is_private) {
+                    return true;
+                }
+
+                return (
+                    room.created_by === userId ||
+                    memberRooms.has(room.id)
+                );
+
+            });
+
+
+        res.json(visibleRooms);
+
+    } catch (error) {
+
+        console.error(
+            "GET ROOMS ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Server error."
+        });
+
+    }
+
+});
+
+
+// ==================================================
+// CREATE ROOM
+// ==================================================
+
+app.post("/api/chat/rooms", async (req, res) => {
+
+    try {
+
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+
+        const name =
+            String(
+                req.body.name || ""
+            ).trim();
+
+
+        const isPrivate =
+            req.body.is_private === true;
+
+
+        if (!name) {
+            return res.status(400).json({
+                error:
+                    "Room name cannot be empty."
+            });
+        }
+
+
+        if (name.length > 50) {
+            return res.status(400).json({
+                error:
+                    "Room name is too long."
+            });
+        }
+
+
+        const {
+            data: room,
+            error
+        } = await supabase
+            .from("chat_rooms")
+            .insert({
+
+                name,
+
+                created_by:
+                    req.session.user.id,
+
+                is_private:
+                    isPrivate
+
+            })
+            .select()
+            .single();
+
+
+        if (error) {
+
+            console.error(
+                "CREATE ROOM ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error: error.message
+            });
+
+        }
+
+
+        // Creator automatically joins
+
+        const {
+            error: memberError
+        } = await supabase
+            .from("chat_members")
+            .insert({
+
+                room_id:
+                    room.id,
+
+                user_id:
+                    req.session.user.id
+
+            });
+
+
+        if (memberError) {
+
+            await supabase
+                .from("chat_rooms")
+                .delete()
+                .eq("id", room.id);
+
+
+            return res.status(500).json({
+                error:
+                    memberError.message
+            });
+
+        }
+
+
+        res.status(201).json(room);
+
+
+    } catch (error) {
+
+        console.error(
+            "CREATE ROOM ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Server error."
+        });
+
+    }
+
+});
+
+
+// ==================================================
+// JOIN ROOM
+// ==================================================
+
+app.post(
+    "/api/chat/rooms/:roomId/join",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
+
+
+            const roomId =
+                req.params.roomId;
+
+            const userId =
+                req.session.user.id;
+
+
+            const {
+                data: room,
+                error
+            } = await supabase
+                .from("chat_rooms")
+                .select(`
+                    id,
+                    created_by,
+                    is_private
+                `)
+                .eq("id", roomId)
+                .maybeSingle();
+
+
+            if (error) {
+                return res.status(500).json({
+                    error: error.message
+                });
+            }
+
+
+            if (!room) {
+                return res.status(404).json({
+                    error:
+                        "Room not found."
+                });
+            }
+
+
+            // Private room access check
+
+            if (room.is_private) {
+
+                const {
+                    data: membership
+                } = await supabase
+                    .from("chat_members")
+                    .select("room_id")
+                    .eq(
+                        "room_id",
+                        roomId
+                    )
+                    .eq(
+                        "user_id",
+                        userId
+                    )
+                    .maybeSingle();
+
+
+                if (
+                    !membership &&
+                    room.created_by !== userId
+                ) {
+
+                    return res.status(403).json({
+                        error:
+                            "🔒 You need an invitation to enter this room."
+                    });
+
+                }
+
+            }
+
+
+            // Public room OR already invited
+
+            const {
+                error: joinError
+            } = await supabase
+                .from("chat_members")
+                .upsert({
+
+                    room_id:
+                        roomId,
+
+                    user_id:
+                        userId
+
+                }, {
+                    onConflict:
+                        "room_id,user_id"
+                });
+
+
+            if (joinError) {
+                return res.status(500).json({
+                    error:
+                        joinError.message
+                });
+            }
+
+
+            res.json({
+                success: true
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "JOIN ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error: "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// LEAVE ROOM
+// ==================================================
+
+app.post(
+    "/api/chat/rooms/:roomId/leave",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
+
+
+            const {
+                error
+            } = await supabase
+                .from("chat_members")
+                .delete()
+                .eq(
+                    "room_id",
+                    req.params.roomId
+                )
+                .eq(
+                    "user_id",
+                    req.session.user.id
+                );
+
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+
+            res.json({
+                success: true
+            });
+
+
+        } catch (error) {
+
+            res.status(500).json({
+                error: "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// DELETE ROOM
+// ==================================================
+
+app.delete(
+    "/api/chat/rooms/:roomId",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
+
+
+            const {
+                data: room
+            } = await supabase
+                .from("chat_rooms")
+                .select("created_by")
+                .eq(
+                    "id",
+                    req.params.roomId
+                )
+                .maybeSingle();
+
+
+            if (!room) {
+                return res.status(404).json({
+                    error:
+                        "Room not found."
+                });
+            }
+
+
+            if (
+                room.created_by !==
+                req.session.user.id
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "Only the room creator can delete it."
+                });
+
+            }
+
+
+            const {
+                error
+            } = await supabase
+                .from("chat_rooms")
+                .delete()
+                .eq(
+                    "id",
+                    req.params.roomId
+                );
+
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+
+            res.json({
+                success: true
+            });
+
+
+        } catch (error) {
+
+            res.status(500).json({
+                error: "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// GET INVITABLE USERS
+// ==================================================
+
+app.get(
+    "/api/chat/rooms/:roomId/invite-users",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
+
+
+            const roomId =
+                req.params.roomId;
+
+
+            const {
+                data: room
+            } = await supabase
+                .from("chat_rooms")
+                .select(`
+                    created_by,
+                    is_private
+                `)
+                .eq(
+                    "id",
+                    roomId
+                )
+                .maybeSingle();
+
+
+            if (!room) {
+                return res.status(404).json({
+                    error:
+                        "Room not found."
+                });
+            }
+
+
+            if (
+                room.created_by !==
+                req.session.user.id
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "Only the creator can invite people."
+                });
+
+            }
+
+
+            const {
+                data: members
+            } = await supabase
+                .from("chat_members")
+                .select("user_id")
+                .eq(
+                    "room_id",
+                    roomId
+                );
+
+
+            const memberIds =
+                new Set(
+                    (members || [])
+                        .map(member =>
+                            member.user_id
+                        )
+                );
+
+
+            const {
+                data: users,
+                error
+            } = await supabase
+                .from("profiles")
+                .select(`
+                    id,
+                    username,
+                    display_name,
+                    avatar,
+                    cat,
+                    gyatt,
+                    ogred
+                `)
+                .order(
+                    "username",
+                    {
+                        ascending: true
+                    }
+                );
+
+
+            if (error) {
+                return res.status(500).json({
+                    error: error.message
+                });
+            }
+
+
+            res.json(
+                (users || []).filter(
+                    user =>
+                        !memberIds.has(user.id)
+                )
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "INVITE USERS ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error: "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// INVITE USER
+// ==================================================
+
+app.post(
+    "/api/chat/rooms/:roomId/invite",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
+
+
+            const roomId =
+                req.params.roomId;
+
+            const invitedUserId =
+                req.body.user_id;
+
+
+            if (!invitedUserId) {
+                return res.status(400).json({
+                    error:
+                        "No user selected."
+                });
+            }
+
+
+            const {
+                data: room
+            } = await supabase
+                .from("chat_rooms")
+                .select(`
+                    created_by,
+                    is_private
+                `)
+                .eq(
+                    "id",
+                    roomId
+                )
+                .maybeSingle();
+
+
+            if (!room) {
+                return res.status(404).json({
+                    error:
+                        "Room not found."
+                });
+            }
+
+
+            if (
+                room.created_by !==
+                req.session.user.id
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "Only the creator can invite people."
+                });
+
+            }
+
+
+            const {
+                data: user
+            } = await supabase
+                .from("profiles")
+                .select("id")
+                .eq(
+                    "id",
+                    invitedUserId
+                )
+                .maybeSingle();
+
+
+            if (!user) {
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+            }
+
+
+            const {
+                error
+            } = await supabase
+                .from("chat_members")
+                .upsert({
+
+                    room_id:
+                        roomId,
+
+                    user_id:
+                        invitedUserId
+
+                }, {
+                    onConflict:
+                        "room_id,user_id"
+                });
+
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+
+            res.json({
+                success: true
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "INVITE ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error: "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// GET MESSAGES
+// ==================================================
+
+app.get(
+    "/api/chat/rooms/:roomId/messages",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
+
+
+            const roomId =
+                req.params.roomId;
+
+            const userId =
+                req.session.user.id;
+
+
+            // Verify membership
+
+            const {
+                data: membership
+            } = await supabase
+                .from("chat_members")
+                .select("room_id")
+                .eq(
+                    "room_id",
+                    roomId
+                )
+                .eq(
+                    "user_id",
+                    userId
+                )
+                .maybeSingle();
+
+
+            if (!membership) {
+                return res.status(403).json({
+                    error:
+                        "You are not a member of this room."
+                });
+            }
+
+
+            const {
+                data: messages,
+                error
+            } = await supabase
+                .from("chat_messages")
+                .select(`
+                    id,
+                    room_id,
+                    user_id,
+                    content,
+                    created_at
+                `)
+                .eq(
+                    "room_id",
+                    roomId
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending: true
+                    }
+                )
+                .limit(200);
+
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+
+            const result = [];
+
+
+            for (
+                const message of
+                messages || []
+            ) {
+
+                const {
+                    data: profile
+                } = await supabase
+                    .from("profiles")
+                    .select(`
+                        username,
+                        display_name,
+                        avatar,
+                        cat,
+                        gyatt,
+                        ogred
+                    `)
+                    .eq(
+                        "id",
+                        message.user_id
+                    )
+                    .maybeSingle();
+
+
+                result.push({
+
+                    ...message,
+
+                    username:
+                        profile?.username ||
+                        "User",
+
+                    display_name:
+                        profile?.display_name ||
+                        profile?.username ||
+                        "User",
+
+                    avatar:
+                        profile?.avatar ||
+                        null,
+
+                    cat:
+                        profile?.cat ||
+                        0,
+
+                    gyatt:
+                        profile?.gyatt ||
+                        0,
+
+                    ogred:
+                        profile?.ogred ||
+                        0
+
+                });
+
+            }
+
+
+            res.json(result);
+
+
+        } catch (error) {
+
+            console.error(
+                "MESSAGES ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error: "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// SEND MESSAGE
+// ==================================================
+
+app.post(
+    "/api/chat/rooms/:roomId/messages",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
+
+
+            const roomId =
+                req.params.roomId;
+
+            const userId =
+                req.session.user.id;
+
+
+            // Must be member
+
+            const {
+                data: membership
+            } = await supabase
+                .from("chat_members")
+                .select("room_id")
+                .eq(
+                    "room_id",
+                    roomId
+                )
+                .eq(
+                    "user_id",
+                    userId
+                )
+                .maybeSingle();
+
+
+            if (!membership) {
+                return res.status(403).json({
+                    error:
+                        "You are not a member of this room."
+                });
+            }
+
+
+            const content =
+                String(
+                    req.body.content || ""
+                ).trim();
+
+
+            if (!content) {
+                return res.status(400).json({
+                    error:
+                        "Message cannot be empty."
+                });
+            }
+
+
+            if (content.length > 1000) {
+                return res.status(400).json({
+                    error:
+                        "Message is too long."
+                });
+            }
+
+
+            const {
+                data,
+                error
+            } = await supabase
+                .from("chat_messages")
+                .insert({
+
+                    room_id:
+                        roomId,
+
+                    user_id:
+                        userId,
+
+                    content
+
+                })
+                .select()
+                .single();
+
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+
+            res.status(201).json(data);
+
+
+        } catch (error) {
+
+            console.error(
+                "SEND MESSAGE ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error: "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+
+// ==================================================
+// START
 // ==================================================
 
 app.listen(
     PORT,
     "0.0.0.0",
     () => {
-
         console.log(
             `🧌 ShrekBook running on port ${PORT}`
         );
-
     }
 );
