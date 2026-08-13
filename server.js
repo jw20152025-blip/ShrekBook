@@ -1059,7 +1059,7 @@ app.get("/api/posts", async (req, res) => {
                 await supabase
                     .from("profiles")
                     .select(
-                        "username, display_name, avatar"
+                        "username, display_name"
                     )
                     .eq(
                         "id",
