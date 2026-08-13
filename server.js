@@ -951,44 +951,57 @@ app.post(
 // ==================================================
 
 // GET PUBLIC ROOMS
+
+// ==================================================
+// SHREKCHAT - ROOMS
+// ==================================================
+
+// GET ROOMS
 app.get("/api/chat/rooms", async (req, res) => {
+
     try {
+
         if (!req.session.user) {
             return res.status(401).json({
                 error: "You must be logged in."
             });
         }
 
-        const userId = req.session.user.id;
+        const userId =
+            req.session.user.id;
 
-        // Get public rooms
-        const { data: publicRooms, error: publicError } =
-            await supabase
-                .from("chat_rooms")
-                .select(`
-                    id,
-                    name,
-                    created_by,
-                    is_private,
-                    created_at
-                `)
-                .eq("is_private", false)
-                .order("created_at", {
-                    ascending: false
-                });
+        const {
+            data: rooms,
+            error
+        } = await supabase
+            .from("chat_rooms")
+            .select(`
+                id,
+                name,
+                created_by,
+                is_private,
+                created_at
+            `)
+            .order("created_at", {
+                ascending: true
+            });
 
-        if (publicError) {
+        if (error) {
             return res.status(500).json({
-                error: publicError.message
+                error: error.message
             });
         }
 
-        // Get private rooms this user belongs to
-        const { data: memberships, error: memberError } =
-            await supabase
-                .from("chat_members")
-                .select("room_id")
-                .eq("user_id", userId);
+
+        // Get rooms the current user belongs to
+
+        const {
+            data: memberships,
+            error: memberError
+        } = await supabase
+            .from("chat_members")
+            .select("room_id")
+            .eq("user_id", userId);
 
         if (memberError) {
             return res.status(500).json({
@@ -996,49 +1009,732 @@ app.get("/api/chat/rooms", async (req, res) => {
             });
         }
 
-        const privateRoomIds =
-            (memberships || []).map(
-                member => member.room_id
+
+        const memberRoomIds =
+            new Set(
+                (memberships || [])
+                    .map(m => m.room_id)
             );
 
-        let privateRooms = [];
 
-        if (privateRoomIds.length > 0) {
-            const { data, error } =
-                await supabase
-                    .from("chat_rooms")
-                    .select(`
-                        id,
-                        name,
-                        created_by,
-                        is_private,
-                        created_at
-                    `)
-                    .eq("is_private", true)
-                    .in("id", privateRoomIds);
+        /*
+            Public rooms are visible to everyone.
 
-            if (error) {
-                return res.status(500).json({
-                    error: error.message
-                });
-            }
+            Private rooms are visible only to:
 
-            privateRooms = data || [];
-        }
+            - creator
+            - members
+        */
 
-        res.json([
-            ...(publicRooms || []),
-            ...privateRooms
-        ]);
+        const visibleRooms =
+            (rooms || []).filter(room => {
+
+                if (!room.is_private) {
+                    return true;
+                }
+
+                return (
+                    room.created_by === userId ||
+                    memberRoomIds.has(room.id)
+                );
+
+            });
+
+
+        res.json(visibleRooms);
 
     } catch (error) {
-        console.error("GET ROOMS ERROR:", error);
+
+        console.error(
+            "LOAD ROOMS ERROR:",
+            error
+        );
 
         res.status(500).json({
             error: "Server error."
         });
+
     }
+
 });
+
+
+// ==================================================
+// SHREKCHAT - INVITATIONS
+// ==================================================
+
+
+// GET PEOPLE WHO CAN BE INVITED
+
+app.get(
+    "/api/chat/rooms/:roomId/invite-users",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
+
+
+            const roomId =
+                req.params.roomId;
+
+            const userId =
+                req.session.user.id;
+
+
+            // Check room
+
+            const {
+                data: room,
+                error: roomError
+            } = await supabase
+                .from("chat_rooms")
+                .select(`
+                    id,
+                    created_by,
+                    is_private
+                `)
+                .eq("id", roomId)
+                .maybeSingle();
+
+
+            if (roomError) {
+                return res.status(500).json({
+                    error:
+                        roomError.message
+                });
+            }
+
+
+            if (!room) {
+                return res.status(404).json({
+                    error:
+                        "Room not found."
+                });
+            }
+
+
+            // Only creator can invite
+
+            if (
+                room.created_by !== userId
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "Only the room creator can invite people."
+                });
+
+            }
+
+
+            // Get existing members
+
+            const {
+                data: members,
+                error: memberError
+            } = await supabase
+                .from("chat_members")
+                .select("user_id")
+                .eq(
+                    "room_id",
+                    roomId
+                );
+
+
+            if (memberError) {
+                return res.status(500).json({
+                    error:
+                        memberError.message
+                });
+            }
+
+
+            const memberIds =
+                new Set(
+                    (members || [])
+                        .map(m => m.user_id)
+                );
+
+
+            // Get users
+
+            const {
+                data: users,
+                error: usersError
+            } = await supabase
+                .from("profiles")
+                .select(`
+                    id,
+                    username,
+                    display_name,
+                    avatar
+                `)
+                .order(
+                    "username",
+                    {
+                        ascending: true
+                    }
+                );
+
+
+            if (usersError) {
+                return res.status(500).json({
+                    error:
+                        usersError.message
+                });
+            }
+
+
+            // Don't show people already inside
+
+            const available =
+                (users || []).filter(
+                    user =>
+                        !memberIds.has(user.id)
+                );
+
+
+            res.json(available);
+
+
+        } catch (error) {
+
+            console.error(
+                "INVITE USERS ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error: "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// INVITE USER
+// ==================================================
+
+app.post(
+    "/api/chat/rooms/:roomId/invite",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
+
+
+            const roomId =
+                req.params.roomId;
+
+            const userId =
+                req.body.user_id;
+
+
+            if (!userId) {
+                return res.status(400).json({
+                    error:
+                        "No user was selected."
+                });
+            }
+
+
+            // Get room
+
+            const {
+                data: room,
+                error: roomError
+            } = await supabase
+                .from("chat_rooms")
+                .select(`
+                    id,
+                    created_by,
+                    is_private
+                `)
+                .eq("id", roomId)
+                .maybeSingle();
+
+
+            if (roomError) {
+                return res.status(500).json({
+                    error:
+                        roomError.message
+                });
+            }
+
+
+            if (!room) {
+                return res.status(404).json({
+                    error:
+                        "Room not found."
+                });
+            }
+
+
+            // Only creator can invite
+
+            if (
+                room.created_by !==
+                req.session.user.id
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "Only the room creator can invite people."
+                });
+
+            }
+
+
+            // Make sure user exists
+
+            const {
+                data: user,
+                error: userError
+            } = await supabase
+                .from("profiles")
+                .select("id")
+                .eq("id", userId)
+                .maybeSingle();
+
+
+            if (userError) {
+                return res.status(500).json({
+                    error:
+                        userError.message
+                });
+            }
+
+
+            if (!user) {
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+            }
+
+
+            // Add member
+
+            const {
+                error: memberError
+            } = await supabase
+                .from("chat_members")
+                .upsert({
+
+                    room_id:
+                        roomId,
+
+                    user_id:
+                        userId
+
+                }, {
+                    onConflict:
+                        "room_id,user_id"
+                });
+
+
+            if (memberError) {
+                return res.status(500).json({
+                    error:
+                        memberError.message
+                });
+            }
+
+
+            res.json({
+                success: true
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "INVITE ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error: "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// CREATE ROOM
+// ==================================================
+
+app.post("/api/chat/rooms", async (req, res) => {
+
+    try {
+
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+
+        const name =
+            String(
+                req.body.name || ""
+            ).trim();
+
+
+        const is_private =
+            req.body.is_private === true;
+
+
+        if (!name) {
+            return res.status(400).json({
+                error:
+                    "Room name cannot be empty."
+            });
+        }
+
+
+        if (name.length > 50) {
+            return res.status(400).json({
+                error:
+                    "Room name is too long."
+            });
+        }
+
+
+        const {
+            data: room,
+            error
+        } = await supabase
+            .from("chat_rooms")
+            .insert({
+
+                name,
+
+                created_by:
+                    req.session.user.id,
+
+                is_private
+
+            })
+            .select()
+            .single();
+
+
+        if (error) {
+
+            console.error(
+                "CREATE ROOM ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error: error.message
+            });
+
+        }
+
+
+        /*
+            Automatically add the creator
+            to chat_members.
+        */
+
+        const {
+            error: memberError
+        } = await supabase
+            .from("chat_members")
+            .insert({
+
+                room_id:
+                    room.id,
+
+                user_id:
+                    req.session.user.id
+
+            });
+
+
+        if (memberError) {
+
+            /*
+                If membership creation failed,
+                delete the room so we don't
+                leave a broken room behind.
+            */
+
+            await supabase
+                .from("chat_rooms")
+                .delete()
+                .eq("id", room.id);
+
+
+            return res.status(500).json({
+                error:
+                    memberError.message
+            });
+
+        }
+
+
+        res.status(201).json(room);
+
+
+    } catch (error) {
+
+        console.error(
+            "CREATE ROOM ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Server error."
+        });
+
+    }
+
+});
+
+
+// ==================================================
+// JOIN ROOM
+// ==================================================
+
+app.post(
+    "/api/chat/rooms/:roomId/join",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
+
+
+            const roomId =
+                req.params.roomId;
+
+            const userId =
+                req.session.user.id;
+
+
+            const {
+                data: room,
+                error: roomError
+            } = await supabase
+                .from("chat_rooms")
+                .select(`
+                    id,
+                    created_by,
+                    is_private
+                `)
+                .eq("id", roomId)
+                .maybeSingle();
+
+
+            if (roomError) {
+                return res.status(500).json({
+                    error:
+                        roomError.message
+                });
+            }
+
+
+            if (!room) {
+                return res.status(404).json({
+                    error:
+                        "Room not found."
+                });
+            }
+
+
+            /*
+                Public rooms:
+                anyone can join.
+
+                Private rooms:
+                only existing members or
+                the creator can enter.
+            */
+
+            if (room.is_private) {
+
+                const {
+                    data: membership,
+                    error: membershipError
+                } = await supabase
+                    .from("chat_members")
+                    .select("room_id")
+                    .eq(
+                        "room_id",
+                        roomId
+                    )
+                    .eq(
+                        "user_id",
+                        userId
+                    )
+                    .maybeSingle();
+
+
+                if (membershipError) {
+                    return res.status(500).json({
+                        error:
+                            membershipError.message
+                    });
+                }
+
+
+                if (
+                    !membership &&
+                    room.created_by !== userId
+                ) {
+
+                    return res.status(403).json({
+                        error:
+                            "🔒 This is a private room. You need an invitation."
+                    });
+
+                }
+
+            }
+
+
+            /*
+                Add member.
+
+                For public rooms this adds
+                them normally.
+
+                For private rooms this only
+                happens if they already had
+                access.
+            */
+
+            const {
+                error: joinError
+            } = await supabase
+                .from("chat_members")
+                .upsert({
+
+                    room_id:
+                        roomId,
+
+                    user_id:
+                        userId
+
+                }, {
+                    onConflict:
+                        "room_id,user_id"
+                });
+
+
+            if (joinError) {
+                return res.status(500).json({
+                    error:
+                        joinError.message
+                });
+            }
+
+
+            res.json({
+                success: true
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "JOIN ROOM ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error: "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// LEAVE ROOM
+// ==================================================
+
+app.post(
+    "/api/chat/rooms/:roomId/leave",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
+
+
+            const {
+                error
+            } = await supabase
+                .from("chat_members")
+                .delete()
+                .eq(
+                    "room_id",
+                    req.params.roomId
+                )
+                .eq(
+                    "user_id",
+                    req.session.user.id
+                );
+
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+
+            res.json({
+                success: true
+            });
+
+
+        } catch (error) {
+
+            res.status(500).json({
+                error: "Server error."
+            });
+
+        }
+
+    }
+);
+
 
 
 // ==================================================
