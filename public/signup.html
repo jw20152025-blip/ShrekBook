@@ -1,1447 +1,316 @@
-console.log("🔥 SHREKBOOK SERVER STARTING");
-
-require("dotenv").config();
-
-const express = require("express");
-const path = require("path");
-const session = require("express-session");
-const { createClient } = require("@supabase/supabase-js");
-
-const app = express();
-
-const PORT = process.env.PORT || 3000;
-
-// ==================================================
-// ENVIRONMENT
-// ==================================================
-
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY =
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
-const SESSION_SECRET = process.env.SESSION_SECRET;
-
-if (!SUPABASE_URL) {
-    console.error("❌ Missing SUPABASE_URL");
-    process.exit(1);
-}
-
-if (!SUPABASE_SERVICE_ROLE_KEY) {
-    console.error("❌ Missing SUPABASE_SERVICE_ROLE_KEY");
-    process.exit(1);
-}
-
-if (!SESSION_SECRET) {
-    console.error("❌ Missing SESSION_SECRET");
-    process.exit(1);
-}
-
-// ==================================================
-// SUPABASE
-// ==================================================
-
-const supabase = createClient(
-    SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY
-);
-
-// ==================================================
-// EXPRESS
-// ==================================================
-
-app.set("trust proxy", 1);
-
-app.use(express.json({
-    limit: "10mb"
-}));
-
-app.use(express.urlencoded({
-    extended: true,
-    limit: "10mb"
-}));
-
-app.use(
-    session({
-        secret: SESSION_SECRET,
-        resave: false,
-        saveUninitialized: false,
-
-        cookie: {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            maxAge:
-                1000 *
-                60 *
-                60 *
-                24 *
-                30
-        }
-    })
-);
 
-// ==================================================
-// STATIC FILES
-// ==================================================
 
-app.use(
-    express.static(
-        path.join(__dirname, "public")
-    )
-);
 
-// ==================================================
-// TEST
-// ==================================================
+<!DOCTYPE html>
+<html lang="en">
 
-app.get("/api/test", (req, res) => {
+<head>
+    <meta charset="UTF-8">
 
-    res.json({
-        success: true,
-        message: "ShrekBook server is alive 🧌"
-    });
 
-});
+    <meta charset="UTF-8">
 
-// ==================================================
-// HEALTH
-// ==================================================
 
-app.get("/api/health", (req, res) => {
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    res.json({
-        ok: true,
-        loggedIn: !!req.session.user
-    });
 
-});
+    <link rel="stylesheet" href="styles.css">
 
-// ==================================================
-// SIGNUP
-// ==================================================
+    <title>Sign Up - ShrekBook</title>
 
-app.post("/api/signup", async (req, res) => {
+    <link
+        rel="stylesheet"
+        href="/styles.css"
+    >
 
-    try {
 
-        const {
-            username,
-            display_name,
-            email,
-            password
-        } = req.body;
+    <title>Create Account - ShrekBook</title>
+</head>
 
-        if (!username || !email || !password) {
+<body>
 
-            return res.status(400).json({
-                error:
-                    "Username, email, and password are required."
-            });
+<header>
 
-        }
+    <div class="brand">
 
-        // Check username
+        <h1>🧌 ShrekBook</h1>
+    </div>
 
-        const {
-            data: existingProfile,
-            error: usernameError
-        } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq("username", username)
-            .maybeSingle();
+    <nav>
+        <a href="/">Home</a>
+        <a href="/login.html">Login</a>
+    </nav>
 
-        if (usernameError) {
+</header>
 
-            console.error(
-                "USERNAME CHECK ERROR:",
-                usernameError
-            );
 
-            return res.status(500).json({
-                error: usernameError.message
-            });
+<div class="container">
 
-        }
+    <div class="welcome">
 
-        if (existingProfile) {
+        <h2>Create your ShrekBook account</h2>
 
-            return res.status(400).json({
-                error: "That username is already taken."
-            });
+        <form id="signupForm">
 
-        }
+            <input
+                type="text"
+                id="username"
+                placeholder="Username"
+                required
+            >
 
-        // Create Supabase Auth account
+            <input
+                type="text"
+                id="displayName"
+                placeholder="Display name"
+                required
+            >
 
-        const {
-            data: authData,
-            error: authError
-        } = await supabase.auth.admin.createUser({
+            <input
+                type="email"
+                id="email"
+                placeholder="Email"
+                required
+            >
 
-            email,
-            password,
+            <input
+                type="password"
+                id="password"
+                placeholder="Password"
+                required
+            >
 
-            email_confirm: true
+            <input
+                type="url"
+                id="avatar"
+                placeholder="Avatar URL (optional)"
+            >
 
-        });
+            <button type="submit">
+                Create Account
+            </button>
 
-        if (authError) {
+        </form>
 
-            console.error(
-                "AUTH SIGNUP ERROR:",
-                authError
-            );
+        <p id="message"></p>
 
-            return res.status(400).json({
-                error: authError.message
-            });
+    </div>
 
-        }
+</div>
 
-        const userId =
-            authData.user.id;
 
-        // Create profile
+        <div class="logo">
+            🧌
+        </div>
 
-        const {
-            data: profile,
-            error: profileError
-        } = await supabase
-            .from("profiles")
-            .insert({
+        <h1>
+            ShrekBook
+        </h1>
 
-                id: userId,
+    </div>
 
-                username,
+    <nav>
 
-                display_name:
-                    display_name ||
-                    username,
+        <a href="/">
+            Home
+        </a>
 
-                avatar: null,
+        <a href="/login.html">
+            Login
+        </a>
 
-                bio: "",
+    </nav>
 
-                gyatt: 0,
+</header>
 
-                cat: 0,
 
-                ogred: 0
+<main class="container">
 
-            })
-            .select()
-            .single();
+<section class="form-box">
 
-        if (profileError) {
+    <h2>
+        Create Account 🧌
+    </h2>
 
-            console.error(
-                "PROFILE SIGNUP ERROR:",
-                profileError
-            );
 
-            // Delete Auth account
-            // if profile creation failed.
+    <form id="signupForm">
 
-            await supabase.auth.admin.deleteUser(
-                userId
-            );
+        <label>
+            Display Name
+        </label>
 
-            return res.status(500).json({
-                error: profileError.message
-            });
+        <input
+            id="displayName"
+            maxlength="50"
+            required
+        >
 
-        }
 
-        res.status(201).json({
+        <label>
+            Username
+        </label>
 
-            success: true,
+        <input
+            id="username"
+            maxlength="30"
+            required
+        >
 
-            message:
-                "Account created successfully!",
 
-            user: profile
+        <label>
+            Email
+        </label>
 
-        });
+        <input
+            id="email"
+            type="email"
+            required
+        >
 
-    } catch (error) {
 
-        console.error(
-            "SIGNUP SERVER ERROR:",
-            error
-        );
+        <label>
+            Password
+        </label>
 
-        res.status(500).json({
-            error: error.message
-        });
+        <input
+            id="password"
+            type="password"
+            minlength="6"
+            required
+        >
 
-    }
 
-});
+        <button type="submit">
+            Create Account
+        </button>
 
-// ==================================================
-// LOGIN
-// ==================================================
+    </form>
 
-app.post("/api/login", async (req, res) => {
 
-    try {
+    <p id="signupMessage"></p>
 
-        const {
-            email,
-            password
-        } = req.body;
+</section>
 
-        if (!email || !password) {
+</main>
 
-            return res.status(400).json({
-                error:
-                    "Email and password are required."
-            });
 
-        }
 
-        const {
-            data: authData,
-            error: authError
-        } = await supabase.auth.signInWithPassword({
+<script>
 
-            email,
-            password
+document
+    .getElementById("signupForm")
+    .addEventListener("submit", async (event) => {
 
-        });
 
-        if (authError) {
+            event.preventDefault();
 
-            return res.status(401).json({
-                error: authError.message
-            });
 
-        }
+            const body = {
 
-        const user =
-            authData.user;
-
-        // Find profile
-
-        const {
-            data: profile,
-            error: profileError
-        } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", user.id)
-            .maybeSingle();
-
-        if (profileError) {
-
-            return res.status(500).json({
-                error: profileError.message
-            });
-
-        }
-
-        let finalProfile = profile;
-
-        // Create missing profile
-
-        if (!finalProfile) {
-
-            let username =
-                (user.email || "user")
-                    .split("@")[0]
-                    .toLowerCase()
-                    .replace(/[^a-z0-9_]/g, "")
-                    .slice(0, 20);
-
-            if (!username) {
-                username = "user";
-            }
-
-            const originalUsername =
-                username;
-
-            let number = 1;
-
-            while (true) {
-
-                const {
-                    data: existing
-                } = await supabase
-                    .from("profiles")
-                    .select("id")
-                    .eq("username", username)
-                    .maybeSingle();
-
-                if (!existing) {
-                    break;
-                }
-
-                username =
-                    `${originalUsername}${number}`;
-
-                number++;
-
-            }
-
-            const {
-                data: newProfile,
-                error: createError
-            } = await supabase
-                .from("profiles")
-                .insert({
-
-                    id: user.id,
-
-                    username,
-
-                    display_name: username,
-
-                    avatar: null,
-
-                    bio: "",
-
-                    gyatt: 0,
-
-                    cat: 0,
-
-                    ogred: 0
-
-                })
-                .select()
-                .single();
-
-            if (createError) {
-
-                return res.status(500).json({
-                    error:
-                        createError.message
-                });
-
-            }
-
-            finalProfile =
-                newProfile;
-
-        }
-
-        // Create session
-
-        req.session.user = {
-
-            id: finalProfile.id,
-
-            username:
-                finalProfile.username,
-
-            display_name:
-                finalProfile.display_name
-
-        };
-
-        req.session.save(error => {
-
-            if (error) {
-
-                console.error(
-                    "SESSION ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        "Could not save login session."
-                });
-
-            }
-
-            res.json({
-
-                success: true,
-
-                user: finalProfile
-
-            });
-
-        });
-
-    } catch (error) {
-
-        console.error(
-            "LOGIN SERVER ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error: error.message
-        });
-
-    }
-
-});
-
-// ==================================================
-// LOGOUT
-// ==================================================
-
-app.post("/api/logout", (req, res) => {
-
-    req.session.destroy(error => {
-
-        if (error) {
-
-            console.error(
-                "LOGOUT ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error: "Logout failed."
-            });
-
-        }
-
-        res.clearCookie("connect.sid");
-
-        res.json({
-            success: true
-        });
-
-    });
-
-});
-
-// ==================================================
-// CURRENT USER
-// ==================================================
-
-app.get("/api/me", async (req, res) => {
-
-    try {
-
-        if (!req.session.user) {
-
-            return res.json({
-                loggedIn: false
-            });
-
-        }
-
-        const {
-            data,
-            error
-        } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq(
-                "id",
-                req.session.user.id
-            )
-            .single();
-
-        if (error) {
-
-            return res.status(500).json({
-                error: error.message
-            });
-
-        }
-
-        res.json({
-
-            loggedIn: true,
-
-            user: data
-
-        });
-
-    } catch (error) {
-
-        res.status(500).json({
-            error: error.message
-        });
-
-    }
-
-});
-
-// ==================================================
-// GET ALL USERS
-// ==================================================
-
-app.get("/api/users", async (req, res) => {
-
-    try {
-
-        const {
-            data,
-            error
-        } = await supabase
-            .from("profiles")
-            .select(`
-                id,
-                username,
-                display_name,
-                avatar,
-                bio,
-                gyatt,
-                cat,
-                ogred,
-                created_at
-            `)
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
-
-        if (error) {
-
-            console.error(
-                "USERS ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error: error.message
-            });
-
-        }
-
-        res.json(data || []);
-
-    } catch (error) {
-
-        console.error(error);
-
-        res.status(500).json({
-            error: "Server error"
-        });
-
-    }
-
-});
-
-// ==================================================
-// GET ONE USER
-// ==================================================
-
-app.get("/api/users/:id", async (req, res) => {
-
-    try {
-
-        const {
-            data: profile,
-            error
-        } = await supabase
-            .from("profiles")
-            .select(`
-                id,
-                username,
-                display_name,
-                avatar,
-                bio,
-                gyatt,
-                cat,
-                ogred,
-                created_at
-            `)
-            .eq(
-                "id",
-                req.params.id
-            )
-            .single();
-
-        if (error || !profile) {
-
-            return res.status(404).json({
-                error: "User not found."
-            });
-
-        }
-
-        // Get user's posts
-
-        const {
-            data: posts,
-            error: postsError
-        } = await supabase
-            .from("posts")
-            .select("*")
-            .eq(
-                "user_id",
-                req.params.id
-            )
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
-
-        if (postsError) {
-
-            return res.status(500).json({
-                error:
-                    postsError.message
-            });
-
-        }
-
-        res.json({
-
-            ...profile,
-
-            posts: posts || []
-
-        });
-
-    } catch (error) {
-
-        console.error(
-            "PROFILE ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error: error.message
-        });
-
-    }
-
-});
-
-// ==================================================
-// UPDATE CURRENT PROFILE
-// ==================================================
-
-app.put("/api/profile", async (req, res) => {
-
-    try {
-
-        if (!req.session.user) {
-
-            return res.status(401).json({
-                error:
-                    "You must be logged in."
-            });
-
-        }
-
-        const {
-
-            display_name,
-
-            bio,
-
-            avatar,
-
-            gyatt,
-
-            cat,
-
-            ogres
-
-        } = req.body;
-
-        const {
-            data,
-            error
-        } = await supabase
-            .from("profiles")
-            .update({
-
-                display_name:
-                    String(
-                        display_name || ""
-                    ).trim(),
-
-                bio:
-                    String(
-                        bio || ""
-                    ).trim(),
-
-                avatar:
-                    avatar || null,
-
-                gyatt:
-                    Math.max(
-                        0,
-                        parseInt(gyatt) || 0
-                    ),
-
-                cat:
-                    Math.max(
-                        0,
-                        parseInt(cat) || 0
-                    ),
-
-                ogred:
-                    Math.max(
-                        0,
-                        parseInt(ogres) || 0
-                    )
-
-            })
-            .eq(
-                "id",
-                req.session.user.id
-            )
-            .select()
-            .single();
-
-        if (error) {
-
-            console.error(
-                "PROFILE UPDATE ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error: error.message
-            });
-
-        }
-
-        req.session.user.display_name =
-            data.display_name;
-
-        res.json({
-
-            success: true,
-
-            user: data
-
-        });
-
-    } catch (error) {
-
-        console.error(
-            "PROFILE UPDATE SERVER ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error: error.message
-        });
-
-    }
-
-});
-
-// ==================================================
-// UPDATE USER PROFILE
-// ==================================================
-
-app.put("/api/users/:id", async (req, res) => {
-
-    try {
-
-        if (!req.session.user) {
-
-            return res.status(401).json({
-                error:
-                    "You must be logged in."
-            });
-
-        }
-
-        // Only allow users to edit themselves
-
-        if (
-            req.session.user.id !==
-            req.params.id
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "You can only edit your own profile."
-            });
-
-        }
-
-        const {
-
-            username,
-
-            displayName,
-
-            avatar,
-
-            bio,
-
-            gyatt,
-
-            cat,
-
-            ogred
-
-        } = req.body;
-
-        const {
-            data,
-            error
-        } = await supabase
-            .from("profiles")
-            .update({
-
-                username,
-
-                display_name:
-                    displayName,
-
-                avatar,
-
-                bio,
-
-                gyatt:
-                    Number(gyatt) || 0,
-
-                cat:
-                    Number(cat) || 0,
-
-                ogred:
-                    Number(ogred) || 0
-
-            })
-            .eq(
-                "id",
-                req.params.id
-            )
-            .select()
-            .single();
-
-        if (error) {
-
-            return res.status(400).json({
-                error: error.message
-            });
-
-        }
-
-        req.session.user.username =
-            data.username;
-
-        req.session.user.display_name =
-            data.display_name;
-
-        res.json(data);
-
-    } catch (error) {
-
-        console.error(
-            "USER UPDATE ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error: error.message
-        });
-
-    }
-
-});
-
-// ==================================================
-// AVATAR UPLOAD
-// ==================================================
-
-app.post(
-    "/api/profile/avatar",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session.user) {
-
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-
-            }
-
-            const {
-                fileName,
-                fileType,
-                fileData
-            } = req.body;
-
-            if (
-                !fileName ||
-                !fileType ||
-                !fileData
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Missing image data."
-                });
-
-            }
-
-            if (
-                !fileType.startsWith("image/")
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "File must be an image."
-                });
-
-            }
-
-            const buffer =
-                Buffer.from(
-                    fileData,
-                    "base64"
-                );
-
-            if (
-                buffer.length >
-                5 * 1024 * 1024
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Image must be under 5MB."
-                });
-
-            }
-
-            const extension =
-                fileName
-                    .split(".")
-                    .pop()
-                    .toLowerCase();
-
-            const allowed = [
-                "png",
-                "jpg",
-                "jpeg",
-                "webp",
-                "gif"
-            ];
-
-            if (
-                !allowed.includes(extension)
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Unsupported image type."
-                });
-
-            }
-
-            const filePath =
-                `${req.session.user.id}/${Date.now()}.${extension}`;
-
-            const {
-                error: uploadError
-            } = await supabase.storage
-                .from("avatars")
-                .upload(
-                    filePath,
-                    buffer,
-                    {
-                        contentType:
-                            fileType,
-                        upsert: true
-                    }
-                );
-
-            if (uploadError) {
-
-                console.error(
-                    "AVATAR UPLOAD ERROR:",
-                    uploadError
-                );
-
-                return res.status(500).json({
-                    error:
-                        uploadError.message
-                });
-
-            }
-
-            const {
-                data: publicData
-            } = supabase.storage
-                .from("avatars")
-                .getPublicUrl(
-                    filePath
-                );
-
-            const avatarUrl =
-                publicData.publicUrl;
-
-            const {
-                data: profile,
-                error: profileError
-            } = await supabase
-                .from("profiles")
-                .update({
-                    avatar: avatarUrl
-                })
-                .eq(
-                    "id",
-                    req.session.user.id
-                )
-                .select()
-                .single();
-
-            if (profileError) {
-
-                return res.status(500).json({
-                    error:
-                        profileError.message
-                });
-
-            }
-
-            res.json({
-
-                success: true,
-
-                avatar: avatarUrl,
-
-                user: profile
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "AVATAR ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error: error.message
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// GET POSTS
-// ==================================================
-
-app.get("/api/posts", async (req, res) => {
-
-    try {
-
-        const {
-            data: posts,
-            error
-        } = await supabase
-            .from("posts")
-            .select("*")
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
-
-        if (error) {
-
-            return res.status(500).json({
-                error: error.message
-            });
-
-        }
-
-        const result = [];
-
-        for (
-            const post of posts || []
-        ) {
-
-            const {
-                data: profile
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "username, display_name"
-                )
-                .eq(
-                    "id",
-                    post.user_id
-                )
-                .maybeSingle();
-
-            // NOTE:
-            // Avatar intentionally NOT included.
-
-            result.push({
-
-                ...post,
+                displayName:
+                    document.getElementById(
+                        "displayName"
+                    ).value.trim(),
 
                 username:
-                    profile?.username ||
-                    "Unknown",
+                    document.getElementById(
+                        "username"
+                    ).value.trim(),
 
-                display_name:
-                    profile?.display_name ||
-                    "Unknown"
+                email:
+                    document.getElementById(
+                        "email"
+                    ).value.trim(),
 
-            });
+                password:
+                    document.getElementById(
+                        "password"
+                    ).value
 
-        }
+            };
 
-        res.json(result);
 
-    } catch (error) {
-
-        console.error(
-            "POST LOAD ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error: error.message
-        });
-
-    }
-
-});
-
-// ==================================================
-// CREATE POST
-// ==================================================
-
-app.post("/api/posts", async (req, res) => {
-
-    try {
-
-        if (!req.session.user) {
-
-            return res.status(401).json({
-                error:
-                    "You must be logged in."
-            });
-
-        }
-
-        const content =
-            String(
-                req.body.content || ""
-            ).trim();
-
-        if (!content) {
-
-            return res.status(400).json({
-                error:
-                    "Post cannot be empty."
-            });
-
-        }
-
-        const {
-            data,
-            error
-        } = await supabase
-            .from("posts")
-            .insert({
-
-                user_id:
-                    req.session.user.id,
-
-                content
-
-            })
-            .select()
-            .single();
-
-        if (error) {
-
-            return res.status(500).json({
-                error: error.message
-            });
-
-        }
-
-        res.json(data);
-
-    } catch (error) {
-
-        console.error(
-            "POST CREATE ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error: error.message
-        });
-
-    }
-
-});
-
-// ==================================================
-// GET COMMENTS
-// ==================================================
-
-app.get(
-    "/api/posts/:postId/comments",
-    async (req, res) => {
-
-        try {
-
-            const {
-                data,
-                error
-            } = await supabase
-                .from("comments")
-                .select("*")
-                .eq(
-                    "post_id",
-                    req.params.postId
-                )
-                .order(
-                    "created_at",
-                    {
-                        ascending: true
-                    }
+            const message =
+                document.getElementById(
+                    "signupMessage"
                 );
 
-            if (error) {
 
-                return res.status(500).json({
-                    error: error.message
-                });
+            message.textContent =
+                "Creating account...";
 
-            }
 
-            res.json(data || []);
+            try {
 
-        } catch (error) {
+                const response =
+                    await fetch(
+                        "/api/signup",
+                        {
 
-            console.error(
-                "COMMENTS ERROR:",`
-                error
-            );
+                            method: "POST",
 
-            res.status(500).json({
-                error: error.message
-            });
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
 
-        }
+                            body:
+                                JSON.stringify(body)
 
-    }
-);
+                        }
+                    );
 
-// ==================================================
-// CREATE COMMENT
-// ==================================================
 
-app.post(
-    "/api/posts/:postId/comments",
-    async (req, res) => {
+                const data =
+                    await response.json();
 
-        try {
 
-            if (!req.session.user) {
+                if (!response.ok) {
 
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
+                    throw new Error(
+                        data.error ||
+                        "Signup failed."
+                    );
 
-            }
+                }
 
-            const content =
-                String(
-                    req.body.content || ""
-                ).trim();
 
-            if (!content) {
+                message.textContent =
+                    "✅ Account created!";
 
-                return res.status(400).json({
-                    error:
-                        "Comment cannot be empty."
-                });
 
-            }
+                setTimeout(
+                    () => {
 
-            const {
-                data,
-                error
-            } = await supabase
-                .from("comments")
-                .insert({
+                        location.href =
+                            "/login.html";
 
-                    post_id:
-                        req.params.postId,
-
-                    user_id:
-                        req.session.user.id,
-
-                    content
-
-                })
-                .select()
-                .single();
-
-            if (error) {
-
-                console.error(
-                    "COMMENT CREATE ERROR:",
-                    error
+                    },
+                    1000
                 );
 
-                return res.status(500).json({
-                    error: error.message
-                });
+
+            } catch (error) {
+
+                message.textContent =
+                    "❌ " +
+                    error.message;
 
             }
 
-            res.json(data);
-
-        } catch (error) {
-
-            console.error(
-                "COMMENT SERVER ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error: error.message
-            });
-
         }
+    );
 
-    }
-);
+</script>
 
-// ==================================================
-// 404 API
-// ==================================================
+</body>
 
-app.use("/api", (req, res) => {
+</html>
 
-    res.status(404).json({
-        error: "API endpoint not found."
-    });
 
-});
 
-// ==================================================
-// SERVER
-// ==================================================
+</html>
 
-app.listen(
-    PORT,
-    "0.0.0.0",
-    () => {
-
-        console.log(
-            `🧌 ShrekBook running on port ${PORT}`
-        );
-
-    }
-);
