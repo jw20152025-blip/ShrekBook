@@ -58,10 +58,7 @@ if (!SESSION_SECRET) {
     process.exit(1);
 }
 
-const supabase = createClient(
-    SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY
-);
+
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 
     console.error(
