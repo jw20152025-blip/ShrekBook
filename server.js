@@ -1046,7 +1046,7 @@ app.post("/api/chat/rooms", async (req, res) => {
         const name =
             String(req.body.name || "").trim();
 
-        const isPrivate =
+        const is_private =
             Boolean(req.body.is_private);
 
         if (!name) {
@@ -1062,14 +1062,14 @@ app.post("/api/chat/rooms", async (req, res) => {
         }
 
         const {
-            data: room,
+            data,
             error
         } = await supabase
             .from("chat_rooms")
             .insert({
                 name,
-                created_by: req.session.user.id,
-                is_private: isPrivate
+                is_private,
+                created_by: req.session.user.id
             })
             .select()
             .single();
@@ -1082,28 +1082,24 @@ app.post("/api/chat/rooms", async (req, res) => {
             });
         }
 
-        // Automatically join creator
-        const { error: memberError } =
-            await supabase
-                .from("chat_members")
-                .insert({
-                    room_id: room.id,
-                    user_id: req.session.user.id
-                });
+        // Automatically make the creator a member
+        const {
+            error: memberError
+        } = await supabase
+            .from("chat_members")
+            .insert({
+                room_id: data.id,
+                user_id: req.session.user.id
+            });
 
         if (memberError) {
-            // Delete room if membership creation failed
-            await supabase
-                .from("chat_rooms")
-                .delete()
-                .eq("id", room.id);
-
-            return res.status(500).json({
-                error: memberError.message
-            });
+            console.error(
+                "ADD CREATOR TO ROOM ERROR:",
+                memberError
+            );
         }
 
-        res.status(201).json(room);
+        res.status(201).json(data);
 
     } catch (error) {
         console.error("CREATE ROOM ERROR:", error);
@@ -1113,7 +1109,6 @@ app.post("/api/chat/rooms", async (req, res) => {
         });
     }
 });
-
 
 // ==================================================
 // JOIN ROOM
