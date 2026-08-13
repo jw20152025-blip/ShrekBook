@@ -701,66 +701,10 @@ app.post("/api/profile/avatar", async (req, res) => {
 // POSTS
 // ==================================================
 
-app.get("/api/posts", async (req, res) => {
-    try {
-        const {
-            data: posts,
-            error
-        } = await supabase
-            .from("posts")
-            .select(`
-                id,
-                user_id,
-                content,
-                created_at
-            `)
-            .order("created_at", {
-                ascending: false
-            });
-
-        if (error) {
-            return res.status(500).json({
-                error: error.message
-            });
-        }
-
-        const result = [];
-
-        for (const post of posts || []) {
-            const {
-                data: profile
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "username, display_name"
-                )
-                .eq("id", post.user_id)
-                .maybeSingle();
-
-            result.push({
-                ...post,
-
-                username:
-                    profile?.username || "User",
-
-                display_name:
-                    profile?.display_name ||
-                    profile?.username ||
-                    "User"
-            });
-        }
-
-        res.json(result);
-
-    } catch (error) {
-        res.status(500).json({
-            error: "Server error."
-        });
-    }
-});
-
 app.post("/api/posts", async (req, res) => {
+
     try {
+
         if (!req.session.user) {
             return res.status(401).json({
                 error: "You must be logged in."
@@ -770,15 +714,42 @@ app.post("/api/posts", async (req, res) => {
         const content =
             String(req.body.content || "").trim();
 
-        if (!content) {
-            return res.status(400).json({
-                error: "Post cannot be empty."
-            });
-        }
-
         if (content.length > 5000) {
             return res.status(400).json({
                 error: "Post is too long."
+            });
+        }
+
+        let imageUrl = null;
+
+        if (
+            req.body.image &&
+            req.body.image.data &&
+            req.body.image.type &&
+            req.body.image.name
+        ) {
+
+            try {
+
+                imageUrl = await uploadImage(
+                    req.body.image.data,
+                    req.body.image.type,
+                    req.body.image.name,
+                    req.session.user.id
+                );
+
+            } catch (error) {
+
+                return res.status(400).json({
+                    error: error.message
+                });
+
+            }
+        }
+
+        if (!content && !imageUrl) {
+            return res.status(400).json({
+                error: "Post cannot be empty."
             });
         }
 
@@ -788,25 +759,40 @@ app.post("/api/posts", async (req, res) => {
         } = await supabase
             .from("posts")
             .insert({
-                user_id: req.session.user.id,
-                content
+                user_id:
+                    req.session.user.id,
+
+                content,
+
+                image_url:
+                    imageUrl
             })
             .select()
             .single();
 
         if (error) {
+
             return res.status(500).json({
                 error: error.message
             });
+
         }
 
         res.status(201).json(data);
 
     } catch (error) {
+
+        console.error(
+            "CREATE POST ERROR:",
+            error
+        );
+
         res.status(500).json({
             error: "Server error."
         });
+
     }
+
 });
 
 // ==================================================
@@ -886,11 +872,12 @@ app.get(
 app.post(
     "/api/posts/:postId/comments",
     async (req, res) => {
+
         try {
+
             if (!req.session.user) {
                 return res.status(401).json({
-                    error:
-                        "You must be logged in."
+                    error: "You must be logged in."
                 });
             }
 
@@ -899,17 +886,45 @@ app.post(
                     req.body.content || ""
                 ).trim();
 
-            if (!content) {
+            if (content.length > 500) {
                 return res.status(400).json({
-                    error:
-                        "Comment cannot be empty."
+                    error: "Comment is too long."
                 });
             }
 
-            if (content.length > 500) {
+            let imageUrl = null;
+
+            if (
+                req.body.image &&
+                req.body.image.data &&
+                req.body.image.type &&
+                req.body.image.name
+            ) {
+
+                try {
+
+                    imageUrl =
+                        await uploadImage(
+                            req.body.image.data,
+                            req.body.image.type,
+                            req.body.image.name,
+                            req.session.user.id
+                        );
+
+                } catch (error) {
+
+                    return res.status(400).json({
+                        error: error.message
+                    });
+
+                }
+
+            }
+
+            if (!content && !imageUrl) {
                 return res.status(400).json({
                     error:
-                        "Comment is too long."
+                        "Comment cannot be empty."
                 });
             }
 
@@ -919,33 +934,47 @@ app.post(
             } = await supabase
                 .from("comments")
                 .insert({
+
                     post_id:
                         req.params.postId,
 
                     user_id:
                         req.session.user.id,
 
-                    content
+                    content,
+
+                    image_url:
+                        imageUrl
+
                 })
                 .select()
                 .single();
 
             if (error) {
+
                 return res.status(500).json({
                     error: error.message
                 });
+
             }
 
             res.status(201).json(data);
 
         } catch (error) {
+
+            console.error(
+                "COMMENT ERROR:",
+                error
+            );
+
             res.status(500).json({
                 error: "Server error."
             });
+
         }
+
     }
 );
-
 
 // ==================================================
 // SHREKCHAT

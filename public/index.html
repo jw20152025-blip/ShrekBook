@@ -1,19 +1,22 @@
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
 
-    <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
 
-    <title>ShrekBook 🧌</title>
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0">
 
-    <link
-        rel="stylesheet"
-        href="/styles.css">
+<title>ShrekBook 🧌</title>
+
+<link
+    rel="stylesheet"
+    href="/styles.css">
+
 
 </head>
 
@@ -21,137 +24,230 @@
 
 <header class="navbar">
 
-    <div class="navbar-inner">
+
+<div class="navbar-inner">
+
+    <a
+        href="/"
+        class="logo">
+
+        🧌 ShrekBook
+
+    </a>
+
+    <nav>
+
+        <a href="/">
+            Home
+        </a>
 
         <a
-            href="/"
-            class="logo">
+            href="/profile.html"
+            id="profile-link">
 
-            🧌 ShrekBook
+            Profile
 
         </a>
 
-        <nav>
+        <a href="/shrekchat.html">
 
-            <a href="/">
-                Home
-            </a>
+            💬 ShrekChat
 
-            <a
-                href="/profile.html"
-                id="profile-link">
+        </a>
 
-                Profile
+        <button
+            id="logout-button"
+            onclick="logout()"
+            style="display:none;">
 
-            </a>
+            Logout
 
-            <a href="/shrekchat.html">
+        </button>
 
-                💬 ShrekChat
+    </nav>
 
-            </a>
+</div>
 
-            <button
-                id="logout-button"
-                onclick="logout()"
-                style="display:none;">
-
-                Logout
-
-            </button>
-
-        </nav>
-
-    </div>
 
 </header>
 
 <main class="container">
 
-    <section
-        id="auth-section"
-        class="auth-section">
 
-        <div class="auth-box">
+<!-- ==========================================
+     LOGIN / SIGNUP
+     ========================================== -->
 
-            <h1>
-                Welcome to ShrekBook 🧌
-            </h1>
+<section
+    id="auth-section"
+    class="auth-section">
 
-            <p>
-                The social network for ogres,
-                cats, and everyone in between.
-            </p>
+    <div class="auth-box">
 
-            <div id="login-box">
+        <h1>
+            Welcome to ShrekBook 🧌
+        </h1>
 
-                <h2>Login</h2>
+        <p>
+            The social network for ogres,
+            cats, and everyone in between.
+        </p>
 
-                <input
-                    id="login-email"
-                    type="email"
-                    placeholder="Email">
 
-                <input
-                    id="login-password"
-                    type="password"
-                    placeholder="Password">
+        <!-- LOGIN -->
 
-                <button onclick="login()">
-                    🔐 Login
-                </button>
+        <div id="login-box">
 
-                <p id="login-status"></p>
+            <h2>
+                Login
+            </h2>
 
-                <button
-                    class="secondary-button"
-                    onclick="showSignup()">
+            <input
+                id="login-email"
+                type="email"
+                placeholder="Email">
 
-                    Don't have an account?
-                    Sign up
+            <input
+                id="login-password"
+                type="password"
+                placeholder="Password">
 
-                </button>
+            <button onclick="login()">
 
-            </div>
+                🔐 Login
+
+            </button>
+
+            <p id="login-status"></p>
+
+            <button
+                class="secondary-button"
+                onclick="showSignup()">
+
+                Don't have an account?
+                Sign up
+
+            </button>
+
+        </div>
+
+
+        <!-- SIGNUP -->
+
+        <div
+            id="signup-box"
+            style="display:none;">
+
+            <h2>
+                Create Account
+            </h2>
+
+            <input
+                id="signup-username"
+                maxlength="30"
+                placeholder="Username">
+
+            <input
+                id="signup-display-name"
+                maxlength="50"
+                placeholder="Display name">
+
+            <input
+                id="signup-email"
+                type="email"
+                placeholder="Email">
+
+            <input
+                id="signup-password"
+                type="password"
+                placeholder="Password">
+
+            <button onclick="signup()">
+
+                📝 Create Account
+
+            </button>
+
+            <p id="signup-status"></p>
+
+            <button
+                class="secondary-button"
+                onclick="showLogin()">
+
+                Already have an account?
+                Login
+
+            </button>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ==========================================
+     MAIN APP
+     ========================================== -->
+
+<section
+    id="app-section"
+    style="display:none;">
+
+
+    <!-- ======================================
+         CREATE POST
+         ====================================== -->
+
+    <section class="create-post">
+
+        <h2>
+            What's on your mind? 🧌
+        </h2>
+
+        <textarea
+            id="post-content"
+            maxlength="5000"
+            placeholder="Say something...">
+        </textarea>
+
+
+        <!-- IMAGE PICKER -->
+
+        <div class="image-upload">
+
+            <label for="post-image">
+
+                🖼️ Add an image
+
+            </label>
+
+            <input
+                id="post-image"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif">
 
             <div
-                id="signup-box"
+                id="post-image-preview"
                 style="display:none;">
 
-                <h2>Create Account</h2>
+                <img
+                    id="post-preview-image"
+                    alt="Post image preview"
+                    style="
+                        max-width:100%;
+                        max-height:400px;
+                        border-radius:12px;
+                        margin-top:10px;
+                    ">
 
-                <input
-                    id="signup-username"
-                    maxlength="30"
-                    placeholder="Username">
-
-                <input
-                    id="signup-display-name"
-                    maxlength="50"
-                    placeholder="Display name">
-
-                <input
-                    id="signup-email"
-                    type="email"
-                    placeholder="Email">
-
-                <input
-                    id="signup-password"
-                    type="password"
-                    placeholder="Password">
-
-                <button onclick="signup()">
-                    📝 Create Account
-                </button>
-
-                <p id="signup-status"></p>
+                <br>
 
                 <button
-                    class="secondary-button"
-                    onclick="showLogin()">
+                    type="button"
+                    onclick="clearPostImage()">
 
-                    Already have an account?
-                    Login
+                    ❌ Remove image
 
                 </button>
 
@@ -159,82 +255,364 @@
 
         </div>
 
-    </section>
 
-    <section
-        id="app-section"
-        style="display:none;">
+        <button onclick="createPost()">
 
-        <section class="create-post">
+            📝 Post
 
-            <h2>
-                What's on your mind? 🧌
-            </h2>
+        </button>
 
-            <textarea
-                id="post-content"
-                maxlength="5000"
-                placeholder="Say something...">
-            </textarea>
-
-            <button onclick="createPost()">
-                📝 Post
-            </button>
-
-            <p id="post-status"></p>
-
-        </section>
-
-        <section>
-
-            <h2>
-                Feed
-            </h2>
-
-            <div id="posts">
-                Loading posts...
-            </div>
-
-        </section>
-
-        <section class="people-section">
-
-            <h2>
-                People 👥
-            </h2>
-
-            <div id="people">
-                Loading people...
-            </div>
-
-        </section>
-
-        <section class="telecom-section">
-
-            <h2>
-                🧌 ShrekBook Telecom
-            </h2>
-
-            <p>
-                Connecting the swamp
-                to the internet since 2026.
-            </p>
-
-            <a
-                class="telecom-button"
-                href="/shrekchat.html">
-
-                💬 Open ShrekChat
-
-            </a>
-
-        </section>
+        <p id="post-status"></p>
 
     </section>
+
+
+    <!-- ======================================
+         FEED
+         ====================================== -->
+
+    <section>
+
+        <h2>
+            Feed
+        </h2>
+
+        <div id="posts">
+
+            Loading posts...
+
+        </div>
+
+    </section>
+
+
+    <!-- ======================================
+         PEOPLE
+         ====================================== -->
+
+    <section class="people-section">
+
+        <h2>
+            People 👥
+        </h2>
+
+        <div id="people">
+
+            Loading people...
+
+        </div>
+
+    </section>
+
+
+    <!-- ======================================
+         SHREKBOOK TELECOM
+         ====================================== -->
+
+    <section class="telecom-section">
+
+        <h2>
+            🧌 ShrekBook Telecom
+        </h2>
+
+        <p>
+            Connecting the swamp
+            to the internet since 2026.
+        </p>
+
+        <a
+            class="telecom-button"
+            href="/shrekchat.html">
+
+            💬 Open ShrekChat
+
+        </a>
+
+    </section>
+
+</section>
+```
 
 </main>
+
+<script>
+
+/* ==================================================
+POST IMAGE PREVIEW
+================================================== */
+
+const postImageInput =
+    document.getElementById("post-image");
+
+const postImagePreview =
+    document.getElementById("post-image-preview");
+
+const postPreviewImage =
+    document.getElementById("post-preview-image");
+
+
+if (postImageInput) {
+
+    postImageInput.addEventListener(
+        "change",
+        () => {
+
+            const file =
+                postImageInput.files[0];
+
+            if (!file) {
+
+                clearPostImage();
+
+                return;
+            }
+
+
+            if (!file.type.startsWith("image/")) {
+
+                alert(
+                    "❌ Please select an image."
+                );
+
+                clearPostImage();
+
+                return;
+            }
+
+
+            if (file.size > 5 * 1024 * 1024) {
+
+                alert(
+                    "❌ Images must be under 5MB."
+                );
+
+                clearPostImage();
+
+                return;
+            }
+
+
+            const reader =
+                new FileReader();
+
+
+            reader.onload =
+                event => {
+
+                    postPreviewImage.src =
+                        event.target.result;
+
+                    postImagePreview.style.display =
+                        "block";
+
+                };
+
+
+            reader.readAsDataURL(file);
+
+        }
+    );
+
+}
+
+
+/* ==================================================
+CLEAR POST IMAGE
+================================================== */
+
+function clearPostImage() {
+
+    if (postImageInput) {
+
+        postImageInput.value =
+            "";
+
+    }
+
+    if (postPreviewImage) {
+
+        postPreviewImage.src =
+            "";
+
+    }
+
+    if (postImagePreview) {
+
+        postImagePreview.style.display =
+            "none";
+
+    }
+
+}
+
+
+/* ==================================================
+COMMENT IMAGE PICKER
+================================================== */
+
+/*
+    Comment image inputs are created dynamically
+    by script.js.
+
+    This function is called by the comment UI
+    after the input exists.
+*/
+
+function setupCommentImagePreview(postId) {
+
+    const input =
+        document.getElementById(
+            `comment-image-${postId}`
+        );
+
+    const preview =
+        document.getElementById(
+            `comment-preview-${postId}`
+        );
+
+    const image =
+        document.getElementById(
+            `comment-preview-image-${postId}`
+        );
+
+
+    if (!input) return;
+
+
+    input.addEventListener(
+        "change",
+        () => {
+
+            const file =
+                input.files[0];
+
+            if (!file) {
+
+                if (preview) {
+
+                    preview.style.display =
+                        "none";
+
+                }
+
+                return;
+            }
+
+
+            if (!file.type.startsWith("image/")) {
+
+                alert(
+                    "❌ Please select an image."
+                );
+
+                input.value =
+                    "";
+
+                return;
+            }
+
+
+            if (file.size > 5 * 1024 * 1024) {
+
+                alert(
+                    "❌ Images must be under 5MB."
+                );
+
+                input.value =
+                    "";
+
+                return;
+            }
+
+
+            const reader =
+                new FileReader();
+
+
+            reader.onload =
+                event => {
+
+                    if (image) {
+
+                        image.src =
+                            event.target.result;
+
+                    }
+
+                    if (preview) {
+
+                        preview.style.display =
+                            "block";
+
+                    }
+
+                };
+
+
+            reader.readAsDataURL(file);
+
+        }
+    );
+
+}
+
+
+/* ==================================================
+CLEAR COMMENT IMAGE
+================================================== */
+
+function clearCommentImage(postId) {
+
+    const input =
+        document.getElementById(
+            `comment-image-${postId}`
+        );
+
+    const preview =
+        document.getElementById(
+            `comment-preview-${postId}`
+        );
+
+    const image =
+        document.getElementById(
+            `comment-preview-image-${postId}`
+        );
+
+
+    if (input) {
+
+        input.value =
+            "";
+
+    }
+
+
+    if (image) {
+
+        image.src =
+            "";
+
+    }
+
+
+    if (preview) {
+
+        preview.style.display =
+            "none";
+
+    }
+
+}
+
+
+/* ==================================================
+START
+================================================== */
+
+</script>
 
 <script src="/script.js"></script>
 
 </body>
+
 </html>
