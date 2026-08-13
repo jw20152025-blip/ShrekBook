@@ -6,7 +6,6 @@ const { createClient } = require("@supabase/supabase-js");
 
 require("dotenv").config();
 
-const express = require("express");
 const session = require("express-session");
 
 
@@ -557,6 +556,8 @@ app.get("/api/me", async (req, res) => {
         user: data
 
     });
+
+});
 
 // ==================================================
 // GET ALL USERS
