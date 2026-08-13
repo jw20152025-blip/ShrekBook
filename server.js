@@ -1,5 +1,4 @@
-
-
+console.log("🔥 THIS IS MY CURRENT SERVER.JS");
 const express = require("express");
 const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
