@@ -1,233 +1,162 @@
-<!DOCTYPE html>
 
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
 
-```
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
 
-<title>Profile - ShrekBook 🧌</title>
+    <title>Profile 🧌</title>
 
-<link
-    rel="stylesheet"
-    href="/styles.css">
-```
-
+    <link
+        rel="stylesheet"
+        href="/styles.css">
 </head>
 
 <body>
 
 <header class="navbar">
 
-```
-<div class="navbar-inner">
-
-    <a
         href="/"
-        class="logo">
+    <div class="navbar-inner">
 
-        🧌 ShrekBook
-
-    </a>
-
-
-    <nav>
-
-        <a href="/">
-            Home
+        <a
+            href="/"
+            class="logo">
+            🧌 ShrekBook
         </a>
 
-        <a href="/profile.html">
-            Profile
-        </a>
-
-        <button
-            id="logout-button"
-            onclick="logout()">
-
-            Logout
-
-        </button>
-
-    </nav>
-
-</div>
-```
-
-</header>
-
-<main class="container">
-
-```
-<!-- =========================================
-     PROFILE
-========================================== -->
-
-<section class="profile-section">
-
-    <div id="profile">
-
-        Loading profile... 🧌
+        <nav>
+            <a href="/">Home</a>
+            <a href="/profile.html">Profile</a>
+        </nav>
 
     </div>
 
-
-    <!-- =====================================
-         REACTIONS
-    ====================================== -->
-
-    <section
-        id="reaction-section"
-        style="display:none;">
-
-        <h2>
-            Give this user a reaction
-        </h2>
+</header>
 
 
-        <div class="reaction-buttons">
+<main class="container">
 
-            <button
-                onclick="giveReaction('cat')">
+    <!-- PROFILE -->
 
-                🐱 Give Cat
+    <section class="profile-card">
 
-            </button>
+        <img
+            id="profile-avatar"
+            class="profile-avatar"
+            src="/default-avatar.png"
+            alt="Profile avatar">
 
+        <h1 id="profile-display-name">
+            Loading...
+        </h1>
 
-            <button
-                onclick="giveReaction('gyatt')">
+        <p id="profile-username">
+            Loading...
+        </p>
 
-                🍑 Give Gyatt
-
-            </button>
-
-
-            <button
-                onclick="giveReaction('ogre')">
-
-                🧌 Give Ogre
-
-            </button>
-
-        </div>
-
-
-        <p id="reaction-status"></p>
-
-    </section>
-
-
-    <!-- =====================================
-         EDIT PROFILE
-    ====================================== -->
-
-    <section
-        id="edit-section"
-        style="display:none;">
-
-        <h2>
-            Edit Your Profile
-        </h2>
-
-
-        <!-- AVATAR -->
-
-        <div class="avatar-editor">
-
-            <img
-                id="avatar-preview"
-                class="avatar profile-avatar"
-                src="/default-avatar.png"
-                alt="Your avatar">
-
-
-            <label for="avatar-input">
-                Change Avatar
-            </label>
-
-
-            <input
-                id="avatar-input"
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif">
-
-
-            <button
-                onclick="uploadAvatar()">
-
-                🖼️ Upload Avatar
-
-            </button>
-
-
-            <p id="avatar-status"></p>
-
-        </div>
-
-
-        <!-- DISPLAY NAME -->
-
-        <label for="display-name">
-            Display Name
-        </label>
-
-
-        <input
-            id="display-name"
-            type="text"
-            maxlength="50"
-            placeholder="Display name">
-
-
-        <!-- BIO -->
-
-        <label for="bio">
-            Bio
-        </label>
-
-
-        <textarea
-            id="bio"
-            maxlength="500"
-            placeholder="Tell people about yourself..."></textarea>
-
+        <p id="profile-bio"></p>
 
         <button
-            onclick="saveProfile()">
+            id="edit-button"
+            onclick="showEditProfile()">
 
-            💾 Save Profile
+            ✏️ Edit Profile
 
         </button>
 
+    </section>
 
-        <p id="save-status"></p>
+
+    <!-- EDIT PROFILE -->
+
+    <section
+        id="edit-profile"
+        class="auth-box"
+        style="display:none;">
+
+        <h2>
+            ✏️ Edit Profile
+        </h2>
+
+        <label>
+            Display name
+        </label>
+
+        <input
+            id="edit-display-name"
+            type="text"
+            maxlength="50">
+
+        <label>
+            Bio
+        </label>
+
+        <textarea
+            id="edit-bio"
+            maxlength="500"
+            placeholder="Tell people about yourself...">
+        </textarea>
+
+        <h3>
+            🖼️ Change Avatar
+        </h3>
+
+        <input
+            id="avatar-input"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif">
+
+        <button onclick="uploadAvatar()">
+            📸 Upload Avatar
+        </button>
+
+        <button onclick="saveProfile()">
+            💾 Save Profile
+        </button>
+
+        <button
+            class="secondary-button"
+            onclick="hideEditProfile()">
+
+            Cancel
+
+        </button>
+
+        <p id="profile-status"></p>
 
     </section>
 
-</section>
-```
+
+    <!-- POSTS -->
+
+    <section>
+
+        <h2>
+            Posts
+        </h2>
+
+        <div id="profile-posts">
+            Loading posts...
+        </div>
+
+    </section>
 
 </main>
 
+
 <script>
-
-/* ==================================================
-   STATE
-================================================== */
-
-let currentUser = null;
 
 let profileUser = null;
 
 
-/* ==================================================
-   ESCAPE HTML
-================================================== */
+// ==================================================
+// ESCAPE HTML
+// ==================================================
 
 function escapeHtml(text) {
 
@@ -241,44 +170,9 @@ function escapeHtml(text) {
 }
 
 
-/* ==================================================
-   GET CURRENT USER
-================================================== */
-
-async function getCurrentUser() {
-
-    const response =
-        await fetch("/api/me");
-
-
-    const data =
-        await response.json();
-
-
-    if (
-        !response.ok ||
-        !data.loggedIn ||
-        !data.user
-    ) {
-
-        window.location.href =
-            "/login.html";
-
-        return null;
-    }
-
-
-    currentUser =
-        data.user;
-
-
-    return currentUser;
-}
-
-
-/* ==================================================
-   GET PROFILE ID
-================================================== */
+// ==================================================
+// GET PROFILE ID
+// ==================================================
 
 function getProfileId() {
 
@@ -287,61 +181,45 @@ function getProfileId() {
             window.location.search
         );
 
-
-    /*
-     * Profile links should use:
-     *
-     * profile.html?id=USER_UUID
-     *
-     * If there is no ID, show the
-     * currently logged-in user's profile.
-     */
-
     return params.get("id");
 }
 
 
-/* ==================================================
-   LOAD PROFILE
-================================================== */
+// ==================================================
+// LOAD PROFILE
+// ==================================================
 
 async function loadProfile() {
 
+    const id =
+        getProfileId();
+
+    let url;
+
+    /*
+       If there is no ?id=...
+       load the currently logged-in user.
+    */
+
+    if (id) {
+
+        url =
+            `/api/users/${encodeURIComponent(id)}`;
+
+    } else {
+
+        url =
+            "/api/me";
+
+    }
+
     try {
 
-        const user =
-            await getCurrentUser();
-
-
-        if (!user) {
-            return;
-        }
-
-
-        const requestedId =
-            getProfileId();
-
-
-        /*
-         * No ID = own profile.
-         *
-         * ID = another user's profile.
-         */
-
-        const profileId =
-            requestedId ||
-            currentUser.id;
-
-
         const response =
-            await fetch(
-                `/api/users/${profileId}`
-            );
-
+            await fetch(url);
 
         const data =
             await response.json();
-
 
         if (!response.ok) {
 
@@ -349,15 +227,104 @@ async function loadProfile() {
                 data.error ||
                 "Could not load profile."
             );
+        }
+
+
+        /*
+           /api/users/:id returns the
+           profile directly.
+
+           /api/me returns:
+           {
+               loggedIn: true,
+               user: {...}
+           }
+        */
+
+        profileUser =
+            id
+                ? data
+                : data.user;
+
+
+        if (!profileUser) {
+
+            throw new Error(
+                "Profile not found."
+            );
 
         }
 
 
-        profileUser =
-            data;
+        // DISPLAY NAME
+
+        document.getElementById(
+            "profile-display-name"
+        ).textContent =
+            profileUser.display_name ||
+            profileUser.username;
 
 
-        renderProfile();
+        // USERNAME
+
+        document.getElementById(
+            "profile-username"
+        ).textContent =
+            "@" +
+            profileUser.username;
+
+
+        // BIO
+
+        document.getElementById(
+            "profile-bio"
+        ).textContent =
+            profileUser.bio ||
+            "No bio yet.";
+
+
+        // AVATAR
+
+        document.getElementById(
+            "profile-avatar"
+        ).src =
+            profileUser.avatar ||
+            "/default-avatar.png";
+
+
+        // EDIT BUTTON ONLY FOR OWN PROFILE
+
+        const meResponse =
+            await fetch("/api/me");
+
+        const me =
+            await meResponse.json();
+
+        if (
+            me.loggedIn &&
+            me.user &&
+            me.user.id === profileUser.id
+        ) {
+
+            document.getElementById(
+                "edit-button"
+            ).style.display =
+                "inline-block";
+
+        } else {
+
+            document.getElementById(
+                "edit-button"
+            ).style.display =
+                "none";
+        }
+
+
+        // POSTS
+
+        loadProfilePosts(
+            profileUser.posts || []
+        );
 
 
     } catch (error) {
@@ -367,249 +334,85 @@ async function loadProfile() {
             error
         );
 
-
         document.getElementById(
-            "profile"
-        ).innerHTML = `
-
-            <div class="error">
-
-                ❌ ${escapeHtml(
-                    error.message
-                )}
-
-            </div>
-
-        `;
+            "profile-display-name"
+        ).textContent =
+            "❌ " + error.message;
     }
 }
 
 
-/* ==================================================
-   RENDER PROFILE
-================================================== */
+// ==================================================
+// SHOW EDIT
+// ==================================================
+
+function showEditProfile() {
+
+    if (!profileUser) return;
+
+    document.getElementById(
+        "edit-profile"
+    ).style.display =
+        "block";
+
+    document.getElementById(
+        "edit-display-name"
+    ).value =
+        profileUser.display_name ||
+        profileUser.username ||
+        "";
+
+    document.getElementById(
+        "edit-bio"
+    ).value =
+        profileUser.bio ||
+        "";
 
-function renderProfile() {
-
-    const container =
-        document.getElementById(
-            "profile"
-        );
-
-
-    const avatar =
-        profileUser.avatar ||
-        "/default-avatar.png";
-
-
-    const cat =
-        Number(
-            profileUser.cat || 0
-        );
-
-
-    const gyatt =
-        Number(
-            profileUser.gyatt || 0
-        );
-
-
-    const ogres =
-        Number(
-            profileUser.ogres ||
-            profileUser.ogred ||
-            0
-        );
-
-
-    container.innerHTML = `
-
-        <div class="profile-card">
-
-            <img
-                class="avatar profile-avatar"
-                src="${escapeHtml(avatar)}"
-                alt="Profile avatar">
-
-
-            <h1>
-
-                ${escapeHtml(
-                    profileUser.display_name ||
-                    profileUser.username
-                )}
-
-            </h1>
-
-
-            <p class="username">
-
-                @${escapeHtml(
-                    profileUser.username
-                )}
-
-            </p>
-
-
-            <p class="bio">
-
-                ${escapeHtml(
-                    profileUser.bio ||
-                    "No bio yet."
-                )}
-
-            </p>
-
-
-            <div class="profile-stats">
-
-                <div class="profile-stat">
-
-                    <span>
-                        🐱
-                    </span>
-
-                    <strong>
-                        ${cat}
-                    </strong>
-
-                    <small>
-                        Cats
-                    </small>
-
-                </div>
-
-
-                <div class="profile-stat">
-
-                    <span>
-                        🍑
-                    </span>
-
-                    <strong>
-                        ${gyatt}
-                    </strong>
-
-                    <small>
-                        Gyatts
-                    </small>
-
-                </div>
-
-
-                <div class="profile-stat">
-
-                    <span>
-                        🧌
-                    </span>
-
-                    <strong>
-                        ${ogres}
-                    </strong>
-
-                    <small>
-                        Ogres
-                    </small>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    `;
-
-
-    const isOwnProfile =
-        currentUser.id ===
-        profileUser.id;
-
-
-    const editSection =
-        document.getElementById(
-            "edit-section"
-        );
-
-
-    const reactionSection =
-        document.getElementById(
-            "reaction-section"
-        );
-
-
-    if (isOwnProfile) {
-
-        /*
-         * OWN PROFILE
-         */
-
-        editSection.style.display =
-            "block";
-
-
-        reactionSection.style.display =
-            "none";
-
-
-        document.getElementById(
-            "display-name"
-        ).value =
-            profileUser.display_name ||
-            "";
-
-
-        document.getElementById(
-            "bio"
-        ).value =
-            profileUser.bio ||
-            "";
-
-
-        document.getElementById(
-            "avatar-preview"
-        ).src =
-            avatar;
-
-    } else {
-
-        /*
-         * SOMEONE ELSE'S PROFILE
-         */
-
-        editSection.style.display =
-            "none";
-
-
-        reactionSection.style.display =
-            "block";
-
-    }
 }
 
 
-/* ==================================================
-   SAVE PROFILE
-================================================== */
+// ==================================================
+// HIDE EDIT
+// ==================================================
+
+function hideEditProfile() {
+
+    document.getElementById(
+        "edit-profile"
+    ).style.display =
+        "none";
+
+}
+
+
+// ==================================================
+// SAVE PROFILE
+// ==================================================
 
 async function saveProfile() {
 
     const display_name =
         document.getElementById(
-            "display-name"
+            "edit-display-name"
         ).value.trim();
-
 
     const bio =
         document.getElementById(
-            "bio"
+            "edit-bio"
         ).value.trim();
-
 
     const status =
         document.getElementById(
-            "save-status"
+            "profile-status"
         );
 
+    if (!display_name) {
+
+        status.textContent =
+            "❌ Display name cannot be empty.";
+
+        return;
+    }
 
     status.textContent =
         "Saving...";
@@ -621,14 +424,11 @@ async function saveProfile() {
             await fetch(
                 "/api/profile",
                 {
-
                     method: "PUT",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
 
                     body: JSON.stringify({
@@ -636,16 +436,12 @@ async function saveProfile() {
                         display_name,
 
                         bio
-
                     })
-
                 }
             );
 
-
         const data =
             await response.json();
-
 
         if (!response.ok) {
 
@@ -661,11 +457,27 @@ async function saveProfile() {
             data.user;
 
 
+        document.getElementById(
+            "profile-display-name"
+        ).textContent =
+            profileUser.display_name;
+
+
+        document.getElementById(
+            "profile-bio"
+        ).textContent =
+            profileUser.bio ||
+            "No bio yet.";
+
+
         status.textContent =
             "✅ Profile saved!";
 
 
-        renderProfile();
+        setTimeout(
+            hideEditProfile,
+            800
+        );
 
 
     } catch (error) {
@@ -675,16 +487,15 @@ async function saveProfile() {
             error
         );
 
-
         status.textContent =
             "❌ " + error.message;
     }
 }
 
 
-/* ==================================================
-   AVATAR UPLOAD
-================================================== */
+// ==================================================
+// UPLOAD AVATAR
+// ==================================================
 
 async function uploadAvatar() {
 
@@ -693,17 +504,15 @@ async function uploadAvatar() {
             "avatar-input"
         );
 
-
     const status =
         document.getElementById(
-            "avatar-status"
+            "profile-status"
         );
 
+    const file =
+        input.files[0];
 
-    if (
-        !input.files ||
-        !input.files.length
-    ) {
+    if (!file) {
 
         status.textContent =
             "❌ Choose an image first.";
@@ -712,310 +521,176 @@ async function uploadAvatar() {
     }
 
 
-    const file =
-        input.files[0];
-
-
-    /*
-     * 5 MB maximum.
-     */
-
-    if (
-        file.size >
-        5 * 1024 * 1024
-    ) {
+    if (file.size > 5 * 1024 * 1024) {
 
         status.textContent =
-            "❌ Avatar must be under 5MB.";
-
-        return;
-    }
-
-
-    if (
-        !file.type.startsWith("image/")
-    ) {
-
-        status.textContent =
-            "❌ Please choose an image.";
+            "❌ Image must be under 5MB.";
 
         return;
     }
 
 
     status.textContent =
-        "Uploading... 🖼️";
+        "Uploading avatar...";
 
 
     try {
-
-        /*
-         * Convert image to Base64.
-         */
 
         const reader =
             new FileReader();
 
 
-        const fileData =
-            await new Promise(
-                (resolve, reject) => {
+        reader.onload = async function () {
 
-                    reader.onload =
-                        () => resolve(
-                            reader.result
-                        );
+            try {
 
-                    reader.onerror =
-                        reject;
+                const base64 =
+                    reader.result
+                        .split(",")[1];
 
-                    reader.readAsDataURL(
-                        file
+
+                const response =
+                    await fetch(
+                        "/api/profile/avatar",
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body:
+                                JSON.stringify({
+
+                                    fileName:
+                                        file.name,
+
+                                    fileType:
+                                        file.type,
+
+                                    fileData:
+                                        base64
+
+                                })
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        data.error ||
+                        "Avatar upload failed."
                     );
 
                 }
-            );
 
 
-        /*
-         * Remove:
-         *
-         * data:image/png;base64,
-         *
-         * leaving only Base64.
-         */
+                profileUser.avatar =
+                    data.avatar;
 
-        const base64 =
-            String(fileData)
-                .split(",")[1];
 
+                document.getElementById(
+                    "profile-avatar"
+                ).src =
+                    data.avatar;
 
-        const response =
-            await fetch(
-                "/api/profile/avatar",
-                {
 
-                    method: "POST",
+                status.textContent =
+                    "✅ Avatar updated!";
 
-                    headers: {
 
-                        "Content-Type":
-                            "application/json"
+                input.value = "";
 
-                    },
 
-                    body: JSON.stringify({
+            } catch (error) {
 
-                        fileName:
-                            file.name,
+                status.textContent =
+                    "❌ " +
+                    error.message;
 
-                        fileType:
-                            file.type,
-
-                        fileData:
-                            base64
-
-                    })
-
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Avatar upload failed."
-            );
-
-        }
-
-
-        /*
-         * Update avatar immediately.
-         */
-
-        document.getElementById(
-            "avatar-preview"
-        ).src =
-            data.avatar;
-
-
-        profileUser =
-            data.user ||
-            profileUser;
-
-
-        status.textContent =
-            "✅ Avatar updated!";
-
-
-        renderProfile();
-
-
-    } catch (error) {
-
-        console.error(
-            "AVATAR ERROR:",
-            error
-        );
-
-
-        status.textContent =
-            "❌ " + error.message;
-    }
-}
-
-
-/* ==================================================
-   GIVE REACTION
-================================================== */
-
-async function giveReaction(type) {
-
-    if (!profileUser) {
-        return;
-    }
-
-
-    /*
-     * Client-side protection.
-     *
-     * The SERVER must also enforce this.
-     */
-
-    if (
-        currentUser.id ===
-        profileUser.id
-    ) {
-
-        document.getElementById(
-            "reaction-status"
-        ).textContent =
-            "❌ You can't react to yourself 😭";
-
-        return;
-    }
-
-
-    const status =
-        document.getElementById(
-            "reaction-status"
-        );
-
-
-    status.textContent =
-        "Sending reaction...";
-
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/users/${profileUser.id}/${type}`,
-                {
-
-                    method: "POST",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json"
-
-                    }
-
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Could not give reaction."
-            );
-
-        }
-
-
-        /*
-         * Backend returns updated profile.
-         */
-
-        if (data.user) {
-
-            profileUser =
-                data.user;
-
-        }
-
-
-        status.textContent =
-            "✅ Reaction given!";
-
-
-        renderProfile();
-
-
-    } catch (error) {
-
-        console.error(
-            "REACTION ERROR:",
-            error
-        );
-
-
-        status.textContent =
-            "❌ " + error.message;
-    }
-}
-
-
-/* ==================================================
-   LOGOUT
-================================================== */
-
-async function logout() {
-
-    try {
-
-        await fetch(
-            "/api/logout",
-            {
-                method: "POST"
             }
-        );
+
+        };
+
+
+        reader.readAsDataURL(file);
+
 
     } catch (error) {
 
-        console.error(
-            "LOGOUT ERROR:",
-            error
-        );
+        status.textContent =
+            "❌ " +
+            error.message;
+
     }
-
-
-    window.location.href =
-        "/login.html";
 }
 
 
-/* ==================================================
-   START
-================================================== */
+// ==================================================
+// PROFILE POSTS
+// ==================================================
+
+function loadProfilePosts(posts) {
+
+    const container =
+        document.getElementById(
+            "profile-posts"
+        );
+
+
+    if (!posts.length) {
+
+        container.innerHTML =
+            "<p>No posts yet.</p>";
+
+        return;
+    }
+
+
+    container.innerHTML =
+        posts.map(post => `
+
+            <article class="post">
+
+                <div class="post-header">
+
+                    <strong>
+                        ${escapeHtml(
+                            profileUser.display_name ||
+                            profileUser.username
+                        )}
+                    </strong>
+
+                </div>
+
+                <div class="post-content">
+
+                    ${escapeHtml(
+                        post.content
+                    )}
+
+                </div>
+
+            </article>
+
+        `).join("");
+}
+
+
+// ==================================================
+// START
+// ==================================================
 
 loadProfile();
 
 </script>
 
 </body>
-
 </html>
+

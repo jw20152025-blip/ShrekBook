@@ -1,19 +1,20 @@
-
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
 
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0">
 
-    <title>Profile 🧌</title>
+    <title>ShrekChat 🧌</title>
 
     <link
         rel="stylesheet"
         href="/styles.css">
+
 </head>
 
 <body>
@@ -25,12 +26,17 @@
         <a
             href="/"
             class="logo">
+
             🧌 ShrekBook
+
         </a>
 
         <nav>
-            <a href="/">Home</a>
-            <a href="/profile.html">Profile</a>
+
+            <a href="/">
+                Home
+            </a>
+
         </nav>
 
     </div>
@@ -40,107 +46,118 @@
 
 <main class="container">
 
-    <!-- PROFILE -->
+    <h1>
+        🧌 ShrekChat
+    </h1>
 
-    <section class="profile-card">
-
-        <img
-            id="profile-avatar"
-            class="profile-avatar"
-            src="/default-avatar.png"
-            alt="Profile avatar">
-
-        <h1 id="profile-display-name">
-            Loading...
-        </h1>
-
-        <p id="profile-username">
-            Loading...
-        </p>
-
-        <p id="profile-bio"></p>
-
-        <button
-            id="edit-button"
-            onclick="showEditProfile()">
-
-            ✏️ Edit Profile
-
-        </button>
-
-    </section>
+    <p>
+        The swamp's finest chat network.
+    </p>
 
 
-    <!-- EDIT PROFILE -->
+    <!-- CREATE ROOM -->
 
-    <section
-        id="edit-profile"
-        class="auth-box"
-        style="display:none;">
+    <section class="create-post">
 
         <h2>
-            ✏️ Edit Profile
+            Create a Room
         </h2>
 
-        <label>
-            Display name
-        </label>
-
         <input
-            id="edit-display-name"
+            id="room-name"
             type="text"
-            maxlength="50">
+            maxlength="50"
+            placeholder="Room name">
 
         <label>
-            Bio
+
+            <input
+                id="private-room"
+                type="checkbox">
+
+            🔒 Private room
+
         </label>
 
-        <textarea
-            id="edit-bio"
-            maxlength="500"
-            placeholder="Tell people about yourself...">
-        </textarea>
-
-        <h3>
-            🖼️ Change Avatar
-        </h3>
-
-        <input
-            id="avatar-input"
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif">
-
-        <button onclick="uploadAvatar()">
-            📸 Upload Avatar
+        <button onclick="createRoom()">
+            ➕ Create Room
         </button>
 
-        <button onclick="saveProfile()">
-            💾 Save Profile
-        </button>
-
-        <button
-            class="secondary-button"
-            onclick="hideEditProfile()">
-
-            Cancel
-
-        </button>
-
-        <p id="profile-status"></p>
+        <p id="room-status"></p>
 
     </section>
 
 
-    <!-- POSTS -->
+    <!-- ROOMS -->
 
     <section>
 
         <h2>
-            Posts
+            Rooms
         </h2>
 
-        <div id="profile-posts">
-            Loading posts...
+        <button onclick="loadRooms()">
+            🔄 Refresh
+        </button>
+
+        <div id="rooms">
+            Loading rooms...
+        </div>
+
+    </section>
+
+
+    <!-- CHAT -->
+
+    <section
+        id="chat-section"
+        style="display:none;">
+
+        <h2 id="chat-title">
+            Chat
+        </h2>
+
+        <button onclick="leaveRoom()">
+            🚪 Leave Room
+        </button>
+
+        <button
+            id="delete-room-button"
+            onclick="deleteRoom()"
+            style="display:none;">
+
+            🗑️ Delete Room
+
+        </button>
+
+        <div
+            id="messages"
+            style="
+                margin-top:20px;
+                min-height:300px;
+                max-height:500px;
+                overflow-y:auto;
+            ">
+
+        </div>
+
+        <div
+            style="
+                display:flex;
+                gap:10px;
+                margin-top:15px;
+            ">
+
+            <input
+                id="message-input"
+                type="text"
+                maxlength="1000"
+                placeholder="Say something...">
+
+            <button onclick="sendMessage()">
+                Send
+            </button>
+
         </div>
 
     </section>
@@ -150,7 +167,8 @@
 
 <script>
 
-let profileUser = null;
+let currentRoom = null;
+let messageTimer = null;
 
 
 // ==================================================
@@ -170,260 +188,192 @@ function escapeHtml(text) {
 
 
 // ==================================================
-// GET PROFILE ID
+// LOAD ROOMS
 // ==================================================
 
-function getProfileId() {
+async function loadRooms() {
 
-    const params =
-        new URLSearchParams(
-            window.location.search
-        );
-
-    return params.get("id");
-}
-
-
-// ==================================================
-// LOAD PROFILE
-// ==================================================
-
-async function loadProfile() {
-
-    const id =
-        getProfileId();
-
-    let url;
-
-    /*
-       If there is no ?id=...
-       load the currently logged-in user.
-    */
-
-    if (id) {
-
-        url =
-            `/api/users/${encodeURIComponent(id)}`;
-
-    } else {
-
-        url =
-            "/api/me";
-
-    }
+    const container =
+        document.getElementById("rooms");
 
     try {
 
         const response =
-            await fetch(url);
+            await fetch("/api/chat/rooms");
 
-        const data =
+        const rooms =
             await response.json();
 
         if (!response.ok) {
-
             throw new Error(
-                data.error ||
-                "Could not load profile."
+                rooms.error ||
+                "Could not load rooms."
             );
         }
 
+        if (!rooms.length) {
 
-        /*
-           /api/users/:id returns the
-           profile directly.
+            container.innerHTML =
+                "<p>No rooms yet. Create the first one! 🧌</p>";
 
-           /api/me returns:
-           {
-               loggedIn: true,
-               user: {...}
-           }
-        */
-
-        profileUser =
-            id
-                ? data
-                : data.user;
-
-
-        if (!profileUser) {
-
-            throw new Error(
-                "Profile not found."
-            );
-
+            return;
         }
 
+        container.innerHTML =
+            rooms.map(room => {
 
-        // DISPLAY NAME
+                const isCreator =
+                    currentUserId ===
+                    room.created_by;
 
-        document.getElementById(
-            "profile-display-name"
-        ).textContent =
-            profileUser.display_name ||
-            profileUser.username;
+                return `
 
+                    <div class="post">
 
-        // USERNAME
+                        <h3>
+                            ${
+                                room.is_private
+                                    ? "🔒"
+                                    : "🟢"
+                            }
 
-        document.getElementById(
-            "profile-username"
-        ).textContent =
-            "@" +
-            profileUser.username;
+                            ${escapeHtml(
+                                room.name
+                            )}
+                        </h3>
 
+                        <p>
+                            ${
+                                room.is_private
+                                    ? "Private room"
+                                    : "Public room"
+                            }
+                        </p>
 
-        // BIO
+                        <button
+                            onclick="joinRoom('${room.id}')">
 
-        document.getElementById(
-            "profile-bio"
-        ).textContent =
-            profileUser.bio ||
-            "No bio yet.";
+                            💬 Enter
 
+                        </button>
 
-        // AVATAR
+                        ${
+                            isCreator
+                                ? `
+                                    <button
+                                        onclick="deleteRoomById('${room.id}')">
 
-        document.getElementById(
-            "profile-avatar"
-        ).src =
-            profileUser.avatar ||
-            "/default-avatar.png";
+                                        🗑️ Delete
 
+                                    </button>
+                                  `
+                                : ""
+                        }
 
-        // EDIT BUTTON ONLY FOR OWN PROFILE
+                    </div>
 
-        const meResponse =
-            await fetch("/api/me");
+                `;
 
-        const me =
-            await meResponse.json();
-
-        if (
-            me.loggedIn &&
-            me.user &&
-            me.user.id === profileUser.id
-        ) {
-
-            document.getElementById(
-                "edit-button"
-            ).style.display =
-                "inline-block";
-
-        } else {
-
-            document.getElementById(
-                "edit-button"
-            ).style.display =
-                "none";
-        }
-
-
-        // POSTS
-
-        loadProfilePosts(
-            profileUser.posts || []
-        );
-
+            }).join("");
 
     } catch (error) {
 
-        console.error(
-            "PROFILE LOAD ERROR:",
-            error
-        );
+        container.innerHTML =
+            `<p>❌ ${escapeHtml(
+                error.message
+            )}</p>`;
 
-        document.getElementById(
-            "profile-display-name"
-        ).textContent =
-            "❌ " + error.message;
     }
 }
 
 
 // ==================================================
-// SHOW EDIT
+// CURRENT USER
 // ==================================================
 
-function showEditProfile() {
+let currentUserId = null;
 
-    if (!profileUser) return;
+async function getCurrentUser() {
 
-    document.getElementById(
-        "edit-profile"
-    ).style.display =
-        "block";
+    try {
 
-    document.getElementById(
-        "edit-display-name"
-    ).value =
-        profileUser.display_name ||
-        profileUser.username ||
-        "";
+        const response =
+            await fetch("/api/me");
 
-    document.getElementById(
-        "edit-bio"
-    ).value =
-        profileUser.bio ||
-        "";
+        const data =
+            await response.json();
 
+        if (
+            response.ok &&
+            data.loggedIn &&
+            data.user
+        ) {
+
+            currentUserId =
+                data.user.id;
+
+        } else {
+
+            alert(
+                "You must be logged in to use ShrekChat."
+            );
+
+            window.location.href = "/";
+
+        }
+
+    } catch {
+
+        alert(
+            "Could not check login."
+        );
+
+    }
 }
 
 
 // ==================================================
-// HIDE EDIT
+// CREATE ROOM
 // ==================================================
 
-function hideEditProfile() {
+async function createRoom() {
 
-    document.getElementById(
-        "edit-profile"
-    ).style.display =
-        "none";
-
-}
-
-
-// ==================================================
-// SAVE PROFILE
-// ==================================================
-
-async function saveProfile() {
-
-    const display_name =
+    const input =
         document.getElementById(
-            "edit-display-name"
-        ).value.trim();
+            "room-name"
+        );
 
-    const bio =
+    const privateCheckbox =
         document.getElementById(
-            "edit-bio"
-        ).value.trim();
+            "private-room"
+        );
 
     const status =
         document.getElementById(
-            "profile-status"
+            "room-status"
         );
 
-    if (!display_name) {
+    const name =
+        input.value.trim();
+
+    if (!name) {
 
         status.textContent =
-            "❌ Display name cannot be empty.";
+            "❌ Enter a room name.";
 
         return;
     }
 
     status.textContent =
-        "Saving...";
-
+        "Creating room...";
 
     try {
 
         const response =
             await fetch(
-                "/api/profile",
+                "/api/chat/rooms",
                 {
-                    method: "PUT",
+                    method: "POST",
 
                     headers: {
                         "Content-Type":
@@ -431,10 +381,9 @@ async function saveProfile() {
                     },
 
                     body: JSON.stringify({
-
-                        display_name,
-
-                        bio
+                        name,
+                        is_private:
+                            privateCheckbox.checked
                     })
                 }
             );
@@ -446,180 +395,22 @@ async function saveProfile() {
 
             throw new Error(
                 data.error ||
-                "Could not save profile."
+                "Could not create room."
             );
 
         }
 
+        input.value = "";
 
-        profileUser =
-            data.user;
-
-
-        document.getElementById(
-            "profile-display-name"
-        ).textContent =
-            profileUser.display_name;
-
-
-        document.getElementById(
-            "profile-bio"
-        ).textContent =
-            profileUser.bio ||
-            "No bio yet.";
-
+        privateCheckbox.checked =
+            false;
 
         status.textContent =
-            "✅ Profile saved!";
+            "✅ Room created!";
 
+        await loadRooms();
 
-        setTimeout(
-            hideEditProfile,
-            800
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "PROFILE SAVE ERROR:",
-            error
-        );
-
-        status.textContent =
-            "❌ " + error.message;
-    }
-}
-
-
-// ==================================================
-// UPLOAD AVATAR
-// ==================================================
-
-async function uploadAvatar() {
-
-    const input =
-        document.getElementById(
-            "avatar-input"
-        );
-
-    const status =
-        document.getElementById(
-            "profile-status"
-        );
-
-    const file =
-        input.files[0];
-
-    if (!file) {
-
-        status.textContent =
-            "❌ Choose an image first.";
-
-        return;
-    }
-
-
-    if (file.size > 5 * 1024 * 1024) {
-
-        status.textContent =
-            "❌ Image must be under 5MB.";
-
-        return;
-    }
-
-
-    status.textContent =
-        "Uploading avatar...";
-
-
-    try {
-
-        const reader =
-            new FileReader();
-
-
-        reader.onload = async function () {
-
-            try {
-
-                const base64 =
-                    reader.result
-                        .split(",")[1];
-
-
-                const response =
-                    await fetch(
-                        "/api/profile/avatar",
-                        {
-                            method: "POST",
-
-                            headers: {
-                                "Content-Type":
-                                    "application/json"
-                            },
-
-                            body:
-                                JSON.stringify({
-
-                                    fileName:
-                                        file.name,
-
-                                    fileType:
-                                        file.type,
-
-                                    fileData:
-                                        base64
-
-                                })
-                        }
-                    );
-
-
-                const data =
-                    await response.json();
-
-
-                if (!response.ok) {
-
-                    throw new Error(
-                        data.error ||
-                        "Avatar upload failed."
-                    );
-
-                }
-
-
-                profileUser.avatar =
-                    data.avatar;
-
-
-                document.getElementById(
-                    "profile-avatar"
-                ).src =
-                    data.avatar;
-
-
-                status.textContent =
-                    "✅ Avatar updated!";
-
-
-                input.value = "";
-
-
-            } catch (error) {
-
-                status.textContent =
-                    "❌ " +
-                    error.message;
-
-            }
-
-        };
-
-
-        reader.readAsDataURL(file);
-
+        openRoom(data);
 
     } catch (error) {
 
@@ -632,64 +423,403 @@ async function uploadAvatar() {
 
 
 // ==================================================
-// PROFILE POSTS
+// JOIN / OPEN ROOM
 // ==================================================
 
-function loadProfilePosts(posts) {
+async function joinRoom(roomId) {
 
-    const container =
-        document.getElementById(
-            "profile-posts"
+    try {
+
+        const response =
+            await fetch(
+                `/api/chat/rooms/${roomId}/join`,
+                {
+                    method: "POST"
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not join room."
+            );
+
+        }
+
+        const roomsResponse =
+            await fetch(
+                "/api/chat/rooms"
+            );
+
+        const rooms =
+            await roomsResponse.json();
+
+        const room =
+            rooms.find(
+                r => r.id === roomId
+            );
+
+        if (room) {
+            openRoom(room);
+        }
+
+    } catch (error) {
+
+        alert(
+            "❌ " +
+            error.message
         );
 
+    }
+}
 
-    if (!posts.length) {
 
-        container.innerHTML =
-            "<p>No posts yet.</p>";
+// ==================================================
+// OPEN ROOM
+// ==================================================
 
+function openRoom(room) {
+
+    currentRoom =
+        room;
+
+    document.getElementById(
+        "chat-section"
+    ).style.display =
+        "block";
+
+    document.getElementById(
+        "chat-title"
+    ).textContent =
+        `${
+            room.is_private
+                ? "🔒"
+                : "🟢"
+        } ${room.name}`;
+
+    document.getElementById(
+        "delete-room-button"
+    ).style.display =
+        room.created_by === currentUserId
+            ? "inline-block"
+            : "none";
+
+    loadMessages();
+
+    if (messageTimer) {
+        clearInterval(messageTimer);
+    }
+
+    messageTimer =
+        setInterval(
+            loadMessages,
+            2000
+        );
+
+}
+
+
+// ==================================================
+// LEAVE
+// ==================================================
+
+async function leaveRoom() {
+
+    if (!currentRoom) return;
+
+    try {
+
+        await fetch(
+            `/api/chat/rooms/${currentRoom.id}/leave`,
+            {
+                method: "POST"
+            }
+        );
+
+    } catch {}
+
+    currentRoom = null;
+
+    if (messageTimer) {
+
+        clearInterval(
+            messageTimer
+        );
+
+        messageTimer = null;
+
+    }
+
+    document.getElementById(
+        "chat-section"
+    ).style.display =
+        "none";
+
+    loadRooms();
+}
+
+
+// ==================================================
+// DELETE CURRENT ROOM
+// ==================================================
+
+async function deleteRoom() {
+
+    if (!currentRoom) return;
+
+    await deleteRoomById(
+        currentRoom.id
+    );
+}
+
+
+// ==================================================
+// DELETE ROOM
+// ==================================================
+
+async function deleteRoomById(roomId) {
+
+    if (
+        !confirm(
+            "Delete this room permanently?"
+        )
+    ) {
         return;
     }
 
+    try {
 
-    container.innerHTML =
-        posts.map(post => `
+        const response =
+            await fetch(
+                `/api/chat/rooms/${roomId}`,
+                {
+                    method: "DELETE"
+                }
+            );
 
-            <article class="post">
+        const data =
+            await response.json();
 
-                <div class="post-header">
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not delete room."
+            );
+
+        }
+
+        if (
+            currentRoom &&
+            currentRoom.id === roomId
+        ) {
+
+            currentRoom = null;
+
+            if (messageTimer) {
+
+                clearInterval(
+                    messageTimer
+                );
+
+                messageTimer = null;
+
+            }
+
+            document.getElementById(
+                "chat-section"
+            ).style.display =
+                "none";
+        }
+
+        loadRooms();
+
+    } catch (error) {
+
+        alert(
+            "❌ " +
+            error.message
+        );
+
+    }
+}
+
+
+// ==================================================
+// LOAD MESSAGES
+// ==================================================
+
+async function loadMessages() {
+
+    if (!currentRoom) return;
+
+    const container =
+        document.getElementById(
+            "messages"
+        );
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/chat/rooms/${currentRoom.id}/messages`
+            );
+
+        const messages =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                messages.error ||
+                "Could not load messages."
+            );
+        }
+
+        container.innerHTML =
+            messages.map(message => `
+
+                <div
+                    style="
+                        margin-bottom:12px;
+                        padding:8px;
+                    ">
 
                     <strong>
                         ${escapeHtml(
-                            profileUser.display_name ||
-                            profileUser.username
+                            message.display_name ||
+                            message.username ||
+                            "User"
                         )}
                     </strong>
 
-                </div>
-
-                <div class="post-content">
-
-                    ${escapeHtml(
-                        post.content
-                    )}
+                    <p>
+                        ${escapeHtml(
+                            message.content
+                        )}
+                    </p>
 
                 </div>
 
-            </article>
+            `).join("");
 
-        `).join("");
+        container.scrollTop =
+            container.scrollHeight;
+
+    } catch (error) {
+
+        console.error(
+            "MESSAGE ERROR:",
+            error
+        );
+
+    }
 }
+
+
+// ==================================================
+// SEND MESSAGE
+// ==================================================
+
+async function sendMessage() {
+
+    if (!currentRoom) return;
+
+    const input =
+        document.getElementById(
+            "message-input"
+        );
+
+    const content =
+        input.value.trim();
+
+    if (!content) return;
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/chat/rooms/${currentRoom.id}/messages`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        content
+                    })
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not send message."
+            );
+
+        }
+
+        input.value = "";
+
+        loadMessages();
+
+    } catch (error) {
+
+        alert(
+            "❌ " +
+            error.message
+        );
+
+    }
+}
+
+
+// ==================================================
+// ENTER KEY
+// ==================================================
+
+document
+    .getElementById("message-input")
+    .addEventListener(
+        "keydown",
+        event => {
+
+            if (
+                event.key === "Enter"
+            ) {
+
+                sendMessage();
+
+            }
+
+        }
+    );
 
 
 // ==================================================
 // START
 // ==================================================
 
-loadProfile();
+(async function () {
+
+    await getCurrentUser();
+
+    await loadRooms();
+
+})();
 
 </script>
 
 </body>
-</html>
 
+</html>

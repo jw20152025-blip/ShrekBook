@@ -965,85 +965,96 @@ try {
 PEOPLE
 ================================================== */
 
+
 async function loadPeople() {
 
- 
-const container =
-    document.getElementById(
-        "people"
-    );
+    const container =
+        document.getElementById("people");
 
+    try {
 
-if (!container) {
-    return;
-}
+        const response =
+            await fetch("/api/users");
 
+        const users =
+            await response.json();
 
-try {
+        if (!response.ok) {
 
-    const response =
-        await fetch(
-            "/api/users"
+            throw new Error(
+                users.error ||
+                "Could not load people."
+            );
+        }
+
+        if (!users.length) {
+
+            container.innerHTML =
+                "<p>No users yet. 🧌</p>";
+
+            return;
+        }
+
+        container.innerHTML =
+            users.map(user => {
+
+                const avatar =
+                    user.avatar ||
+                    "/default-avatar.png";
+
+                const displayName =
+                    user.display_name ||
+                    user.username ||
+                    "User";
+
+                return `
+
+                    <a
+                        href="/profile.html?id=${encodeURIComponent(user.id)}"
+                        class="person"
+                        style="text-decoration:none; color:inherit;">
+
+                        <img
+                            class="avatar"
+                            src="${escapeHtml(avatar)}"
+                            alt="Avatar"/>
+
+                        <div>
+
+                            <strong>
+                                ${escapeHtml(
+                                    displayName
+                                )}
+                            </strong>
+
+                            <p>
+                                @${escapeHtml(
+                                    user.username
+                                )}
+                            </p>
+
+                        </div>
+
+                    </a>
+
+                `;
+
+            }).join("");
+
+    } catch (error) {
+
+        console.error(
+            "PEOPLE ERROR:",
+            error
         );
 
-
-    const users =
-        await response.json();
-
-
-    if (!response.ok) {
-
-        throw new Error(
-            users.error ||
-            "Could not load people."
-        );
-
+        container.innerHTML =
+            `<p>❌ ${escapeHtml(
+                error.message
+            )}</p>`;
     }
-
-
-    container.innerHTML =
-        users.map(
-            user => `
-
-            <div class="person">
-
-                <a
-                    href="/profile.html?id=${encodeURIComponent(
-                        user.id
-                    )}">
-
-                    <strong>
-                        ${escapeHtml(
-                            user.display_name ||
-                            user.username
-                        )}
-                    </strong>
-
-                </a>
-
-                <p>
-                    @${escapeHtml(
-                        user.username
-                    )}
-                </p>
-
-            </div>
-
-        `
-        ).join("");
-
-
-} catch (error) {
-
-    container.innerHTML =
-        `<p>❌ ${escapeHtml(
-            error.message
-        )}</p>`;
-
 }
- 
 
-}
 
 /* ==================================================
 START
