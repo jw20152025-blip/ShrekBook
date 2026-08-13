@@ -596,8 +596,10 @@ app.post("/api/profile/avatar", async (req, res) => {
             });
         }
 
-        const buffer =
-            Buffer.from(fileData, "base64");
+        const buffer = Buffer.from(
+            fileData,
+            "base64"
+        );
 
         if (buffer.length > 5 * 1024 * 1024) {
             return res.status(400).json({
@@ -606,7 +608,10 @@ app.post("/api/profile/avatar", async (req, res) => {
         }
 
         const extension =
-            fileName.split(".").pop().toLowerCase();
+            fileName
+                .split(".")
+                .pop()
+                .toLowerCase();
 
         const allowed = [
             "png",
@@ -661,7 +666,10 @@ app.post("/api/profile/avatar", async (req, res) => {
             .update({
                 avatar: avatarUrl
             })
-            .eq("id", req.session.user.id)
+            .eq(
+                "id",
+                req.session.user.id
+            )
             .select()
             .single();
 
@@ -678,14 +686,17 @@ app.post("/api/profile/avatar", async (req, res) => {
         });
 
     } catch (error) {
-        console.error("AVATAR ERROR:", error);
+
+        console.error(
+            "AVATAR ERROR:",
+            error
+        );
 
         res.status(500).json({
             error: "Server error."
         });
     }
 });
-
 // ==================================================
 // POSTS
 // ==================================================
