@@ -783,6 +783,102 @@ async function uploadImage(
 
 
 // ==================================================
+// GET POSTS
+// ==================================================
+
+app.get("/api/posts", async (req, res) => {
+
+    try {
+
+        const {
+            data: posts,
+            error
+        } = await supabase
+            .from("posts")
+            .select(`
+                id,
+                user_id,
+                content,
+                image_url,
+                created_at
+            `)
+            .order("created_at", {
+                ascending: false
+            })
+            .limit(100);
+
+        if (error) {
+
+            console.error(
+                "GET POSTS ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error: error.message
+            });
+
+        }
+
+        const result = [];
+
+        for (const post of posts || []) {
+
+            const {
+                data: profile
+            } = await supabase
+                .from("profiles")
+                .select(`
+                    username,
+                    display_name,
+                    avatar
+                `)
+                .eq(
+                    "id",
+                    post.user_id
+                )
+                .maybeSingle();
+
+            result.push({
+
+                ...post,
+
+                username:
+                    profile?.username ||
+                    "User",
+
+                display_name:
+                    profile?.display_name ||
+                    profile?.username ||
+                    "User",
+
+                avatar:
+                    profile?.avatar ||
+                    null
+
+            });
+
+        }
+
+        res.json(result);
+
+    } catch (error) {
+
+        console.error(
+            "GET POSTS ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Server error."
+        });
+
+    }
+
+});
+
+
+// ==================================================
 // POSTS
 // ==================================================
 
