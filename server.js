@@ -46,7 +46,7 @@ const SUPABASE_SERVICE_ROLE_KEY =
 const SESSION_SECRET =
     process.env.SESSION_SECRET;
 
-const { createClient } = require("@supabase/supabase-js");
+
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     console.error("❌ Missing Supabase environment variables.");
