@@ -5,39 +5,9 @@ const router = express.Router();
 const supabase =
     require("../utils/supabase.js");
 
-const {
-    createClient
-} = require("@supabase/supabase-js");
-
 
 /* ==================================================
-   NORMAL SUPABASE AUTH CLIENT
-================================================== */
-
-const authClient =
-    createClient(
-
-        process.env.SUPABASE_URL,
-
-        process.env.SUPABASE_ANON_KEY,
-
-        {
-            auth: {
-
-                autoRefreshToken:
-                    false,
-
-                persistSession:
-                    false
-
-            }
-        }
-
-    );
-
-
-/* ==================================================
-   SIGNUP
+SIGNUP
 ================================================== */
 
 router.post(
@@ -48,10 +18,8 @@ router.post(
 
             const username =
                 String(
-                    req.body.username ||
-                    ""
+                    req.body.username || ""
                 ).trim();
-
 
             const display_name =
                 String(
@@ -59,18 +27,14 @@ router.post(
                     username
                 ).trim();
 
-
             const email =
                 String(
-                    req.body.email ||
-                    ""
+                    req.body.email || ""
                 ).trim();
-
 
             const password =
                 String(
-                    req.body.password ||
-                    ""
+                    req.body.password || ""
                 );
 
 
@@ -81,10 +45,8 @@ router.post(
             ) {
 
                 return res.status(400).json({
-
                     error:
                         "Username, email, and password are required."
-
                 });
 
             }
@@ -107,10 +69,8 @@ router.post(
             if (usernameError) {
 
                 return res.status(500).json({
-
                     error:
                         usernameError.message
-
                 });
 
             }
@@ -119,10 +79,8 @@ router.post(
             if (existing) {
 
                 return res.status(400).json({
-
                     error:
                         "That username is already taken."
-
                 });
 
             }
@@ -132,30 +90,25 @@ router.post(
                 data: authData,
                 error: authError
             } =
-                await supabase
-                    .auth
-                    .admin
-                    .createUser({
+                await supabase.auth.admin.createUser({
 
-                        email:
-                            email,
+                    email:
+                        email,
 
-                        password:
-                            password,
+                    password:
+                        password,
 
-                        email_confirm:
-                            true
+                    email_confirm:
+                        true
 
-                    });
+                });
 
 
             if (authError) {
 
                 return res.status(400).json({
-
                     error:
                         authError.message
-
                 });
 
             }
@@ -196,24 +149,18 @@ router.post(
 
             if (profileError) {
 
-                await supabase
-                    .auth
-                    .admin
-                    .deleteUser(
-                        userId
-                    );
+                await supabase.auth.admin
+                    .deleteUser(userId);
 
                 return res.status(500).json({
-
                     error:
                         profileError.message
-
                 });
 
             }
 
 
-            return res.status(201).json({
+            res.status(201).json({
 
                 success:
                     true,
@@ -223,19 +170,17 @@ router.post(
 
             });
 
+
         } catch (error) {
 
             console.error(
-                "❌ SIGNUP ERROR:",
+                "SIGNUP ERROR:",
                 error
             );
 
-            return res.status(500).json({
-
+            res.status(500).json({
                 error:
-                    error.message ||
                     "Server error."
-
             });
 
         }
@@ -245,7 +190,7 @@ router.post(
 
 
 /* ==================================================
-   LOGIN
+LOGIN
 ================================================== */
 
 router.post(
@@ -256,15 +201,12 @@ router.post(
 
             const email =
                 String(
-                    req.body.email ||
-                    ""
+                    req.body.email || ""
                 ).trim();
-
 
             const password =
                 String(
-                    req.body.password ||
-                    ""
+                    req.body.password || ""
                 );
 
 
@@ -274,10 +216,8 @@ router.post(
             ) {
 
                 return res.status(400).json({
-
                     error:
                         "Email and password are required."
-
                 });
 
             }
@@ -287,8 +227,7 @@ router.post(
                 data: authData,
                 error: authError
             } =
-                await authClient
-                    .auth
+                await supabase.auth
                     .signInWithPassword({
 
                         email:
@@ -303,10 +242,8 @@ router.post(
             if (authError) {
 
                 return res.status(401).json({
-
                     error:
                         authError.message
-
                 });
 
             }
@@ -316,7 +253,7 @@ router.post(
                 authData.user;
 
 
-            const {
+            let {
                 data: profile,
                 error: profileError
             } =
@@ -333,23 +270,115 @@ router.post(
             if (profileError) {
 
                 return res.status(500).json({
-
                     error:
                         profileError.message
-
                 });
 
             }
 
 
+            /*
+             * Create missing profile
+             */
+
             if (!profile) {
 
-                return res.status(404).json({
+                let username =
+                    (
+                        authUser.email ||
+                        "user"
+                    )
+                    .split("@")[0]
+                    .toLowerCase()
+                    .replace(
+                        /[^a-z0-9_]/g,
+                        ""
+                    )
+                    .slice(
+                        0,
+                        20
+                    );
 
-                    error:
-                        "Your account exists, but your profile does not."
 
-                });
+                if (!username) {
+                    username = "user";
+                }
+
+
+                const original =
+                    username;
+
+                let number = 1;
+
+
+                while (true) {
+
+                    const {
+                        data: taken
+                    } =
+                        await supabase
+                            .from("profiles")
+                            .select("id")
+                            .eq(
+                                "username",
+                                username
+                            )
+                            .maybeSingle();
+
+
+                    if (!taken) {
+                        break;
+                    }
+
+
+                    username =
+                        `${original}${number}`;
+
+                    number++;
+
+                }
+
+
+                const {
+                    data: created,
+                    error: createError
+                } =
+                    await supabase
+                        .from("profiles")
+                        .insert({
+
+                            id:
+                                authUser.id,
+
+                            username:
+                                username,
+
+                            display_name:
+                                username,
+
+                            avatar:
+                                null,
+
+                            bio:
+                                ""
+
+                        })
+                        .select()
+                        .single();
+
+
+                if (createError) {
+
+                    return res.status(500).json({
+                        error:
+                            createError.message
+                    });
+
+                }
+
+
+                profile =
+                    created;
 
             }
 
@@ -374,15 +403,13 @@ router.post(
                     if (error) {
 
                         console.error(
-                            "SESSION ERROR:",
+                            "SESSION SAVE ERROR:",
                             error
                         );
 
                         return res.status(500).json({
-
                             error:
                                 "Could not save login session."
-
                         });
 
                     }
@@ -401,19 +428,17 @@ router.post(
                 }
             );
 
+
         } catch (error) {
 
             console.error(
-                "❌ LOGIN ERROR:",
+                "LOGIN ERROR:",
                 error
             );
 
-            return res.status(500).json({
-
+            res.status(500).json({
                 error:
-                    error.message ||
                     "Server error."
-
             });
 
         }
@@ -423,7 +448,7 @@ router.post(
 
 
 /* ==================================================
-   LOGOUT
+LOGOUT
 ================================================== */
 
 router.post(
@@ -436,10 +461,8 @@ router.post(
                 if (error) {
 
                     return res.status(500).json({
-
                         error:
                             "Logout failed."
-
                     });
 
                 }
@@ -451,10 +474,8 @@ router.post(
 
 
                 res.json({
-
                     success:
                         true
-
                 });
 
             }
@@ -465,7 +486,7 @@ router.post(
 
 
 /* ==================================================
-   CURRENT USER
+CURRENT USER
 ================================================== */
 
 router.get(
@@ -477,10 +498,8 @@ router.get(
             if (!req.session.user) {
 
                 return res.json({
-
                     loggedIn:
                         false
-
                 });
 
             }
@@ -506,10 +525,8 @@ router.get(
             ) {
 
                 return res.json({
-
                     loggedIn:
                         false
-
                 });
 
             }
@@ -525,19 +542,17 @@ router.get(
 
             });
 
+
         } catch (error) {
 
             console.error(
-                "❌ ME ERROR:",
+                "ME ERROR:",
                 error
             );
 
             res.status(500).json({
-
                 error:
-                    error.message ||
                     "Server error."
-
             });
 
         }
@@ -546,5 +561,4 @@ router.get(
 );
 
 
-module.exports =
-    router;
+module.exports = router;
