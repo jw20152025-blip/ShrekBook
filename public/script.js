@@ -15,7 +15,7 @@ const welcomeText =
         "welcome-text"
     );
 
-const createPost =
+const createPostBox =
     document.getElementById(
         "create-post"
     );
@@ -181,7 +181,9 @@ function formatDate(
 ) {
 
     if (!value) {
+
         return "";
+
     }
 
 
@@ -259,9 +261,9 @@ async function loadSession() {
                CREATE POST
             ------------------------- */
 
-            if (createPost) {
+            if (createPostBox) {
 
-                createPost.style.display =
+                createPostBox.style.display =
                     "block";
 
             }
@@ -324,9 +326,9 @@ async function loadSession() {
             }
 
 
-            if (createPost) {
+            if (createPostBox) {
 
-                createPost.style.display =
+                createPostBox.style.display =
                     "none";
 
             }
@@ -377,7 +379,10 @@ async function loadSession() {
 
 
         return {
-            loggedIn: false
+
+            loggedIn:
+                false
+
         };
 
     }
@@ -392,7 +397,9 @@ async function loadSession() {
 async function logout() {
 
     if (!logoutButton) {
+
         return;
+
     }
 
 
@@ -457,7 +464,13 @@ if (logoutButton) {
 async function loadPeople() {
 
     if (!peopleContainer) {
+
+        console.warn(
+            "⚠️ #people not found."
+        );
+
         return;
+
     }
 
 
@@ -481,17 +494,31 @@ async function loadPeople() {
 
 
         console.log(
-            "PEOPLE RESPONSE:",
+            "👥 PEOPLE RESPONSE:",
             data
         );
 
 
-        const users =
-            Array.isArray(
-                data.users
-            )
-                ? data.users
-                : [];
+        let users;
+
+
+        if (
+            Array.isArray(data)
+        ) {
+
+            users =
+                data;
+
+        } else {
+
+            users =
+                Array.isArray(
+                    data.users
+                )
+                    ? data.users
+                    : [];
+
+        }
 
 
         if (
@@ -528,6 +555,7 @@ async function loadPeople() {
                 const name =
                     user.display_name ||
                     user.username ||
+                    user.email ||
                     "Unknown user";
 
 
@@ -537,30 +565,46 @@ async function loadPeople() {
                         : "";
 
 
-                /*
-                 * IMPORTANT:
-                 * The View button uses the
-                 * Supabase profile ID.
-                 */
+                const userId =
+                    user.id ||
+                    "";
+
 
                 card.innerHTML = `
 
-                    <div class="person-name">
-                        ${escapeHTML(name)}
+                    <div class="person-info">
+
+                        <div class="person-name">
+                            ${escapeHTML(name)}
+                        </div>
+
+                        ${
+                            username
+                                ?
+                                `<div class="person-username">
+                                    ${escapeHTML(username)}
+                                </div>`
+                                :
+                                ""
+                        }
+
                     </div>
 
-                    <div class="person-username">
-                        ${escapeHTML(username)}
-                    </div>
 
-                    <a
-                        class="view-button"
-                        href="/profile.html?id=${encodeURIComponent(
-                            user.id
-                        )}"
-                    >
-                        View Profile
-                    </a>
+                    ${
+                        userId
+                            ?
+                            `<a
+                                class="view-button"
+                                href="/profile.html?id=${encodeURIComponent(
+                                    userId
+                                )}"
+                            >
+                                View Profile
+                            </a>`
+                            :
+                            ""
+                    }
 
                 `;
 
@@ -601,7 +645,13 @@ async function loadPeople() {
 async function loadPosts() {
 
     if (!postsContainer) {
+
+        console.warn(
+            "⚠️ #posts not found."
+        );
+
         return;
+
     }
 
 
@@ -625,28 +675,16 @@ async function loadPosts() {
 
 
         console.log(
-            "POSTS RESPONSE:",
+            "📝 POSTS RESPONSE:",
             data
         );
 
-
-        /*
-         * Support either:
-         *
-         * { posts: [...] }
-         *
-         * or
-         *
-         * [...] 
-         */
 
         let posts;
 
 
         if (
-            Array.isArray(
-                data
-            )
+            Array.isArray(data)
         ) {
 
             posts =
@@ -717,7 +755,7 @@ async function loadPosts() {
 
 
 /* =========================================================
-   CREATE POST
+   CREATE POST CARD
 ========================================================= */
 
 function createPost(
@@ -733,11 +771,6 @@ function createPost(
     article.className =
         "post";
 
-
-    /*
-     * Your posts may return the profile
-     * in several different shapes.
-     */
 
     const profile =
         post.profiles ||
@@ -767,6 +800,17 @@ function createPost(
         "";
 
 
+    const image =
+        post.image_url ||
+        post.imageUrl ||
+        "";
+
+
+    const postId =
+        post.id ||
+        "";
+
+
     article.innerHTML = `
 
         <div class="post-header">
@@ -777,14 +821,17 @@ function createPost(
                     class="post-author"
                     href="${
                         authorId
-                            ? `/profile.html?id=${encodeURIComponent(
+                            ?
+                            `/profile.html?id=${encodeURIComponent(
                                 authorId
                             )}`
-                            : "#"
+                            :
+                            "#"
                     }"
                 >
                     ${escapeHTML(author)}
                 </a>
+
 
                 <div class="post-time">
                     ${escapeHTML(
@@ -799,20 +846,25 @@ function createPost(
         </div>
 
 
-        <div class="post-content">
-            ${escapeHTML(content)}
-        </div>
+        ${
+            content
+                ?
+                `<div class="post-content">
+                    ${escapeHTML(content)}
+                </div>`
+                :
+                ""
+        }
 
 
         ${
-            post.image_url
+            image
                 ?
                 `<img
                     class="post-image"
-                    src="${escapeHTML(
-                        post.image_url
-                    )}"
+                    src="${escapeHTML(image)}"
                     alt="Post image"
+                    loading="lazy"
                 >`
                 :
                 ""
@@ -821,18 +873,47 @@ function createPost(
 
         <div class="post-actions">
 
-            <button
-                type="button"
-                onclick="viewPost('${escapeHTML(
-                    post.id || ""
-                )}')"
-            >
-                👁️ View
-            </button>
+            ${
+                postId
+                    ?
+                    `<button
+                        type="button"
+                        class="view-post-button"
+                        data-post-id="${escapeHTML(
+                            postId
+                        )}"
+                    >
+                        👁️ View
+                    </button>`
+                    :
+                    ""
+            }
 
         </div>
 
     `;
+
+
+    const viewButton =
+        article.querySelector(
+            ".view-post-button"
+        );
+
+
+    if (viewButton) {
+
+        viewButton.addEventListener(
+            "click",
+            () => {
+
+                viewPost(
+                    postId
+                );
+
+            }
+        );
+
+    }
 
 
     return article;
@@ -859,11 +940,6 @@ function viewPost(
     }
 
 
-    /*
-     * This supports a normal post view
-     * page if you have one.
-     */
-
     window.location.href =
         `/view.html?id=${encodeURIComponent(
             postId
@@ -877,13 +953,15 @@ window.viewPost =
 
 
 /* =========================================================
-   CREATE POST
+   CREATE NEW POST
 ========================================================= */
 
 async function createNewPost() {
 
     if (!postContent) {
+
         return;
+
     }
 
 
@@ -908,11 +986,15 @@ async function createNewPost() {
     }
 
 
-    postButton.disabled =
-        true;
+    if (postButton) {
 
-    postButton.textContent =
-        "Posting...";
+        postButton.disabled =
+            true;
+
+        postButton.textContent =
+            "Posting...";
+
+    }
 
 
     try {
@@ -945,7 +1027,7 @@ async function createNewPost() {
 
 
         console.log(
-            "POST CREATED:",
+            "✅ POST CREATED:",
             data
         );
 
@@ -971,7 +1053,7 @@ async function createNewPost() {
     } catch (error) {
 
         console.error(
-            "CREATE POST ERROR:",
+            "❌ CREATE POST ERROR:",
             error
         );
 
@@ -988,11 +1070,15 @@ async function createNewPost() {
 
     } finally {
 
-        postButton.disabled =
-            false;
+        if (postButton) {
 
-        postButton.textContent =
-            "📝 Post";
+            postButton.disabled =
+                false;
+
+            postButton.textContent =
+                "📝 Post";
+
+        }
 
     }
 
@@ -1010,7 +1096,7 @@ if (postButton) {
 
 
 /* =========================================================
-   START
+   START HOME
 ========================================================= */
 
 async function startHome() {
@@ -1021,12 +1107,15 @@ async function startHome() {
 
 
     /*
-     * Run these independently.
-     * If one API fails, the others
-     * can still load.
+     * Session, people and posts are
+     * intentionally handled separately.
+     *
+     * If People breaks, Posts still load.
+     * If Posts breaks, People still load.
      */
 
     await loadSession();
+
 
     await Promise.allSettled([
 
@@ -1044,451 +1133,12 @@ async function startHome() {
 }
 
 
-document.addEventListener(
-    "DOMContentLoaded",
-    startHome
-);
-
-"use strict";
-
-
-/* =========================================================
-   SAFE JSON FETCH
-========================================================= */
-
-async function shrekFetch(url, options = {}) {
-
-    const response =
-        await fetch(
-            url,
-            {
-
-                credentials:
-                    "include",
-
-                ...options,
-
-                headers: {
-
-                    "Content-Type":
-                        "application/json",
-
-                    ...(options.headers || {})
-
-                }
-
-            }
-        );
-
-
-    const text =
-        await response.text();
-
-
-    let data;
-
-
-    try {
-
-        data =
-            text
-                ? JSON.parse(text)
-                : {};
-
-    } catch {
-
-        throw new Error(
-            `Invalid server response from ${url}`
-        );
-
-    }
-
-
-    if (!response.ok) {
-
-        throw new Error(
-            data.error ||
-            `Request failed: ${response.status}`
-        );
-
-    }
-
-
-    return data;
-
-}
-
-
-/* =========================================================
-   PEOPLE
-========================================================= */
-
-async function loadPeople() {
-
-    console.log(
-        "👥 Loading people..."
-    );
-
-
-    const container =
-        document.getElementById(
-            "people-list"
-        );
-
-
-    if (!container) {
-
-        console.warn(
-            "⚠️ #people-list not found"
-        );
-
-        return;
-
-    }
-
-
-    container.innerHTML =
-        `<div class="loading">Loading people...</div>`;
-
-
-    try {
-
-        const data =
-            await shrekFetch(
-                "/api/users"
-            );
-
-
-        console.log(
-            "👥 PEOPLE:",
-            data
-        );
-
-
-        const users =
-            Array.isArray(
-                data.users
-            )
-                ? data.users
-                : [];
-
-
-        if (
-            users.length === 0
-        ) {
-
-            container.innerHTML =
-                `<div class="empty-state">
-                    No people yet.
-                </div>`;
-
-            return;
-
-        }
-
-
-        container.innerHTML =
-            "";
-
-
-        users.forEach(
-            user => {
-
-                const card =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                card.className =
-                    "person-card";
-
-
-                const name =
-                    user.display_name ||
-                    user.username ||
-                    user.email ||
-                    "ShrekBook User";
-
-
-                const id =
-                    user.id;
-
-
-                card.innerHTML = `
-
-                    <div class="person-info">
-
-                        <div class="person-name">
-                            ${escapeShrekHTML(name)}
-                        </div>
-
-                        ${
-                            user.username
-                                ? `<div class="person-username">
-                                    @${escapeShrekHTML(user.username)}
-                                   </div>`
-                                : ""
-                        }
-
-                    </div>
-
-                    <button
-                        class="view-profile-button"
-                        data-user-id="${escapeShrekHTML(id)}"
-                    >
-                        View Profile
-                    </button>
-
-                `;
-
-
-                const button =
-                    card.querySelector(
-                        ".view-profile-button"
-                    );
-
-
-                button.addEventListener(
-                    "click",
-                    () => {
-
-                        window.location.href =
-                            `/profile.html?id=${encodeURIComponent(id)}`;
-
-                    }
-                );
-
-
-                container.appendChild(
-                    card
-                );
-
-            }
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "❌ PEOPLE ERROR:",
-            error
-        );
-
-
-        container.innerHTML =
-            `<div class="error-state">
-                Couldn't load people.
-                <br>
-                <small>${escapeShrekHTML(error.message)}</small>
-            </div>`;
-
-    }
-
-}
-
-
-/* =========================================================
-   POSTS
-========================================================= */
-
-async function loadPosts() {
-
-    console.log(
-        "📝 Loading posts..."
-    );
-
-
-    const container =
-        document.getElementById(
-            "posts-list"
-        );
-
-
-    if (!container) {
-
-        console.warn(
-            "⚠️ #posts-list not found"
-        );
-
-        return;
-
-    }
-
-
-    container.innerHTML =
-        `<div class="loading">Loading posts...</div>`;
-
-
-    try {
-
-        const data =
-            await shrekFetch(
-                "/api/posts"
-            );
-
-
-        console.log(
-            "📝 POSTS:",
-            data
-        );
-
-
-        const posts =
-            Array.isArray(
-                data.posts
-            )
-                ? data.posts
-                : [];
-
-
-        if (
-            posts.length === 0
-        ) {
-
-            container.innerHTML =
-                `<div class="empty-state">
-                    No posts yet.
-                </div>`;
-
-            return;
-
-        }
-
-
-        container.innerHTML =
-            "";
-
-
-        posts.forEach(
-            post => {
-
-                const element =
-                    document.createElement(
-                        "article"
-                    );
-
-
-                element.className =
-                    "post-card";
-
-
-                const content =
-                    post.content ||
-                    "";
-
-
-                const image =
-                    post.image_url ||
-                    post.imageUrl ||
-                    "";
-
-
-                element.innerHTML = `
-
-                    <div class="post-body">
-
-                        ${
-                            content
-                                ? `<div class="post-content">
-                                    ${escapeShrekHTML(content)}
-                                   </div>`
-                                : ""
-                        }
-
-                        ${
-                            image
-                                ? `<img
-                                    class="post-image"
-                                    src="${escapeShrekHTML(image)}"
-                                    alt="Post image"
-                                    loading="lazy"
-                                   >`
-                                : ""
-                        }
-
-                    </div>
-
-                `;
-
-
-                container.appendChild(
-                    element
-                );
-
-            }
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "❌ POSTS ERROR:",
-            error
-        );
-
-
-        container.innerHTML =
-            `<div class="error-state">
-                Couldn't load posts.
-                <br>
-                <small>${escapeShrekHTML(error.message)}</small>
-            </div>`;
-
-    }
-
-}
-
-
-/* =========================================================
-   HTML ESCAPE
-========================================================= */
-
-function escapeShrekHTML(value) {
-
-    return String(value)
-        .replace(
-            /&/g,
-            "&amp;"
-        )
-        .replace(
-            /</g,
-            "&lt;"
-        )
-        .replace(
-            />/g,
-            "&gt;"
-        )
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-        .replace(
-            /'/g,
-            "&#039;"
-        );
-
-}
-
-
 /* =========================================================
    START
 ========================================================= */
 
 document.addEventListener(
     "DOMContentLoaded",
-    () => {
-
-        console.log(
-            "🧌 SHREKBOOK HOMEPAGE READY"
-        );
-
-
-        loadPeople();
-
-        loadPosts();
-
-    }
+    startHome
 );
-
 
