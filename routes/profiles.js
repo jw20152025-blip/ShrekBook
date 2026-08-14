@@ -75,6 +75,75 @@ router.get(
     }
 );
 
+/* ==================================================
+   GET ALL USERS
+================================================== */
 
+router.get(
+    "/users",
+    async (req, res) => {
+
+        try {
+
+            const {
+                data: users,
+                error
+            } = await supabase
+                .from("profiles")
+                .select(
+                    "id, username, display_name, avatar, bio"
+                )
+                .order(
+                    "username",
+                    {
+                        ascending: true
+                    }
+                );
+
+
+            if (error) {
+
+                console.error(
+                    "GET USERS ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+
+            res.json({
+
+                success:
+                    true,
+
+                users:
+                    users || []
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "GET USERS CRASH:",
+                error
+            );
+
+            res.status(500).json({
+
+                error:
+                    "Server error."
+
+            });
+
+        }
+
+    }
+);
 module.exports =
     router;
