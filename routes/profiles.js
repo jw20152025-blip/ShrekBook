@@ -5,83 +5,79 @@ const router = express.Router();
 const supabase =
     require("../utils/supabase.js");
 
+console.log(
+    "PROFILES SUPABASE:",
+    !!supabase,
+    typeof supabase?.from
+);
+
 
 /* ==================================================
    GET ALL USERS
 ================================================== */
 
-router.get(
-    "/users",
-    async (req, res) => {
+router.get("/users", async (req, res) => {
 
-        try {
+    console.log("🔥 /api/users reached");
 
-            console.log(
-                "🔥 GET /api/users"
-            );
+    try {
 
-
-            const {
-                data,
-                error
-            } =
-                await supabase
-                    .from("profiles")
-                    .select("*")
-                    .order(
-                        "username",
-                        {
-                            ascending: true
-                        }
-                    );
-
-
-            if (error) {
-
-                console.error(
-                    "❌ SUPABASE USERS ERROR:",
-                    error
+        const {
+            data,
+            error
+        } =
+            await supabase
+                .from("profiles")
+                .select("*")
+                .order(
+                    "username",
+                    {
+                        ascending: true
+                    }
                 );
 
-                return res.status(500).json({
 
-                    error:
-                        error.message
-
-                });
-
-            }
-
-
-            return res.json({
-
-                success:
-                    true,
-
-                users:
-                    data || []
-
-            });
-
-        } catch (error) {
+        if (error) {
 
             console.error(
-                "❌ USERS ERROR:",
+                "❌ USERS SUPABASE ERROR:",
                 error
             );
 
             return res.status(500).json({
-
                 error:
-                    error.message ||
-                    "Server error."
-
+                    error.message
             });
 
         }
 
+
+        res.json({
+
+            success: true,
+
+            users:
+                data || []
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "❌ USERS ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error:
+                error.message ||
+                "Server error."
+        });
+
     }
-);
+
+});
 
 
 /* ==================================================
@@ -94,10 +90,6 @@ router.get(
 
         try {
 
-            const userId =
-                req.params.id;
-
-
             const {
                 data: user,
                 error
@@ -107,23 +99,16 @@ router.get(
                     .select("*")
                     .eq(
                         "id",
-                        userId
+                        req.params.id
                     )
                     .maybeSingle();
 
 
             if (error) {
 
-                console.error(
-                    "❌ PROFILE ERROR:",
-                    error
-                );
-
                 return res.status(500).json({
-
                     error:
                         error.message
-
                 });
 
             }
@@ -132,38 +117,28 @@ router.get(
             if (!user) {
 
                 return res.status(404).json({
-
                     error:
                         "User not found."
-
                 });
 
             }
 
 
-            return res.json({
-
-                success:
-                    true,
-
-                user:
-                    user
-
+            res.json({
+                user
             });
+
 
         } catch (error) {
 
             console.error(
-                "❌ PROFILE ROUTE ERROR:",
+                "PROFILE ERROR:",
                 error
             );
 
-            return res.status(500).json({
-
+            res.status(500).json({
                 error:
-                    error.message ||
-                    "Server error."
-
+                    error.message
             });
 
         }
@@ -172,5 +147,4 @@ router.get(
 );
 
 
-module.exports =
-    router;
+module.exports = router;

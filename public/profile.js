@@ -1,5 +1,10 @@
+console.log(
+    "🧌 ShrekBook profile.js loaded"
+);
+
+
 /* ==================================================
-   SHREKBOOK PROFILE CLIENT
+   PROFILE ID
 ================================================== */
 
 function getProfileId() {
@@ -11,6 +16,10 @@ function getProfileId() {
 }
 
 
+/* ==================================================
+   REACTION COUNTS
+================================================== */
+
 function updateReactionCounts(
     counts
 ) {
@@ -20,29 +29,42 @@ function updateReactionCounts(
     }
 
 
-    for (
-        const type
-        of [
-            "gyatt",
-            "cat",
-            "ogred"
-        ]
-    ) {
+    const gyatt =
+        document.getElementById(
+            "gyatt-count"
+        );
 
-        const element =
-            document.getElementById(
-                `${type}-count`
-            );
+    const cat =
+        document.getElementById(
+            "cat-count"
+        );
+
+    const ogred =
+        document.getElementById(
+            "ogred-count"
+        );
 
 
-        if (element) {
+    if (gyatt) {
 
-            element.textContent =
-                Number(
-                    counts[type] || 0
-                );
+        gyatt.textContent =
+            counts.gyatt ?? 0;
 
-        }
+    }
+
+
+    if (cat) {
+
+        cat.textContent =
+            counts.cat ?? 0;
+
+    }
+
+
+    if (ogred) {
+
+        ogred.textContent =
+            counts.ogred ?? 0;
 
     }
 
@@ -50,7 +72,7 @@ function updateReactionCounts(
 
 
 /* ==================================================
-   REACTION
+   GIVE REACTION
 ================================================== */
 
 async function giveReaction(
@@ -81,7 +103,7 @@ async function giveReaction(
     ) {
 
         alert(
-            "❌ Invalid reaction type."
+            "❌ Invalid reaction."
         );
 
         return;
@@ -93,85 +115,47 @@ async function giveReaction(
 
         const response =
             await fetch(
-
                 `/api/users/${encodeURIComponent(
                     userId
                 )}/reaction`,
-
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
 
                     headers: {
-
                         "Content-Type":
-                            "application/json",
-
-                        Accept:
                             "application/json"
-
                     },
 
-                    credentials:
-                        "include",
+                    credentials: "include",
 
                     body:
                         JSON.stringify({
-
-                            type:
-                                type
-
+                            type
                         })
 
                 }
-
             );
 
 
-        const text =
-            await response.text();
-
-
-        let data;
-
-
-        try {
-
-            data =
-                JSON.parse(text);
-
-        } catch {
-
-            console.error(
-                "REACTION NON JSON:",
-                text
-            );
-
-            throw new Error(
-                "Server returned invalid JSON."
-            );
-
-        }
+        const data =
+            await response.json();
 
 
         if (!response.ok) {
 
             throw new Error(
                 data.error ||
-                "Could not give reaction."
+                "Reaction failed."
             );
 
         }
 
 
-        if (data.counts) {
+        updateReactionCounts(
+            data.counts
+        );
 
-            updateReactionCounts(
-                data.counts
-            );
-
-        }
 
     } catch (error) {
 
@@ -189,6 +173,10 @@ async function giveReaction(
     }
 
 }
+
+
+window.giveReaction =
+    giveReaction;
 
 
 /* ==================================================
@@ -212,52 +200,14 @@ async function loadProfile() {
 
         const response =
             await fetch(
-
                 `/api/users/${encodeURIComponent(
                     userId
-                )}`,
-
-                {
-
-                    credentials:
-                        "include",
-
-                    headers: {
-
-                        Accept:
-                            "application/json"
-
-                    }
-
-                }
-
+                )}`
             );
 
 
-        const text =
-            await response.text();
-
-
-        let data;
-
-
-        try {
-
-            data =
-                JSON.parse(text);
-
-        } catch {
-
-            console.error(
-                "PROFILE NON JSON:",
-                text
-            );
-
-            throw new Error(
-                "Server returned invalid JSON."
-            );
-
-        }
+        const data =
+            await response.json();
 
 
         if (!response.ok) {
@@ -271,30 +221,38 @@ async function loadProfile() {
 
 
         const user =
-            data.user ||
-            data;
+            data.user;
 
 
-        const displayName =
+        const name =
             document.getElementById(
                 "profile-display-name"
             );
-
-
-        if (displayName) {
-
-            displayName.textContent =
-                user.display_name ||
-                user.username ||
-                "User";
-
-        }
-
 
         const username =
             document.getElementById(
                 "profile-username"
             );
+
+        const bio =
+            document.getElementById(
+                "profile-bio"
+            );
+
+        const avatar =
+            document.getElementById(
+                "profile-avatar"
+            );
+
+
+        if (name) {
+
+            name.textContent =
+                user.display_name ||
+                user.username ||
+                "User";
+
+        }
 
 
         if (username) {
@@ -309,25 +267,12 @@ async function loadProfile() {
         }
 
 
-        const bio =
-            document.getElementById(
-                "profile-bio"
-            );
-
-
         if (bio) {
 
             bio.textContent =
-                user.bio ||
-                "";
+                user.bio || "";
 
         }
-
-
-        const avatar =
-            document.getElementById(
-                "profile-avatar"
-            );
 
 
         if (avatar) {
@@ -336,25 +281,7 @@ async function loadProfile() {
                 user.avatar ||
                 "/default-avatar.png";
 
-
-            avatar.onerror =
-                () => {
-
-                    avatar.onerror =
-                        null;
-
-                    avatar.src =
-                        "/default-avatar.png";
-
-                };
-
         }
-
-
-        updateReactionCounts(
-            data.counts ||
-            user.reaction_counts
-        );
 
 
     } catch (error) {
@@ -364,35 +291,9 @@ async function loadProfile() {
             error
         );
 
-
-        const profile =
-            document.getElementById(
-                "profile"
-            );
-
-
-        if (profile) {
-
-            profile.textContent =
-                "❌ " +
-                error.message;
-
-        }
-
     }
 
 }
-
-
-/* ==================================================
-   EXPOSE FUNCTIONS
-================================================== */
-
-window.giveReaction =
-    giveReaction;
-
-window.loadProfile =
-    loadProfile;
 
 
 document.addEventListener(

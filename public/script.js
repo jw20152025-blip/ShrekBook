@@ -1,7 +1,9 @@
-/* ==================================================
-   SHREKBOOK CLIENT
-================================================== */
 console.log("🧌 SHREKBOOK SCRIPT.JS LOADED");
+
+
+/* ==================================================
+   FETCH JSON
+================================================== */
 
 async function fetchJSON(
     url,
@@ -12,21 +14,8 @@ async function fetchJSON(
         await fetch(
             url,
             {
-
-                credentials:
-                    "include",
-
-                ...options,
-
-                headers: {
-
-                    Accept:
-                        "application/json",
-
-                    ...(options.headers || {})
-
-                }
-
+                credentials: "include",
+                ...options
             }
         );
 
@@ -35,7 +24,7 @@ async function fetchJSON(
         await response.text();
 
 
-    let data;
+    let data = {};
 
 
     try {
@@ -47,11 +36,6 @@ async function fetchJSON(
 
     } catch {
 
-        console.error(
-            "NON JSON RESPONSE:",
-            text
-        );
-
         throw new Error(
             "Server returned invalid JSON."
         );
@@ -62,10 +46,8 @@ async function fetchJSON(
     if (!response.ok) {
 
         throw new Error(
-
             data.error ||
-            "Server error."
-
+            `Server error (${response.status})`
         );
 
     }
@@ -82,75 +64,70 @@ async function fetchJSON(
 
 async function login() {
 
+    console.log(
+        "🔥 LOGIN FUNCTION CALLED"
+    );
+
+
+    const email =
+        document
+            .getElementById(
+                "login-email"
+            )
+            ?.value
+            ?.trim();
+
+
+    const password =
+        document
+            .getElementById(
+                "login-password"
+            )
+            ?.value || "";
+
+
+    console.log(
+        "EMAIL:",
+        email
+    );
+
+    console.log(
+        "PASSWORD ENTERED:",
+        password.length > 0
+    );
+
+
+    if (!email || !password) {
+
+        alert(
+            "Please enter your email and password."
+        );
+
+        return;
+
+    }
+
+
     try {
-
-        const email =
-            document
-                .getElementById(
-                    "login-email"
-                )
-                ?.value
-                .trim() ||
-            document
-                .getElementById(
-                    "email"
-                )
-                ?.value
-                .trim() ||
-            "";
-
-
-        const password =
-            document
-                .getElementById(
-                    "login-password"
-                )
-                ?.value ||
-            document
-                .getElementById(
-                    "password"
-                )
-                ?.value ||
-            "";
-
-
-        if (
-            !email ||
-            !password
-        ) {
-
-            alert(
-                "❌ Enter your email and password."
-            );
-
-            return;
-
-        }
-
 
         const data =
             await fetchJSON(
                 "/api/login",
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
 
                     body:
                         JSON.stringify({
 
-                            email:
-                                email,
+                            email,
 
-                            password:
-                                password
+                            password
 
                         })
 
@@ -159,8 +136,13 @@ async function login() {
 
 
         console.log(
-            "✅ Logged in:",
-            data.user
+            "✅ LOGIN SUCCESS:",
+            data
+        );
+
+
+        alert(
+            "✅ Logged in!"
         );
 
 
@@ -191,93 +173,71 @@ async function login() {
 
 async function signup() {
 
+    console.log(
+        "🔥 SIGNUP FUNCTION CALLED"
+    );
+
+
+    const username =
+        document
+            .getElementById(
+                "signup-username"
+            )
+            ?.value
+            ?.trim();
+
+
+    const displayName =
+        document
+            .getElementById(
+                "signup-display-name"
+            )
+            ?.value
+            ?.trim();
+
+
+    const email =
+        document
+            .getElementById(
+                "signup-email"
+            )
+            ?.value
+            ?.trim();
+
+
+    const password =
+        document
+            .getElementById(
+                "signup-password"
+            )
+            ?.value || "";
+
+
     try {
-
-        const username =
-            document
-                .getElementById(
-                    "signup-username"
-                )
-                ?.value
-                .trim() ||
-            document
-                .getElementById(
-                    "username"
-                )
-                ?.value
-                .trim() ||
-            "";
-
-
-        const display_name =
-            document
-                .getElementById(
-                    "signup-display-name"
-                )
-                ?.value
-                .trim() ||
-            username;
-
-
-        const email =
-            document
-                .getElementById(
-                    "signup-email"
-                )
-                ?.value
-                .trim() ||
-            document
-                .getElementById(
-                    "email"
-                )
-                ?.value
-                .trim() ||
-            "";
-
-
-        const password =
-            document
-                .getElementById(
-                    "signup-password"
-                )
-                ?.value ||
-            document
-                .getElementById(
-                    "password"
-                )
-                ?.value ||
-            "";
-
 
         const data =
             await fetchJSON(
                 "/api/signup",
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
 
                     body:
                         JSON.stringify({
 
-                            username:
-                                username,
+                            username,
 
                             display_name:
-                                display_name,
+                                displayName,
 
-                            email:
-                                email,
+                            email,
 
-                            password:
-                                password
+                            password
 
                         })
 
@@ -286,17 +246,14 @@ async function signup() {
 
 
         console.log(
-            "✅ Account created:",
-            data.user
+            "✅ SIGNUP SUCCESS:",
+            data
         );
 
 
         alert(
-            "✅ Account created!"
+            "✅ Account created! You can now log in."
         );
-
-
-        window.location.reload();
 
 
     } catch (error) {
@@ -328,8 +285,7 @@ async function logout() {
         await fetchJSON(
             "/api/logout",
             {
-                method:
-                    "POST"
+                method: "POST"
             }
         );
 
@@ -344,10 +300,48 @@ async function logout() {
             error
         );
 
+    }
 
-        alert(
-            "❌ " +
-            error.message
+}
+
+
+/* ==================================================
+   CURRENT USER
+================================================== */
+
+async function loadCurrentUser() {
+
+    try {
+
+        const data =
+            await fetchJSON(
+                "/api/me"
+            );
+
+
+        console.log(
+            "CURRENT USER:",
+            data
+        );
+
+
+        if (
+            data.loggedIn
+        ) {
+
+            console.log(
+                "🟢 Logged in as:",
+                data.user.username
+            );
+
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "ME ERROR:",
+            error
         );
 
     }
@@ -356,7 +350,7 @@ async function logout() {
 
 
 /* ==================================================
-   LOAD PEOPLE
+   PEOPLE
 ================================================== */
 
 async function loadPeople() {
@@ -369,90 +363,62 @@ async function loadPeople() {
             );
 
 
-        if (
-            !Array.isArray(
-                data.users
-            )
-        ) {
-
-            throw new Error(
-                "Invalid users response."
-            );
-
-        }
+        console.log(
+            "PEOPLE:",
+            data
+        );
 
 
-        const container =
+        const people =
             document.getElementById(
                 "people"
-            ) ||
-            document.getElementById(
-                "people-list"
-            ) ||
-            document.getElementById(
-                "users"
             );
 
 
-        if (!container) {
-
+        if (!people) {
             return;
-
         }
 
 
-        container.innerHTML =
-            "";
+        people.innerHTML = "";
 
 
         for (
             const user
-            of data.users
+            of data.users || []
         ) {
 
-            const item =
+            const element =
                 document.createElement(
                     "div"
                 );
 
 
-            const name =
-                user.display_name ||
-                user.username ||
-                "User";
+            element.innerHTML = `
+
+                <a href="/profile.html?id=${encodeURIComponent(
+                    user.id
+                )}">
+
+                    <strong>
+                        ${
+                            user.display_name ||
+                            user.username ||
+                            "User"
+                        }
+                    </strong>
+
+                </a>
+
+            `;
 
 
-            item.textContent =
-                name;
-
-
-            if (user.id) {
-
-                item.style.cursor =
-                    "pointer";
-
-
-                item.addEventListener(
-                    "click",
-                    () => {
-
-                        window.location.href =
-                            "/profile.html?id=" +
-                            encodeURIComponent(
-                                user.id
-                            );
-
-                    }
-                );
-
-            }
-
-
-            container.appendChild(
-                item
+            people.appendChild(
+                element
             );
 
         }
+
 
     } catch (error) {
 
@@ -467,7 +433,7 @@ async function loadPeople() {
 
 
 /* ==================================================
-   MAKE HTML onclick WORK
+   MAKE GLOBAL
 ================================================== */
 
 window.login =
@@ -482,6 +448,9 @@ window.logout =
 window.loadPeople =
     loadPeople;
 
+window.loadCurrentUser =
+    loadCurrentUser;
+
 
 /* ==================================================
    START
@@ -490,6 +459,13 @@ window.loadPeople =
 document.addEventListener(
     "DOMContentLoaded",
     () => {
+
+        console.log(
+            "🧌 ShrekBook DOM ready"
+        );
+
+
+        loadCurrentUser();
 
         loadPeople();
 
