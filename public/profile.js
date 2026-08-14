@@ -1,341 +1,451 @@
-/* ==================================================
-   SHREKBOOK PROFILE CLIENT
-================================================== */
 
 "use strict";
 
-/* ==================================================
-   ESCAPE HTML
-================================================== */
 
-function escapeHtml(text) {
+/* =========================================================
+   GET USER ID FROM URL
+========================================================= */
 
-    const div =
-        document.createElement("div");
-
-    div.textContent =
-        text ?? "";
-
-    return div.innerHTML;
-
-}
-
-/* ==================================================
-   PROFILE ID
-================================================== */
-
-function getProfileId() {
-
-    return new URLSearchParams(
+const params =
+    new URLSearchParams(
         window.location.search
-    ).get("id");
+    );
 
-}
 
-/* ==================================================
-   UPDATE COUNTS
-================================================== */
+const profileId =
+    params.get("id");
 
-function updateReactionCounts(
-    counts
+
+/* =========================================================
+   ELEMENTS
+========================================================= */
+
+const profileName =
+    document.getElementById(
+        "profile-name"
+    );
+
+const profileUsername =
+    document.getElementById(
+        "profile-username"
+    );
+
+const profileBio =
+    document.getElementById(
+        "profile-bio"
+    );
+
+const profilePosts =
+    document.getElementById(
+        "profile-posts"
+    );
+
+
+/* =========================================================
+   FETCH JSON
+========================================================= */
+
+async function fetchJSON(
+    url,
+    options = {}
 ) {
-
-    if (!counts) {
-        return;
-    }
-
-    const gyatt =
-        document.getElementById(
-            "gyatt-count"
-        );
-
-    const cat =
-        document.getElementById(
-            "cat-count"
-        );
-
-    const ogred =
-        document.getElementById(
-            "ogred-count"
-        );
-
-    if (gyatt) {
-        gyatt.textContent =
-            counts.gyatt ?? 0;
-    }
-
-    if (cat) {
-        cat.textContent =
-            counts.cat ?? 0;
-    }
-
-    if (ogred) {
-        ogred.textContent =
-            counts.ogred ?? 0;
-    }
-
-}
-
-/* ==================================================
-   GIVE REACTION
-================================================== */
-
-async function giveReaction(
-    type
-) {
-
-    const userId =
-        getProfileId();
-
-    if (!userId) {
-
-        alert(
-            "❌ No profile ID."
-        );
-
-        return;
-
-    }
-
-    const allowed = [
-        "gyatt",
-        "cat",
-        "ogred"
-    ];
-
-    if (
-        !allowed.includes(type)
-    ) {
-
-        alert(
-            "❌ Invalid reaction."
-        );
-
-        return;
-
-    }
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/users/${encodeURIComponent(
-                    userId
-                )}/reaction`,
-                {
-
-                    method: "POST",
-
-                    credentials:
-                        "include",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    body:
-                        JSON.stringify({
-                            type
-                        })
-
-                }
-            );
-
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Could not react."
-            );
-
-        }
-
-        updateReactionCounts(
-            data.counts
-        );
-
-    } catch (error) {
-
-        console.error(
-            "REACTION ERROR:",
-            error
-        );
-
-        alert(
-            "❌ " +
-            error.message
-        );
-
-    }
-
-}
-
-/* ==================================================
-   LOAD PROFILE
-================================================== */
-
-async function loadProfile() {
-
-    const userId =
-        getProfileId();
-
-    if (!userId) {
-
-        throw new Error(
-            "No profile ID."
-        );
-
-    }
 
     const response =
         await fetch(
-            `/api/users/${encodeURIComponent(
-                userId
-            )}`,
+            url,
             {
+
                 credentials:
-                    "include"
+                    "include",
+
+                ...options,
+
+                headers: {
+
+                    "Accept":
+                        "application/json",
+
+                    ...(options.headers || {})
+
+                }
+
             }
         );
 
-    const data =
-        await response.json();
+
+    const text =
+        await response.text();
+
+
+    let data;
+
+
+    try {
+
+        data =
+            text
+                ? JSON.parse(text)
+                : {};
+
+    } catch {
+
+        throw new Error(
+            "Server returned invalid JSON."
+        );
+
+    }
+
 
     if (!response.ok) {
 
         throw new Error(
             data.error ||
-            "Could not load profile."
+            `Server error (${response.status})`
         );
 
     }
 
-    const user =
-        data.user || data;
 
-    const displayName =
-        document.getElementById(
-            "profile-display-name"
-        );
+    return data;
 
-    if (displayName) {
+}
 
-        displayName.textContent =
-            user.display_name ||
-            user.username ||
-            "User";
+
+/* =========================================================
+   LOAD PROFILE
+========================================================= */
+
+async function loadProfile() {
+
+    if (!profileId) {
+
+        profileName.textContent =
+            "Profile not found";
+
+        profileUsername.textContent =
+            "";
+
+        profileBio.textContent =
+            "No profile ID was provided.";
+
+        return;
 
     }
 
-    const username =
-        document.getElementById(
-            "profile-username"
+
+    try {
+
+        console.log(
+            "👤 Loading profile:",
+            profileId
         );
 
-    if (username) {
 
-        username.textContent =
-            "@" +
-            (
-                user.username ||
-                "user"
+        const data =
+            await fetchJSON(
+                `/api/users/${encodeURIComponent(profileId)}`
             );
 
-    }
 
-    const bio =
-        document.getElementById(
-            "profile-bio"
+        const user =
+            data.user;
+
+
+        if (!user) {
+
+            throw new Error(
+                "User not found."
+            );
+
+        }
+
+
+        /*
+         * These names support both your
+         * current profiles table and the
+         * older naming style.
+         */
+
+        const name =
+            user.display_name ||
+            user.username ||
+            "Unknown user";
+
+
+        const username =
+            user.username
+                ? `@${user.username}`
+                : "";
+
+
+        const bio =
+            user.bio ||
+            "No bio yet.";
+
+
+        profileName.textContent =
+            name;
+
+
+        profileUsername.textContent =
+            username;
+
+
+        profileBio.textContent =
+            bio;
+
+
+        document.title =
+            `${name} — ShrekBook`;
+
+
+        await loadProfilePosts(
+            user.id
         );
 
-    if (bio) {
 
-        bio.textContent =
-            user.bio || "";
+    } catch (error) {
 
-    }
-
-    const avatar =
-        document.getElementById(
-            "profile-avatar"
+        console.error(
+            "❌ PROFILE ERROR:",
+            error
         );
 
-    if (avatar) {
 
-        avatar.src =
-            user.avatar ||
-            "/default-avatar.png";
+        profileName.textContent =
+            "Unable to load profile";
 
-        avatar.onerror =
-            () => {
 
-                avatar.onerror =
-                    null;
+        profileUsername.textContent =
+            "";
 
-                avatar.src =
-                    "/default-avatar.png";
 
-            };
+        profileBio.textContent =
+            error.message;
 
     }
 
-    updateReactionCounts(
-        data.counts ||
-        user.reaction_counts
+}
+
+
+/* =========================================================
+   LOAD PROFILE POSTS
+========================================================= */
+
+async function loadProfilePosts(
+    userId
+) {
+
+    if (!profilePosts) {
+        return;
+    }
+
+
+    profilePosts.innerHTML =
+        `<div class="loading">Loading posts...</div>`;
+
+
+    try {
+
+        const data =
+            await fetchJSON(
+                `/api/posts/user/${encodeURIComponent(userId)}`
+            );
+
+
+        const posts =
+            Array.isArray(data.posts)
+                ? data.posts
+                : [];
+
+
+        if (
+            posts.length === 0
+        ) {
+
+            profilePosts.innerHTML =
+                `<div class="empty">No posts yet.</div>`;
+
+            return;
+
+        }
+
+
+        profilePosts.innerHTML =
+            "";
+
+
+        posts.forEach(
+            post => {
+
+                profilePosts.appendChild(
+                    createPostElement(
+                        post
+                    )
+                );
+
+            }
+        );
+
+
+    } catch (error) {
+
+        /*
+         * If your posts route doesn't have
+         * the user-specific endpoint yet,
+         * don't make the entire profile crash.
+         */
+
+        console.warn(
+            "Profile posts unavailable:",
+            error
+        );
+
+
+        profilePosts.innerHTML =
+            `<div class="empty">No posts to show.</div>`;
+
+    }
+
+}
+
+
+/* =========================================================
+   CREATE POST ELEMENT
+========================================================= */
+
+function createPostElement(
+    post
+) {
+
+    const article =
+        document.createElement(
+            "article"
+        );
+
+
+    article.className =
+        "post";
+
+
+    const author =
+        post.profiles?.display_name ||
+        post.display_name ||
+        post.username ||
+        "Unknown user";
+
+
+    const content =
+        post.content ||
+        "";
+
+
+    article.innerHTML = `
+
+        <div class="post-header">
+
+            <div>
+
+                <div class="post-author">
+                    ${escapeHTML(author)}
+                </div>
+
+                ${
+                    post.created_at
+                    ?
+                    `<div class="post-time">
+                        ${formatDate(post.created_at)}
+                    </div>`
+                    :
+                    ""
+                }
+
+            </div>
+
+        </div>
+
+
+        <div class="post-content">
+            ${escapeHTML(content)}
+        </div>
+
+    `;
+
+
+    return article;
+
+}
+
+
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
+
+function escapeHTML(
+    value
+) {
+
+    return String(
+        value ?? ""
+    )
+    .replaceAll(
+        "&",
+        "&amp;"
+    )
+    .replaceAll(
+        "<",
+        "&lt;"
+    )
+    .replaceAll(
+        ">",
+        "&gt;"
+    )
+    .replaceAll(
+        '"',
+        "&quot;"
+    )
+    .replaceAll(
+        "'",
+        "&#039;"
     );
 
 }
 
-/* ==================================================
+
+/* =========================================================
+   DATE
+========================================================= */
+
+function formatDate(
+    date
+) {
+
+    const parsed =
+        new Date(date);
+
+
+    if (
+        Number.isNaN(
+            parsed.getTime()
+        )
+    ) {
+
+        return "";
+
+    }
+
+
+    return parsed.toLocaleString();
+
+}
+
+
+/* =========================================================
    START
-================================================== */
+========================================================= */
 
 document.addEventListener(
     "DOMContentLoaded",
-    async () => {
-
-        console.log(
-            "🧌 profile.js loaded"
-        );
-
-        try {
-
-            await loadProfile();
-
-        } catch (error) {
-
-            console.error(
-                "PROFILE ERROR:",
-                error
-            );
-
-            const profile =
-                document.getElementById(
-                    "profile"
-                );
-
-            if (profile) {
-
-                profile.innerHTML =
-                    `<p>❌ ${
-                        escapeHtml(
-                            error.message
-                        )
-                    }</p>`;
-
-            }
-
-        }
-
-    }
+    loadProfile
 );
 
-window.giveReaction =
-    giveReaction;
-
-window.loadProfile =
-    loadProfile;

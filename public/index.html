@@ -1,5 +1,5 @@
-<!DOCTYPE html>
 
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -20,96 +20,213 @@
 
 </head>
 
+
 <body>
 
-<header>
 
-    <h1>🧌 ShrekBook</h1>
+<header class="site-header">
 
-    <div>
+    <div class="header-inner">
 
-        <span id="current-user-name">
-            Loading...
-        </span>
-
-        <button
-            onclick="logout()"
+        <a
+            href="/"
+            class="logo"
         >
-            Logout
-        </button>
+            🧌 ShrekBook
+        </a>
+
+
+        <nav
+            class="nav"
+            id="main-nav"
+        >
+
+            <a href="/">
+                Home
+            </a>
+
+            <a href="/chat.html">
+                💬 ShrekChat
+            </a>
+
+            <a
+                href="/login.html"
+                id="login-nav"
+            >
+                Log In
+            </a>
+
+            <a
+                href="/profile.html"
+                id="profile-nav"
+                style="display:none;"
+            >
+                👤 Profile
+            </a>
+
+            <button
+                id="logout-button"
+                style="display:none;"
+            >
+                Log Out
+            </button>
+
+        </nav>
 
     </div>
 
 </header>
 
-<main>
 
-    <section>
 
-        <h2>Welcome to ShrekBook 🧌</h2>
+<main class="container">
 
-        <img
-            id="current-user-avatar"
-            src="/default-avatar.png"
-            width="80"
-            height="80"
-            alt="Avatar"
+
+    <!-- WELCOME -->
+
+    <section
+        class="card"
+        id="welcome-card"
+    >
+
+        <h1
+            class="page-title"
+            style="margin-bottom:6px;"
         >
+            Welcome to ShrekBook 🧌
+        </h1>
+
+        <div
+            id="welcome-text"
+            style="font-size:18px;"
+        >
+            Loading your swamp status...
+        </div>
 
     </section>
 
-    <section>
 
-        <h2>Create a post</h2>
+
+    <!-- CREATE POST -->
+
+    <section
+        class="card"
+        id="create-post"
+        style="display:none;"
+    >
+
+        <h2>
+            What's happening?
+        </h2>
+
 
         <textarea
             id="post-content"
-            maxlength="5000"
-            placeholder="What's happening in the swamp?"
+            placeholder="Post something..."
+            style="
+                width:100%;
+                min-height:110px;
+                resize:vertical;
+                padding:13px;
+                border:1px solid var(--border);
+                border-radius:10px;
+                font-family:inherit;
+                font-size:17px;
+            "
         ></textarea>
 
-        <br>
 
-        <button
-            onclick="createPost()"
+        <div
+            style="
+                display:flex;
+                justify-content:flex-end;
+                margin-top:10px;
+            "
         >
-            Post
-        </button>
+
+            <button
+                id="post-button"
+                class="primary-button"
+            >
+                📝 Post
+            </button>
+
+        </div>
+
+
+        <div
+            id="post-message"
+            style="
+                margin-top:10px;
+                font-weight:800;
+            "
+        ></div>
 
     </section>
+
+
+
+    <!-- PEOPLE -->
 
     <section>
 
-        <h2>Feed</h2>
-
-        <button
-            onclick="loadFeed()"
+        <h2
+            class="page-title"
+            style="font-size:27px;"
         >
-            Refresh
-        </button>
+            👥 People
+        </h2>
 
-        <div id="feed"></div>
+
+        <div
+            id="people"
+            class="people-grid"
+        >
+
+            <div class="loading">
+                Loading people...
+            </div>
+
+        </div>
 
     </section>
 
-    <section>
 
-        <h2>People</h2>
 
-        <button
-            onclick="loadPeople()"
+    <!-- POSTS -->
+
+    <section
+        style="margin-top:30px;"
+    >
+
+        <h2
+            class="page-title"
+            style="font-size:27px;"
         >
-            Refresh People
-        </button>
+            📝 Posts
+        </h2>
 
-        <div id="people-list"></div>
+
+        <div
+            id="posts"
+        >
+
+            <div class="loading">
+                Loading posts...
+            </div>
+
+        </div>
 
     </section>
+
 
 </main>
+
+
 
 <script src="/script.js"></script>
 
 </body>
 
 </html>
+

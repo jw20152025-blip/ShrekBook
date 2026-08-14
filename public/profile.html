@@ -1,83 +1,24 @@
-<!DOCTYPE html>
+<div class="profile-header">
 
-<html lang="en">
-
-<head>
-
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
+    <h1
+        id="profile-name"
+        class="profile-name"
     >
-
-    <title>Profile - ShrekBook</title>
-
-</head>
-
-<body>
-
-<a href="/">
-    ← Home
-</a>
-
-<main id="profile">
-
-    <img
-        id="profile-avatar"
-        src="/default-avatar.png"
-        width="150"
-        height="150"
-        alt="Profile avatar"
-    >
-
-    <h1 id="profile-display-name">
         Loading...
     </h1>
 
-    <h3 id="profile-username">
-        @user
-    </h3>
+    <div
+        id="profile-username"
+        class="profile-username"
+    ></div>
 
-    <p id="profile-bio"></p>
+    <div
+        id="profile-bio"
+        class="profile-bio"
+    ></div>
 
-    <section>
+</div>
 
-        <h2>Reactions</h2>
-
-        <button
-            onclick="giveReaction('gyatt')"
-        >
-            🍑 Gyatt:
-            <span id="gyatt-count">
-                0
-            </span>
-        </button>
-
-        <button
-            onclick="giveReaction('cat')"
-        >
-            🐱 Cat:
-            <span id="cat-count">
-                0
-            </span>
-        </button>
-
-        <button
-            onclick="giveReaction('ogred')"
-        >
-            🧌 Ogred:
-            <span id="ogred-count">
-                0
-            </span>
-        </button>
-
-    </section>
-
-</main>
+<div id="profile-posts"></div>
 
 <script src="/profile.js"></script>
-
-</body>
-
-</html>

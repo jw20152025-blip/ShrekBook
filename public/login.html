@@ -1,5 +1,5 @@
-<!DOCTYPE html>
 
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -11,55 +11,124 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Login - ShrekBook</title>
+    <title>Log In — ShrekBook</title>
+
+    <link
+        rel="stylesheet"
+        href="/style.css"
+    >
 
 </head>
 
 <body>
 
-<main>
+<main class="auth-page">
 
-    <h1>🧌 ShrekBook</h1>
+    <section class="auth-card">
 
-    <h2>Login</h2>
+        <div class="auth-title">
+            🧌 ShrekBook
+        </div>
 
-    <input
-        id="login-email"
-        type="email"
-        placeholder="Email"
-        autocomplete="email"
-    >
+        <div class="auth-subtitle">
+            Welcome back to the swamp.
+        </div>
 
-    <br><br>
 
-    <input
-        id="login-password"
-        type="password"
-        placeholder="Password"
-        autocomplete="current-password"
-    >
+        <form
+            id="login-form"
+        >
 
-    <br><br>
+            <div class="auth-field">
 
-    <button
-        id="login-button"
-        type="button"
-        onclick="login()"
-    >
-        Login
-    </button>
+                <label for="email">
+                    Email
+                </label>
 
-    <p>
-        Don't have an account?
-        <a href="/signup.html">
-            Sign up
-        </a>
-    </p>
+                <input
+                    id="email"
+                    type="email"
+                    autocomplete="email"
+                    placeholder="you@example.com"
+                    required
+                >
+
+            </div>
+
+
+            <div class="auth-field">
+
+                <label for="password">
+                    Password
+                </label>
+
+                <input
+                    id="password"
+                    type="password"
+                    autocomplete="current-password"
+                    placeholder="Your password"
+                    required
+                >
+
+            </div>
+
+
+            <button
+                id="login-button"
+                type="submit"
+                class="primary-button"
+                style="width:100%;"
+            >
+                🧌 Log In
+            </button>
+
+
+            <div
+                id="login-message"
+                class="auth-error"
+            ></div>
+
+        </form>
+
+
+        <div
+            style="
+                text-align:center;
+                margin-top:20px;
+                font-size:16px;
+            "
+        >
+
+            Don't have an account?
+
+            <a href="/signup.html">
+                Sign up
+            </a>
+
+        </div>
+
+
+        <div
+            style="
+                text-align:center;
+                margin-top:12px;
+            "
+        >
+
+            <a href="/">
+                ← Back to ShrekBook
+            </a>
+
+        </div>
+
+    </section>
 
 </main>
 
-<script src="/script.js"></script>
+
+<script src="/login.js"></script>
 
 </body>
 
 </html>
+
