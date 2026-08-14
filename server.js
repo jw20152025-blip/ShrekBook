@@ -1,31 +1,33 @@
+const express = require("express");
+const path = require("path");
+const session = require("express-session");
+
 require("dotenv").config();
 
-const express =
-    require("express");
-
-const path =
-    require("path");
-
-const session =
-    require("express-session");
+const supabase = require("./utils/supabase.js");
 
 
-const app =
-    express();
+/* =========================================================
+   APP
+========================================================= */
 
+const app = express();
 
 const PORT =
     process.env.PORT || 3000;
 
 
+/* =========================================================
+   ENVIRONMENT
+========================================================= */
+
 const SESSION_SECRET =
     process.env.SESSION_SECRET;
-
 
 if (!SESSION_SECRET) {
 
     console.error(
-        "❌ SESSION_SECRET is missing."
+        "❌ Missing SESSION_SECRET environment variable."
     );
 
     process.exit(1);
@@ -33,9 +35,9 @@ if (!SESSION_SECRET) {
 }
 
 
-/* ==================================================
+/* =========================================================
    EXPRESS
-================================================== */
+========================================================= */
 
 app.set(
     "trust proxy",
@@ -45,23 +47,45 @@ app.set(
 
 app.use(
     express.json({
-        limit:
-            "10mb"
+        limit: "10mb"
     })
 );
 
 
 app.use(
     express.urlencoded({
-        extended:
-            true
+        extended: true,
+        limit: "10mb"
     })
 );
 
 
-/* ==================================================
+/* =========================================================
+   REQUEST LOGGER
+========================================================= */
+
+app.use(
+    (req, res, next) => {
+
+        if (
+            req.path.startsWith("/api")
+        ) {
+
+            console.log(
+                `${req.method} ${req.path}`
+            );
+
+        }
+
+        next();
+
+    }
+);
+
+
+/* =========================================================
    SESSION
-================================================== */
+========================================================= */
 
 app.use(
     session({
@@ -100,9 +124,9 @@ app.use(
 );
 
 
-/* ==================================================
+/* =========================================================
    STATIC FRONTEND
-================================================== */
+========================================================= */
 
 app.use(
     express.static(
@@ -114,9 +138,9 @@ app.use(
 );
 
 
-/* ==================================================
-   TEST
-================================================== */
+/* =========================================================
+   BASIC HEALTH CHECK
+========================================================= */
 
 app.get(
     "/api/test",
@@ -136,51 +160,21 @@ app.get(
 );
 
 
-/* ==================================================
-   ROUTES
-================================================== */
+/* =========================================================
+   HEALTH
+========================================================= */
 
-const authRouter =
-    require("./routes/auth");
-
-const profilesRouter =
-    require("./routes/profiles");
-
-
-app.use(
-    "/api",
-    authRouter
-);
-
-
-app.use(
-    "/api",
-    profilesRouter
-);
-
-
-/*
- * Add your other routes underneath these,
- * for example:
- *
- * app.use("/api", postsRouter);
- * app.use("/api", reactionsRouter);
- * app.use("/api", chatRouter);
- */
-
-
-/* ==================================================
-   API 404
-================================================== */
-
-app.use(
-    "/api",
+app.get(
+    "/api/health",
     (req, res) => {
 
-        res.status(404).json({
+        res.json({
 
-            error:
-                "API route not found."
+            ok:
+                true,
+
+            loggedIn:
+                !!req.session.user
 
         });
 
@@ -188,9 +182,151 @@ app.use(
 );
 
 
-/* ==================================================
+/* =========================================================
+   CURRENT SESSION DEBUG
+========================================================= */
+
+app.get(
+    "/api/session",
+    (req, res) => {
+
+        console.log(
+            "ME SESSION:",
+            req.session.user
+        );
+
+        res.json({
+
+            loggedIn:
+                !!req.session.user,
+
+            user:
+                req.session.user ||
+                null
+
+        });
+
+    }
+);
+
+
+/* =========================================================
+   ROUTES
+========================================================= */
+
+const authRouter =
+    require("./routes/auth");
+
+const profilesRouter =
+    require("./routes/profiles");
+
+const postsRouter =
+    require("./routes/posts");
+
+const reactionsRouter =
+    require("./routes/reactions");
+
+const chatRouter =
+    require("./routes/chat");
+
+
+/* =========================================================
+   AUTH
+========================================================= */
+
+app.use(
+    "/api",
+    authRouter
+);
+
+
+/* =========================================================
+   PROFILES / USERS
+========================================================= */
+
+app.use(
+    "/api",
+    profilesRouter
+);
+
+
+/* =========================================================
+   POSTS
+========================================================= */
+
+app.use(
+    "/api",
+    postsRouter
+);
+
+
+/* =========================================================
+   REACTIONS
+========================================================= */
+
+app.use(
+    "/api",
+    reactionsRouter
+);
+
+
+/* =========================================================
+   SHREKCHAT
+========================================================= */
+
+app.use(
+    "/api",
+    chatRouter
+);
+
+
+/* =========================================================
+   API 404
+========================================================= */
+
+app.use(
+    "/api",
+    (req, res) => {
+
+        console.log(
+            "❌ API ROUTE NOT FOUND:",
+            req.method,
+            req.originalUrl
+        );
+
+        res.status(404).json({
+
+            error:
+                "API route not found.",
+
+            path:
+                req.originalUrl
+
+        });
+
+    }
+);
+
+
+/* =========================================================
    FRONTEND FALLBACK
-================================================== */
+========================================================= */
+
+/*
+ * IMPORTANT:
+ *
+ * /api/* is handled above.
+ *
+ * Everything else gets the frontend.
+ *
+ * Express 5 uses:
+ *
+ * /{*splat}
+ *
+ * instead of the old:
+ *
+ * /*
+ */
 
 app.get(
     "/{*splat}",
@@ -208,9 +344,9 @@ app.get(
 );
 
 
-/* ==================================================
-   ERROR HANDLER
-================================================== */
+/* =========================================================
+   GLOBAL ERROR HANDLER
+========================================================= */
 
 app.use(
     (
@@ -230,7 +366,9 @@ app.use(
             res.headersSent
         ) {
 
-            return next(error);
+            return next(
+                error
+            );
 
         }
 
@@ -247,9 +385,9 @@ app.use(
 );
 
 
-/* ==================================================
-   START
-================================================== */
+/* =========================================================
+   START SERVER
+========================================================= */
 
 app.listen(
     PORT,
@@ -258,6 +396,34 @@ app.listen(
 
         console.log(
             `🧌 ShrekBook running on port ${PORT}`
+        );
+
+        console.log(
+            "📁 Frontend:",
+            path.join(
+                __dirname,
+                "public"
+            )
+        );
+
+        console.log(
+            "🔐 Auth routes enabled"
+        );
+
+        console.log(
+            "👤 Profile routes enabled"
+        );
+
+        console.log(
+            "📝 Post routes enabled"
+        );
+
+        console.log(
+            "❤️ Reaction routes enabled"
+        );
+
+        console.log(
+            "💬 ShrekChat routes enabled"
         );
 
     }

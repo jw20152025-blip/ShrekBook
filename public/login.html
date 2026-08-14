@@ -15,62 +15,39 @@
 
 </head>
 
-
 <body>
 
-    <h1>
-        🧌 ShrekBook
-    </h1>
+<main>
 
-    <h2>
-        Login
-    </h2>
+    <h1>🧌 ShrekBook</h1>
 
+    <h2>Login</h2>
 
-    <form
-        id="login-form"
-        onsubmit="
-            event.preventDefault();
-            login();
-        "
+    <input
+        id="login-email"
+        type="email"
+        placeholder="Email"
+        autocomplete="email"
     >
 
-        <label>
-            Email
-        </label>
+    <br><br>
 
-        <input
-            id="login-email"
-            type="email"
-            required
-        >
+    <input
+        id="login-password"
+        type="password"
+        placeholder="Password"
+        autocomplete="current-password"
+    >
 
+    <br><br>
 
-        <br><br>
-
-
-        <label>
-            Password
-        </label>
-
-        <input
-            id="login-password"
-            type="password"
-            required
-        >
-
-
-        <br><br>
-
-
-        <button
-            type="submit"
-        >
-            Login
-        </button>
-
-    </form>
-
+    <button
+        id="login-button"
+        type="button"
+        onclick="login()"
+    >
+        Login
+    </button>
 
     <p>
         Don't have an account?
@@ -79,10 +56,9 @@
         </a>
     </p>
 
+</main>
 
-    <script
-        src="/js/script.js"
-    ></script>
+<script src="/script.js"></script>
 
 </body>
 

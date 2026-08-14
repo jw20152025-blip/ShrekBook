@@ -1,10 +1,13 @@
+/* ==================================================
+   SHREKBOOK REACTIONS
+================================================== */
+
 const express = require("express");
 
 const router = express.Router();
 
 const supabase =
-    require("../utils/supabase.js");
-
+    require("../utils/supabase");
 
 /* ==================================================
    GIVE REACTION
@@ -14,20 +17,16 @@ router.post(
     "/users/:id/reaction",
     async (req, res) => {
 
+        if (!req.session.user) {
+
+            return res.status(401).json({
+                error:
+                    "You must be logged in."
+            });
+
+        }
+
         try {
-
-            if (!req.session.user) {
-
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-
-            }
-
-
-            const fromUserId =
-                req.session.user.id;
 
             const toUserId =
                 req.params.id;
@@ -35,18 +34,16 @@ router.post(
             const type =
                 String(
                     req.body.type || ""
-                ).trim().toLowerCase();
+                );
 
-
-            const allowedTypes = [
+            const allowed = [
                 "gyatt",
                 "cat",
                 "ogred"
             ];
 
-
             if (
-                !allowedTypes.includes(type)
+                !allowed.includes(type)
             ) {
 
                 return res.status(400).json({
@@ -56,9 +53,13 @@ router.post(
 
             }
 
+            /*
+             * Prevent reacting to yourself.
+             */
 
             if (
-                fromUserId === toUserId
+                req.session.user.id ===
+                toUserId
             ) {
 
                 return res.status(400).json({
@@ -68,95 +69,54 @@ router.post(
 
             }
 
+            /*
+             * Remove an existing reaction
+             * from this user to this profile.
+             */
+
+            await supabase
+                .from("reactions")
+                .delete()
+                .eq(
+                    "from_user_id",
+                    req.session.user.id
+                )
+                .eq(
+                    "to_user_id",
+                    toUserId
+                );
 
             const {
-                data: existing,
-                error: findError
+                data: reaction,
+                error
             } =
                 await supabase
                     .from("reactions")
-                    .select("id")
-                    .eq(
-                        "from_user_id",
-                        fromUserId
-                    )
-                    .eq(
-                        "to_user_id",
-                        toUserId
-                    )
-                    .maybeSingle();
+                    .insert({
 
+                        from_user_id:
+                            req.session.user.id,
 
-            if (findError) {
+                        to_user_id:
+                            toUserId,
+
+                        type
+
+                    })
+                    .select()
+                    .single();
+
+            if (error) {
 
                 return res.status(500).json({
                     error:
-                        findError.message
+                        error.message
                 });
 
             }
 
-
-            if (existing) {
-
-                const {
-                    error: updateError
-                } =
-                    await supabase
-                        .from("reactions")
-                        .update({
-                            type
-                        })
-                        .eq(
-                            "id",
-                            existing.id
-                        );
-
-
-                if (updateError) {
-
-                    return res.status(500).json({
-                        error:
-                            updateError.message
-                    });
-
-                }
-
-            } else {
-
-                const {
-                    error: insertError
-                } =
-                    await supabase
-                        .from("reactions")
-                        .insert({
-
-                            from_user_id:
-                                fromUserId,
-
-                            to_user_id:
-                                toUserId,
-
-                            type
-
-                        });
-
-
-                if (insertError) {
-
-                    return res.status(500).json({
-                        error:
-                            insertError.message
-                    });
-
-                }
-
-            }
-
-
             const {
-                data: reactions,
-                error: countError
+                data: reactions
             } =
                 await supabase
                     .from("reactions")
@@ -165,17 +125,6 @@ router.post(
                         "to_user_id",
                         toUserId
                     );
-
-
-            if (countError) {
-
-                return res.status(500).json({
-                    error:
-                        countError.message
-                });
-
-            }
-
 
             const counts = {
 
@@ -187,35 +136,31 @@ router.post(
 
             };
 
-
             for (
-                const reaction
+                const item
                 of reactions || []
             ) {
 
                 if (
-                    counts[
-                        reaction.type
-                    ] !== undefined
+                    counts[item.type] !==
+                    undefined
                 ) {
 
-                    counts[
-                        reaction.type
-                    ]++;
+                    counts[item.type]++;
 
                 }
 
             }
 
-
             res.json({
 
                 success: true,
 
+                reaction,
+
                 counts
 
             });
-
 
         } catch (error) {
 
@@ -226,14 +171,12 @@ router.post(
 
             res.status(500).json({
                 error:
-                    error.message ||
-                    "Server error."
+                    error.message
             });
 
         }
 
     }
 );
-
 
 module.exports = router;

@@ -2,181 +2,124 @@
    SHREKBOOK HOME
 ================================================== */
 
-
-/* ==================================================
-   FETCH JSON
-================================================== */
-
-async function homeFetchJSON(
-    url,
-    options = {}
-) {
-
-    const response =
-        await fetch(
-            url,
-            {
-
-                credentials:
-                    "include",
-
-                ...options,
-
-                headers: {
-
-                    "Accept":
-                        "application/json",
-
-                    ...(options.headers || {})
-
-                }
-
-            }
-        );
-
-
-    const text =
-        await response.text();
-
-
-    let data = {};
-
-
-    try {
-
-        data =
-            text
-                ? JSON.parse(text)
-                : {};
-
-    }
-
-    catch {
-
-        throw new Error(
-            "Invalid server response."
-        );
-
-    }
-
-
-    if (!response.ok) {
-
-        throw new Error(
-            data.error ||
-            `Server error (${response.status})`
-        );
-
-    }
-
-
-    return data;
-
-}
+let currentUser = null;
 
 
 /* ==================================================
-   LOAD CURRENT USER
+   GET CURRENT USER
 ================================================== */
 
 async function loadCurrentUser() {
 
-    console.log(
-        "👤 Checking current user..."
-    );
-
-
     try {
 
-        const data =
-            await homeFetchJSON(
-                "/api/me"
+        console.log(
+            "🏠 Checking current session..."
+        );
+
+
+        const response =
+            await fetch(
+                "/api/me",
+                {
+
+                    method:
+                        "GET",
+
+                    headers: {
+
+                        "Accept":
+                            "application/json"
+
+                    },
+
+                    credentials:
+                        "include"
+
+                }
             );
 
 
-        if (!data.loggedIn) {
+        const text =
+            await response.text();
+
+
+        let data;
+
+
+        try {
+
+            data =
+                JSON.parse(text);
+
+        } catch {
+
+            console.error(
+                "❌ /api/me returned:",
+                text
+            );
+
+            throw new Error(
+                "Invalid server response."
+            );
+
+        }
+
+
+        console.log(
+            "🏠 SESSION:",
+            data
+        );
+
+
+        if (
+            !response.ok ||
+            !data.loggedIn
+        ) {
 
             console.log(
-                "Not logged in."
+                "❌ No active session."
             );
-
 
             window.location.replace(
                 "/login.html"
             );
 
-
-            return;
+            return null;
 
         }
+
+
+        currentUser =
+            data.user;
 
 
         console.log(
-            "✅ Logged in as:",
-            data.user
+            "✅ Logged in:",
+            currentUser
         );
 
 
-        const name =
-            document.getElementById(
-                "home-display-name"
-            );
+        updateHomeUser(
+            currentUser
+        );
 
 
-        if (name) {
-
-            name.textContent =
-                data.user.display_name ||
-                data.user.username ||
-                "User";
-
-        }
+        return currentUser;
 
 
-        const username =
-            document.getElementById(
-                "home-username"
-            );
-
-
-        if (username) {
-
-            username.textContent =
-                "@" +
-                (
-                    data.user.username ||
-                    "user"
-                );
-
-        }
-
-
-        const avatar =
-            document.getElementById(
-                "home-avatar"
-            );
-
-
-        if (avatar) {
-
-            avatar.src =
-                data.user.avatar ||
-                "/default-avatar.png";
-
-        }
-
-
-        window.currentUser =
-            data.user;
-
-    }
-
-    catch (error) {
+    } catch (error) {
 
         console.error(
-            "HOME USER ERROR:",
+            "❌ HOME SESSION ERROR:",
             error
         );
+
+        window.location.replace(
+            "/login.html"
+        );
+
+        return null;
 
     }
 
@@ -184,183 +127,142 @@ async function loadCurrentUser() {
 
 
 /* ==================================================
-   LOAD PEOPLE
+   UPDATE HOME UI
 ================================================== */
 
-async function loadPeople() {
+function updateHomeUser(user) {
 
-    console.log(
-        "🔥 Loading people..."
-    );
+    if (!user) {
+        return;
+    }
 
 
-    const container =
+    const name =
         document.getElementById(
-            "people-list"
+            "home-display-name"
         );
 
 
-    if (!container) {
+    if (name) {
 
-        return;
+        name.textContent =
+            user.display_name ||
+            user.username ||
+            "User";
 
     }
 
 
-    try {
+    const username =
+        document.getElementById(
+            "home-username"
+        );
 
-        const data =
-            await homeFetchJSON(
-                "/api/users"
+
+    if (username) {
+
+        username.textContent =
+            "@" +
+            (
+                user.username ||
+                "user"
             );
 
-
-        const users =
-            Array.isArray(data.users)
-                ? data.users
-                : [];
+    }
 
 
-        container.innerHTML = "";
+    const avatar =
+        document.getElementById(
+            "home-avatar"
+        );
 
 
-        if (users.length === 0) {
+    if (avatar) {
 
-            container.innerHTML =
-                "<p>No users yet.</p>";
+        avatar.src =
+            user.avatar ||
+            "/default-avatar.png";
 
-            return;
+    }
 
-        }
-
-
-        users.forEach(user => {
-
-            const element =
-                document.createElement(
-                    "div"
-                );
+}
 
 
-            element.className =
-                "person";
+/* ==================================================
+   LOGOUT
+================================================== */
+
+async function logout() {
+
+    try {
+
+        console.log(
+            "🚪 Logging out..."
+        );
 
 
-            element.innerHTML = `
+        const response =
+            await fetch(
+                "/api/logout",
+                {
 
-                <img
-                    src="${
-                        user.avatar ||
-                        "/default-avatar.png"
-                    }"
-                    class="person-avatar"
-                    onerror="
-                        this.src='/default-avatar.png'
-                    "
-                >
+                    method:
+                        "POST",
 
-                <div class="person-info">
+                    headers: {
 
-                    <strong>
-                        ${
-                            escapeHomeHtml(
-                                user.display_name ||
-                                user.username ||
-                                "User"
-                            )
-                        }
-                    </strong>
+                        "Accept":
+                            "application/json"
 
-                    <span>
-                        @${escapeHomeHtml(
-                            user.username ||
-                            "user"
-                        )}
-                    </span>
+                    },
 
-                </div>
-
-            `;
-
-
-            element.addEventListener(
-                "click",
-                () => {
-
-                    window.location.href =
-                        `/profile.html?id=${encodeURIComponent(
-                            user.id
-                        )}`;
+                    credentials:
+                        "include"
 
                 }
             );
 
 
-            container.appendChild(
-                element
-            );
+        const data =
+            await response.json();
 
-        });
 
-    }
+        console.log(
+            "LOGOUT:",
+            data
+        );
 
-    catch (error) {
+
+    } catch (error) {
 
         console.error(
-            "PEOPLE ERROR:",
+            "LOGOUT ERROR:",
             error
         );
 
-
-        container.innerHTML =
-            `<p>❌ ${
-                escapeHomeHtml(
-                    error.message
-                )
-            }</p>`;
-
     }
 
-}
 
-
-/* ==================================================
-   ESCAPE HTML
-================================================== */
-
-function escapeHomeHtml(text) {
-
-    const div =
-        document.createElement(
-            "div"
-        );
-
-
-    div.textContent =
-        text ?? "";
-
-
-    return div.innerHTML;
+    window.location.replace(
+        "/login.html"
+    );
 
 }
 
 
 /* ==================================================
-   START HOME
+   START
 ================================================== */
 
 document.addEventListener(
     "DOMContentLoaded",
-    async () => {
+    () => {
 
         console.log(
-            "🧌 ShrekBook home loaded"
+            "🧌 ShrekBook home.js loaded"
         );
 
-
-        await loadCurrentUser();
-
-        await loadPeople();
+        loadCurrentUser();
 
     }
 );

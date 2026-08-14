@@ -13,154 +13,102 @@
 
     <title>ShrekBook</title>
 
-    <style>
-
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            background: #f2f2f2;
-        }
-
-        header {
-            background: #6b8e23;
-            color: white;
-            padding: 15px 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        main {
-            max-width: 1000px;
-            margin: 30px auto;
-            padding: 20px;
-        }
-
-        .profile-card {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 25px;
-        }
-
-        .home-avatar {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-
-        #people-list {
-            display: grid;
-            gap: 12px;
-        }
-
-        .person {
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            cursor: pointer;
-        }
-
-        .person:hover {
-            background: #eeeeee;
-        }
-
-        .person-avatar {
-            width: 55px;
-            height: 55px;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-
-        .person-info {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .person-info span {
-            color: #777;
-        }
-
-        button {
-            cursor: pointer;
-            padding: 8px 14px;
-            border: none;
-            border-radius: 7px;
-        }
-
-    </style>
+    <link
+        rel="stylesheet"
+        href="/style.css"
+    >
 
 </head>
 
-
 <body>
 
-    <header>
+<header>
 
-        <h1>🧌 ShrekBook</h1>
+    <h1>🧌 ShrekBook</h1>
+
+    <div>
+
+        <span id="current-user-name">
+            Loading...
+        </span>
 
         <button
             onclick="logout()"
         >
-            Log out
+            Logout
         </button>
 
-    </header>
+    </div>
 
+</header>
 
-    <main>
+<main>
 
-        <section class="profile-card">
+    <section>
 
-            <img
-                id="home-avatar"
-                class="home-avatar"
-                src="/default-avatar.png"
-                alt="Avatar"
-            >
+        <h2>Welcome to ShrekBook 🧌</h2>
 
-            <h2 id="home-display-name">
-                Loading...
-            </h2>
+        <img
+            id="current-user-avatar"
+            src="/default-avatar.png"
+            width="80"
+            height="80"
+            alt="Avatar"
+        >
 
-            <p id="home-username">
-                @loading
-            </p>
+    </section>
 
-        </section>
+    <section>
 
+        <h2>Create a post</h2>
 
-        <section>
+        <textarea
+            id="post-content"
+            maxlength="5000"
+            placeholder="What's happening in the swamp?"
+        ></textarea>
 
-            <h2>
-                People
-            </h2>
+        <br>
 
-            <div
-                id="people-list"
-            >
-                Loading people...
-            </div>
+        <button
+            onclick="createPost()"
+        >
+            Post
+        </button>
 
-        </section>
+    </section>
 
-    </main>
+    <section>
 
+        <h2>Feed</h2>
 
-    <!-- SHARED -->
-    <script
-        src="/js/script.js"
-    ></script>
+        <button
+            onclick="loadFeed()"
+        >
+            Refresh
+        </button>
 
+        <div id="feed"></div>
 
-    <!-- HOME -->
-    <script
-        src="/js/home.js"
-    ></script>
+    </section>
+
+    <section>
+
+        <h2>People</h2>
+
+        <button
+            onclick="loadPeople()"
+        >
+            Refresh People
+        </button>
+
+        <div id="people-list"></div>
+
+    </section>
+
+</main>
+
+<script src="/script.js"></script>
 
 </body>
 

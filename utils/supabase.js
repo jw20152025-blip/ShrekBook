@@ -21,7 +21,13 @@ console.log("SUPABASE KEY:", !!SUPABASE_SERVICE_ROLE_KEY);
 
 const supabase = createClient(
     SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY
+    SUPABASE_SERVICE_ROLE_KEY,
+    {
+        auth: {
+            autoRefreshToken: false,
+            persistSession: false
+        }
+    }
 );
 
 module.exports = supabase;

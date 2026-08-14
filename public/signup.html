@@ -1,313 +1,231 @@
-
-
-
+```html
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-
 
     <meta charset="UTF-8">
-
 
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
 
+    <title>Sign Up — ShrekBook</title>
 
-    <link rel="stylesheet" href="styles.css">
+    <link
+        rel="stylesheet"
+        href="/style.css"
+    >
 
-    <title>Sign Up - ShrekBook</title>
-
-
-
-
-    <title>Create Account - ShrekBook</title>
 </head>
+
 
 <body>
 
-<header>
+    <main class="auth-page">
 
-    <div class="brand">
+        <section class="auth-card">
 
-        <h1>🧌 ShrekBook</h1>
-    </div>
+            <!-- LOGO -->
 
-    <nav>
-        <a href="/">Home</a>
-        <a href="/login.html">Login</a>
-    </nav>
+            <div class="auth-title">
+                🧌 ShrekBook
+            </div>
 
-</header>
+            <div class="auth-subtitle">
+                Join the swamp.
+            </div>
 
 
-<div class="container">
+            <!-- SIGNUP FORM -->
 
-    <div class="welcome">
-
-        <h2>Create your ShrekBook account</h2>
-
-        <form id="signupForm">
-
-            <input
-                type="text"
-                id="username"
-                placeholder="Username"
-                required
+            <form
+                id="signup-form"
+                novalidate
             >
 
-            <input
-                type="text"
-                id="displayName"
-                placeholder="Display name"
-                required
+                <!-- USERNAME -->
+
+                <div class="auth-field">
+
+                    <label for="username">
+                        Username
+                    </label>
+
+                    <input
+                        id="username"
+                        name="username"
+                        type="text"
+                        placeholder="Choose a username"
+                        maxlength="30"
+                        autocomplete="username"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- DISPLAY NAME -->
+
+                <div class="auth-field">
+
+                    <label for="display_name">
+                        Display name
+                    </label>
+
+                    <input
+                        id="display_name"
+                        name="display_name"
+                        type="text"
+                        placeholder="What should people call you?"
+                        maxlength="50"
+                        autocomplete="name"
+                    >
+
+                </div>
+
+
+                <!-- EMAIL -->
+
+                <div class="auth-field">
+
+                    <label for="email">
+                        Email
+                    </label>
+
+                    <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        placeholder="you@example.com"
+                        autocomplete="email"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- PASSWORD -->
+
+                <div class="auth-field">
+
+                    <label for="password">
+                        Password
+                    </label>
+
+                    <input
+                        id="password"
+                        name="password"
+                        type="password"
+                        placeholder="Create a password"
+                        autocomplete="new-password"
+                        minlength="6"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- CONFIRM PASSWORD -->
+
+                <div class="auth-field">
+
+                    <label for="confirm-password">
+                        Confirm password
+                    </label>
+
+                    <input
+                        id="confirm-password"
+                        name="confirm-password"
+                        type="password"
+                        placeholder="Enter it again"
+                        autocomplete="new-password"
+                        minlength="6"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- SUBMIT -->
+
+                <button
+                    id="signup-button"
+                    class="primary-button"
+                    type="submit"
+                    style="width: 100%; margin-top: 8px;"
+                >
+                    🧌 Create Account
+                </button>
+
+
+                <!-- ERROR / SUCCESS -->
+
+                <div
+                    id="signup-message"
+                    class="auth-error"
+                    role="alert"
+                    aria-live="polite"
+                ></div>
+
+            </form>
+
+
+            <!-- LOGIN -->
+
+            <div
+                style="
+                    text-align: center;
+                    margin-top: 22px;
+                    color: var(--muted);
+                "
             >
 
-            <input
-                type="email"
-                id="email"
-                placeholder="Email"
-                required
+                Already have an account?
+
+                <a
+                    href="/login.html"
+                    style="
+                        color: var(--green-light);
+                        font-weight: 800;
+                    "
+                >
+                    Log in
+                </a>
+
+            </div>
+
+
+            <!-- HOME -->
+
+            <div
+                style="
+                    text-align: center;
+                    margin-top: 12px;
+                "
             >
 
-            <input
-                type="password"
-                id="password"
-                placeholder="Password"
-                required
-            >
+                <a
+                    href="/"
+                    style="
+                        color: var(--muted);
+                        font-size: 13px;
+                    "
+                >
+                    ← Back to ShrekBook
+                </a>
 
-            <input
-                type="url"
-                id="avatar"
-                placeholder="Avatar URL (optional)"
-            >
+            </div>
 
-            <button type="submit">
-                Create Account
-            </button>
+        </section>
 
-        </form>
+    </main>
 
-        <p id="message"></p>
 
-    </div>
-
-</div>
-
-
-        <div class="logo">
-            🧌
-        </div>
-
-        <h1>
-            ShrekBook
-        </h1>
-
-    </div>
-
-    <nav>
-
-        <a href="/">
-            Home
-        </a>
-
-        <a href="/login.html">
-            Login
-        </a>
-
-    </nav>
-
-</header>
-
-
-<main class="container">
-
-<section class="form-box">
-
-    <h2>
-        Create Account 🧌
-    </h2>
-
-
-    <form id="signupForm">
-
-        <label>
-            Display Name
-        </label>
-
-        <input
-            id="displayName"
-            maxlength="50"
-            required
-        >
-
-
-        <label>
-            Username
-        </label>
-
-        <input
-            id="username"
-            maxlength="30"
-            required
-        >
-
-
-        <label>
-            Email
-        </label>
-
-        <input
-            id="email"
-            type="email"
-            required
-        >
-
-
-        <label>
-            Password
-        </label>
-
-        <input
-            id="password"
-            type="password"
-            minlength="6"
-            required
-        >
-
-
-        <button type="submit">
-            Create Account
-        </button>
-
-    </form>
-
-
-    <p id="signupMessage"></p>
-
-</section>
-
-</main>
-
-
-
-<script>
-
-document
-    .getElementById("signupForm")
-    .addEventListener("submit", async (event) => {
-
-
-            event.preventDefault();
-
-
-            const body = {
-
-                displayName:
-                    document.getElementById(
-                        "displayName"
-                    ).value.trim(),
-
-                username:
-                    document.getElementById(
-                        "username"
-                    ).value.trim(),
-
-                email:
-                    document.getElementById(
-                        "email"
-                    ).value.trim(),
-
-                password:
-                    document.getElementById(
-                        "password"
-                    ).value
-
-            };
-
-
-            const message =
-                document.getElementById(
-                    "signupMessage"
-                );
-
-
-            message.textContent =
-                "Creating account...";
-
-
-            try {
-
-                const response =
-                    await fetch(
-                        "/api/signup",
-                        {
-
-                            method: "POST",
-
-                            headers: {
-                                "Content-Type":
-                                    "application/json"
-                            },
-
-                            body:
-                                JSON.stringify(body)
-
-                        }
-                    );
-
-
-                const data =
-                    await response.json();
-
-
-                if (!response.ok) {
-
-                    throw new Error(
-                        data.error ||
-                        "Signup failed."
-                    );
-
-                }
-
-
-                message.textContent =
-                    "✅ Account created!";
-
-
-                setTimeout(
-                    () => {
-
-                        location.href =
-                            "/login.html";
-
-                    },
-                    1000
-                );
-
-
-            } catch (error) {
-
-                message.textContent =
-                    "❌ " +
-                    error.message;
-
-            }
-
-        }
-    );
-
-</script>
+    <script src="/signup.js"></script>
 
 </body>
 
 </html>
-
-
-
-</html>
-
+```
