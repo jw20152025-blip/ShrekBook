@@ -1,11 +1,14 @@
 const express = require("express");
 
-const router =
-    express.Router();
+const router = express.Router();
 
-const {
-    supabase
-} = require("../utils/supabase.js");
+const supabase = require("../utils/supabase.js");
+
+console.log(
+    "PROFILES SUPABASE:",
+    !!supabase,
+    typeof supabase?.from
+);
 
 
 // GET PROFILE
