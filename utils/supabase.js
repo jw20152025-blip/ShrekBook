@@ -1,4 +1,4 @@
-```js
+
 "use strict";
 
 const {
@@ -69,4 +69,4 @@ const supabase =
 
 module.exports =
     supabase;
-```
+
