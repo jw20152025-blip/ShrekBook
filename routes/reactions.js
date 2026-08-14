@@ -1,25 +1,36 @@
+/* ==================================================
+   SHREKBOOK REACTIONS ROUTES
+================================================== */
+
 const express = require("express");
 
 const router = express.Router();
 
-
-const supabase =
-    require("../utils/supabase.js");
+const { supabase } =
+    require("../utils/supabase");
 
 
 /* ==================================================
-ALLOWED REACTIONS
+   AUTH CHECK
 ================================================== */
 
-const ALLOWED_TYPES = [
-    "gyatt",
-    "cat",
-    "ogred"
-];
+function requireLogin(req, res, next) {
+
+    if (!req.session || !req.session.user) {
+
+        return res.status(401).json({
+            error: "You must be logged in."
+        });
+
+    }
+
+    next();
+
+}
 
 
 /* ==================================================
-GET REACTION COUNTS
+   GET REACTION COUNTS
 ================================================== */
 
 async function getReactionCounts(userId) {
@@ -27,15 +38,10 @@ async function getReactionCounts(userId) {
     const {
         data,
         error
-    } =
-        await supabase
-            .from("reactions")
-            .select("type")
-            .eq(
-                "to_user_id",
-                userId
-            );
-
+    } = await supabase
+        .from("reactions")
+        .select("type")
+        .eq("to_user_id", userId);
 
     if (error) {
 
@@ -43,40 +49,28 @@ async function getReactionCounts(userId) {
 
     }
 
-
     const counts = {
 
-        gyatt:
-            0,
-
-        cat:
-            0,
-
-        ogred:
-            0
+        gyatt: 0,
+        cat: 0,
+        ogred: 0
 
     };
 
-
-    for (
-        const reaction
-        of data || []
-    ) {
+    for (const reaction of data || []) {
 
         if (
-            ALLOWED_TYPES.includes(
+            Object.prototype.hasOwnProperty.call(
+                counts,
                 reaction.type
             )
         ) {
 
-            counts[
-                reaction.type
-            ]++;
+            counts[reaction.type]++;
 
         }
 
     }
-
 
     return counts;
 
@@ -84,7 +78,7 @@ async function getReactionCounts(userId) {
 
 
 /* ==================================================
-GET COUNTS
+   GET REACTIONS FOR PROFILE
 ================================================== */
 
 router.get(
@@ -93,26 +87,35 @@ router.get(
 
         try {
 
+            const userId =
+                req.params.id;
+
             const counts =
                 await getReactionCounts(
-                    req.params.id
+                    userId
                 );
 
+            res.json({
 
-            res.json(counts);
+                success: true,
 
+                counts: counts
+
+            });
 
         } catch (error) {
 
             console.error(
-                "REACTION COUNT ERROR:",
+                "GET REACTIONS ERROR:",
                 error
             );
 
             res.status(500).json({
+
                 error:
                     error.message ||
-                    "Server error."
+                    "Could not load reactions."
+
             });
 
         }
@@ -122,31 +125,15 @@ router.get(
 
 
 /* ==================================================
-GIVE REACTION
+   GIVE REACTION
 ================================================== */
 
 router.post(
     "/users/:id/reaction",
+    requireLogin,
     async (req, res) => {
 
         try {
-
-            console.log(
-                "🔥 REACTION REQUEST:",
-                req.params.id,
-                req.body
-            );
-
-
-            if (!req.session.user) {
-
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-
-            }
-
 
             const fromUserId =
                 req.session.user.id;
@@ -156,53 +143,69 @@ router.post(
 
             const type =
                 String(
-                    req.body.type || ""
+                    req.body?.type || ""
                 )
                 .trim()
                 .toLowerCase();
 
 
+            /* ------------------------------------------
+               VALIDATE TYPE
+            ------------------------------------------ */
+
+            const allowedTypes = [
+
+                "gyatt",
+                "cat",
+                "ogred"
+
+            ];
+
+
             if (
-                !ALLOWED_TYPES.includes(type)
+                !allowedTypes.includes(type)
             ) {
 
                 return res.status(400).json({
+
                     error:
                         "Invalid reaction type."
-                });
 
-            }
-
-
-            if (
-                fromUserId ===
-                toUserId
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "You cannot react to yourself."
                 });
 
             }
 
 
             /* ------------------------------------------
-            CHECK TARGET USER
+               DON'T REACT TO YOURSELF
+            ------------------------------------------ */
+
+            if (
+                fromUserId === toUserId
+            ) {
+
+                return res.status(400).json({
+
+                    error:
+                        "You cannot react to yourself."
+
+                });
+
+            }
+
+
+            /* ------------------------------------------
+               CHECK TARGET PROFILE
             ------------------------------------------ */
 
             const {
                 data: targetUser,
                 error: targetError
-            } =
-                await supabase
-                    .from("profiles")
-                    .select("id")
-                    .eq(
-                        "id",
-                        toUserId
-                    )
-                    .maybeSingle();
+            } = await supabase
+                .from("profiles")
+                .select("id")
+                .eq("id", toUserId)
+                .maybeSingle();
 
 
             if (targetError) {
@@ -213,8 +216,10 @@ router.post(
                 );
 
                 return res.status(500).json({
+
                     error:
                         targetError.message
+
                 });
 
             }
@@ -223,37 +228,38 @@ router.post(
             if (!targetUser) {
 
                 return res.status(404).json({
+
                     error:
                         "User not found."
+
                 });
 
             }
 
 
             /* ------------------------------------------
-            CHECK DUPLICATE
+               CHECK EXISTING REACTION
             ------------------------------------------ */
 
             const {
                 data: existing,
                 error: existingError
-            } =
-                await supabase
-                    .from("reactions")
-                    .select("id")
-                    .eq(
-                        "from_user_id",
-                        fromUserId
-                    )
-                    .eq(
-                        "to_user_id",
-                        toUserId
-                    )
-                    .eq(
-                        "type",
-                        type
-                    )
-                    .maybeSingle();
+            } = await supabase
+                .from("reactions")
+                .select("id")
+                .eq(
+                    "from_user_id",
+                    fromUserId
+                )
+                .eq(
+                    "to_user_id",
+                    toUserId
+                )
+                .eq(
+                    "type",
+                    type
+                )
+                .maybeSingle();
 
 
             if (existingError) {
@@ -264,8 +270,10 @@ router.post(
                 );
 
                 return res.status(500).json({
+
                     error:
                         existingError.message
+
                 });
 
             }
@@ -274,37 +282,38 @@ router.post(
             if (existing) {
 
                 return res.status(400).json({
+
                     error:
                         `You already gave this person a ${type}.`
+
                 });
 
             }
 
 
             /* ------------------------------------------
-            INSERT
+               INSERT REACTION
             ------------------------------------------ */
 
             const {
                 data: reaction,
                 error: reactionError
-            } =
-                await supabase
-                    .from("reactions")
-                    .insert({
+            } = await supabase
+                .from("reactions")
+                .insert({
 
-                        from_user_id:
-                            fromUserId,
+                    from_user_id:
+                        fromUserId,
 
-                        to_user_id:
-                            toUserId,
+                    to_user_id:
+                        toUserId,
 
-                        type:
-                            type
+                    type:
+                        type
 
-                    })
-                    .select()
-                    .single();
+                })
+                .select()
+                .single();
 
 
             if (reactionError) {
@@ -315,15 +324,17 @@ router.post(
                 );
 
                 return res.status(500).json({
+
                     error:
                         reactionError.message
+
                 });
 
             }
 
 
             /* ------------------------------------------
-            UPDATED COUNTS
+               UPDATED COUNTS
             ------------------------------------------ */
 
             const counts =
@@ -357,9 +368,11 @@ router.post(
             );
 
             res.status(500).json({
+
                 error:
                     error.message ||
                     "Server error."
+
             });
 
         }
@@ -369,114 +382,8 @@ router.post(
 
 
 /* ==================================================
-REMOVE REACTION
+   EXPORT
 ================================================== */
 
-router.delete(
-    "/users/:id/reaction/:type",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session.user) {
-
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-
-            }
-
-
-            const type =
-                String(
-                    req.params.type || ""
-                )
-                .trim()
-                .toLowerCase();
-
-
-            if (
-                !ALLOWED_TYPES.includes(type)
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Invalid reaction type."
-                });
-
-            }
-
-
-            const {
-                error
-            } =
-                await supabase
-                    .from("reactions")
-                    .delete()
-                    .eq(
-                        "from_user_id",
-                        req.session.user.id
-                    )
-                    .eq(
-                        "to_user_id",
-                        req.params.id
-                    )
-                    .eq(
-                        "type",
-                        type
-                    );
-
-
-            if (error) {
-
-                console.error(
-                    "REMOVE REACTION ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            const counts =
-                await getReactionCounts(
-                    req.params.id
-                );
-
-
-            res.json({
-
-                success:
-                    true,
-
-                counts:
-                    counts
-
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "REMOVE REACTION ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    error.message ||
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-
-module.exports = router;
+module.exports =
+    router;

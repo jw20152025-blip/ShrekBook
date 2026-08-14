@@ -170,7 +170,7 @@ const authRouter =
 
 
 const profilesRouter =
-    require("./routes/profiles");
+    require("./routes/profile.js");
 
 
 const postsRouter =
