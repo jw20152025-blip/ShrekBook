@@ -2,92 +2,47 @@
    SHREKBOOK PROFILE CLIENT
 ================================================== */
 
-
-/* ==================================================
-   ESCAPE HTML
-================================================== */
-
-function escapeHtml(text) {
-
-    const div =
-        document.createElement("div");
-
-    div.textContent =
-        text ?? "";
-
-    return div.innerHTML;
-}
-
-
-/* ==================================================
-   GET PROFILE ID
-================================================== */
-
 function getProfileId() {
 
-    const params =
-        new URLSearchParams(
-            window.location.search
-        );
-
-    return params.get("id");
+    return new URLSearchParams(
+        window.location.search
+    ).get("id");
 
 }
 
 
-/* ==================================================
-   UPDATE REACTION COUNTS
-================================================== */
-
-function updateReactionCounts(counts) {
+function updateReactionCounts(
+    counts
+) {
 
     if (!counts) {
         return;
     }
 
 
-    const gyatt =
-        document.getElementById(
-            "gyatt-count"
-        );
+    for (
+        const type
+        of [
+            "gyatt",
+            "cat",
+            "ogred"
+        ]
+    ) {
 
-    const cat =
-        document.getElementById(
-            "cat-count"
-        );
-
-    const ogred =
-        document.getElementById(
-            "ogred-count"
-        );
-
-
-    if (gyatt) {
-
-        gyatt.textContent =
-            Number(
-                counts.gyatt || 0
+        const element =
+            document.getElementById(
+                `${type}-count`
             );
 
-    }
 
+        if (element) {
 
-    if (cat) {
+            element.textContent =
+                Number(
+                    counts[type] || 0
+                );
 
-        cat.textContent =
-            Number(
-                counts.cat || 0
-            );
-
-    }
-
-
-    if (ogred) {
-
-        ogred.textContent =
-            Number(
-                counts.ogred || 0
-            );
+        }
 
     }
 
@@ -95,10 +50,12 @@ function updateReactionCounts(counts) {
 
 
 /* ==================================================
-   GIVE REACTION
+   REACTION
 ================================================== */
 
-async function giveReaction(type) {
+async function giveReaction(
+    type
+) {
 
     const userId =
         getProfileId();
@@ -115,17 +72,12 @@ async function giveReaction(type) {
     }
 
 
-    const allowedTypes = [
-
-        "gyatt",
-        "cat",
-        "ogred"
-
-    ];
-
-
     if (
-        !allowedTypes.includes(type)
+        ![
+            "gyatt",
+            "cat",
+            "ogred"
+        ].includes(type)
     ) {
 
         alert(
@@ -156,7 +108,7 @@ async function giveReaction(type) {
                         "Content-Type":
                             "application/json",
 
-                        "Accept":
+                        Accept:
                             "application/json"
 
                     },
@@ -192,12 +144,12 @@ async function giveReaction(type) {
         } catch {
 
             console.error(
-                "NON-JSON RESPONSE:",
+                "REACTION NON JSON:",
                 text
             );
 
             throw new Error(
-                "Server returned an invalid response."
+                "Server returned invalid JSON."
             );
 
         }
@@ -205,29 +157,21 @@ async function giveReaction(type) {
 
         if (!response.ok) {
 
-            alert(
-                "❌ " +
-                (
-                    data.error ||
-                    "Could not give reaction."
-                )
+            throw new Error(
+                data.error ||
+                "Could not give reaction."
             );
-
-            return;
 
         }
 
 
-        if (
-            data.counts
-        ) {
+        if (data.counts) {
 
             updateReactionCounts(
                 data.counts
             );
 
         }
-
 
     } catch (error) {
 
@@ -236,12 +180,10 @@ async function giveReaction(type) {
             error
         );
 
+
         alert(
             "❌ " +
-            (
-                error.message ||
-                "Could not give reaction."
-            )
+            error.message
         );
 
     }
@@ -261,10 +203,6 @@ async function loadProfile() {
 
     if (!userId) {
 
-        console.error(
-            "No profile ID."
-        );
-
         return;
 
     }
@@ -281,15 +219,15 @@ async function loadProfile() {
 
                 {
 
+                    credentials:
+                        "include",
+
                     headers: {
 
-                        "Accept":
+                        Accept:
                             "application/json"
 
-                    },
-
-                    credentials:
-                        "include"
+                    }
 
                 }
 
@@ -310,8 +248,13 @@ async function loadProfile() {
 
         } catch {
 
+            console.error(
+                "PROFILE NON JSON:",
+                text
+            );
+
             throw new Error(
-                "Server returned an invalid response."
+                "Server returned invalid JSON."
             );
 
         }
@@ -375,7 +318,8 @@ async function loadProfile() {
         if (bio) {
 
             bio.textContent =
-                user.bio || "";
+                user.bio ||
+                "";
 
         }
 
@@ -407,15 +351,11 @@ async function loadProfile() {
         }
 
 
-        if (
-            data.counts
-        ) {
+        updateReactionCounts(
+            data.counts ||
+            user.reaction_counts
+        );
 
-            updateReactionCounts(
-                data.counts
-            );
-
-        }
 
     } catch (error) {
 
@@ -424,29 +364,38 @@ async function loadProfile() {
             error
         );
 
+
+        const profile =
+            document.getElementById(
+                "profile"
+            );
+
+
+        if (profile) {
+
+            profile.textContent =
+                "❌ " +
+                error.message;
+
+        }
+
     }
 
 }
 
 
 /* ==================================================
-   START
+   EXPOSE FUNCTIONS
 ================================================== */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-
-        loadProfile();
-
-    }
-);
-
-
-/*
- * Makes inline onclick="giveReaction(...)"
- * work reliably.
- */
 
 window.giveReaction =
     giveReaction;
+
+window.loadProfile =
+    loadProfile;
+
+
+document.addEventListener(
+    "DOMContentLoaded",
+    loadProfile
+);

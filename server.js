@@ -1,59 +1,22 @@
-/* ==================================================
-   SHREKBOOK SERVER
-   BACKEND ONLY
-================================================== */
-
 require("dotenv").config();
 
-const express =
-    require("express");
+const express = require("express");
+const path = require("path");
+const session = require("express-session");
 
-const path =
-    require("path");
+const supabase = require("./utils/supabase.js");
 
-const session =
-    require("express-session");
+const app = express();
 
-
-/* ==================================================
-   APP
-================================================== */
-
-const app =
-    express();
-
-const PORT =
-    process.env.PORT || 3000;
-
-
-/* ==================================================
-   ENVIRONMENT
-================================================== */
-
-const SESSION_SECRET =
-    process.env.SESSION_SECRET;
-
+const PORT = process.env.PORT || 3000;
+const SESSION_SECRET = process.env.SESSION_SECRET;
 
 if (!SESSION_SECRET) {
-
-    console.error(
-        "❌ Missing SESSION_SECRET."
-    );
-
+    console.error("❌ Missing SESSION_SECRET.");
     process.exit(1);
-
 }
 
-
-/* ==================================================
-   EXPRESS
-================================================== */
-
-app.set(
-    "trust proxy",
-    1
-);
-
+app.set("trust proxy", 1);
 
 app.use(
     express.json({
@@ -61,41 +24,27 @@ app.use(
     })
 );
 
-
 app.use(
     express.urlencoded({
         extended: true
     })
 );
 
-
-/* ==================================================
-   SESSION
-================================================== */
-
 app.use(
     session({
+        secret: SESSION_SECRET,
 
-        secret:
-            SESSION_SECRET,
+        resave: false,
 
-        resave:
-            false,
-
-        saveUninitialized:
-            false,
+        saveUninitialized: false,
 
         cookie: {
-
-            httpOnly:
-                true,
+            httpOnly: true,
 
             secure:
-                process.env.NODE_ENV ===
-                "production",
+                process.env.NODE_ENV === "production",
 
-            sameSite:
-                "lax",
+            sameSite: "lax",
 
             maxAge:
                 1000 *
@@ -103,9 +52,7 @@ app.use(
                 60 *
                 24 *
                 30
-
         }
-
     })
 );
 
@@ -133,13 +80,9 @@ app.get(
     (req, res) => {
 
         res.json({
-
-            success:
-                true,
-
+            success: true,
             message:
                 "ShrekBook server is alive 🧌"
-
         });
 
     }
@@ -151,13 +94,9 @@ app.get(
     (req, res) => {
 
         res.json({
-
-            ok:
-                true,
-
+            ok: true,
             loggedIn:
                 !!req.session.user
-
         });
 
     }
@@ -165,34 +104,20 @@ app.get(
 
 
 /* ==================================================
-   ROUTERS
+   ROUTES
 ================================================== */
 
 const authRouter =
-    require("./routes/auth.js");
+    require("./routes/auth");
 
 const profilesRouter =
-    require("./routes/profiles.js");
+    require("./routes/profiles");
 
-const postsRouter =
-    require("./routes/posts.js");
-
-const reactionsRouter =
-    require("./routes/reactions.js");
-
-const chatRouter =
-    require("./routes/chat.js");
-
-
-/* ==================================================
-   API
-================================================== */
 
 app.use(
     "/api",
     authRouter
 );
-
 
 app.use(
     "/api",
@@ -200,22 +125,49 @@ app.use(
 );
 
 
-app.use(
-    "/api",
-    postsRouter
-);
+/*
+ * Optional routes.
+ *
+ * These will only load if the files exist.
+ */
+
+try {
+    app.use(
+        "/api",
+        require("./routes/posts")
+    );
+} catch (error) {
+    console.log(
+        "⚠️ posts.js not loaded:",
+        error.message
+    );
+}
 
 
-app.use(
-    "/api",
-    reactionsRouter
-);
+try {
+    app.use(
+        "/api",
+        require("./routes/reactions")
+    );
+} catch (error) {
+    console.log(
+        "⚠️ reactions.js not loaded:",
+        error.message
+    );
+}
 
 
-app.use(
-    "/api",
-    chatRouter
-);
+try {
+    app.use(
+        "/api",
+        require("./routes/chat")
+    );
+} catch (error) {
+    console.log(
+        "⚠️ chat.js not loaded:",
+        error.message
+    );
+}
 
 
 /* ==================================================
@@ -227,10 +179,8 @@ app.use(
     (req, res) => {
 
         res.status(404).json({
-
             error:
                 "API route not found."
-
         });
 
     }
@@ -269,24 +219,16 @@ app.use(
             error
         );
 
-
         if (
             res.headersSent
         ) {
-
-            return next(
-                error
-            );
-
+            return next(error);
         }
 
-
         res.status(500).json({
-
             error:
                 error.message ||
                 "Internal server error."
-
         });
 
     }

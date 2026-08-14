@@ -1,89 +1,379 @@
 /* ==================================================
-   LOAD PEOPLE
+   SHREKBOOK CLIENT
 ================================================== */
 
-async function loadPeople() {
 
-    console.log(
-        "🔥 Loading people..."
-    );
+async function fetchJSON(
+    url,
+    options = {}
+) {
+
+    const response =
+        await fetch(
+            url,
+            {
+
+                credentials:
+                    "include",
+
+                ...options,
+
+                headers: {
+
+                    Accept:
+                        "application/json",
+
+                    ...(options.headers || {})
+
+                }
+
+            }
+        );
+
+
+    const text =
+        await response.text();
+
+
+    let data;
 
 
     try {
 
-        const response =
-            await fetch(
-                "/api/users",
+        data =
+            text
+                ? JSON.parse(text)
+                : {};
+
+    } catch {
+
+        console.error(
+            "NON JSON RESPONSE:",
+            text
+        );
+
+        throw new Error(
+            "Server returned invalid JSON."
+        );
+
+    }
+
+
+    if (!response.ok) {
+
+        throw new Error(
+
+            data.error ||
+            "Server error."
+
+        );
+
+    }
+
+
+    return data;
+
+}
+
+
+/* ==================================================
+   LOGIN
+================================================== */
+
+async function login() {
+
+    try {
+
+        const email =
+            document
+                .getElementById(
+                    "login-email"
+                )
+                ?.value
+                .trim() ||
+            document
+                .getElementById(
+                    "email"
+                )
+                ?.value
+                .trim() ||
+            "";
+
+
+        const password =
+            document
+                .getElementById(
+                    "login-password"
+                )
+                ?.value ||
+            document
+                .getElementById(
+                    "password"
+                )
+                ?.value ||
+            "";
+
+
+        if (
+            !email ||
+            !password
+        ) {
+
+            alert(
+                "❌ Enter your email and password."
+            );
+
+            return;
+
+        }
+
+
+        const data =
+            await fetchJSON(
+                "/api/login",
                 {
 
                     method:
-                        "GET",
+                        "POST",
 
                     headers: {
 
-                        "Accept":
+                        "Content-Type":
                             "application/json"
 
                     },
 
-                    credentials:
-                        "include"
+                    body:
+                        JSON.stringify({
+
+                            email:
+                                email,
+
+                            password:
+                                password
+
+                        })
 
                 }
             );
 
 
-        const text =
-            await response.text();
-
-
         console.log(
-            "PEOPLE RAW RESPONSE:",
-            text
+            "✅ Logged in:",
+            data.user
         );
 
 
-        let data;
+        window.location.reload();
 
 
-        try {
+    } catch (error) {
 
-            data =
-                JSON.parse(text);
+        console.error(
+            "LOGIN ERROR:",
+            error
+        );
 
-        } catch {
 
-            throw new Error(
-                "Server returned invalid JSON."
+        alert(
+            "❌ " +
+            error.message
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   SIGNUP
+================================================== */
+
+async function signup() {
+
+    try {
+
+        const username =
+            document
+                .getElementById(
+                    "signup-username"
+                )
+                ?.value
+                .trim() ||
+            document
+                .getElementById(
+                    "username"
+                )
+                ?.value
+                .trim() ||
+            "";
+
+
+        const display_name =
+            document
+                .getElementById(
+                    "signup-display-name"
+                )
+                ?.value
+                .trim() ||
+            username;
+
+
+        const email =
+            document
+                .getElementById(
+                    "signup-email"
+                )
+                ?.value
+                .trim() ||
+            document
+                .getElementById(
+                    "email"
+                )
+                ?.value
+                .trim() ||
+            "";
+
+
+        const password =
+            document
+                .getElementById(
+                    "signup-password"
+                )
+                ?.value ||
+            document
+                .getElementById(
+                    "password"
+                )
+                ?.value ||
+            "";
+
+
+        const data =
+            await fetchJSON(
+                "/api/signup",
+                {
+
+                    method:
+                        "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            username:
+                                username,
+
+                            display_name:
+                                display_name,
+
+                            email:
+                                email,
+
+                            password:
+                                password
+
+                        })
+
+                }
             );
 
-        }
+
+        console.log(
+            "✅ Account created:",
+            data.user
+        );
 
 
-        if (!response.ok) {
+        alert(
+            "✅ Account created!"
+        );
 
-            throw new Error(
-                data.error ||
-                "Could not load users."
+
+        window.location.reload();
+
+
+    } catch (error) {
+
+        console.error(
+            "SIGNUP ERROR:",
+            error
+        );
+
+
+        alert(
+            "❌ " +
+            error.message
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   LOGOUT
+================================================== */
+
+async function logout() {
+
+    try {
+
+        await fetchJSON(
+            "/api/logout",
+            {
+                method:
+                    "POST"
+            }
+        );
+
+
+        window.location.reload();
+
+
+    } catch (error) {
+
+        console.error(
+            "LOGOUT ERROR:",
+            error
+        );
+
+
+        alert(
+            "❌ " +
+            error.message
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   LOAD PEOPLE
+================================================== */
+
+async function loadPeople() {
+
+    try {
+
+        const data =
+            await fetchJSON(
+                "/api/users"
             );
 
-        }
 
-
-        const users =
-            Array.isArray(data.users)
-                ? data.users
-                : Array.isArray(data.data)
-                    ? data.data
-                    : null;
-
-
-        if (!users) {
-
-            console.error(
-                "INVALID USERS RESPONSE:",
-                data
-            );
+        if (
+            !Array.isArray(
+                data.users
+            )
+        ) {
 
             throw new Error(
                 "Invalid users response."
@@ -92,112 +382,77 @@ async function loadPeople() {
         }
 
 
-        console.log(
-            "✅ PEOPLE:",
-            users
-        );
-
-
-        /*
-         * Change this ID if your People
-         * container has a different ID.
-         */
-
-        const peopleContainer =
+        const container =
             document.getElementById(
                 "people"
+            ) ||
+            document.getElementById(
+                "people-list"
+            ) ||
+            document.getElementById(
+                "users"
             );
 
 
-        if (!peopleContainer) {
-
-            console.error(
-                "❌ #people element not found."
-            );
+        if (!container) {
 
             return;
 
         }
 
 
-        peopleContainer.innerHTML =
+        container.innerHTML =
             "";
 
 
-        users.forEach(
-            user => {
+        for (
+            const user
+            of data.users
+        ) {
 
-                const card =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                card.className =
-                    "person-card";
+            const item =
+                document.createElement(
+                    "div"
+                );
 
 
-                const name =
-                    user.display_name ||
-                    user.username ||
-                    "User";
+            const name =
+                user.display_name ||
+                user.username ||
+                "User";
 
 
-                const username =
-                    user.username
-                        ? `@${user.username}`
-                        : "";
+            item.textContent =
+                name;
 
 
-                const avatar =
-                    user.avatar ||
-                    "/default-avatar.png";
+            if (user.id) {
+
+                item.style.cursor =
+                    "pointer";
 
 
-                card.innerHTML = `
-
-                    <img
-                        src="${avatar}"
-                        alt="${escapeHtml(name)}"
-                        class="person-avatar"
-                        onerror="this.src='/default-avatar.png'"
-                    >
-
-                    <div class="person-info">
-
-                        <div class="person-name">
-                            ${escapeHtml(name)}
-                        </div>
-
-                        <div class="person-username">
-                            ${escapeHtml(username)}
-                        </div>
-
-                    </div>
-
-                `;
-
-
-                card.addEventListener(
+                item.addEventListener(
                     "click",
                     () => {
 
                         window.location.href =
-                            `/profile.html?id=${encodeURIComponent(
+                            "/profile.html?id=" +
+                            encodeURIComponent(
                                 user.id
-                            )}`;
+                            );
 
                     }
                 );
 
-
-                peopleContainer.appendChild(
-                    card
-                );
-
             }
-        );
 
+
+            container.appendChild(
+                item
+            );
+
+        }
 
     } catch (error) {
 
@@ -209,3 +464,34 @@ async function loadPeople() {
     }
 
 }
+
+
+/* ==================================================
+   MAKE HTML onclick WORK
+================================================== */
+
+window.login =
+    login;
+
+window.signup =
+    signup;
+
+window.logout =
+    logout;
+
+window.loadPeople =
+    loadPeople;
+
+
+/* ==================================================
+   START
+================================================== */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        loadPeople();
+
+    }
+);

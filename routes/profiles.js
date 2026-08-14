@@ -1,27 +1,9 @@
-/* ==================================================
-   SHREKBOOK PROFILES ROUTES
-================================================== */
+const express = require("express");
 
-const express =
-    require("express");
-
-const router =
-    express.Router();
+const router = express.Router();
 
 const supabase =
     require("../utils/supabase.js");
-
-
-console.log(
-    "🔥 PROFILES FILE LOADED"
-);
-
-
-console.log(
-    "🔥 PROFILES SUPABASE:",
-    !!supabase,
-    typeof supabase?.from
-);
 
 
 /* ==================================================
@@ -32,31 +14,11 @@ router.get(
     "/users",
     async (req, res) => {
 
-        console.log(
-            "🔥 GET /api/users"
-        );
-
-
         try {
 
-            if (
-                !supabase ||
-                typeof supabase.from !==
-                "function"
-            ) {
-
-                console.error(
-                    "❌ SUPABASE CLIENT INVALID"
-                );
-
-                return res.status(500).json({
-
-                    error:
-                        "Supabase client is unavailable."
-
-                });
-
-            }
+            console.log(
+                "🔥 GET /api/users"
+            );
 
 
             const {
@@ -65,7 +27,13 @@ router.get(
             } =
                 await supabase
                     .from("profiles")
-                    .select("*");
+                    .select("*")
+                    .order(
+                        "username",
+                        {
+                            ascending: true
+                        }
+                    );
 
 
             if (error) {
@@ -85,21 +53,12 @@ router.get(
             }
 
 
-            console.log(
-                "✅ USERS LOADED:",
-                data?.length || 0
-            );
-
-
             return res.json({
 
                 success:
                     true,
 
                 users:
-                    data || [],
-
-                data:
                     data || []
 
             });
@@ -107,7 +66,7 @@ router.get(
         } catch (error) {
 
             console.error(
-                "❌ USERS ROUTE CRASH:",
+                "❌ USERS ERROR:",
                 error
             );
 
@@ -126,7 +85,7 @@ router.get(
 
 
 /* ==================================================
-   GET ONE USER
+   GET ONE PROFILE
 ================================================== */
 
 router.get(
@@ -137,22 +96,6 @@ router.get(
 
             const userId =
                 req.params.id;
-
-
-            if (
-                !supabase ||
-                typeof supabase.from !==
-                "function"
-            ) {
-
-                return res.status(500).json({
-
-                    error:
-                        "Supabase client is unavailable."
-
-                });
-
-            }
 
 
             const {
@@ -200,6 +143,9 @@ router.get(
 
             return res.json({
 
+                success:
+                    true,
+
                 user:
                     user
 
@@ -225,10 +171,6 @@ router.get(
     }
 );
 
-
-/* ==================================================
-   EXPORT
-================================================== */
 
 module.exports =
     router;
