@@ -10,7 +10,7 @@ const path = require("path");
 const session = require("express-session");
 
 const { createClient } =
-    require("@supabase/supabase-js");
+    require(".utils/supabase.js");
 
 
 /* ==================================================
