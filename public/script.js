@@ -79,6 +79,10 @@ function fileToBase64(file) {
 
 }
 
+/* ==================================================
+REACTIONS
+================================================== */
+
 async function giveReaction(type) {
 
     const userId =
@@ -87,57 +91,148 @@ async function giveReaction(type) {
         ).get("id");
 
     if (!userId) {
+
+        console.error(
+            "REACTION ERROR: No profile ID in URL."
+        );
+
+        alert(
+            "❌ Could not find this profile."
+        );
+
         return;
+
     }
+
+
+    const allowedTypes = [
+        "gyatt",
+        "cat",
+        "ogred"
+    ];
+
+
+    if (
+        !allowedTypes.includes(type)
+    ) {
+
+        console.error(
+            "REACTION ERROR: Invalid type:",
+            type
+        );
+
+        return;
+
+    }
+
 
     try {
 
         const response =
             await fetch(
-                `/api/users/${userId}/${type}`,
+                `/api/users/${encodeURIComponent(
+                    userId
+                )}/reaction`,
                 {
-                    method: "POST"
+
+                    method:
+                        "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            type:
+                                type
+
+                        })
+
                 }
             );
+
 
         const data =
             await response.json();
 
+
         if (!response.ok) {
+
+            console.error(
+                "REACTION SERVER ERROR:",
+                data
+            );
+
             alert(
                 "❌ " +
-                data.error
+                (
+                    data.error ||
+                    "Could not give reaction."
+                )
             );
 
             return;
+
         }
 
-        if (type === "gyatt") {
 
+
+
+
+        const counts =
+            data.counts || {};
+
+
+        const gyattCount =
             document.getElementById(
                 "gyatt-count"
-            ).textContent =
-                data.gyatt;
+            );
 
-        }
-
-        if (type === "cat") {
-
+        const catCount =
             document.getElementById(
                 "cat-count"
-            ).textContent =
-                data.cat;
+            );
 
-        }
-
-        if (type === "ogred") {
-
+        const ogredCount =
             document.getElementById(
                 "ogred-count"
-            ).textContent =
-                data.ogred;
+            );
+
+
+        if (gyattCount) {
+
+            gyattCount.textContent =
+                counts.gyatt ?? 0;
 
         }
+
+
+        if (catCount) {
+
+            catCount.textContent =
+                counts.cat ?? 0;
+
+        }
+
+
+        if (ogredCount) {
+
+            ogredCount.textContent =
+                counts.ogred ?? 0;
+
+        }
+
+
+        console.log(
+            "✅ Reaction added:",
+            type,
+            counts
+        );
 
     } catch (error) {
 
@@ -147,9 +242,11 @@ async function giveReaction(type) {
         );
 
         alert(
-            "❌ Could not react."
+            "❌ Could not connect to the server."
         );
+
     }
+
 }
 /* ==================================================
 MAKE IMAGE OBJECT
