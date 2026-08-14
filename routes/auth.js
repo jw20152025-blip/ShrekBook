@@ -1,551 +1,380 @@
-/* ==================================================
-   SHREKBOOK AUTH ROUTES
-================================================== */
+
+"use strict";
 
 const express = require("express");
 
 const router = express.Router();
 
-const supabase =
-    require("../utils/supabase");
+const supabase = require("../utils/supabase.js");
 
-/* ==================================================
-   SIGNUP
-================================================== */
 
-router.post(
-    "/signup",
-    async (req, res) => {
+/* =========================================================
+   LOGIN
+   POST /api/login
+========================================================= */
 
-        try {
+router.post("/login", async (req, res) => {
 
-            const username =
-                String(
-                    req.body.username || ""
-                ).trim();
+    console.log("");
+    console.log("====================================");
+    console.log("🔐 LOGIN REQUEST");
+    console.log("====================================");
 
-            const display_name =
-                String(
-                    req.body.display_name ||
-                    username
-                ).trim();
+    try {
 
-            const email =
-                String(
-                    req.body.email || ""
-                ).trim();
+        console.log("📦 REQUEST BODY:", req.body);
 
-            const password =
-                String(
-                    req.body.password || ""
-                );
 
-            if (
-                !username ||
-                !email ||
-                !password
-            ) {
+        /* -------------------------------------------------
+           GET LOGIN DATA
+        ------------------------------------------------- */
 
-                return res.status(400).json({
-                    error:
-                        "Username, email, and password are required."
-                });
+        const email = String(
+            req.body?.email ||
+            req.body?.username ||
+            ""
+        ).trim();
 
-            }
+        const password = String(
+            req.body?.password ||
+            ""
+        );
 
-            if (password.length < 6) {
 
-                return res.status(400).json({
-                    error:
-                        "Password must be at least 6 characters."
-                });
+        console.log("📧 EMAIL:", email);
+        console.log(
+            "🔑 PASSWORD RECEIVED:",
+            password.length > 0
+        );
 
-            }
 
-            const {
-                data: existing,
-                error: existingError
-            } =
-                await supabase
-                    .from("profiles")
-                    .select("id")
-                    .eq(
-                        "username",
-                        username
-                    )
-                    .maybeSingle();
+        /* -------------------------------------------------
+           VALIDATION
+        ------------------------------------------------- */
 
-            if (existingError) {
+        if (!email || !password) {
 
-                return res.status(500).json({
-                    error:
-                        existingError.message
-                });
-
-            }
-
-            if (existing) {
-
-                return res.status(400).json({
-                    error:
-                        "That username is already taken."
-                });
-
-            }
-
-            const {
-                data: authData,
-                error: authError
-            } =
-                await supabase.auth.admin.createUser({
-
-                    email,
-                    password,
-
-                    email_confirm: true
-
-                });
-
-            if (authError) {
-
-                return res.status(400).json({
-                    error:
-                        authError.message
-                });
-
-            }
-
-            const userId =
-                authData.user.id;
-
-            const {
-                data: profile,
-                error: profileError
-            } =
-                await supabase
-                    .from("profiles")
-                    .insert({
-
-                        id: userId,
-
-                        username,
-
-                        display_name:
-                            display_name ||
-                            username,
-
-                        avatar: null,
-
-                        bio: ""
-
-                    })
-                    .select()
-                    .single();
-
-            if (profileError) {
-
-                await supabase.auth.admin
-                    .deleteUser(userId);
-
-                return res.status(500).json({
-                    error:
-                        profileError.message
-                });
-
-            }
-
-            res.status(201).json({
-
-                success: true,
-
-                user: profile
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "SIGNUP ERROR:",
-                error
+            console.log(
+                "❌ LOGIN REJECTED: missing credentials"
             );
 
-            res.status(500).json({
-                error:
-                    "Server error."
+            return res.status(400).json({
+                success: false,
+                error: "Email and password are required."
             });
 
         }
 
-    }
-);
 
-/* ==================================================
-   LOGIN
-================================================== */
+        /* -------------------------------------------------
+           SUPABASE AUTH
+        ------------------------------------------------- */
 
-router.post(
-    "/login",
-    async (req, res) => {
+        console.log(
+            "🔑 Attempting Supabase login for:",
+            email
+        );
 
-        console.log("🔐 LOGIN REQUEST");
+
+        const {
+            data,
+            error
+        } = await supabase.auth.signInWithPassword({
+
+            email: email,
+
+            password: password
+
+        });
+
+
+        if (error) {
+
+            console.error(
+                "❌ SUPABASE LOGIN ERROR:",
+                error
+            );
+
+            return res.status(401).json({
+                success: false,
+                error:
+                    error.message ||
+                    "Invalid email or password."
+            });
+
+        }
+
+
+        if (!data || !data.user) {
+
+            console.error(
+                "❌ SUPABASE RETURNED NO USER"
+            );
+
+            return res.status(401).json({
+                success: false,
+                error: "Login failed."
+            });
+
+        }
+
+
+        const authUser =
+            data.user;
+
+
+        console.log(
+            "✅ SUPABASE USER:",
+            authUser.id
+        );
+
+
+        /* -------------------------------------------------
+           GET PROFILE
+        ------------------------------------------------- */
+
+        let profile = null;
+
 
         try {
 
-            const email =
-                String(
-                    req.body.email || ""
-                ).trim();
-
-            const password =
-                String(
-                    req.body.password || ""
-                );
-
-            if (
-                !email ||
-                !password
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Email and password are required."
-                });
-
-            }
-
-            console.log(
-                "Attempting Supabase login for:",
-                email
-            );
-
-            const {
-                data,
-                error
-            } =
-                await supabase.auth
-                    .signInWithPassword({
-
-                        email,
-                        password
-
-                    });
-
-            if (error) {
-
-                console.error(
-                    "SUPABASE LOGIN ERROR:",
-                    error
-                );
-
-                return res.status(401).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            const authUser =
-                data.user;
-
-            console.log(
-                "✅ Supabase user:",
-                authUser.id
-            );
-
-            let {
-                data: profile,
-                error: profileError
-            } =
+            const profileResult =
                 await supabase
                     .from("profiles")
                     .select("*")
-                    .eq(
-                        "id",
-                        authUser.id
-                    )
+                    .eq("id", authUser.id)
                     .maybeSingle();
 
-            if (profileError) {
 
-                return res.status(500).json({
-                    error:
-                        profileError.message
-                });
+            if (profileResult.error) {
 
-            }
+                console.warn(
+                    "⚠️ PROFILE LOOKUP ERROR:",
+                    profileResult.error
+                );
 
-            /*
-             * Create profile if missing.
-             */
-
-            if (!profile) {
-
-                let username =
-                    (
-                        authUser.email ||
-                        "user"
-                    )
-                    .split("@")[0]
-                    .toLowerCase()
-                    .replace(
-                        /[^a-z0-9_]/g,
-                        ""
-                    )
-                    .slice(
-                        0,
-                        20
-                    );
-
-                if (!username) {
-                    username = "user";
-                }
-
-                const base =
-                    username;
-
-                let number = 1;
-
-                while (true) {
-
-                    const {
-                        data: taken
-                    } =
-                        await supabase
-                            .from("profiles")
-                            .select("id")
-                            .eq(
-                                "username",
-                                username
-                            )
-                            .maybeSingle();
-
-                    if (!taken) {
-                        break;
-                    }
-
-                    username =
-                        `${base}${number}`;
-
-                    number++;
-
-                }
-
-                const {
-                    data: created,
-                    error: createError
-                } =
-                    await supabase
-                        .from("profiles")
-                        .insert({
-
-                            id:
-                                authUser.id,
-
-                            username,
-
-                            display_name:
-                                username,
-
-                            avatar: null,
-
-                            bio: ""
-
-                        })
-                        .select()
-                        .single();
-
-                if (createError) {
-
-                    return res.status(500).json({
-                        error:
-                            createError.message
-                    });
-
-                }
+            } else {
 
                 profile =
-                    created;
+                    profileResult.data;
 
             }
 
-            req.session.user = {
+        } catch (profileError) {
 
-                id:
-                    profile.id,
-
-                username:
-                    profile.username,
-
-                display_name:
-                    profile.display_name
-
-            };
-
-            req.session.save(
-                (sessionError) => {
-
-                    if (sessionError) {
-
-                        console.error(
-                            "SESSION ERROR:",
-                            sessionError
-                        );
-
-                        return res.status(500).json({
-                            error:
-                                "Could not save login session."
-                        });
-
-                    }
-
-                    console.log(
-                        "✅ EXPRESS SESSION SAVED:",
-                        req.session.user
-                    );
-
-                    return res.json({
-
-                        success: true,
-
-                        user: profile,
-
-                        redirect: "/"
-
-                    });
-
-                }
+            console.warn(
+                "⚠️ PROFILE LOOKUP FAILED:",
+                profileError
             );
-
-        } catch (error) {
-
-            console.error(
-                "LOGIN ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    error.message ||
-                    "Server error."
-            });
 
         }
 
-    }
-);
 
-/* ==================================================
-   LOGOUT
-================================================== */
+        /* -------------------------------------------------
+           CREATE EXPRESS SESSION
+        ------------------------------------------------- */
 
-router.post(
-    "/logout",
-    (req, res) => {
+        req.session.user = {
 
-        req.session.destroy(
-            (error) => {
+            id:
+                authUser.id,
 
-                if (error) {
+            username:
+                profile?.username ||
+                authUser.email ||
+                email,
 
-                    return res.status(500).json({
-                        error:
-                            "Logout failed."
-                    });
+            display_name:
+                profile?.display_name ||
+                profile?.username ||
+                authUser.email ||
+                email
 
-                }
+        };
 
-                res.clearCookie(
-                    "connect.sid"
-                );
-
-                res.json({
-                    success: true
-                });
-
-            }
-        );
-
-    }
-);
-
-/* ==================================================
-   CURRENT USER
-================================================== */
-
-router.get(
-    "/me",
-    async (req, res) => {
 
         console.log(
-            "ME SESSION:",
+            "✅ EXPRESS SESSION CREATED:",
             req.session.user
         );
 
-        if (!req.session.user) {
 
-            return res.json({
-                loggedIn: false
-            });
+        /* -------------------------------------------------
+           SAVE SESSION
+        ------------------------------------------------- */
 
-        }
+        req.session.save(
+            (sessionError) => {
 
-        try {
+                if (sessionError) {
 
-            const {
-                data,
-                error
-            } =
-                await supabase
-                    .from("profiles")
-                    .select("*")
-                    .eq(
-                        "id",
-                        req.session.user.id
-                    )
-                    .maybeSingle();
+                    console.error(
+                        "❌ SESSION SAVE ERROR:",
+                        sessionError
+                    );
 
-            if (error) {
+                    return res.status(500).json({
+                        success: false,
+                        error:
+                            "Login succeeded but the session could not be saved."
+                    });
 
-                return res.status(500).json({
-                    error:
-                        error.message
+                }
+
+
+                console.log(
+                    "✅ EXPRESS SESSION SAVED:"
+                );
+
+                console.log(
+                    req.session.user
+                );
+
+
+                /* -----------------------------------------
+                   SUCCESS RESPONSE
+                ----------------------------------------- */
+
+                return res.status(200).json({
+
+                    success: true,
+
+                    message:
+                        "Login successful.",
+
+                    user:
+                        req.session.user
+
                 });
 
             }
+        );
 
-            if (!data) {
+    } catch (error) {
 
-                req.session.user = null;
+        console.error(
+            "🔥 LOGIN ROUTE CRASH:",
+            error
+        );
 
-                return res.json({
-                    loggedIn: false
-                });
 
-            }
+        return res.status(500).json({
 
-            res.json({
+            success: false,
 
-                loggedIn: true,
+            error:
+                error.message ||
+                "Server error."
 
-                user: data
+        });
 
-            });
+    }
 
-        } catch (error) {
+});
+
+
+/* =========================================================
+   SESSION
+   GET /api/session
+========================================================= */
+
+router.get("/session", (req, res) => {
+
+    console.log(
+        "ME SESSION:",
+        req.session?.user
+    );
+
+
+    if (
+        req.session &&
+        req.session.user
+    ) {
+
+        return res.json({
+
+            loggedIn: true,
+
+            authenticated: true,
+
+            user:
+                req.session.user
+
+        });
+
+    }
+
+
+    return res.json({
+
+        loggedIn: false,
+
+        authenticated: false,
+
+        user: null
+
+    });
+
+});
+
+
+/* =========================================================
+   LOGOUT
+   POST /api/logout
+========================================================= */
+
+router.post("/logout", (req, res) => {
+
+    console.log(
+        "🚪 LOGOUT REQUEST"
+    );
+
+
+    if (!req.session) {
+
+        return res.json({
+            success: true
+        });
+
+    }
+
+
+    req.session.destroy((error) => {
+
+        if (error) {
 
             console.error(
-                "ME ERROR:",
+                "❌ LOGOUT ERROR:",
                 error
             );
 
-            res.status(500).json({
+            return res.status(500).json({
+
+                success: false,
+
                 error:
-                    error.message
+                    "Logout failed."
+
             });
 
         }
 
-    }
-);
+
+        res.clearCookie("connect.sid");
+
+
+        return res.json({
+
+            success: true,
+
+            message:
+                "Logged out."
+
+        });
+
+    });
+
+});
+
 
 module.exports = router;

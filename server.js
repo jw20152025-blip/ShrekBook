@@ -1,49 +1,98 @@
-const express = require("express");
-const path = require("path");
-const session = require("express-session");
 
-require("dotenv").config();
+"use strict";
 
-const supabase = require("./utils/supabase.js");
+
+/* =========================================================
+   SHREKBOOK SERVER
+========================================================= */
+
+const express =
+    require("express");
+
+const session =
+    require("express-session");
+
+const path =
+    require("path");
 
 
 /* =========================================================
    APP
 ========================================================= */
 
-const app = express();
-
-const PORT =
-    process.env.PORT || 3000;
+const app =
+    express();
 
 
 /* =========================================================
    ENVIRONMENT
 ========================================================= */
 
+const PORT =
+    process.env.PORT ||
+    3000;
+
+
 const SESSION_SECRET =
-    process.env.SESSION_SECRET;
+    process.env.SESSION_SECRET ||
+    "shrekbook-development-secret";
 
-if (!SESSION_SECRET) {
 
-    console.error(
-        "❌ Missing SESSION_SECRET environment variable."
+/* =========================================================
+   SUPABASE
+========================================================= */
+
+const supabase =
+    require("./utils/supabase.js");
+
+
+console.log(
+    "SUPABASE URL:",
+    !!process.env.SUPABASE_URL
+);
+
+
+console.log(
+    "SUPABASE KEY:",
+    !!process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+
+/* =========================================================
+   TRUST PROXY
+========================================================= */
+
+/*
+ * Render sits behind a proxy.
+ *
+ * This allows secure cookies to work correctly
+ * when deployed on Render.
+ */
+
+if (
+    process.env.NODE_ENV ===
+    "production"
+) {
+
+    app.set(
+        "trust proxy",
+        1
     );
-
-    process.exit(1);
 
 }
 
 
 /* =========================================================
-   EXPRESS
+   BODY PARSING
 ========================================================= */
 
-app.set(
-    "trust proxy",
-    1
-);
-
+/*
+ * IMPORTANT:
+ *
+ * These MUST come before the API routes.
+ *
+ * Without express.json(), req.body can be undefined.
+ */
 
 app.use(
     express.json({
@@ -67,15 +116,9 @@ app.use(
 app.use(
     (req, res, next) => {
 
-        if (
-            req.path.startsWith("/api")
-        ) {
-
-            console.log(
-                `${req.method} ${req.path}`
-            );
-
-        }
+        console.log(
+            `${new Date().toISOString()} ${req.method} ${req.originalUrl}`
+        );
 
         next();
 
@@ -90,6 +133,9 @@ app.use(
 app.use(
     session({
 
+        name:
+            "shrekbook.sid",
+
         secret:
             SESSION_SECRET,
 
@@ -98,6 +144,9 @@ app.use(
 
         saveUninitialized:
             false,
+
+        rolling:
+            true,
 
         cookie: {
 
@@ -125,34 +174,133 @@ app.use(
 
 
 /* =========================================================
-   STATIC FRONTEND
+   SESSION DEBUGGER
 ========================================================= */
 
 app.use(
-    express.static(
-        path.join(
-            __dirname,
-            "public"
-        )
-    )
+    (req, res, next) => {
+
+        if (
+            req.path.startsWith(
+                "/api"
+            )
+        ) {
+
+            console.log(
+                "SESSION:",
+                req.session?.user ||
+                "NOT LOGGED IN"
+            );
+
+        }
+
+        next();
+
+    }
 );
 
 
 /* =========================================================
-   BASIC HEALTH CHECK
+   API ROUTES
+========================================================= */
+
+
+/*
+ * AUTH
+ *
+ * Provides:
+ *
+ * POST /api/login
+ * GET  /api/session
+ * POST /api/logout
+ */
+
+const authRoutes =
+    require("./routes/auth.js");
+
+
+app.use(
+    "/api",
+    authRoutes
+);
+
+
+/*
+ * PROFILES / USERS
+ *
+ * Provides things such as:
+ *
+ * GET /api/users
+ * GET /api/users/:id
+ */
+
+try {
+
+    const profileRoutes =
+        require("./routes/profiles.js");
+
+
+    app.use(
+        "/api",
+        profileRoutes
+    );
+
+
+} catch (error) {
+
+    console.warn(
+        "⚠️ profiles.js could not be loaded:",
+        error.message
+    );
+
+}
+
+
+/* =========================================================
+   CURRENT USER
 ========================================================= */
 
 app.get(
-    "/api/test",
+    "/api/me",
     (req, res) => {
 
-        res.json({
+        console.log(
+            "👤 /api/me:",
+            req.session?.user
+        );
 
-            success:
+
+        if (
+            !req.session ||
+            !req.session.user
+        ) {
+
+            return res.json({
+
+                loggedIn:
+                    false,
+
+                authenticated:
+                    false,
+
+                user:
+                    null
+
+            });
+
+        }
+
+
+        return res.json({
+
+            loggedIn:
                 true,
 
-            message:
-                "ShrekBook server is alive 🧌"
+            authenticated:
+                true,
+
+            user:
+                req.session.user
 
         });
 
@@ -161,7 +309,7 @@ app.get(
 
 
 /* =========================================================
-   HEALTH
+   API HEALTH CHECK
 ========================================================= */
 
 app.get(
@@ -170,11 +318,14 @@ app.get(
 
         res.json({
 
-            ok:
+            success:
                 true,
 
+            message:
+                "ShrekBook API is alive 🧌",
+
             loggedIn:
-                !!req.session.user
+                !!req.session?.user
 
         });
 
@@ -183,121 +334,220 @@ app.get(
 
 
 /* =========================================================
-   CURRENT SESSION DEBUG
+   USERS FALLBACK
+========================================================= */
+
+/*
+ * This fallback exists in case profiles.js isn't
+ * providing /api/users.
+ *
+ * If profiles.js already provides this route,
+ * this one will NOT be reached.
+ */
+
+app.get(
+    "/api/users",
+    async (req, res) => {
+
+        console.log(
+            "🔥 FALLBACK /api/users"
+        );
+
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("profiles")
+                    .select("*");
+
+
+            if (error) {
+
+                console.error(
+                    "❌ USERS SUPABASE ERROR:",
+                    error
+                );
+
+
+                return res.status(500).json({
+
+                    success:
+                        false,
+
+                    error:
+                        error.message
+
+                });
+
+            }
+
+
+            return res.json({
+
+                success:
+                    true,
+
+                users:
+                    data || []
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "❌ USERS CRASH:",
+                error
+            );
+
+
+            return res.status(500).json({
+
+                success:
+                    false,
+
+                error:
+                    error.message ||
+                    "Could not load users."
+
+            });
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   STATIC FILES
+========================================================= */
+
+const publicPath =
+    path.join(
+        __dirname,
+        "public"
+    );
+
+
+app.use(
+    express.static(
+        publicPath,
+        {
+
+            extensions:
+                [
+                    "html"
+                ],
+
+            index:
+                "index.html"
+
+        }
+    )
+);
+
+
+/* =========================================================
+   EXPLICIT HOME PAGE
 ========================================================= */
 
 app.get(
-    "/api/session",
+    "/",
     (req, res) => {
 
-        console.log(
-            "ME SESSION:",
-            req.session.user
+        res.sendFile(
+            path.join(
+                publicPath,
+                "index.html"
+            )
         );
-
-        res.json({
-
-            loggedIn:
-                !!req.session.user,
-
-            user:
-                req.session.user ||
-                null
-
-        });
 
     }
 );
 
 
 /* =========================================================
-   ROUTES
+   LOGIN PAGE
 ========================================================= */
 
-const authRouter =
-    require("./routes/auth");
+app.get(
+    "/login",
+    (req, res) => {
 
-const profilesRouter =
-    require("./routes/profiles");
+        res.sendFile(
+            path.join(
+                publicPath,
+                "login.html"
+            )
+        );
 
-const postsRouter =
-    require("./routes/posts");
-
-const reactionsRouter =
-    require("./routes/reactions");
-
-const chatRouter =
-    require("./routes/chat");
-
-
-/* =========================================================
-   AUTH
-========================================================= */
-
-app.use(
-    "/api",
-    authRouter
+    }
 );
 
 
 /* =========================================================
-   PROFILES / USERS
+   SIGNUP PAGE
 ========================================================= */
 
-app.use(
-    "/api",
-    profilesRouter
+app.get(
+    "/signup",
+    (req, res) => {
+
+        res.sendFile(
+            path.join(
+                publicPath,
+                "signup.html"
+            )
+        );
+
+    }
 );
 
 
 /* =========================================================
-   POSTS
+   PROFILE PAGE
 ========================================================= */
 
-app.use(
-    "/api",
-    postsRouter
+app.get(
+    "/profile",
+    (req, res) => {
+
+        res.sendFile(
+            path.join(
+                publicPath,
+                "profile.html"
+            )
+        );
+
+    }
 );
 
 
 /* =========================================================
-   REACTIONS
-========================================================= */
-
-app.use(
-    "/api",
-    reactionsRouter
-);
-
-
-/* =========================================================
-   SHREKCHAT
-========================================================= */
-
-app.use(
-    "/api",
-    chatRouter
-);
-
-
-/* =========================================================
-   API 404
+   404 API HANDLER
 ========================================================= */
 
 app.use(
     "/api",
     (req, res) => {
 
-        console.log(
+        console.warn(
             "❌ API ROUTE NOT FOUND:",
             req.method,
             req.originalUrl
         );
 
-        res.status(404).json({
+
+        return res.status(404).json({
+
+            success:
+                false,
 
             error:
-                "API route not found.",
+                "API endpoint not found.",
 
             path:
                 req.originalUrl
@@ -309,33 +559,45 @@ app.use(
 
 
 /* =========================================================
-   FRONTEND FALLBACK
+   GENERAL 404
 ========================================================= */
 
-/*
- * IMPORTANT:
- *
- * /api/* is handled above.
- *
- * Everything else gets the frontend.
- *
- * Express 5 uses:
- *
- * /{*splat}
- *
- * instead of the old:
- *
- * /*
- */
-
-app.get(
-    "/{*splat}",
+app.use(
     (req, res) => {
 
-        res.sendFile(
+        /*
+         * If this was an API request, return JSON.
+         */
+
+        if (
+            req.originalUrl.startsWith(
+                "/api/"
+            )
+        ) {
+
+            return res.status(404).json({
+
+                success:
+                    false,
+
+                error:
+                    "Not found."
+
+            });
+
+        }
+
+
+        /*
+         * Otherwise send the home page.
+         *
+         * This prevents random frontend routes
+         * from displaying a blank Express error.
+         */
+
+        return res.sendFile(
             path.join(
-                __dirname,
-                "public",
+                publicPath,
                 "index.html"
             )
         );
@@ -357,7 +619,7 @@ app.use(
     ) => {
 
         console.error(
-            "❌ SERVER ERROR:",
+            "🔥 GLOBAL SERVER ERROR:",
             error
         );
 
@@ -373,13 +635,29 @@ app.use(
         }
 
 
-        res.status(500).json({
+        if (
+            req.originalUrl.startsWith(
+                "/api/"
+            )
+        ) {
 
-            error:
-                error.message ||
-                "Internal server error."
+            return res.status(500).json({
 
-        });
+                success:
+                    false,
+
+                error:
+                    error.message ||
+                    "Internal server error."
+
+            });
+
+        }
+
+
+        return res.status(500).send(
+            "ShrekBook server error."
+        );
 
     }
 );
@@ -391,40 +669,41 @@ app.use(
 
 app.listen(
     PORT,
-    "0.0.0.0",
     () => {
 
+        console.log("");
         console.log(
-            `🧌 ShrekBook running on port ${PORT}`
+            "========================================"
         );
 
         console.log(
-            "📁 Frontend:",
-            path.join(
-                __dirname,
-                "public"
-            )
+            "🧌 SHREKBOOK SERVER STARTED"
         );
 
         console.log(
-            "🔐 Auth routes enabled"
+            `🌐 PORT: ${PORT}`
         );
 
         console.log(
-            "👤 Profile routes enabled"
+            `📁 PUBLIC: ${publicPath}`
         );
 
         console.log(
-            "📝 Post routes enabled"
+            `🔐 SESSION: enabled`
         );
 
         console.log(
-            "❤️ Reaction routes enabled"
+            `🗄️ SUPABASE: ${
+                supabase
+                    ? "connected"
+                    : "missing"
+            }`
         );
 
         console.log(
-            "💬 ShrekChat routes enabled"
+            "========================================"
         );
 
     }
 );
+
