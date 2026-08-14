@@ -1,27 +1,20 @@
 
 "use strict";
 
-
 /* =========================================================
    SHREKBOOK SERVER
 ========================================================= */
 
-const express =
-    require("express");
-
-const session =
-    require("express-session");
-
-const path =
-    require("path");
+const express = require("express");
+const session = require("express-session");
+const path = require("path");
 
 
 /* =========================================================
    APP
 ========================================================= */
 
-const app =
-    express();
+const app = express();
 
 
 /* =========================================================
@@ -31,7 +24,6 @@ const app =
 const PORT =
     process.env.PORT ||
     3000;
-
 
 const SESSION_SECRET =
     process.env.SESSION_SECRET ||
@@ -51,7 +43,6 @@ console.log(
     !!process.env.SUPABASE_URL
 );
 
-
 console.log(
     "SUPABASE KEY:",
     !!process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -61,13 +52,6 @@ console.log(
 /* =========================================================
    TRUST PROXY
 ========================================================= */
-
-/*
- * Render sits behind a proxy.
- *
- * This allows secure cookies to work correctly
- * when deployed on Render.
- */
 
 if (
     process.env.NODE_ENV ===
@@ -86,20 +70,11 @@ if (
    BODY PARSING
 ========================================================= */
 
-/*
- * IMPORTANT:
- *
- * These MUST come before the API routes.
- *
- * Without express.json(), req.body can be undefined.
- */
-
 app.use(
     express.json({
         limit: "10mb"
     })
 );
-
 
 app.use(
     express.urlencoded({
@@ -205,15 +180,9 @@ app.use(
 ========================================================= */
 
 
-/*
- * AUTH
- *
- * Provides:
- *
- * POST /api/login
- * GET  /api/session
- * POST /api/logout
- */
+/* =========================================================
+   AUTH
+========================================================= */
 
 const authRoutes =
     require("./routes/auth.js");
@@ -225,14 +194,9 @@ app.use(
 );
 
 
-/*
- * PROFILES / USERS
- *
- * Provides things such as:
- *
- * GET /api/users
- * GET /api/users/:id
- */
+/* =========================================================
+   PROFILE / USER ROUTES
+========================================================= */
 
 try {
 
@@ -254,6 +218,564 @@ try {
     );
 
 }
+
+
+/* =========================================================
+   POSTS API
+========================================================= */
+
+/*
+ * GET /api/posts
+ *
+ * Loads all posts.
+ *
+ * Expected table:
+ *
+ * posts
+ *
+ * id
+ * user_id
+ * content
+ * image_url
+ * created_at
+ */
+
+app.get(
+    "/api/posts",
+    async (req, res) => {
+
+        console.log(
+            "📝 GET /api/posts"
+        );
+
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("posts")
+                    .select(`
+                        *,
+                        profiles:user_id (
+                            id,
+                            username,
+                            display_name
+                        )
+                    `)
+                    .order(
+                        "created_at",
+                        {
+                            ascending:
+                                false
+                        }
+                    );
+
+
+            if (error) {
+
+                console.error(
+                    "❌ POSTS SUPABASE ERROR:",
+                    error
+                );
+
+
+                return res.status(
+                    500
+                ).json({
+
+                    success:
+                        false,
+
+                    error:
+                        error.message,
+
+                    details:
+                        error.details ||
+                        null
+
+                });
+
+            }
+
+
+            return res.json({
+
+                success:
+                    true,
+
+                posts:
+                    data || []
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "🔥 POSTS CRASH:",
+                error
+            );
+
+
+            return res.status(
+                500
+            ).json({
+
+                success:
+                    false,
+
+                error:
+                    error.message ||
+                    "Could not load posts."
+
+            });
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   CREATE POST
+========================================================= */
+
+/*
+ * POST /api/posts
+ *
+ * Login required.
+ *
+ * Body:
+ *
+ * {
+ *     "content": "...",
+ *     "image_url": "..."
+ * }
+ */
+
+app.post(
+    "/api/posts",
+    async (req, res) => {
+
+        console.log(
+            "📝 POST /api/posts"
+        );
+
+
+        /* -------------------------
+           LOGIN CHECK
+        ------------------------- */
+
+        if (
+            !req.session ||
+            !req.session.user
+        ) {
+
+            return res.status(
+                401
+            ).json({
+
+                success:
+                    false,
+
+                error:
+                    "You must be logged in to post."
+
+            });
+
+        }
+
+
+        const user =
+            req.session.user;
+
+
+        /* -------------------------
+           BODY
+        ------------------------- */
+
+        const content =
+            typeof req.body?.content ===
+            "string"
+                ? req.body.content.trim()
+                : "";
+
+
+        const imageUrl =
+            typeof req.body?.image_url ===
+            "string"
+                ? req.body.image_url.trim()
+                : "";
+
+
+        /* -------------------------
+           VALIDATION
+        ------------------------- */
+
+        if (
+            !content &&
+            !imageUrl
+        ) {
+
+            return res.status(
+                400
+            ).json({
+
+                success:
+                    false,
+
+                error:
+                    "Post cannot be empty."
+
+            });
+
+        }
+
+
+        if (
+            content.length >
+            10000
+        ) {
+
+            return res.status(
+                400
+            ).json({
+
+                success:
+                    false,
+
+                error:
+                    "Post is too long."
+
+            });
+
+        }
+
+
+        /* -------------------------
+           INSERT
+        ------------------------- */
+
+        try {
+
+            const insertData = {
+
+                user_id:
+                    user.id,
+
+                content:
+                    content || null
+
+            };
+
+
+            /*
+             * Only include image_url
+             * if one was supplied.
+             *
+             * This makes the endpoint
+             * work even if you're currently
+             * only posting text.
+             */
+
+            if (imageUrl) {
+
+                insertData.image_url =
+                    imageUrl;
+
+            }
+
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("posts")
+                    .insert(
+                        insertData
+                    )
+                    .select(`
+                        *,
+                        profiles:user_id (
+                            id,
+                            username,
+                            display_name
+                        )
+                    `)
+                    .single();
+
+
+            if (error) {
+
+                console.error(
+                    "❌ CREATE POST SUPABASE ERROR:",
+                    error
+                );
+
+
+                return res.status(
+                    500
+                ).json({
+
+                    success:
+                        false,
+
+                    error:
+                        error.message,
+
+                    details:
+                        error.details ||
+                        null
+
+                });
+
+            }
+
+
+            console.log(
+                "✅ POST CREATED:",
+                data
+            );
+
+
+            return res.status(
+                201
+            ).json({
+
+                success:
+                    true,
+
+                post:
+                    data
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "🔥 CREATE POST CRASH:",
+                error
+            );
+
+
+            return res.status(
+                500
+            ).json({
+
+                success:
+                    false,
+
+                error:
+                    error.message ||
+                    "Could not create post."
+
+            });
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   CHAT API
+========================================================= */
+
+
+/* =========================================================
+   GET CHAT ROOMS
+========================================================= */
+
+app.get(
+    "/api/chat/rooms",
+    async (req, res) => {
+
+        console.log(
+            "💬 GET /api/chat/rooms"
+        );
+
+
+        if (
+            !req.session ||
+            !req.session.user
+        ) {
+
+            return res.status(
+                401
+            ).json({
+
+                success:
+                    false,
+
+                error:
+                    "You must be logged in."
+
+            });
+
+        }
+
+
+        const userId =
+            req.session.user.id;
+
+
+        try {
+
+            /*
+             * First find the rooms this user
+             * belongs to.
+             */
+
+            const {
+                data: memberships,
+                error:
+                    membershipError
+            } =
+                await supabase
+                    .from("chat_members")
+                    .select(
+                        "room_id"
+                    )
+                    .eq(
+                        "user_id",
+                        userId
+                    );
+
+
+            if (
+                membershipError
+            ) {
+
+                console.error(
+                    "❌ CHAT MEMBERS ERROR:",
+                    membershipError
+                );
+
+
+                return res.status(
+                    500
+                ).json({
+
+                    success:
+                        false,
+
+                    error:
+                        membershipError.message
+
+                });
+
+            }
+
+
+            const roomIds =
+                (memberships || [])
+                    .map(
+                        member =>
+                            member.room_id
+                    )
+                    .filter(
+                        Boolean
+                    );
+
+
+            if (
+                roomIds.length ===
+                0
+            ) {
+
+                return res.json({
+
+                    success:
+                        true,
+
+                    rooms:
+                        []
+
+                });
+
+            }
+
+
+            const {
+                data: rooms,
+                error:
+                    roomError
+            } =
+                await supabase
+                    .from("chat_rooms")
+                    .select("*")
+                    .in(
+                        "id",
+                        roomIds
+                    );
+
+
+            if (
+                roomError
+            ) {
+
+                console.error(
+                    "❌ CHAT ROOMS ERROR:",
+                    roomError
+                );
+
+
+                return res.status(
+                    500
+                ).json({
+
+                    success:
+                        false,
+
+                    error:
+                        roomError.message
+
+                });
+
+            }
+
+
+            return res.json({
+
+                success:
+                    true,
+
+                rooms:
+                    rooms || []
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "🔥 CHAT ROOMS CRASH:",
+                error
+            );
+
+
+            return res.status(
+                500
+            ).json({
+
+                success:
+                    false,
+
+                error:
+                    error.message ||
+                    "Could not load chat rooms."
+
+            });
+
+        }
+
+    }
+);
 
 
 /* =========================================================
@@ -309,7 +831,7 @@ app.get(
 
 
 /* =========================================================
-   API HEALTH CHECK
+   API HEALTH
 ========================================================= */
 
 app.get(
@@ -336,14 +858,6 @@ app.get(
 /* =========================================================
    USERS FALLBACK
 ========================================================= */
-
-/*
- * This fallback exists in case profiles.js isn't
- * providing /api/users.
- *
- * If profiles.js already provides this route,
- * this one will NOT be reached.
- */
 
 app.get(
     "/api/users",
@@ -373,7 +887,9 @@ app.get(
                 );
 
 
-                return res.status(500).json({
+                return res.status(
+                    500
+                ).json({
 
                     success:
                         false,
@@ -396,6 +912,7 @@ app.get(
 
             });
 
+
         } catch (error) {
 
             console.error(
@@ -404,7 +921,9 @@ app.get(
             );
 
 
-            return res.status(500).json({
+            return res.status(
+                500
+            ).json({
 
                 success:
                     false,
@@ -451,7 +970,7 @@ app.use(
 
 
 /* =========================================================
-   EXPLICIT HOME PAGE
+   HOME
 ========================================================= */
 
 app.get(
@@ -470,7 +989,7 @@ app.get(
 
 
 /* =========================================================
-   LOGIN PAGE
+   LOGIN
 ========================================================= */
 
 app.get(
@@ -489,7 +1008,7 @@ app.get(
 
 
 /* =========================================================
-   SIGNUP PAGE
+   SIGNUP
 ========================================================= */
 
 app.get(
@@ -508,7 +1027,7 @@ app.get(
 
 
 /* =========================================================
-   PROFILE PAGE
+   PROFILE
 ========================================================= */
 
 app.get(
@@ -527,7 +1046,47 @@ app.get(
 
 
 /* =========================================================
-   404 API HANDLER
+   CHAT PAGE
+========================================================= */
+
+/*
+ * If chat.html exists in public/,
+ * this lets /chat and /shrekchat
+ * open it.
+ */
+
+app.get(
+    "/chat",
+    (req, res) => {
+
+        res.sendFile(
+            path.join(
+                publicPath,
+                "chat.html"
+            )
+        );
+
+    }
+);
+
+
+app.get(
+    "/shrekchat",
+    (req, res) => {
+
+        res.sendFile(
+            path.join(
+                publicPath,
+                "chat.html"
+            )
+        );
+
+    }
+);
+
+
+/* =========================================================
+   API 404
 ========================================================= */
 
 app.use(
@@ -541,7 +1100,9 @@ app.use(
         );
 
 
-        return res.status(404).json({
+        return res.status(
+            404
+        ).json({
 
             success:
                 false,
@@ -565,17 +1126,15 @@ app.use(
 app.use(
     (req, res) => {
 
-        /*
-         * If this was an API request, return JSON.
-         */
-
         if (
             req.originalUrl.startsWith(
                 "/api/"
             )
         ) {
 
-            return res.status(404).json({
+            return res.status(
+                404
+            ).json({
 
                 success:
                     false,
@@ -587,13 +1146,6 @@ app.use(
 
         }
 
-
-        /*
-         * Otherwise send the home page.
-         *
-         * This prevents random frontend routes
-         * from displaying a blank Express error.
-         */
 
         return res.sendFile(
             path.join(
@@ -641,7 +1193,9 @@ app.use(
             )
         ) {
 
-            return res.status(500).json({
+            return res.status(
+                500
+            ).json({
 
                 success:
                     false,
@@ -655,7 +1209,9 @@ app.use(
         }
 
 
-        return res.status(500).send(
+        return res.status(
+            500
+        ).send(
             "ShrekBook server error."
         );
 
@@ -672,6 +1228,7 @@ app.listen(
     () => {
 
         console.log("");
+
         console.log(
             "========================================"
         );
@@ -689,7 +1246,7 @@ app.listen(
         );
 
         console.log(
-            `🔐 SESSION: enabled`
+            "🔐 SESSION: enabled"
         );
 
         console.log(
@@ -698,6 +1255,14 @@ app.listen(
                     ? "connected"
                     : "missing"
             }`
+        );
+
+        console.log(
+            "📝 POSTS API: enabled"
+        );
+
+        console.log(
+            "💬 CHAT API: enabled"
         );
 
         console.log(

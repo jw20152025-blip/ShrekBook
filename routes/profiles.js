@@ -1,47 +1,93 @@
-
 "use strict";
 
-const express = require("express");
+const express =
+require("express");
 
-const router = express.Router();
+const router =
+express.Router();
 
 const supabase =
-    require("../utils/supabase.js");
-
+require("../utils/supabase.js");
 
 /* =========================================================
-   GET ALL PEOPLE
-   GET /api/users
+AUTH CHECK
 ========================================================= */
 
-router.get("/users", async (req, res) => {
+function requireLogin(
+req,
+res,
+next
+) {
 
-    console.log("🔥 GET /api/users");
+
+if (
+    !req.session ||
+    !req.session.user
+) {
+
+    return res.status(401).json({
+
+        success:
+            false,
+
+        error:
+            "You must be logged in."
+
+    });
+
+}
+
+
+next();
+
+
+}
+
+/* =========================================================
+GET ALL USERS
+========================================================= */
+
+router.get(
+"/users",
+async (req, res) => {
+
 
     try {
 
         const {
             data,
             error
-        } = await supabase
-            .from("profiles")
-            .select("*")
-            .order("created_at", {
-                ascending: false
-            });
+        } =
+            await supabase
+                .from("profiles")
+                .select(
+                    "id,created_at,display_name,username,bio,avatar"
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending:
+                            false
+                    }
+                );
 
 
         if (error) {
 
             console.error(
-                "❌ PEOPLE SUPABASE ERROR:",
+                "❌ GET USERS:",
                 error
             );
 
+
             return res.status(500).json({
-                success: false,
-                error: error.message,
-                users: []
+
+                success:
+                    false,
+
+                error:
+                    error.message
+
             });
 
         }
@@ -49,7 +95,8 @@ router.get("/users", async (req, res) => {
 
         return res.json({
 
-            success: true,
+            success:
+                true,
 
             users:
                 data || []
@@ -59,104 +106,67 @@ router.get("/users", async (req, res) => {
     } catch (error) {
 
         console.error(
-            "❌ PEOPLE CRASH:",
+            "❌ USERS CRASH:",
             error
         );
 
+
         return res.status(500).json({
 
-            success: false,
+            success:
+                false,
 
             error:
-                error.message,
-
-            users: []
+                error.message
 
         });
 
     }
 
-});
+}
 
+
+);
 
 /* =========================================================
-   GET ONE PROFILE
-   GET /api/users/:id
+GET ONE USER
 ========================================================= */
 
 router.get(
-    "/users/:id",
-    async (req, res) => {
-
-        try {
-
-            const id =
-                req.params.id;
+"/users/:id",
+async (req, res) => {
 
 
-            const {
-                data,
-                error
-            } = await supabase
+    try {
+
+        const {
+            data,
+            error
+        } =
+            await supabase
                 .from("profiles")
-                .select("*")
-                .eq("id", id)
+                .select(
+                    "id,created_at,display_name,username,bio,avatar"
+                )
+                .eq(
+                    "id",
+                    req.params.id
+                )
                 .maybeSingle();
 
 
-            if (error) {
-
-                console.error(
-                    "❌ PROFILE ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-
-                    success: false,
-
-                    error:
-                        error.message
-
-                });
-
-            }
-
-
-            if (!data) {
-
-                return res.status(404).json({
-
-                    success: false,
-
-                    error:
-                        "User not found."
-
-                });
-
-            }
-
-
-            return res.json({
-
-                success: true,
-
-                user:
-                    data
-
-            });
-
-        } catch (error) {
+        if (error) {
 
             console.error(
-                "❌ PROFILE CRASH:",
+                "❌ GET PROFILE:",
                 error
             );
 
 
             return res.status(500).json({
 
-                success: false,
+                success:
+                    false,
 
                 error:
                     error.message
@@ -165,10 +175,513 @@ router.get(
 
         }
 
+
+        if (!data) {
+
+            return res.status(404).json({
+
+                success:
+                    false,
+
+                error:
+                    "Profile not found."
+
+            });
+
+        }
+
+
+        return res.json({
+
+            success:
+                true,
+
+            user:
+                data
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "❌ PROFILE CRASH:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success:
+                false,
+
+            error:
+                error.message
+
+        });
+
     }
+
+}
+
+
 );
 
+/* =========================================================
+UPDATE PROFILE
+========================================================= */
+
+router.put(
+"/users/:id",
+requireLogin,
+async (req, res) => {
+
+
+    try {
+
+        const requestedId =
+            String(
+                req.params.id
+            );
+
+
+        const loggedInId =
+            String(
+                req.session.user.id
+            );
+
+
+        /*
+         * You can ONLY edit your own profile.
+         */
+
+        if (
+            requestedId !==
+            loggedInId
+        ) {
+
+            return res.status(403).json({
+
+                success:
+                    false,
+
+                error:
+                    "You can only edit your own profile."
+
+            });
+
+        }
+
+
+        const {
+
+            display_name,
+            username,
+            bio,
+            avatar
+
+        } =
+            req.body || {};
+
+
+        const updates = {
+
+            display_name:
+                typeof display_name ===
+                "string"
+                    ?
+                    display_name.trim()
+                    :
+                    "",
+
+            username:
+                typeof username ===
+                "string"
+                    ?
+                    username.trim()
+                    :
+                    "",
+
+            bio:
+                typeof bio ===
+                "string"
+                    ?
+                    bio.trim()
+                    :
+                    "",
+
+            avatar:
+                typeof avatar ===
+                "string"
+                    ?
+                    avatar.trim()
+                    :
+                    ""
+
+        };
+
+
+        /*
+         * Basic length protection.
+         */
+
+        if (
+            updates.display_name.length >
+            100
+        ) {
+
+            return res.status(400).json({
+
+                success:
+                    false,
+
+                error:
+                    "Display name is too long."
+
+            });
+
+        }
+
+
+        if (
+            updates.username.length >
+            50
+        ) {
+
+            return res.status(400).json({
+
+                success:
+                    false,
+
+                error:
+                    "Username is too long."
+
+            });
+
+        }
+
+
+        if (
+            updates.bio.length >
+            500
+        ) {
+
+            return res.status(400).json({
+
+                success:
+                    false,
+
+                error:
+                    "Bio is too long."
+
+            });
+
+        }
+
+
+        if (
+            updates.avatar.length >
+            1000
+        ) {
+
+            return res.status(400).json({
+
+                success:
+                    false,
+
+                error:
+                    "Avatar URL is too long."
+
+            });
+
+        }
+
+
+        /*
+         * Check username uniqueness.
+         */
+
+        if (
+            updates.username
+        ) {
+
+            const {
+                data:
+                    existingUser,
+                error:
+                    usernameError
+            } =
+                await supabase
+                    .from("profiles")
+                    .select("id")
+                    .eq(
+                        "username",
+                        updates.username
+                    )
+                    .neq(
+                        "id",
+                        requestedId
+                    )
+                    .maybeSingle();
+
+
+            if (usernameError) {
+
+                console.error(
+                    "❌ USERNAME CHECK:",
+                    usernameError
+                );
+
+
+                return res.status(500).json({
+
+                    success:
+                        false,
+
+                    error:
+                        usernameError.message
+
+                });
+
+            }
+
+
+            if (
+                existingUser
+            ) {
+
+                return res.status(409).json({
+
+                    success:
+                        false,
+
+                    error:
+                        "That username is already taken."
+
+                });
+
+            }
+
+        }
+
+
+        /*
+         * Update ONLY the four editable fields.
+         *
+         * id and created_at remain untouched.
+         */
+
+        const {
+            data,
+            error
+        } =
+            await supabase
+                .from("profiles")
+                .update(
+                    updates
+                )
+                .eq(
+                    "id",
+                    requestedId
+                )
+                .select(
+                    "id,created_at,display_name,username,bio,avatar"
+                )
+                .single();
+
+
+        if (error) {
+
+            console.error(
+                "❌ UPDATE PROFILE:",
+                error
+            );
+
+
+            return res.status(500).json({
+
+                success:
+                    false,
+
+                error:
+                    error.message
+
+            });
+
+        }
+
+
+        /*
+         * Keep the Express session's user info
+         * synchronized with the updated profile.
+         */
+
+        req.session.user = {
+
+            ...req.session.user,
+
+            id:
+                data.id,
+
+            username:
+                data.username ||
+                req.session.user.username,
+
+            display_name:
+                data.display_name ||
+                data.username ||
+                req.session.user.display_name,
+
+            avatar:
+                data.avatar ||
+                ""
+
+        };
+
+
+        req.session.save(
+            saveError => {
+
+                if (saveError) {
+
+                    console.error(
+                        "❌ SESSION SAVE:",
+                        saveError
+                    );
+
+                }
+
+            }
+        );
+
+
+        return res.json({
+
+            success:
+                true,
+
+            user:
+                data
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "🔥 UPDATE PROFILE CRASH:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success:
+                false,
+
+            error:
+                error.message ||
+                "Could not update profile."
+
+        });
+
+    }
+
+}
+
+
+);
+
+/* =========================================================
+PROFILE POSTS
+========================================================= */
+
+router.get(
+"/users/:id/posts",
+async (req, res) => {
+
+
+    try {
+
+        const {
+            data,
+            error
+        } =
+            await supabase
+                .from("posts")
+                .select("*")
+                .eq(
+                    "user_id",
+                    req.params.id
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending:
+                            false
+                    }
+                );
+
+
+        if (error) {
+
+            /*
+             * If your posts table uses a different
+             * author column, the frontend profile
+             * still loads without crashing.
+             */
+
+            console.error(
+                "❌ PROFILE POSTS:",
+                error
+            );
+
+
+            return res.json({
+
+                success:
+                    true,
+
+                posts:
+                    []
+
+            });
+
+        }
+
+
+        return res.json({
+
+            success:
+                true,
+
+            posts:
+                data || []
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "❌ PROFILE POSTS CRASH:",
+            error
+        );
+
+
+        return res.json({
+
+            success:
+                true,
+
+            posts:
+                []
+
+        });
+
+    }
+
+}
+
+
+);
 
 module.exports =
-    router;
-
+router;

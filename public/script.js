@@ -1142,3 +1142,14 @@ document.addEventListener(
     startHome
 );
 
+const shrekChatButton =
+    document.getElementById("shrekchat-button");
+
+if (shrekChatButton) {
+    shrekChatButton.addEventListener(
+        "click",
+        () => {
+            window.location.href = "/chat.html";
+        }
+    );
+}
