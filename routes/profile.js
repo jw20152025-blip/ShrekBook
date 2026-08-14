@@ -25,9 +25,65 @@ function escapeHtml(text) {
 
 function getProfileId() {
 
-    return new URLSearchParams(
-        window.location.search
-    ).get("id");
+    const params =
+        new URLSearchParams(
+            window.location.search
+        );
+
+    return params.get("id");
+
+}
+
+
+/* ==================================================
+   UPDATE REACTION COUNTS
+================================================== */
+
+function updateReactionCounts(counts) {
+
+    if (!counts) {
+        return;
+    }
+
+
+    const gyattCount =
+        document.getElementById(
+            "gyatt-count"
+        );
+
+    const catCount =
+        document.getElementById(
+            "cat-count"
+        );
+
+    const ogredCount =
+        document.getElementById(
+            "ogred-count"
+        );
+
+
+    if (gyattCount) {
+
+        gyattCount.textContent =
+            Number(counts.gyatt || 0);
+
+    }
+
+
+    if (catCount) {
+
+        catCount.textContent =
+            Number(counts.cat || 0);
+
+    }
+
+
+    if (ogredCount) {
+
+        ogredCount.textContent =
+            Number(counts.ogred || 0);
+
+    }
 
 }
 
@@ -38,8 +94,15 @@ function getProfileId() {
 
 async function giveReaction(type) {
 
+    console.log(
+        "Giving reaction:",
+        type
+    );
+
+
     const userId =
         getProfileId();
+
 
     if (!userId) {
 
@@ -85,9 +148,15 @@ async function giveReaction(type) {
                     headers: {
 
                         "Content-Type":
+                            "application/json",
+
+                        "Accept":
                             "application/json"
 
                     },
+
+                    credentials:
+                        "include",
 
                     body:
                         JSON.stringify({
@@ -101,8 +170,39 @@ async function giveReaction(type) {
             );
 
 
-        const data =
-            await response.json();
+        /*
+         * Don't blindly call response.json().
+         *
+         * If the server accidentally sends
+         * HTML, this prevents:
+         *
+         * Unexpected token '<'
+         */
+
+        const text =
+            await response.text();
+
+
+        let data;
+
+
+        try {
+
+            data =
+                JSON.parse(text);
+
+        } catch (jsonError) {
+
+            console.error(
+                "SERVER RETURNED NON-JSON:",
+                text
+            );
+
+            throw new Error(
+                "Server returned an invalid response."
+            );
+
+        }
 
 
         if (!response.ok) {
@@ -121,14 +221,15 @@ async function giveReaction(type) {
 
 
         /*
-         * Server returns:
+         * Server response:
          *
          * {
          *     success: true,
+         *     reaction: {...},
          *     counts: {
-         *         gyatt,
-         *         cat,
-         *         ogred
+         *         gyatt: 0,
+         *         cat: 0,
+         *         ogred: 0
          *     }
          * }
          */
@@ -136,42 +237,33 @@ async function giveReaction(type) {
 
         if (data.counts) {
 
-            const gyattCount =
+            updateReactionCounts(
+                data.counts
+            );
+
+        }
+
+
+        /*
+         * Extra fallback in case the server
+         * only returns `count`.
+         */
+
+        if (
+            data.count !== undefined &&
+            data.counts
+        ) {
+
+            const element =
                 document.getElementById(
-                    "gyatt-count"
+                    `${type}-count`
                 );
 
-            const catCount =
-                document.getElementById(
-                    "cat-count"
-                );
 
-            const ogredCount =
-                document.getElementById(
-                    "ogred-count"
-                );
+            if (element) {
 
-
-            if (gyattCount) {
-
-                gyattCount.textContent =
-                    data.counts.gyatt ?? 0;
-
-            }
-
-
-            if (catCount) {
-
-                catCount.textContent =
-                    data.counts.cat ?? 0;
-
-            }
-
-
-            if (ogredCount) {
-
-                ogredCount.textContent =
-                    data.counts.ogred ?? 0;
+                element.textContent =
+                    data.count;
 
             }
 
@@ -185,8 +277,13 @@ async function giveReaction(type) {
             error
         );
 
+
         alert(
-            "❌ Could not give reaction."
+            "❌ " +
+            (
+                error.message ||
+                "Could not give reaction."
+            )
         );
 
     }
@@ -210,9 +307,27 @@ async function loadProfile() {
             "No profile ID in URL."
         );
 
+        const profile =
+            document.getElementById(
+                "profile"
+            );
+
+        if (profile) {
+
+            profile.innerHTML =
+                "<p>❌ No profile ID.</p>";
+
+        }
+
         return;
 
     }
+
+
+    console.log(
+        "Loading profile:",
+        userId
+    );
 
 
     try {
@@ -221,12 +336,50 @@ async function loadProfile() {
             await fetch(
                 `/api/users/${encodeURIComponent(
                     userId
-                )}`
+                )}`,
+                {
+
+                    method:
+                        "GET",
+
+                    headers: {
+
+                        "Accept":
+                            "application/json"
+
+                    },
+
+                    credentials:
+                        "include"
+
+                }
             );
 
 
-        const data =
-            await response.json();
+        const text =
+            await response.text();
+
+
+        let data;
+
+
+        try {
+
+            data =
+                JSON.parse(text);
+
+        } catch (jsonError) {
+
+            console.error(
+                "PROFILE SERVER RESPONSE:",
+                text
+            );
+
+            throw new Error(
+                "Server returned an invalid response."
+            );
+
+        }
 
 
         if (!response.ok) {
@@ -239,13 +392,27 @@ async function loadProfile() {
         }
 
 
+        /*
+         * Supports either:
+         *
+         * {
+         *     user: {...},
+         *     counts: {...}
+         * }
+         *
+         * OR:
+         *
+         * {...user}
+         */
+
         const user =
-            data.user || data;
+            data.user ||
+            data;
 
 
-        /* ------------------------------------------
-           NAME
-        ------------------------------------------ */
+        /* ==================================================
+           DISPLAY NAME
+        ================================================== */
 
         const displayName =
             document.getElementById(
@@ -263,9 +430,9 @@ async function loadProfile() {
         }
 
 
-        /* ------------------------------------------
+        /* ==================================================
            USERNAME
-        ------------------------------------------ */
+        ================================================== */
 
         const username =
             document.getElementById(
@@ -285,9 +452,9 @@ async function loadProfile() {
         }
 
 
-        /* ------------------------------------------
+        /* ==================================================
            BIO
-        ------------------------------------------ */
+        ================================================== */
 
         const bio =
             document.getElementById(
@@ -304,9 +471,9 @@ async function loadProfile() {
         }
 
 
-        /* ------------------------------------------
+        /* ==================================================
            AVATAR
-        ------------------------------------------ */
+        ================================================== */
 
         const avatar =
             document.getElementById(
@@ -320,8 +487,12 @@ async function loadProfile() {
                 user.avatar ||
                 "/default-avatar.png";
 
+
             avatar.onerror =
                 () => {
+
+                    avatar.onerror =
+                        null;
 
                     avatar.src =
                         "/default-avatar.png";
@@ -331,9 +502,9 @@ async function loadProfile() {
         }
 
 
-        /* ------------------------------------------
+        /* ==================================================
            REACTION COUNTS
-        ------------------------------------------ */
+        ================================================== */
 
         const counts =
             data.counts ||
@@ -343,46 +514,17 @@ async function loadProfile() {
 
         if (counts) {
 
-            const gyatt =
-                document.getElementById(
-                    "gyatt-count"
-                );
-
-            const cat =
-                document.getElementById(
-                    "cat-count"
-                );
-
-            const ogred =
-                document.getElementById(
-                    "ogred-count"
-                );
-
-
-            if (gyatt) {
-
-                gyatt.textContent =
-                    counts.gyatt ?? 0;
-
-            }
-
-
-            if (cat) {
-
-                cat.textContent =
-                    counts.cat ?? 0;
-
-            }
-
-
-            if (ogred) {
-
-                ogred.textContent =
-                    counts.ogred ?? 0;
-
-            }
+            updateReactionCounts(
+                counts
+            );
 
         }
+
+
+        console.log(
+            "✅ Profile loaded:",
+            user
+        );
 
 
     } catch (error) {
@@ -424,6 +566,10 @@ async function loadProfile() {
 document.addEventListener(
     "DOMContentLoaded",
     () => {
+
+        console.log(
+            "🧌 ShrekBook profile.js loaded"
+        );
 
         loadProfile();
 

@@ -30,11 +30,10 @@ function warn() {
             "upload-avatar-button-warn"
         );
 
-
     if (element) {
 
         element.textContent =
-            "When changing your avatar, do not press the Save Profile button. Instead, press Upload Avatar.";
+            "When changing your avatar, do not press Save Profile. Instead, press Upload Avatar.";
 
     }
 
@@ -60,10 +59,8 @@ function fileToBase64(file) {
                     const result =
                         reader.result;
 
-
                     const base64 =
                         result.split(",")[1];
-
 
                     resolve(base64);
 
@@ -105,7 +102,11 @@ async function prepareImage(file) {
     }
 
 
-    if (!file.type.startsWith("image/")) {
+    if (
+        !file.type.startsWith(
+            "image/"
+        )
+    ) {
 
         throw new Error(
             "Selected file is not an image."
@@ -127,7 +128,9 @@ async function prepareImage(file) {
 
 
     const data =
-        await fileToBase64(file);
+        await fileToBase64(
+            file
+        );
 
 
     return {
@@ -142,6 +145,79 @@ async function prepareImage(file) {
             file.name
 
     };
+
+}
+
+
+/* ==================================================
+   SAFE JSON FETCH
+================================================== */
+
+async function fetchJSON(
+    url,
+    options = {}
+) {
+
+    const response =
+        await fetch(
+            url,
+            {
+
+                credentials:
+                    "include",
+
+                ...options,
+
+                headers: {
+
+                    "Accept":
+                        "application/json",
+
+                    ...(options.headers || {})
+
+                }
+
+            }
+        );
+
+
+    const text =
+        await response.text();
+
+
+    let data;
+
+
+    try {
+
+        data =
+            JSON.parse(text);
+
+    } catch {
+
+        console.error(
+            "SERVER RETURNED NON-JSON:",
+            text
+        );
+
+        throw new Error(
+            "Server returned an invalid response."
+        );
+
+    }
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            data.error ||
+            "Request failed."
+        );
+
+    }
+
+
+    return data;
 
 }
 
@@ -170,7 +246,10 @@ async function login() {
         );
 
 
-    if (!email || !password) {
+    if (
+        !email ||
+        !password
+    ) {
 
         if (status) {
 
@@ -194,48 +273,33 @@ async function login() {
 
     try {
 
-        const response =
-            await fetch(
-                "/api/login",
-                {
+        await fetchJSON(
+            "/api/login",
+            {
 
-                    method:
-                        "POST",
+                method:
+                    "POST",
 
-                    headers: {
+                headers: {
 
-                        "Content-Type":
-                            "application/json"
+                    "Content-Type":
+                        "application/json"
 
-                    },
+                },
 
-                    body:
-                        JSON.stringify({
+                body:
+                    JSON.stringify({
 
-                            email:
-                                email,
+                        email:
+                            email,
 
-                            password:
-                                password
+                        password:
+                            password
 
-                        })
+                    })
 
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Login failed."
-            );
-
-        }
+            }
+        );
 
 
         if (status) {
@@ -334,55 +398,40 @@ async function signup() {
 
     try {
 
-        const response =
-            await fetch(
-                "/api/signup",
-                {
+        await fetchJSON(
+            "/api/signup",
+            {
 
-                    method:
-                        "POST",
+                method:
+                    "POST",
 
-                    headers: {
+                headers: {
 
-                        "Content-Type":
-                            "application/json"
+                    "Content-Type":
+                        "application/json"
 
-                    },
+                },
 
-                    body:
-                        JSON.stringify({
+                body:
+                    JSON.stringify({
 
-                            username:
-                                username,
+                        username:
+                            username,
 
-                            display_name:
-                                displayName ||
-                                username,
+                        display_name:
+                            displayName ||
+                            username,
 
-                            email:
-                                email,
+                        email:
+                            email,
 
-                            password:
-                                password
+                        password:
+                            password
 
-                        })
+                    })
 
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Signup failed."
-            );
-
-        }
+            }
+        );
 
 
         if (status) {
@@ -493,18 +542,13 @@ async function checkLogin() {
 
     try {
 
-        const response =
-            await fetch(
+        const data =
+            await fetchJSON(
                 "/api/me"
             );
 
 
-        const data =
-            await response.json();
-
-
         if (
-            response.ok &&
             data.loggedIn &&
             data.user
         ) {
@@ -646,14 +690,15 @@ async function logout() {
 
     try {
 
-        await fetch(
+        await fetchJSON(
             "/api/logout",
             {
+
                 method:
                     "POST"
+
             }
         );
-
 
     } catch (error) {
 
@@ -691,21 +736,16 @@ async function loadPosts() {
 
     try {
 
-        const response =
-            await fetch(
+        const posts =
+            await fetchJSON(
                 "/api/posts"
             );
 
 
-        const posts =
-            await response.json();
-
-
-        if (!response.ok) {
+        if (!Array.isArray(posts)) {
 
             throw new Error(
-                posts.error ||
-                "Could not load posts."
+                "Invalid posts response."
             );
 
         }
@@ -740,7 +780,9 @@ async function loadPosts() {
                         "";
 
 
-                    if (post.image_url) {
+                    if (
+                        post.image_url
+                    ) {
 
                         imageHTML = `
 
@@ -748,7 +790,8 @@ async function loadPosts() {
                                 class="post-image-container"
                                 style="
                                     margin-top:12px;
-                                ">
+                                "
+                            >
 
                                 <img
                                     src="${escapeHtml(
@@ -761,7 +804,11 @@ async function loadPosts() {
                                         border-radius:12px;
                                         object-fit:contain;
                                         display:block;
-                                    ">
+                                    "
+                                    onerror="
+                                        this.style.display='none';
+                                    "
+                                >
 
                             </div>
 
@@ -772,7 +819,9 @@ async function loadPosts() {
 
                     return `
 
-                        <article class="post">
+                        <article
+                            class="post"
+                        >
 
                             <div
                                 class="post-header"
@@ -780,7 +829,8 @@ async function loadPosts() {
                                     display:flex;
                                     align-items:center;
                                     gap:10px;
-                                ">
+                                "
+                            >
 
                                 <img
                                     src="${escapeHtml(
@@ -795,7 +845,8 @@ async function loadPosts() {
                                     "
                                     onerror="
                                         this.src='/default-avatar.png';
-                                    ">
+                                    "
+                                >
 
 
                                 <a
@@ -805,13 +856,15 @@ async function loadPosts() {
                                     style="
                                         text-decoration:none;
                                         color:inherit;
-                                    ">
+                                    "
+                                >
 
                                     <strong>
                                         ${escapeHtml(
                                             displayName
                                         )}
                                     </strong>
+
 
                                     <div>
                                         @${escapeHtml(
@@ -833,7 +886,8 @@ async function loadPosts() {
                                             class="post-content"
                                             style="
                                                 margin-top:10px;
-                                            ">
+                                            "
+                                        >
 
                                             ${escapeHtml(
                                                 post.content
@@ -856,10 +910,9 @@ async function loadPosts() {
                                             post.id
                                         )}'
                                     )
-                                ">
-
+                                "
+                            >
                                 💬 Comments
-
                             </button>
 
 
@@ -870,15 +923,15 @@ async function loadPosts() {
                                 class="comments"
                                 style="
                                     display:none;
-                                ">
+                                "
+                            >
 
                                 <div
                                     id="comment-list-${escapeHtml(
                                         post.id
-                                    )}">
-
+                                    )}"
+                                >
                                     Loading...
-
                                 </div>
 
 
@@ -886,14 +939,16 @@ async function loadPosts() {
                                     class="comment-form"
                                     style="
                                         margin-top:10px;
-                                    ">
+                                    "
+                                >
 
                                     <input
                                         id="comment-input-${escapeHtml(
                                             post.id
                                         )}"
                                         placeholder="Write a comment..."
-                                        maxlength="500">
+                                        maxlength="500"
+                                    >
 
 
                                     <input
@@ -901,12 +956,8 @@ async function loadPosts() {
                                             post.id
                                         )}"
                                         type="file"
-                                        accept="
-                                            image/png,
-                                            image/jpeg,
-                                            image/webp,
-                                            image/gif
-                                        ">
+                                        accept="image/png,image/jpeg,image/webp,image/gif"
+                                    >
 
 
                                     <button
@@ -916,10 +967,9 @@ async function loadPosts() {
                                                     post.id
                                                 )}'
                                             )
-                                        ">
-
+                                        "
+                                    >
                                         Send
-
                                     </button>
 
 
@@ -930,7 +980,8 @@ async function loadPosts() {
                                         style="
                                             display:none;
                                             margin-top:8px;
-                                        ">
+                                        "
+                                    >
 
                                         <img
                                             id="comment-preview-image-${escapeHtml(
@@ -941,7 +992,8 @@ async function loadPosts() {
                                                 max-width:200px;
                                                 max-height:200px;
                                                 border-radius:10px;
-                                            ">
+                                            "
+                                        >
 
 
                                         <br>
@@ -955,10 +1007,9 @@ async function loadPosts() {
                                                         post.id
                                                     )}'
                                                 )
-                                            ">
-
+                                            "
+                                        >
                                             ❌ Remove image
-
                                         </button>
 
                                     </div>
@@ -1008,7 +1059,7 @@ async function loadPosts() {
                     () => {
 
                         const file =
-                            input.files[0];
+                            input.files?.[0];
 
 
                         if (!file) {
@@ -1135,7 +1186,10 @@ async function createPost() {
         null;
 
 
-    if (!content && !file) {
+    if (
+        !content &&
+        !file
+    ) {
 
         if (status) {
 
@@ -1165,48 +1219,33 @@ async function createPost() {
             );
 
 
-        const response =
-            await fetch(
-                "/api/posts",
-                {
+        await fetchJSON(
+            "/api/posts",
+            {
 
-                    method:
-                        "POST",
+                method:
+                    "POST",
 
-                    headers: {
+                headers: {
 
-                        "Content-Type":
-                            "application/json"
+                    "Content-Type":
+                        "application/json"
 
-                    },
+                },
 
-                    body:
-                        JSON.stringify({
+                body:
+                    JSON.stringify({
 
-                            content:
-                                content,
+                        content:
+                            content,
 
-                            image:
-                                image
+                        image:
+                            image
 
-                        })
+                    })
 
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Could not create post."
-            );
-
-        }
+            }
+        );
 
 
         if (input) {
@@ -1220,6 +1259,34 @@ async function createPost() {
         if (imageInput) {
 
             imageInput.value =
+                "";
+
+        }
+
+
+        const preview =
+            document.getElementById(
+                "post-image-preview"
+            );
+
+
+        const previewImage =
+            document.getElementById(
+                "post-preview-image"
+            );
+
+
+        if (preview) {
+
+            preview.style.display =
+                "none";
+
+        }
+
+
+        if (previewImage) {
+
+            previewImage.src =
                 "";
 
         }
@@ -1285,7 +1352,7 @@ async function toggleComments(postId) {
             "block";
 
 
-        loadComments(
+        await loadComments(
             postId
         );
 
@@ -1320,23 +1387,18 @@ async function loadComments(postId) {
 
     try {
 
-        const response =
-            await fetch(
+        const comments =
+            await fetchJSON(
                 `/api/posts/${encodeURIComponent(
                     postId
                 )}/comments`
             );
 
 
-        const comments =
-            await response.json();
-
-
-        if (!response.ok) {
+        if (!Array.isArray(comments)) {
 
             throw new Error(
-                comments.error ||
-                "Could not load comments."
+                "Invalid comments response."
             );
 
         }
@@ -1371,7 +1433,9 @@ async function loadComments(postId) {
                         "";
 
 
-                    if (comment.image_url) {
+                    if (
+                        comment.image_url
+                    ) {
 
                         imageHTML = `
 
@@ -1389,7 +1453,8 @@ async function loadComments(postId) {
                                 "
                                 onerror="
                                     this.style.display='none';
-                                ">
+                                "
+                            >
 
                         `;
 
@@ -1403,14 +1468,16 @@ async function loadComments(postId) {
                             style="
                                 padding:10px;
                                 margin-bottom:10px;
-                            ">
+                            "
+                        >
 
                             <div
                                 style="
                                     display:flex;
                                     align-items:center;
                                     gap:8px;
-                                ">
+                                "
+                            >
 
                                 <img
                                     src="${escapeHtml(
@@ -1425,7 +1492,8 @@ async function loadComments(postId) {
                                     "
                                     onerror="
                                         this.src='/default-avatar.png';
-                                    ">
+                                    "
+                                >
 
 
                                 <strong>
@@ -1508,7 +1576,10 @@ async function submitComment(postId) {
         null;
 
 
-    if (!content && !file) {
+    if (
+        !content &&
+        !file
+    ) {
 
         return;
 
@@ -1523,50 +1594,35 @@ async function submitComment(postId) {
             );
 
 
-        const response =
-            await fetch(
-                `/api/posts/${encodeURIComponent(
-                    postId
-                )}/comments`,
-                {
+        await fetchJSON(
+            `/api/posts/${encodeURIComponent(
+                postId
+            )}/comments`,
+            {
 
-                    method:
-                        "POST",
+                method:
+                    "POST",
 
-                    headers: {
+                headers: {
 
-                        "Content-Type":
-                            "application/json"
+                    "Content-Type":
+                        "application/json"
 
-                    },
+                },
 
-                    body:
-                        JSON.stringify({
+                body:
+                    JSON.stringify({
 
-                            content:
-                                content,
+                        content:
+                            content,
 
-                            image:
-                                image
+                        image:
+                            image
 
-                        })
+                    })
 
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Could not comment."
-            );
-
-        }
+            }
+        );
 
 
         if (input) {
@@ -1590,7 +1646,7 @@ async function submitComment(postId) {
         );
 
 
-        loadComments(
+        await loadComments(
             postId
         );
 
@@ -1684,21 +1740,16 @@ async function loadPeople() {
 
     try {
 
-        const response =
-            await fetch(
+        const users =
+            await fetchJSON(
                 "/api/users"
             );
 
 
-        const users =
-            await response.json();
-
-
-        if (!response.ok) {
+        if (!Array.isArray(users)) {
 
             throw new Error(
-                users.error ||
-                "Could not load people."
+                "Invalid users response."
             );
 
         }
@@ -1742,7 +1793,8 @@ async function loadPeople() {
                                 display:flex;
                                 align-items:center;
                                 gap:12px;
-                            ">
+                            "
+                        >
 
                             <img
                                 class="avatar"
@@ -1758,7 +1810,8 @@ async function loadPeople() {
                                 "
                                 onerror="
                                     this.src='/default-avatar.png';
-                                ">
+                                "
+                            >
 
 
                             <div>
@@ -1768,6 +1821,7 @@ async function loadPeople() {
                                         displayName
                                     )}
                                 </strong>
+
 
                                 <p>
                                     @${escapeHtml(
@@ -1805,7 +1859,7 @@ async function loadPeople() {
 
 
 /* ==================================================
-   COMMENT ENTER KEY
+   ENTER KEY FOR COMMENTS
 ================================================== */
 
 document.addEventListener(
@@ -1861,6 +1915,11 @@ document.addEventListener(
 document.addEventListener(
     "DOMContentLoaded",
     () => {
+
+        console.log(
+            "🧌 ShrekBook script.js loaded"
+        );
+
 
         checkLogin();
 
