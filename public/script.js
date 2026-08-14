@@ -1,10 +1,11 @@
 /* ==================================================
-SHREKBOOK CLIENT SCRIPT
+   SHREKBOOK CLIENT SCRIPT
+   public/script.js
 ================================================== */
 
 
 /* ==================================================
-ESCAPE HTML
+   ESCAPE HTML
 ================================================== */
 
 function escapeHtml(text) {
@@ -20,28 +21,7 @@ function escapeHtml(text) {
 
 
 /* ==================================================
-WARNING
-================================================== */
-
-function warn() {
-
-    const element =
-        document.getElementById(
-            "upload-avatar-button-warn"
-        );
-
-    if (element) {
-
-        element.innerHTML =
-            "When changing your avatar, do not press the Save Profile button. Instead, press Upload Avatar.";
-
-    }
-
-}
-
-
-/* ==================================================
-FILE -> BASE64
+   FILE -> BASE64
 ================================================== */
 
 function fileToBase64(file) {
@@ -60,7 +40,6 @@ function fileToBase64(file) {
                 result.split(",")[1];
 
             resolve(base64);
-
         };
 
         reader.onerror = () => {
@@ -79,134 +58,9 @@ function fileToBase64(file) {
 
 }
 
+
 /* ==================================================
-REACTIONS
-================================================== */
-
-async function giveReaction(type) {
-
-    console.log("🔥 giveReaction called:", type);
-
-    const params = new URLSearchParams(window.location.search);
-    const userId = params.get("id");
-
-    console.log("👤 Target user:", userId);
-
-    if (!userId) {
-        alert("❌ No profile ID found in the URL.");
-        return;
-    }
-
-    const allowedTypes = ["gyatt", "cat", "ogred"];
-
-    if (!allowedTypes.includes(type)) {
-        alert("❌ Invalid reaction type.");
-        return;
-    }
-
-    try {
-
-        const url =
-            `/api/users/${encodeURIComponent(userId)}/reaction`;
-
-        console.log("📡 Sending reaction to:", url);
-
-        const response = await fetch(url, {
-
-            method: "POST",
-
-            credentials: "include",
-
-            headers: {
-                "Content-Type": "application/json"
-            },
-
-            body: JSON.stringify({
-                type: type
-            })
-
-        });
-
-        console.log(
-            "📥 Response status:",
-            response.status
-        );
-
-        const rawText = await response.text();
-
-        console.log(
-            "📥 Raw server response:",
-            rawText
-        );
-
-        let data;
-
-        try {
-            data = JSON.parse(rawText);
-        } catch {
-            throw new Error(
-                `Server returned invalid JSON (${response.status}).`
-            );
-        }
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                `Server error (${response.status}).`
-            );
-
-        }
-
-        const counts =
-            data.counts || {};
-
-        const gyatt =
-            document.getElementById("gyatt-count");
-
-        const cat =
-            document.getElementById("cat-count");
-
-        const ogred =
-            document.getElementById("ogred-count");
-
-        if (gyatt) {
-            gyatt.textContent =
-                counts.gyatt ?? 0;
-        }
-
-        if (cat) {
-            cat.textContent =
-                counts.cat ?? 0;
-        }
-
-        if (ogred) {
-            ogred.textContent =
-                counts.ogred ?? 0;
-        }
-
-        console.log(
-            "✅ Reaction successful:",
-            data
-        );
-
-    } catch (error) {
-
-        console.error(
-            "💀 REACTION ERROR:",
-            error
-        );
-
-        alert(
-            "❌ Reaction failed:\n\n" +
-            error.message
-        );
-
-    }
-
-}
-/* ==================================================
-MAKE IMAGE OBJECT
+   PREPARE IMAGE
 ================================================== */
 
 async function prepareImage(file) {
@@ -236,7 +90,8 @@ async function prepareImage(file) {
 
     return {
 
-        data: data,
+        data:
+            data,
 
         type:
             file.type,
@@ -250,7 +105,7 @@ async function prepareImage(file) {
 
 
 /* ==================================================
-LOGIN
+   LOGIN
 ================================================== */
 
 async function login() {
@@ -258,12 +113,12 @@ async function login() {
     const email =
         document.getElementById(
             "login-email"
-        ).value.trim();
+        )?.value.trim();
 
     const password =
         document.getElementById(
             "login-password"
-        ).value;
+        )?.value;
 
     const status =
         document.getElementById(
@@ -272,15 +127,22 @@ async function login() {
 
     if (!email || !password) {
 
-        status.textContent =
-            "❌ Enter your email and password.";
+        if (status) {
+
+            status.textContent =
+                "❌ Enter your email and password.";
+
+        }
 
         return;
-
     }
 
-    status.textContent =
-        "Logging in...";
+    if (status) {
+
+        status.textContent =
+            "Logging in...";
+
+    }
 
     try {
 
@@ -313,8 +175,10 @@ async function login() {
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -325,8 +189,14 @@ async function login() {
 
         }
 
-        status.textContent =
-            "✅ Logged in!";
+
+        if (status) {
+
+            status.textContent =
+                "✅ Logged in!";
+
+        }
+
 
         showApp();
 
@@ -337,9 +207,13 @@ async function login() {
             error
         );
 
-        status.textContent =
-            "❌ " +
-            error.message;
+        if (status) {
+
+            status.textContent =
+                "❌ " +
+                error.message;
+
+        }
 
     }
 
@@ -347,7 +221,7 @@ async function login() {
 
 
 /* ==================================================
-SIGNUP
+   SIGNUP
 ================================================== */
 
 async function signup() {
@@ -355,27 +229,28 @@ async function signup() {
     const username =
         document.getElementById(
             "signup-username"
-        ).value.trim();
+        )?.value.trim();
 
     const displayName =
         document.getElementById(
             "signup-display-name"
-        ).value.trim();
+        )?.value.trim();
 
     const email =
         document.getElementById(
             "signup-email"
-        ).value.trim();
+        )?.value.trim();
 
     const password =
         document.getElementById(
             "signup-password"
-        ).value;
+        )?.value;
 
     const status =
         document.getElementById(
             "signup-status"
         );
+
 
     if (
         !username ||
@@ -383,15 +258,24 @@ async function signup() {
         !password
     ) {
 
-        status.textContent =
-            "❌ Fill in all required fields.";
+        if (status) {
+
+            status.textContent =
+                "❌ Fill in all required fields.";
+
+        }
 
         return;
+    }
+
+
+    if (status) {
+
+        status.textContent =
+            "Creating account...";
 
     }
 
-    status.textContent =
-        "Creating account...";
 
     try {
 
@@ -431,8 +315,10 @@ async function signup() {
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -443,8 +329,14 @@ async function signup() {
 
         }
 
-        status.textContent =
-            "✅ Account created!";
+
+        if (status) {
+
+            status.textContent =
+                "✅ Account created!";
+
+        }
+
 
         showLogin();
 
@@ -455,9 +347,13 @@ async function signup() {
             error
         );
 
-        status.textContent =
-            "❌ " +
-            error.message;
+        if (status) {
+
+            status.textContent =
+                "❌ " +
+                error.message;
+
+        }
 
     }
 
@@ -465,7 +361,7 @@ async function signup() {
 
 
 /* ==================================================
-AUTH UI
+   AUTH UI
 ================================================== */
 
 function showSignup() {
@@ -480,12 +376,14 @@ function showSignup() {
             "signup-box"
         );
 
+
     if (loginBox) {
 
         loginBox.style.display =
             "none";
 
     }
+
 
     if (signupBox) {
 
@@ -509,12 +407,14 @@ function showLogin() {
             "signup-box"
         );
 
+
     if (loginBox) {
 
         loginBox.style.display =
             "block";
 
     }
+
 
     if (signupBox) {
 
@@ -527,7 +427,108 @@ function showLogin() {
 
 
 /* ==================================================
-SESSION CHECK
+   SHOW AUTH
+================================================== */
+
+function showAuth() {
+
+    const auth =
+        document.getElementById(
+            "auth-section"
+        );
+
+    const app =
+        document.getElementById(
+            "app-section"
+        );
+
+    const logoutButton =
+        document.getElementById(
+            "logout-button"
+        );
+
+
+    if (auth) {
+
+        auth.style.display =
+            "block";
+
+    }
+
+
+    if (app) {
+
+        app.style.display =
+            "none";
+
+    }
+
+
+    if (logoutButton) {
+
+        logoutButton.style.display =
+            "none";
+
+    }
+
+}
+
+
+/* ==================================================
+   SHOW APP
+================================================== */
+
+function showApp() {
+
+    const auth =
+        document.getElementById(
+            "auth-section"
+        );
+
+    const app =
+        document.getElementById(
+            "app-section"
+        );
+
+    const logoutButton =
+        document.getElementById(
+            "logout-button"
+        );
+
+
+    if (auth) {
+
+        auth.style.display =
+            "none";
+
+    }
+
+
+    if (app) {
+
+        app.style.display =
+            "block";
+
+    }
+
+
+    if (logoutButton) {
+
+        logoutButton.style.display =
+            "inline-block";
+
+    }
+
+
+    loadPosts();
+
+    loadPeople();
+
+}
+
+
+/* ==================================================
+   SESSION CHECK
 ================================================== */
 
 async function checkLogin() {
@@ -539,8 +540,10 @@ async function checkLogin() {
                 "/api/me"
             );
 
+
         const data =
             await response.json();
+
 
         if (
             response.ok &&
@@ -571,101 +574,7 @@ async function checkLogin() {
 
 
 /* ==================================================
-SHOW AUTH
-================================================== */
-
-function showAuth() {
-
-    const auth =
-        document.getElementById(
-            "auth-section"
-        );
-
-    const app =
-        document.getElementById(
-            "app-section"
-        );
-
-    const logoutButton =
-        document.getElementById(
-            "logout-button"
-        );
-
-    if (auth) {
-
-        auth.style.display =
-            "block";
-
-    }
-
-    if (app) {
-
-        app.style.display =
-            "none";
-
-    }
-
-    if (logoutButton) {
-
-        logoutButton.style.display =
-            "none";
-
-    }
-
-}
-
-
-/* ==================================================
-SHOW APP
-================================================== */
-
-function showApp() {
-
-    const auth =
-        document.getElementById(
-            "auth-section"
-        );
-
-    const app =
-        document.getElementById(
-            "app-section"
-        );
-
-    const logoutButton =
-        document.getElementById(
-            "logout-button"
-        );
-
-    if (auth) {
-
-        auth.style.display =
-            "none";
-
-    }
-
-    if (app) {
-
-        app.style.display =
-            "block";
-
-    }
-
-    if (logoutButton) {
-
-        logoutButton.style.display =
-            "inline-block";
-
-    }
-
-    loadPosts();
-
-    loadPeople();
-
-}
-
-
-/* ==================================================
-LOGOUT
+   LOGOUT
 ================================================== */
 
 async function logout() {
@@ -689,13 +598,14 @@ async function logout() {
 
     }
 
+
     showAuth();
 
 }
 
 
 /* ==================================================
-LOAD POSTS
+   LOAD POSTS
 ================================================== */
 
 async function loadPosts() {
@@ -709,6 +619,7 @@ async function loadPosts() {
         return;
     }
 
+
     try {
 
         const response =
@@ -716,8 +627,10 @@ async function loadPosts() {
                 "/api/posts"
             );
 
+
         const posts =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -728,6 +641,7 @@ async function loadPosts() {
 
         }
 
+
         if (!posts.length) {
 
             container.innerHTML =
@@ -736,6 +650,7 @@ async function loadPosts() {
             return;
 
         }
+
 
         container.innerHTML =
             posts.map(post => {
@@ -749,13 +664,10 @@ async function loadPosts() {
                     post.username ||
                     "User";
 
+
                 let imageHTML =
                     "";
 
-                /*
-                 * IMPORTANT:
-                 * Server uses image_url
-                 */
 
                 if (post.image_url) {
 
@@ -763,9 +675,7 @@ async function loadPosts() {
 
                         <div
                             class="post-image-container"
-                            style="
-                                margin-top:12px;
-                            ">
+                            style="margin-top:12px;">
 
                             <img
                                 src="${escapeHtml(
@@ -778,7 +688,8 @@ async function loadPosts() {
                                     border-radius:12px;
                                     object-fit:contain;
                                     display:block;
-                                ">
+                                "
+                            >
 
                         </div>
 
@@ -786,10 +697,10 @@ async function loadPosts() {
 
                 }
 
+
                 return `
 
-                    <article
-                        class="post">
+                    <article class="post">
 
                         <div
                             class="post-header"
@@ -797,7 +708,8 @@ async function loadPosts() {
                                 display:flex;
                                 align-items:center;
                                 gap:10px;
-                            ">
+                            "
+                        >
 
                             <img
                                 src="${escapeHtml(
@@ -812,7 +724,8 @@ async function loadPosts() {
                                 "
                                 onerror="
                                     this.src='/default-avatar.png';
-                                ">
+                                "
+                            >
 
                             <a
                                 href="/profile.html?id=${encodeURIComponent(
@@ -821,7 +734,8 @@ async function loadPosts() {
                                 style="
                                     text-decoration:none;
                                     color:inherit;
-                                ">
+                                "
+                            >
 
                                 <strong>
                                     ${escapeHtml(
@@ -849,7 +763,8 @@ async function loadPosts() {
                                         class="post-content"
                                         style="
                                             margin-top:10px;
-                                        ">
+                                        "
+                                    >
 
                                         ${escapeHtml(
                                             post.content
@@ -868,9 +783,12 @@ async function loadPosts() {
                         <button
                             onclick="
                                 toggleComments(
-                                    '${escapeHtml(post.id)}'
+                                    '${escapeHtml(
+                                        post.id
+                                    )}'
                                 )
-                            ">
+                            "
+                        >
 
                             💬 Comments
 
@@ -878,14 +796,18 @@ async function loadPosts() {
 
 
                         <div
-                            id="comments-${escapeHtml(post.id)}"
+                            id="comments-${escapeHtml(
+                                post.id
+                            )}"
                             class="comments"
-                            style="
-                                display:none;
-                            ">
+                            style="display:none;"
+                        >
 
                             <div
-                                id="comment-list-${escapeHtml(post.id)}">
+                                id="comment-list-${escapeHtml(
+                                    post.id
+                                )}"
+                            >
 
                                 Loading...
 
@@ -894,33 +816,41 @@ async function loadPosts() {
 
                             <div
                                 class="comment-form"
-                                style="
-                                    margin-top:10px;
-                                ">
+                                style="margin-top:10px;"
+                            >
 
                                 <input
-                                    id="comment-input-${escapeHtml(post.id)}"
+                                    id="comment-input-${escapeHtml(
+                                        post.id
+                                    )}"
                                     placeholder="Write a comment..."
-                                    maxlength="500">
+                                    maxlength="500"
+                                >
 
 
                                 <input
-                                    id="comment-image-${escapeHtml(post.id)}"
+                                    id="comment-image-${escapeHtml(
+                                        post.id
+                                    )}"
                                     type="file"
                                     accept="
                                         image/png,
                                         image/jpeg,
                                         image/webp,
                                         image/gif
-                                    ">
+                                    "
+                                >
 
 
                                 <button
                                     onclick="
                                         submitComment(
-                                            '${escapeHtml(post.id)}'
+                                            '${escapeHtml(
+                                                post.id
+                                            )}'
                                         )
-                                    ">
+                                    "
+                                >
 
                                     Send
 
@@ -928,32 +858,39 @@ async function loadPosts() {
 
 
                                 <div
-                                    id="comment-preview-${escapeHtml(post.id)}"
+                                    id="comment-preview-${escapeHtml(
+                                        post.id
+                                    )}"
                                     style="
                                         display:none;
                                         margin-top:8px;
-                                    ">
+                                    "
+                                >
 
                                     <img
-                                        id="comment-preview-image-${escapeHtml(post.id)}"
+                                        id="comment-preview-image-${escapeHtml(
+                                            post.id
+                                        )}"
                                         alt="Comment image preview"
                                         style="
                                             max-width:200px;
                                             max-height:200px;
                                             border-radius:10px;
-                                        ">
-
+                                        "
+                                    >
 
                                     <br>
-
 
                                     <button
                                         type="button"
                                         onclick="
                                             clearCommentImage(
-                                                '${escapeHtml(post.id)}'
+                                                '${escapeHtml(
+                                                    post.id
+                                                )}'
                                             )
-                                        ">
+                                        "
+                                    >
 
                                         ❌ Remove image
 
@@ -972,102 +909,7 @@ async function loadPosts() {
             }).join("");
 
 
-        /*
-         * Setup comment image previews
-         */
-
-        posts.forEach(post => {
-
-            const input =
-                document.getElementById(
-                    `comment-image-${post.id}`
-                );
-
-            const preview =
-                document.getElementById(
-                    `comment-preview-${post.id}`
-                );
-
-            const previewImage =
-                document.getElementById(
-                    `comment-preview-image-${post.id}`
-                );
-
-            if (!input) {
-                return;
-            }
-
-            input.addEventListener(
-                "change",
-                () => {
-
-                    const file =
-                        input.files[0];
-
-                    if (!file) {
-
-                        preview.style.display =
-                            "none";
-
-                        return;
-
-                    }
-
-                    if (
-                        !file.type.startsWith(
-                            "image/"
-                        )
-                    ) {
-
-                        alert(
-                            "❌ Please choose an image."
-                        );
-
-                        input.value =
-                            "";
-
-                        return;
-
-                    }
-
-                    if (
-                        file.size >
-                        5 * 1024 * 1024
-                    ) {
-
-                        alert(
-                            "❌ Image must be under 5MB."
-                        );
-
-                        input.value =
-                            "";
-
-                        return;
-
-                    }
-
-                    const reader =
-                        new FileReader();
-
-                    reader.onload =
-                        event => {
-
-                            previewImage.src =
-                                event.target.result;
-
-                            preview.style.display =
-                                "block";
-
-                        };
-
-                    reader.readAsDataURL(
-                        file
-                    );
-
-                }
-            );
-
-        });
+        setupCommentImagePreviews(posts);
 
     } catch (error) {
 
@@ -1087,7 +929,117 @@ async function loadPosts() {
 
 
 /* ==================================================
-CREATE POST
+   COMMENT IMAGE PREVIEWS
+================================================== */
+
+function setupCommentImagePreviews(posts) {
+
+    posts.forEach(post => {
+
+        const input =
+            document.getElementById(
+                `comment-image-${post.id}`
+            );
+
+        const preview =
+            document.getElementById(
+                `comment-preview-${post.id}`
+            );
+
+        const previewImage =
+            document.getElementById(
+                `comment-preview-image-${post.id}`
+            );
+
+
+        if (!input) {
+            return;
+        }
+
+
+        input.addEventListener(
+            "change",
+            () => {
+
+                const file =
+                    input.files[0];
+
+
+                if (!file) {
+
+                    preview.style.display =
+                        "none";
+
+                    return;
+
+                }
+
+
+                if (
+                    !file.type.startsWith(
+                        "image/"
+                    )
+                ) {
+
+                    alert(
+                        "❌ Please choose an image."
+                    );
+
+                    input.value =
+                        "";
+
+                    return;
+
+                }
+
+
+                if (
+                    file.size >
+                    5 * 1024 * 1024
+                ) {
+
+                    alert(
+                        "❌ Image must be under 5MB."
+                    );
+
+                    input.value =
+                        "";
+
+                    return;
+
+                }
+
+
+                const reader =
+                    new FileReader();
+
+
+                reader.onload =
+                    event => {
+
+                        previewImage.src =
+                            event.target.result;
+
+                        preview.style.display =
+                            "block";
+
+                    };
+
+
+                reader.readAsDataURL(
+                    file
+                );
+
+            }
+        );
+
+    });
+
+}
+
+
+/* ==================================================
+   CREATE POST
 ================================================== */
 
 async function createPost() {
@@ -1107,41 +1059,46 @@ async function createPost() {
             "post-status"
         );
 
+
     const content =
         input?.value.trim() ||
         "";
+
 
     const file =
         imageInput?.files?.[0] ||
         null;
 
+
     if (!content && !file) {
 
-        status.textContent =
-            "❌ Write something or select an image.";
+        if (status) {
+
+            status.textContent =
+                "❌ Write something or select an image.";
+
+        }
 
         return;
 
     }
 
-    status.textContent =
-        "Posting...";
+
+    if (status) {
+
+        status.textContent =
+            "Posting...";
+
+    }
+
 
     try {
 
-        /*
-         * IMPORTANT:
-         * Server expects:
-         *
-         * image: {
-         *   data,
-         *   type,
-         *   name
-         * }
-         */
-
         const image =
-            await prepareImage(file);
+            await prepareImage(
+                file
+            );
+
 
         const response =
             await fetch(
@@ -1172,8 +1129,10 @@ async function createPost() {
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -1184,15 +1143,16 @@ async function createPost() {
 
         }
 
-        input.value =
-            "";
+
+        if (input) {
+            input.value = "";
+        }
+
 
         if (imageInput) {
-
-            imageInput.value =
-                "";
-
+            imageInput.value = "";
         }
+
 
         const preview =
             document.getElementById(
@@ -1204,12 +1164,14 @@ async function createPost() {
                 "post-preview-image"
             );
 
+
         if (preview) {
 
             preview.style.display =
                 "none";
 
         }
+
 
         if (previewImage) {
 
@@ -1218,8 +1180,14 @@ async function createPost() {
 
         }
 
-        status.textContent =
-            "✅ Posted!";
+
+        if (status) {
+
+            status.textContent =
+                "✅ Posted!";
+
+        }
+
 
         loadPosts();
 
@@ -1230,9 +1198,13 @@ async function createPost() {
             error
         );
 
-        status.textContent =
-            "❌ " +
-            error.message;
+        if (status) {
+
+            status.textContent =
+                "❌ " +
+                error.message;
+
+        }
 
     }
 
@@ -1240,7 +1212,7 @@ async function createPost() {
 
 
 /* ==================================================
-TOGGLE COMMENTS
+   TOGGLE COMMENTS
 ================================================== */
 
 async function toggleComments(postId) {
@@ -1250,9 +1222,11 @@ async function toggleComments(postId) {
             `comments-${postId}`
         );
 
+
     if (!box) {
         return;
     }
+
 
     if (
         box.style.display ===
@@ -1277,7 +1251,7 @@ async function toggleComments(postId) {
 
 
 /* ==================================================
-LOAD COMMENTS
+   LOAD COMMENTS
 ================================================== */
 
 async function loadComments(postId) {
@@ -1287,9 +1261,11 @@ async function loadComments(postId) {
             `comment-list-${postId}`
         );
 
+
     if (!list) {
         return;
     }
+
 
     try {
 
@@ -1298,8 +1274,10 @@ async function loadComments(postId) {
                 `/api/posts/${postId}/comments`
             );
 
+
         const comments =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -1310,6 +1288,7 @@ async function loadComments(postId) {
 
         }
 
+
         if (!comments.length) {
 
             list.innerHTML =
@@ -1318,6 +1297,7 @@ async function loadComments(postId) {
             return;
 
         }
+
 
         list.innerHTML =
             comments.map(comment => {
@@ -1331,13 +1311,10 @@ async function loadComments(postId) {
                     comment.username ||
                     "User";
 
+
                 let imageHTML =
                     "";
 
-                /*
-                 * IMPORTANT:
-                 * Server uses image_url
-                 */
 
                 if (comment.image_url) {
 
@@ -1355,13 +1332,12 @@ async function loadComments(postId) {
                                 margin-top:8px;
                                 display:block;
                             "
-                            onerror="
-                                this.style.display='none';
-                            ">
+                        >
 
                     `;
 
                 }
+
 
                 return `
 
@@ -1370,14 +1346,16 @@ async function loadComments(postId) {
                         style="
                             padding:10px;
                             margin-bottom:10px;
-                        ">
+                        "
+                    >
 
                         <div
                             style="
                                 display:flex;
                                 align-items:center;
                                 gap:8px;
-                            ">
+                            "
+                        >
 
                             <img
                                 src="${escapeHtml(
@@ -1390,16 +1368,12 @@ async function loadComments(postId) {
                                     border-radius:50%;
                                     object-fit:cover;
                                 "
-                                onerror="
-                                    this.src='/default-avatar.png';
-                                ">
+                            >
 
                             <strong>
-
                                 ${escapeHtml(
                                     displayName
                                 )}
-
                             </strong>
 
                         </div>
@@ -1446,7 +1420,7 @@ async function loadComments(postId) {
 
 
 /* ==================================================
-SUBMIT COMMENT
+   SUBMIT COMMENT
 ================================================== */
 
 async function submitComment(postId) {
@@ -1461,27 +1435,29 @@ async function submitComment(postId) {
             `comment-image-${postId}`
         );
 
+
     const content =
         input?.value.trim() ||
         "";
+
 
     const file =
         imageInput?.files?.[0] ||
         null;
 
+
     if (!content && !file) {
         return;
     }
 
+
     try {
 
-        /*
-         * Convert file to the exact
-         * object expected by server.
-         */
-
         const image =
-            await prepareImage(file);
+            await prepareImage(
+                file
+            );
+
 
         const response =
             await fetch(
@@ -1512,8 +1488,10 @@ async function submitComment(postId) {
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -1524,23 +1502,21 @@ async function submitComment(postId) {
 
         }
 
-        input.value =
-            "";
 
-        if (imageInput) {
-
-            imageInput.value =
-                "";
-
+        if (input) {
+            input.value = "";
         }
+
 
         clearCommentImage(
             postId
         );
 
+
         loadComments(
             postId
         );
+
 
     } catch (error) {
 
@@ -1560,7 +1536,7 @@ async function submitComment(postId) {
 
 
 /* ==================================================
-CLEAR COMMENT IMAGE
+   CLEAR COMMENT IMAGE
 ================================================== */
 
 function clearCommentImage(postId) {
@@ -1580,6 +1556,7 @@ function clearCommentImage(postId) {
             `comment-preview-image-${postId}`
         );
 
+
     if (input) {
 
         input.value =
@@ -1587,12 +1564,14 @@ function clearCommentImage(postId) {
 
     }
 
+
     if (previewImage) {
 
         previewImage.src =
             "";
 
     }
+
 
     if (preview) {
 
@@ -1605,7 +1584,7 @@ function clearCommentImage(postId) {
 
 
 /* ==================================================
-PEOPLE
+   LOAD PEOPLE
 ================================================== */
 
 async function loadPeople() {
@@ -1615,9 +1594,11 @@ async function loadPeople() {
             "people"
         );
 
+
     if (!container) {
         return;
     }
+
 
     try {
 
@@ -1626,8 +1607,10 @@ async function loadPeople() {
                 "/api/users"
             );
 
+
         const users =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -1638,6 +1621,7 @@ async function loadPeople() {
 
         }
 
+
         if (!users.length) {
 
             container.innerHTML =
@@ -1646,6 +1630,7 @@ async function loadPeople() {
             return;
 
         }
+
 
         container.innerHTML =
             users.map(user => {
@@ -1658,6 +1643,7 @@ async function loadPeople() {
                     user.display_name ||
                     user.username ||
                     "User";
+
 
                 return `
 
@@ -1672,7 +1658,8 @@ async function loadPeople() {
                             display:flex;
                             align-items:center;
                             gap:12px;
-                        ">
+                        "
+                    >
 
                         <img
                             class="avatar"
@@ -1688,7 +1675,8 @@ async function loadPeople() {
                             "
                             onerror="
                                 this.src='/default-avatar.png';
-                            ">
+                            "
+                        >
 
                         <div>
 
@@ -1700,7 +1688,8 @@ async function loadPeople() {
 
                             <p>
                                 @${escapeHtml(
-                                    user.username
+                                    user.username ||
+                                    "user"
                                 )}
                             </p>
 
@@ -1711,6 +1700,7 @@ async function loadPeople() {
                 `;
 
             }).join("");
+
 
     } catch (error) {
 
@@ -1730,7 +1720,7 @@ async function loadPeople() {
 
 
 /* ==================================================
-ENTER KEY FOR COMMENTS
+   ENTER KEY FOR COMMENTS
 ================================================== */
 
 document.addEventListener(
@@ -1746,8 +1736,10 @@ document.addEventListener(
 
         }
 
+
         const target =
             event.target;
+
 
         if (
             target &&
@@ -1759,11 +1751,13 @@ document.addEventListener(
 
             event.preventDefault();
 
+
             const postId =
                 target.id.replace(
                     "comment-input-",
                     ""
                 );
+
 
             submitComment(
                 postId
@@ -1776,7 +1770,7 @@ document.addEventListener(
 
 
 /* ==================================================
-START
+   START
 ================================================== */
 
 document.addEventListener(
