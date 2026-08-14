@@ -1,46 +1,80 @@
 /* ==================================================
-   SHREKBOOK SCRIPT
+   SHREKBOOK SHARED CLIENT
 ================================================== */
 
 
 /* ==================================================
-   GLOBAL HELPERS
+   FETCH JSON
 ================================================== */
 
-async function fetchJSON(url, options = {}) {
+async function fetchJSON(
+    url,
+    options = {}
+) {
 
-    const response = await fetch(url, {
-        credentials: "include",
-        ...options
-    });
+    const response =
+        await fetch(
+            url,
+            {
 
-    const text = await response.text();
+                credentials:
+                    "include",
+
+                ...options,
+
+                headers: {
+
+                    "Content-Type":
+                        "application/json",
+
+                    "Accept":
+                        "application/json",
+
+                    ...(options.headers || {})
+
+                }
+
+            }
+        );
+
+
+    const text =
+        await response.text();
+
 
     let data = {};
 
+
     try {
-        data = text ? JSON.parse(text) : {};
-    } catch (error) {
-        console.error(
-            "❌ INVALID JSON FROM SERVER:",
+
+        data =
             text
-        );
+                ? JSON.parse(text)
+                : {};
+
+    }
+
+    catch {
 
         throw new Error(
             "Server returned an invalid response."
         );
+
     }
+
 
     if (!response.ok) {
 
         throw new Error(
             data.error ||
-            `Server error (${response.status})`
+            `Server error (${response.status}).`
         );
 
     }
 
+
     return data;
+
 }
 
 
@@ -50,15 +84,14 @@ async function fetchJSON(url, options = {}) {
 
 async function login() {
 
-    console.log(
-        "🔐 LOGIN BUTTON CLICKED"
-    );
+    console.log("🔐 LOGIN BUTTON PRESSED");
 
 
     const emailInput =
         document.getElementById(
             "login-email"
         );
+
 
     const passwordInput =
         document.getElementById(
@@ -70,10 +103,6 @@ async function login() {
 
         console.error(
             "❌ Login inputs not found."
-        );
-
-        alert(
-            "Login form is broken: inputs not found."
         );
 
         return;
@@ -102,7 +131,7 @@ async function login() {
     try {
 
         console.log(
-            "📡 Sending login request..."
+            "Sending POST /api/login"
         );
 
 
@@ -114,27 +143,12 @@ async function login() {
                     method:
                         "POST",
 
-                    headers: {
-
-                        "Content-Type":
-                            "application/json",
-
-                        "Accept":
-                            "application/json"
-
-                    },
-
-                    credentials:
-                        "include",
-
                     body:
                         JSON.stringify({
 
-                            email:
-                                email,
+                            email,
 
-                            password:
-                                password
+                            password
 
                         })
 
@@ -143,107 +157,23 @@ async function login() {
 
 
         console.log(
-            "✅ LOGIN RESPONSE:",
+            "✅ LOGIN SUCCESS:",
             data
         );
 
 
-        if (!data.success) {
-
-            throw new Error(
-                data.error ||
-                "Login failed."
-            );
-
-        }
-
-
-        console.log(
-            "✅ LOGIN SUCCESS"
-        );
-
-
         /*
-         * IMPORTANT:
+         * THE IMPORTANT PART
          *
-         * The backend has now created the
-         * Express session.
-         *
-         * We check /api/me before redirecting.
+         * Login is DONE.
+         * Now go to index.html.
          */
 
-        console.log(
-            "🔍 Checking session..."
-        );
+        window.location.replace("/");
 
+    }
 
-        try {
-
-            const me =
-                await fetchJSON(
-                    "/api/me"
-                );
-
-
-            console.log(
-                "👤 SESSION CHECK:",
-                me
-            );
-
-
-            if (!me.loggedIn) {
-
-                console.error(
-                    "❌ Login succeeded, but session is not logged in."
-                );
-
-                alert(
-                    "Login succeeded, but the session was not saved. Check the server session settings."
-                );
-
-                return;
-
-            }
-
-        } catch (sessionError) {
-
-            console.error(
-                "❌ SESSION CHECK FAILED:",
-                sessionError
-            );
-
-            alert(
-                "Login succeeded, but ShrekBook could not verify your session."
-            );
-
-            return;
-
-        }
-
-
-        console.log(
-            "🚀 REDIRECTING TO HOMEPAGE..."
-        );
-
-
-        /*
-         * Small delay makes the redirect much
-         * more reliable when the session cookie
-         * has just been created.
-         */
-
-        setTimeout(
-            () => {
-
-                window.location.href =
-                    "/";
-
-            },
-            100
-        );
-
-
-    } catch (error) {
+    catch (error) {
 
         console.error(
             "❌ LOGIN ERROR:",
@@ -252,11 +182,7 @@ async function login() {
 
 
         alert(
-            "❌ " +
-            (
-                error.message ||
-                "Could not log in."
-            )
+            error.message
         );
 
     }
@@ -270,59 +196,34 @@ async function login() {
 
 async function logout() {
 
-    console.log(
-        "🚪 LOGGING OUT..."
-    );
-
-
     try {
 
-        const data =
-            await fetchJSON(
-                "/api/logout",
-                {
+        await fetchJSON(
+            "/api/logout",
+            {
 
-                    method:
-                        "POST",
+                method:
+                    "POST"
 
-                    headers: {
-
-                        "Accept":
-                            "application/json"
-
-                    },
-
-                    credentials:
-                        "include"
-
-                }
-            );
-
-
-        console.log(
-            "✅ LOGOUT RESPONSE:",
-            data
+            }
         );
 
 
-        window.location.href =
-            "/";
+        window.location.replace(
+            "/login.html"
+        );
 
+    }
 
-    } catch (error) {
+    catch (error) {
 
         console.error(
-            "❌ LOGOUT ERROR:",
+            "LOGOUT ERROR:",
             error
         );
 
-
         alert(
-            "❌ " +
-            (
-                error.message ||
-                "Logout failed."
-            )
+            error.message
         );
 
     }
@@ -331,15 +232,10 @@ async function logout() {
 
 
 /* ==================================================
-   CHECK CURRENT USER
+   LOGIN PAGE
 ================================================== */
 
-async function checkLogin() {
-
-    console.log(
-        "🔍 Checking login status..."
-    );
-
+async function checkLoginPage() {
 
     try {
 
@@ -349,192 +245,24 @@ async function checkLogin() {
             );
 
 
-        console.log(
-            "👤 CURRENT USER:",
-            data
-        );
-
-
-        if (
-            data.loggedIn &&
-            data.user
-        ) {
+        if (data.loggedIn) {
 
             console.log(
-                "✅ User is logged in:",
-                data.user.username
+                "Already logged in."
             );
 
-
-            return data.user;
+            window.location.replace(
+                "/"
+            );
 
         }
-
-
-        console.log(
-            "ℹ️ No user is logged in."
-        );
-
-
-        return null;
-
-
-    } catch (error) {
-
-        console.error(
-            "❌ LOGIN STATUS ERROR:",
-            error
-        );
-
-
-        return null;
 
     }
 
-}
-
-
-/* ==================================================
-   LOAD PEOPLE
-================================================== */
-
-async function loadPeople() {
-
-    console.log(
-        "👥 Loading people..."
-    );
-
-
-    try {
-
-        const data =
-            await fetchJSON(
-                "/api/users"
-            );
-
-
-        console.log(
-            "👥 USERS RESPONSE:",
-            data
-        );
-
-
-        const users =
-            Array.isArray(data)
-                ? data
-                : data.users;
-
-
-        if (!Array.isArray(users)) {
-
-            throw new Error(
-                "Invalid users response."
-            );
-
-        }
-
-
-        const peopleContainer =
-            document.getElementById(
-                "people"
-            );
-
-
-        if (!peopleContainer) {
-
-            console.log(
-                "ℹ️ People container not found."
-            );
-
-            return;
-
-        }
-
-
-        peopleContainer.innerHTML =
-            "";
-
-
-        users.forEach(
-            user => {
-
-                const card =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                card.className =
-                    "person-card";
-
-
-                const avatar =
-                    user.avatar ||
-                    "/default-avatar.png";
-
-
-                const displayName =
-                    user.display_name ||
-                    user.username ||
-                    "User";
-
-
-                const username =
-                    user.username ||
-                    "user";
-
-
-                card.innerHTML = `
-                    <img
-                        src="${escapeHtml(avatar)}"
-                        class="person-avatar"
-                        onerror="this.src='/default-avatar.png'"
-                    >
-
-                    <div class="person-info">
-
-                        <strong>
-                            ${escapeHtml(displayName)}
-                        </strong>
-
-                        <span>
-                            @${escapeHtml(username)}
-                        </span>
-
-                    </div>
-                `;
-
-
-                card.addEventListener(
-                    "click",
-                    () => {
-
-                        if (!user.id) {
-                            return;
-                        }
-
-
-                        window.location.href =
-                            `/profile.html?id=${encodeURIComponent(
-                                user.id
-                            )}`;
-
-                    }
-                );
-
-
-                peopleContainer.appendChild(
-                    card
-                );
-
-            }
-        );
-
-
-    } catch (error) {
+    catch (error) {
 
         console.error(
-            "❌ PEOPLE ERROR:",
+            "LOGIN CHECK ERROR:",
             error
         );
 
@@ -544,73 +272,20 @@ async function loadPeople() {
 
 
 /* ==================================================
-   ESCAPE HTML
-================================================== */
-
-function escapeHtml(text) {
-
-    const div =
-        document.createElement(
-            "div"
-        );
-
-
-    div.textContent =
-        text ?? "";
-
-
-    return div.innerHTML;
-
-}
-
-
-/* ==================================================
-   PAGE STARTUP
+   START LOGIN PAGE
 ================================================== */
 
 document.addEventListener(
     "DOMContentLoaded",
-    async () => {
-
-        console.log(
-            "🧌 ShrekBook script.js loaded"
-        );
-
-
-        /*
-         * Don't automatically redirect here.
-         *
-         * We let the login() function handle
-         * the login redirect.
-         */
-
-
-        const user =
-            await checkLogin();
-
-
-        if (user) {
-
-            console.log(
-                "🟢 Logged in as:",
-                user.username
-            );
-
-        }
-
-
-        /*
-         * Load the People section if it
-         * exists on this page.
-         */
+    () => {
 
         if (
             document.getElementById(
-                "people"
+                "login-form"
             )
         ) {
 
-            loadPeople();
+            checkLoginPage();
 
         }
 

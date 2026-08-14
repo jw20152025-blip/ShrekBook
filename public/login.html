@@ -1,166 +1,89 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Login - ShrekBook 🧌</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <link rel="stylesheet" href="/styles.css">
+    <title>Login - ShrekBook</title>
+
 </head>
+
 
 <body>
 
-<header class="navbar">
-    <div class="navbar-inner">
+    <h1>
+        🧌 ShrekBook
+    </h1>
 
-        <a href="/" class="logo">
-            🧌 ShrekBook
+    <h2>
+        Login
+    </h2>
+
+
+    <form
+        id="login-form"
+        onsubmit="
+            event.preventDefault();
+            login();
+        "
+    >
+
+        <label>
+            Email
+        </label>
+
+        <input
+            id="login-email"
+            type="email"
+            required
+        >
+
+
+        <br><br>
+
+
+        <label>
+            Password
+        </label>
+
+        <input
+            id="login-password"
+            type="password"
+            required
+        >
+
+
+        <br><br>
+
+
+        <button
+            type="submit"
+        >
+            Login
+        </button>
+
+    </form>
+
+
+    <p>
+        Don't have an account?
+        <a href="/signup.html">
+            Sign up
         </a>
-
-        <nav>
-            <a href="/">Home</a>
-            <a href="/signup.html">Sign Up</a>
-        </nav>
-
-    </div>
-</header>
+    </p>
 
 
-<main class="container">
-
-    <section class="auth-section">
-
-        <div class="auth-box">
-
-            <h1>Welcome Back 🧌</h1>
-
-            <p>
-                Log back into ShrekBook.
-            </p>
-
-
-            <input
-                id="email"
-                type="email"
-                placeholder="Email"
-                autocomplete="email"
-            >
-
-
-            <input
-                id="password"
-                type="password"
-                placeholder="Password"
-                autocomplete="current-password"
-            >
-
-
-            <button onclick="login()">
-                🔐 Login
-            </button>
-
-
-            <p id="status"></p>
-
-
-            <p>
-                Don't have an account?
-                <a href="/signup.html">
-                    Create one
-                </a>
-            </p>
-
-        </div>
-
-    </section>
-
-</main>
-
-
-<script>
-
-async function login() {
-
-    const email =
-        document.getElementById("email")
-            .value.trim();
-
-    const password =
-        document.getElementById("password")
-            .value;
-
-    const status =
-        document.getElementById("status");
-
-
-    if (!email || !password) {
-
-        status.textContent =
-            "❌ Enter your email and password.";
-
-        return;
-    }
-
-
-    status.textContent =
-        "Logging in...";
-
-
-    try {
-
-        const response =
-            await fetch("/api/login", {
-
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
-
-                body: JSON.stringify({
-                    email,
-                    password
-                })
-
-            });
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Login failed."
-            );
-
-        }
-
-
-        status.textContent =
-            "✅ Login successful!";
-
-
-        window.location.href = "/";
-
-
-    } catch (error) {
-
-        console.error(
-            "LOGIN ERROR:",
-            error
-        );
-
-        status.textContent =
-            "❌ " + error.message;
-    }
-}
-
-</script>
+    <script
+        src="/js/script.js"
+    ></script>
 
 </body>
+
 </html>

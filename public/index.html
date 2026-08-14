@@ -4,651 +4,163 @@
 
 <head>
 
+    <meta charset="UTF-8">
 
-<meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0">
+    <title>ShrekBook</title>
 
-<title>ShrekBook - Social Network for Ogres</title>
+    <style>
 
-<link
-    rel="stylesheet"
-    href="/styles.css">
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background: #f2f2f2;
+        }
 
+        header {
+            background: #6b8e23;
+            color: white;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        main {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 20px;
+        }
+
+        .profile-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+        }
+
+        .home-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        #people-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .person {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+        }
+
+        .person:hover {
+            background: #eeeeee;
+        }
+
+        .person-avatar {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .person-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .person-info span {
+            color: #777;
+        }
+
+        button {
+            cursor: pointer;
+            padding: 8px 14px;
+            border: none;
+            border-radius: 7px;
+        }
+
+    </style>
 
 </head>
 
+
 <body>
 
-<header class="navbar">
+    <header>
 
-
-<div class="navbar-inner">
-
-    <a
-        href="/"
-        class="logo">
-
-        🧌 ShrekBook
-
-    </a>
-
-    <nav>
-
-        <a href="/">
-            Home
-        </a>
-
-        <a
-            href="/profile.html"
-            id="profile-link">
-
-            Profile
-
-        </a>
-
-        <a href="/shrekchat.html">
-
-            💬 ShrekChat
-
-        </a>
+        <h1>🧌 ShrekBook</h1>
 
         <button
-            id="logout-button"
             onclick="logout()"
-            style="display:none;">
-
-            Logout
-
+        >
+            Log out
         </button>
 
-    </nav>
-
-</div>
+    </header>
 
 
-</header>
+    <main>
 
-<main class="container">
+        <section class="profile-card">
 
+            <img
+                id="home-avatar"
+                class="home-avatar"
+                src="/default-avatar.png"
+                alt="Avatar"
+            >
 
-<!-- ==========================================
-     LOGIN / SIGNUP
-     ========================================== -->
-
-<section
-    id="auth-section"
-    class="auth-section">
-
-    <div class="auth-box">
-
-        <h1>
-            Welcome to ShrekBook 🧌
-        </h1>
-
-        <p>
-            The social network for ogres,
-            cats, and everyone in between.
-        </p>
-
-
-        <!-- LOGIN -->
-
-        <div id="login-box">
-
-            <h2>
-                Login
+            <h2 id="home-display-name">
+                Loading...
             </h2>
 
-            <input
-                id="login-email"
-                type="email"
-                placeholder="Email">
+            <p id="home-username">
+                @loading
+            </p>
 
-            <input
-                id="login-password"
-                type="password"
-                placeholder="Password">
-
-            <button onclick="login()">
-
-                🔐 Login
-
-            </button>
-
-            <p id="login-status"></p>
-
-            <button
-                class="secondary-button"
-                onclick="showSignup()">
-
-                Don't have an account?
-                Sign up
-
-            </button>
-
-        </div>
+        </section>
 
 
-        <!-- SIGNUP -->
-
-        <div
-            id="signup-box"
-            style="display:none;">
+        <section>
 
             <h2>
-                Create Account
+                People
             </h2>
-
-            <input
-                id="signup-username"
-                maxlength="30"
-                placeholder="Username">
-
-            <input
-                id="signup-display-name"
-                maxlength="50"
-                placeholder="Display name">
-
-            <input
-                id="signup-email"
-                type="email"
-                placeholder="Email">
-
-            <input
-                id="signup-password"
-                type="password"
-                placeholder="Password">
-
-            <button onclick="signup()">
-
-                📝 Create Account
-
-            </button>
-
-            <p id="signup-status"></p>
-
-            <button
-                class="secondary-button"
-                onclick="showLogin()">
-
-                Already have an account?
-                Login
-
-            </button>
-
-        </div>
-
-    </div>
-
-</section>
-
-
-<!-- ==========================================
-     MAIN APP
-     ========================================== -->
-
-<section
-    id="app-section"
-    style="display:none;">
-
-
-    <!-- ======================================
-         CREATE POST
-         ====================================== -->
-
-    <section class="create-post">
-
-        <h2>
-            What's on your mind? 🧌
-        </h2>
-
-        <textarea
-            id="post-content"
-            maxlength="5000"
-            placeholder="Say something...">
-        </textarea>
-
-
-        <!-- IMAGE PICKER -->
-
-        <div class="image-upload">
-
-            <label for="post-image">
-
-                🖼️ Add an image
-
-            </label>
-
-            <input
-                id="post-image"
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif">
 
             <div
-                id="post-image-preview"
-                style="display:none;">
-
-                <img
-                    id="post-preview-image"
-                    alt="Post image preview"
-                    style="
-                        max-width:100%;
-                        max-height:400px;
-                        border-radius:12px;
-                        margin-top:10px;
-                    ">
-
-                <br>
-
-                <button
-                    type="button"
-                    onclick="clearPostImage()">
-
-                    ❌ Remove image
-
-                </button>
-
+                id="people-list"
+            >
+                Loading people...
             </div>
 
-        </div>
+        </section>
 
+    </main>
 
-        <button onclick="createPost()">
 
-            📝 Post
+    <!-- SHARED -->
+    <script
+        src="/js/script.js"
+    ></script>
 
-        </button>
 
-        <p id="post-status"></p>
-
-    </section>
-
-
-    <!-- ======================================
-         FEED
-         ====================================== -->
-
-    <section>
-
-        <h2>
-            Feed
-        </h2>
-
-        <div id="posts">
-
-            Loading posts...
-
-        </div>
-
-    </section>
-
-
-    <!-- ======================================
-         PEOPLE
-         ====================================== -->
-
-    <section class="people-section">
-
-        <h2>
-            People 👥
-        </h2>
-
-        <div id="people">
-
-            Loading people...
-
-        </div>
-
-    </section>
-
-
-    <!-- ======================================
-         SHREKBOOK TELECOM
-         ====================================== -->
-
-    <section class="telecom-section">
-
-        <h2>
-            🧌 ShrekBook Telecom
-        </h2>
-
-        <p>
-            Connecting the swamp
-            to the internet since 2026.
-        </p>
-
-        <a
-            class="telecom-button"
-            href="/shrekchat.html">
-
-            💬 Open ShrekChat
-
-        </a>
-
-    </section>
-
-</section>
-
-
-</main>
-
-<script>
-
-/* ==================================================
-POST IMAGE PREVIEW
-================================================== */
-
-const postImageInput =
-    document.getElementById("post-image");
-
-const postImagePreview =
-    document.getElementById("post-image-preview");
-
-const postPreviewImage =
-    document.getElementById("post-preview-image");
-
-
-if (postImageInput) {
-
-    postImageInput.addEventListener(
-        "change",
-        () => {
-
-            const file =
-                postImageInput.files[0];
-
-            if (!file) {
-
-                clearPostImage();
-
-                return;
-            }
-
-
-            if (!file.type.startsWith("image/")) {
-
-                alert(
-                    "❌ Please select an image."
-                );
-
-                clearPostImage();
-
-                return;
-            }
-
-
-            if (file.size > 5 * 1024 * 1024) {
-
-                alert(
-                    "❌ Images must be under 5MB."
-                );
-
-                clearPostImage();
-
-                return;
-            }
-
-
-            const reader =
-                new FileReader();
-
-
-            reader.onload =
-                event => {
-
-                    postPreviewImage.src =
-                        event.target.result;
-
-                    postImagePreview.style.display =
-                        "block";
-
-                };
-
-
-            reader.readAsDataURL(file);
-
-        }
-    );
-
-}
-
-
-/* ==================================================
-CLEAR POST IMAGE
-================================================== */
-
-function clearPostImage() {
-
-    if (postImageInput) {
-
-        postImageInput.value =
-            "";
-
-    }
-
-    if (postPreviewImage) {
-
-        postPreviewImage.src =
-            "";
-
-    }
-
-    if (postImagePreview) {
-
-        postImagePreview.style.display =
-            "none";
-
-    }
-
-}
-
-
-/* ==================================================
-COMMENT IMAGE PICKER
-================================================== */
-
-/*
-    Comment image inputs are created dynamically
-    by script.js.
-
-    This function is called by the comment UI
-    after the input exists.
-*/
-
-function setupCommentImagePreview(postId) {
-
-    const input =
-        document.getElementById(
-            `comment-image-${postId}`
-        );
-
-    const preview =
-        document.getElementById(
-            `comment-preview-${postId}`
-        );
-
-    const image =
-        document.getElementById(
-            `comment-preview-image-${postId}`
-        );
-
-
-    if (!input) return;
-
-
-    input.addEventListener(
-        "change",
-        () => {
-
-            const file =
-                input.files[0];
-
-            if (!file) {
-
-                if (preview) {
-
-                    preview.style.display =
-                        "none";
-
-                }
-
-                return;
-            }
-
-
-            if (!file.type.startsWith("image/")) {
-
-                alert(
-                    "❌ Please select an image."
-                );
-
-                input.value =
-                    "";
-
-                return;
-            }
-
-
-            if (file.size > 5 * 1024 * 1024) {
-
-                alert(
-                    "❌ Images must be under 5MB."
-                );
-
-                input.value =
-                    "";
-
-                return;
-            }
-
-
-            const reader =
-                new FileReader();
-
-
-            reader.onload =
-                event => {
-
-                    if (image) {
-
-                        image.src =
-                            event.target.result;
-
-                    }
-
-                    if (preview) {
-
-                        preview.style.display =
-                            "block";
-
-                    }
-
-                };
-
-
-            reader.readAsDataURL(file);
-
-        }
-    );
-
-}
-
-
-/* ==================================================
-CLEAR COMMENT IMAGE
-================================================== */
-
-function clearCommentImage(postId) {
-
-    const input =
-        document.getElementById(
-            `comment-image-${postId}`
-        );
-
-    const preview =
-        document.getElementById(
-            `comment-preview-${postId}`
-        );
-
-    const image =
-        document.getElementById(
-            `comment-preview-image-${postId}`
-        );
-
-
-    if (input) {
-
-        input.value =
-            "";
-
-    }
-
-
-    if (image) {
-
-        image.src =
-            "";
-
-    }
-
-
-    if (preview) {
-
-        preview.style.display =
-            "none";
-
-    }
-
-}
-
-/* ==================================================
-START
-================================================== */
-
-</script>
-
-<h2>Other</h2>
-<h3>Account Management</h3>
-<p>Currently, if you would like to delete or edit you username, you must contact ShrekBook's support team.</p>
-<a href="mailto:jw20152025@gmail.com">Contact Support</a>
-<div>
-<ol>
-    <li>Do not post inappropriate content.</li>
-    <li>Respect other users and their opinions.</li>
-    <li>Do not share personal information or sensitive data.</li>
-    <li>Do not engage in harassment or bullying.</li>
-    <li>Do not use ShrekBook for illegal activities.</li>
-    <li>Do not create multiple accounts to manipulate the platform.</li>
-    <li>Do not impersonate other users or public figures.</li>
-    <li>Do not post spam or advertisements.</li>
-    <li>Do not attempt to hack or exploit the platform.</li>
-    <li>Do not share content that violates copyright or intellectual property rights.</li>
-    <li>Do not post content that promotes violence or hate speech.</li>
-    <li>Do not post content that is misleading or false.</li>
-    <li>Do not post content that is sexually explicit or pornographic.</li>
-    <li>Do not post content that is discriminatory or offensive.</li>
-    <li>Do not message developers multiple times about the same issue.</li>
-    <li>Do not contact developers multiple times per day.</li>
-    <li>Do not contact developers about issues that are not related to the platform.</li>
-    <li>Do not contact developers about issues that are not your own.</li>
-    <li>Do not contact developers about issues that are not urgent.</li>
-    <li>If you suspect any violations of these policies, please contact our support team.</li>
-</ol>
-</div>
-
-
-
-<h3>Meet the Developers!</h3>
-<ul>
-    <li>jw20152025@gmail.com</li>
-    <li>MarshmellowLeader</li>
-    <li>Arz</li>
-    <li>Burger</li>
-</ul>
-<script src="/script.js"></script>
+    <!-- HOME -->
+    <script
+        src="/js/home.js"
+    ></script>
 
 </body>
 
