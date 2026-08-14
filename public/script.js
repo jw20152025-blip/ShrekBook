@@ -85,164 +85,121 @@ REACTIONS
 
 async function giveReaction(type) {
 
-    const userId =
-        new URLSearchParams(
-            window.location.search
-        ).get("id");
+    console.log("🔥 giveReaction called:", type);
+
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get("id");
+
+    console.log("👤 Target user:", userId);
 
     if (!userId) {
-
-        console.error(
-            "REACTION ERROR: No profile ID in URL."
-        );
-
-        alert(
-            "❌ Could not find this profile."
-        );
-
+        alert("❌ No profile ID found in the URL.");
         return;
-
     }
 
+    const allowedTypes = ["gyatt", "cat", "ogred"];
 
-    const allowedTypes = [
-        "gyatt",
-        "cat",
-        "ogred"
-    ];
-
-
-    if (
-        !allowedTypes.includes(type)
-    ) {
-
-        console.error(
-            "REACTION ERROR: Invalid type:",
-            type
-        );
-
+    if (!allowedTypes.includes(type)) {
+        alert("❌ Invalid reaction type.");
         return;
-
     }
-
 
     try {
 
-        const response =
-            await fetch(
-                `/api/users/${encodeURIComponent(
-                    userId
-                )}/reaction`,
-                {
+        const url =
+            `/api/users/${encodeURIComponent(userId)}/reaction`;
 
-                    method:
-                        "POST",
+        console.log("📡 Sending reaction to:", url);
 
-                    headers: {
+        const response = await fetch(url, {
 
-                        "Content-Type":
-                            "application/json"
+            method: "POST",
 
-                    },
+            credentials: "include",
 
-                    body:
-                        JSON.stringify({
+            headers: {
+                "Content-Type": "application/json"
+            },
 
-                            type:
-                                type
+            body: JSON.stringify({
+                type: type
+            })
 
-                        })
+        });
 
-                }
+        console.log(
+            "📥 Response status:",
+            response.status
+        );
+
+        const rawText = await response.text();
+
+        console.log(
+            "📥 Raw server response:",
+            rawText
+        );
+
+        let data;
+
+        try {
+            data = JSON.parse(rawText);
+        } catch {
+            throw new Error(
+                `Server returned invalid JSON (${response.status}).`
             );
-
-
-        const data =
-            await response.json();
-
+        }
 
         if (!response.ok) {
 
-            console.error(
-                "REACTION SERVER ERROR:",
-                data
+            throw new Error(
+                data.error ||
+                `Server error (${response.status}).`
             );
-
-            alert(
-                "❌ " +
-                (
-                    data.error ||
-                    "Could not give reaction."
-                )
-            );
-
-            return;
 
         }
-
-
-
-
 
         const counts =
             data.counts || {};
 
+        const gyatt =
+            document.getElementById("gyatt-count");
 
-        const gyattCount =
-            document.getElementById(
-                "gyatt-count"
-            );
+        const cat =
+            document.getElementById("cat-count");
 
-        const catCount =
-            document.getElementById(
-                "cat-count"
-            );
+        const ogred =
+            document.getElementById("ogred-count");
 
-        const ogredCount =
-            document.getElementById(
-                "ogred-count"
-            );
-
-
-        if (gyattCount) {
-
-            gyattCount.textContent =
+        if (gyatt) {
+            gyatt.textContent =
                 counts.gyatt ?? 0;
-
         }
 
-
-        if (catCount) {
-
-            catCount.textContent =
+        if (cat) {
+            cat.textContent =
                 counts.cat ?? 0;
-
         }
 
-
-        if (ogredCount) {
-
-            ogredCount.textContent =
+        if (ogred) {
+            ogred.textContent =
                 counts.ogred ?? 0;
-
         }
-
 
         console.log(
-            "✅ Reaction added:",
-            type,
-            counts
+            "✅ Reaction successful:",
+            data
         );
 
     } catch (error) {
 
         console.error(
-            "REACTION ERROR:",
+            "💀 REACTION ERROR:",
             error
         );
 
         alert(
-            "❌ Could not connect to the server."
+            "❌ Reaction failed:\n\n" +
+            error.message
         );
 
     }
