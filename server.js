@@ -9,7 +9,8 @@ const express = require("express");
 const path = require("path");
 const session = require("express-session");
 
-const { createClient } = require("./utils/supabase.js");
+const supabase =
+    require("./utils/supabase.js");
 
 
 /* ==================================================
@@ -26,40 +27,18 @@ const PORT =
    ENVIRONMENT
 ================================================== */
 
-const SUPABASE_URL =
-    process.env.SUPABASE_URL;
-
-const SUPABASE_SERVICE_ROLE_KEY =
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
-
 const SESSION_SECRET =
     process.env.SESSION_SECRET;
 
-
-if (
-    !SUPABASE_URL ||
-    !SUPABASE_SERVICE_ROLE_KEY ||
-    !SESSION_SECRET
-) {
+if (!SESSION_SECRET) {
 
     console.error(
-        "❌ Missing required environment variables."
+        "❌ Missing SESSION_SECRET."
     );
 
     process.exit(1);
 
 }
-
-
-/* ==================================================
-   SUPABASE
-================================================== */
-
-const supabase =
-    createClient(
-        SUPABASE_URL,
-        SUPABASE_SERVICE_ROLE_KEY
-    );
 
 
 /* ==================================================
@@ -71,13 +50,11 @@ app.set(
     1
 );
 
-
 app.use(
     express.json({
         limit: "10mb"
     })
 );
-
 
 app.use(
     express.urlencoded({
@@ -201,10 +178,6 @@ const chatRouter =
     require("./routes/chat");
 
 
-/* ==================================================
-   API ROUTES
-================================================== */
-
 app.use(
     "/api",
     authRouter
@@ -282,19 +255,13 @@ app.use(
             error
         );
 
-        if (
-            res.headersSent
-        ) {
+        if (res.headersSent) {
 
-            return next(
-                error
-            );
+            return next(error);
 
         }
 
-        res.status(
-            500
-        ).json({
+        res.status(500).json({
 
             error:
                 error.message ||
