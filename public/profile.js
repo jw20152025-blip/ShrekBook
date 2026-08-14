@@ -2,6 +2,11 @@
    SHREKBOOK PROFILE CLIENT
 ================================================== */
 
+
+/* ==================================================
+   ESCAPE HTML
+================================================== */
+
 function escapeHtml(text) {
 
     const div =
@@ -40,42 +45,49 @@ function updateReactionCounts(counts) {
         return;
     }
 
-    const gyattCount =
+
+    const gyatt =
         document.getElementById(
             "gyatt-count"
         );
 
-    const catCount =
+    const cat =
         document.getElementById(
             "cat-count"
         );
 
-    const ogredCount =
+    const ogred =
         document.getElementById(
             "ogred-count"
         );
 
 
-    if (gyattCount) {
+    if (gyatt) {
 
-        gyattCount.textContent =
-            Number(counts.gyatt || 0);
-
-    }
-
-
-    if (catCount) {
-
-        catCount.textContent =
-            Number(counts.cat || 0);
+        gyatt.textContent =
+            Number(
+                counts.gyatt || 0
+            );
 
     }
 
 
-    if (ogredCount) {
+    if (cat) {
 
-        ogredCount.textContent =
-            Number(counts.ogred || 0);
+        cat.textContent =
+            Number(
+                counts.cat || 0
+            );
+
+    }
+
+
+    if (ogred) {
+
+        ogred.textContent =
+            Number(
+                counts.ogred || 0
+            );
 
     }
 
@@ -87,12 +99,6 @@ function updateReactionCounts(counts) {
 ================================================== */
 
 async function giveReaction(type) {
-
-    console.log(
-        "Giving reaction:",
-        type
-    );
-
 
     const userId =
         getProfileId();
@@ -110,13 +116,17 @@ async function giveReaction(type) {
 
 
     const allowedTypes = [
+
         "gyatt",
         "cat",
         "ogred"
+
     ];
 
 
-    if (!allowedTypes.includes(type)) {
+    if (
+        !allowedTypes.includes(type)
+    ) {
 
         alert(
             "❌ Invalid reaction type."
@@ -131,9 +141,11 @@ async function giveReaction(type) {
 
         const response =
             await fetch(
+
                 `/api/users/${encodeURIComponent(
                     userId
                 )}/reaction`,
+
                 {
 
                     method:
@@ -161,6 +173,7 @@ async function giveReaction(type) {
                         })
 
                 }
+
             );
 
 
@@ -170,12 +183,13 @@ async function giveReaction(type) {
 
         let data;
 
+
         try {
 
             data =
                 JSON.parse(text);
 
-        } catch (error) {
+        } catch {
 
             console.error(
                 "NON-JSON RESPONSE:",
@@ -204,7 +218,9 @@ async function giveReaction(type) {
         }
 
 
-        if (data.counts) {
+        if (
+            data.counts
+        ) {
 
             updateReactionCounts(
                 data.counts
@@ -212,24 +228,6 @@ async function giveReaction(type) {
 
         }
 
-
-        if (
-            data.count !== undefined
-        ) {
-
-            const element =
-                document.getElementById(
-                    `${type}-count`
-                );
-
-            if (element) {
-
-                element.textContent =
-                    data.count;
-
-            }
-
-        }
 
     } catch (error) {
 
@@ -263,17 +261,9 @@ async function loadProfile() {
 
     if (!userId) {
 
-        const profile =
-            document.getElementById(
-                "profile"
-            );
-
-        if (profile) {
-
-            profile.innerHTML =
-                "<p>❌ No profile ID.</p>";
-
-        }
+        console.error(
+            "No profile ID."
+        );
 
         return;
 
@@ -284,9 +274,11 @@ async function loadProfile() {
 
         const response =
             await fetch(
+
                 `/api/users/${encodeURIComponent(
                     userId
                 )}`,
+
                 {
 
                     headers: {
@@ -300,6 +292,7 @@ async function loadProfile() {
                         "include"
 
                 }
+
             );
 
 
@@ -309,17 +302,13 @@ async function loadProfile() {
 
         let data;
 
+
         try {
 
             data =
                 JSON.parse(text);
 
-        } catch (error) {
-
-            console.error(
-                "PROFILE NON-JSON RESPONSE:",
-                text
-            );
+        } catch {
 
             throw new Error(
                 "Server returned an invalid response."
@@ -348,6 +337,7 @@ async function loadProfile() {
                 "profile-display-name"
             );
 
+
         if (displayName) {
 
             displayName.textContent =
@@ -362,6 +352,7 @@ async function loadProfile() {
             document.getElementById(
                 "profile-username"
             );
+
 
         if (username) {
 
@@ -380,11 +371,11 @@ async function loadProfile() {
                 "profile-bio"
             );
 
+
         if (bio) {
 
             bio.textContent =
-                user.bio ||
-                "";
+                user.bio || "";
 
         }
 
@@ -394,11 +385,13 @@ async function loadProfile() {
                 "profile-avatar"
             );
 
+
         if (avatar) {
 
             avatar.src =
                 user.avatar ||
                 "/default-avatar.png";
+
 
             avatar.onerror =
                 () => {
@@ -414,26 +407,15 @@ async function loadProfile() {
         }
 
 
-        const counts =
-            data.counts ||
-            user.reaction_counts ||
-            null;
-
-
-        if (counts) {
+        if (
+            data.counts
+        ) {
 
             updateReactionCounts(
-                counts
+                data.counts
             );
 
         }
-
-
-        console.log(
-            "✅ Profile loaded:",
-            user
-        );
-
 
     } catch (error) {
 
@@ -441,26 +423,6 @@ async function loadProfile() {
             "PROFILE ERROR:",
             error
         );
-
-
-        const profile =
-            document.getElementById(
-                "profile"
-            );
-
-
-        if (profile) {
-
-            profile.innerHTML =
-                `
-                <p>
-                    ❌ ${escapeHtml(
-                        error.message
-                    )}
-                </p>
-                `;
-
-        }
 
     }
 
@@ -475,11 +437,16 @@ document.addEventListener(
     "DOMContentLoaded",
     () => {
 
-        console.log(
-            "🧌 ShrekBook profile.js loaded"
-        );
-
         loadProfile();
 
     }
 );
+
+
+/*
+ * Makes inline onclick="giveReaction(...)"
+ * work reliably.
+ */
+
+window.giveReaction =
+    giveReaction;

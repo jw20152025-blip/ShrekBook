@@ -5,19 +5,22 @@
 
 require("dotenv").config();
 
-const express = require("express");
-const path = require("path");
-const session = require("express-session");
+const express =
+    require("express");
 
-const supabase =
-    require("./utils/supabase.js");
+const path =
+    require("path");
+
+const session =
+    require("express-session");
 
 
 /* ==================================================
    APP
 ================================================== */
 
-const app = express();
+const app =
+    express();
 
 const PORT =
     process.env.PORT || 3000;
@@ -29,6 +32,7 @@ const PORT =
 
 const SESSION_SECRET =
     process.env.SESSION_SECRET;
+
 
 if (!SESSION_SECRET) {
 
@@ -42,7 +46,7 @@ if (!SESSION_SECRET) {
 
 
 /* ==================================================
-   EXPRESS CONFIG
+   EXPRESS
 ================================================== */
 
 app.set(
@@ -50,11 +54,13 @@ app.set(
     1
 );
 
+
 app.use(
     express.json({
         limit: "10mb"
     })
 );
+
 
 app.use(
     express.urlencoded({
@@ -159,44 +165,52 @@ app.get(
 
 
 /* ==================================================
-   ROUTES
+   ROUTERS
 ================================================== */
 
 const authRouter =
-    require("./routes/auth");
+    require("./routes/auth.js");
 
 const profilesRouter =
-    require("./routes/profiles");
+    require("./routes/profiles.js");
 
 const postsRouter =
-    require("./routes/posts");
+    require("./routes/posts.js");
 
 const reactionsRouter =
-    require("./routes/reactions");
+    require("./routes/reactions.js");
 
 const chatRouter =
-    require("./routes/chat");
+    require("./routes/chat.js");
 
+
+/* ==================================================
+   API
+================================================== */
 
 app.use(
     "/api",
     authRouter
 );
 
+
 app.use(
     "/api",
     profilesRouter
 );
+
 
 app.use(
     "/api",
     postsRouter
 );
 
+
 app.use(
     "/api",
     reactionsRouter
 );
+
 
 app.use(
     "/api",
@@ -255,11 +269,17 @@ app.use(
             error
         );
 
-        if (res.headersSent) {
 
-            return next(error);
+        if (
+            res.headersSent
+        ) {
+
+            return next(
+                error
+            );
 
         }
+
 
         res.status(500).json({
 
