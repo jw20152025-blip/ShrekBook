@@ -1,85 +1,88 @@
-/* ==================================================
-   SHREKBOOK PROFILE ROUTES
-================================================== */
+
+"use strict";
 
 const express = require("express");
 
 const router = express.Router();
 
 const supabase =
-    require("../utils/supabase");
+    require("../utils/supabase.js");
 
-/* ==================================================
-   ALL USERS
-================================================== */
 
-router.get(
-    "/users",
-    async (req, res) => {
+/* =========================================================
+   GET ALL PEOPLE
+   GET /api/users
+========================================================= */
 
-        console.log(
-            "🔥 GET /api/users"
-        );
+router.get("/users", async (req, res) => {
 
-        try {
+    console.log("🔥 GET /api/users");
 
-            const {
-                data,
-                error
-            } =
-                await supabase
-                    .from("profiles")
-                    .select("*")
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
-                    );
+    try {
 
-            if (error) {
-
-                console.error(
-                    "USERS SUPABASE ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            return res.json({
-
-                success: true,
-
-                users:
-                    data || []
-
+        const {
+            data,
+            error
+        } = await supabase
+            .from("profiles")
+            .select("*")
+            .order("created_at", {
+                ascending: false
             });
 
-        } catch (error) {
+
+        if (error) {
 
             console.error(
-                "USERS ERROR:",
+                "❌ PEOPLE SUPABASE ERROR:",
                 error
             );
 
-            res.status(500).json({
-                error:
-                    error.message
+            return res.status(500).json({
+                success: false,
+                error: error.message,
+                users: []
             });
 
         }
 
-    }
-);
 
-/* ==================================================
-   SINGLE PROFILE
-================================================== */
+        return res.json({
+
+            success: true,
+
+            users:
+                data || []
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "❌ PEOPLE CRASH:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            error:
+                error.message,
+
+            users: []
+
+        });
+
+    }
+
+});
+
+
+/* =========================================================
+   GET ONE PROFILE
+   GET /api/users/:id
+========================================================= */
 
 router.get(
     "/users/:id",
@@ -87,101 +90,77 @@ router.get(
 
         try {
 
-            const userId =
+            const id =
                 req.params.id;
 
+
             const {
-                data: user,
+                data,
                 error
-            } =
-                await supabase
-                    .from("profiles")
-                    .select("*")
-                    .eq(
-                        "id",
-                        userId
-                    )
-                    .maybeSingle();
+            } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("id", id)
+                .maybeSingle();
+
 
             if (error) {
 
+                console.error(
+                    "❌ PROFILE ERROR:",
+                    error
+                );
+
                 return res.status(500).json({
+
+                    success: false,
+
                     error:
                         error.message
+
                 });
 
             }
 
-            if (!user) {
+
+            if (!data) {
 
                 return res.status(404).json({
+
+                    success: false,
+
                     error:
                         "User not found."
+
                 });
 
             }
 
-            const {
-                data: reactions
-            } =
-                await supabase
-                    .from("reactions")
-                    .select("type")
-                    .eq(
-                        "to_user_id",
-                        userId
-                    );
 
-            const counts = {
+            return res.json({
 
-                gyatt: 0,
+                success: true,
 
-                cat: 0,
-
-                ogred: 0
-
-            };
-
-            for (
-                const reaction
-                of reactions || []
-            ) {
-
-                if (
-                    Object.prototype
-                        .hasOwnProperty
-                        .call(
-                            counts,
-                            reaction.type
-                        )
-                ) {
-
-                    counts[
-                        reaction.type
-                    ]++;
-
-                }
-
-            }
-
-            res.json({
-
-                user,
-
-                counts
+                user:
+                    data
 
             });
 
         } catch (error) {
 
             console.error(
-                "PROFILE ERROR:",
+                "❌ PROFILE CRASH:",
                 error
             );
 
-            res.status(500).json({
+
+            return res.status(500).json({
+
+                success: false,
+
                 error:
                     error.message
+
             });
 
         }
@@ -189,121 +168,7 @@ router.get(
     }
 );
 
-/* ==================================================
-   UPDATE PROFILE
-================================================== */
 
-router.put(
-    "/users/me",
-    async (req, res) => {
+module.exports =
+    router;
 
-        if (!req.session.user) {
-
-            return res.status(401).json({
-                error:
-                    "You must be logged in."
-            });
-
-        }
-
-        try {
-
-            const {
-                display_name,
-                username,
-                bio,
-                avatar
-            } = req.body;
-
-            const updates = {};
-
-            if (
-                display_name !== undefined
-            ) {
-                updates.display_name =
-                    String(
-                        display_name
-                    ).trim();
-            }
-
-            if (
-                username !== undefined
-            ) {
-                updates.username =
-                    String(
-                        username
-                    )
-                    .trim()
-                    .toLowerCase();
-            }
-
-            if (
-                bio !== undefined
-            ) {
-                updates.bio =
-                    String(
-                        bio
-                    );
-            }
-
-            if (
-                avatar !== undefined
-            ) {
-                updates.avatar =
-                    avatar;
-            }
-
-            const {
-                data,
-                error
-            } =
-                await supabase
-                    .from("profiles")
-                    .update(updates)
-                    .eq(
-                        "id",
-                        req.session.user.id
-                    )
-                    .select()
-                    .single();
-
-            if (error) {
-
-                return res.status(400).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            req.session.user.username =
-                data.username;
-
-            req.session.user.display_name =
-                data.display_name;
-
-            req.session.save(() => {
-
-                res.json({
-
-                    success: true,
-
-                    user: data
-
-                });
-
-            });
-
-        } catch (error) {
-
-            res.status(500).json({
-                error:
-                    error.message
-            });
-
-        }
-
-    }
-);
-
-module.exports = router;

@@ -1049,3 +1049,446 @@ document.addEventListener(
     startHome
 );
 
+"use strict";
+
+
+/* =========================================================
+   SAFE JSON FETCH
+========================================================= */
+
+async function shrekFetch(url, options = {}) {
+
+    const response =
+        await fetch(
+            url,
+            {
+
+                credentials:
+                    "include",
+
+                ...options,
+
+                headers: {
+
+                    "Content-Type":
+                        "application/json",
+
+                    ...(options.headers || {})
+
+                }
+
+            }
+        );
+
+
+    const text =
+        await response.text();
+
+
+    let data;
+
+
+    try {
+
+        data =
+            text
+                ? JSON.parse(text)
+                : {};
+
+    } catch {
+
+        throw new Error(
+            `Invalid server response from ${url}`
+        );
+
+    }
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            data.error ||
+            `Request failed: ${response.status}`
+        );
+
+    }
+
+
+    return data;
+
+}
+
+
+/* =========================================================
+   PEOPLE
+========================================================= */
+
+async function loadPeople() {
+
+    console.log(
+        "👥 Loading people..."
+    );
+
+
+    const container =
+        document.getElementById(
+            "people-list"
+        );
+
+
+    if (!container) {
+
+        console.warn(
+            "⚠️ #people-list not found"
+        );
+
+        return;
+
+    }
+
+
+    container.innerHTML =
+        `<div class="loading">Loading people...</div>`;
+
+
+    try {
+
+        const data =
+            await shrekFetch(
+                "/api/users"
+            );
+
+
+        console.log(
+            "👥 PEOPLE:",
+            data
+        );
+
+
+        const users =
+            Array.isArray(
+                data.users
+            )
+                ? data.users
+                : [];
+
+
+        if (
+            users.length === 0
+        ) {
+
+            container.innerHTML =
+                `<div class="empty-state">
+                    No people yet.
+                </div>`;
+
+            return;
+
+        }
+
+
+        container.innerHTML =
+            "";
+
+
+        users.forEach(
+            user => {
+
+                const card =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                card.className =
+                    "person-card";
+
+
+                const name =
+                    user.display_name ||
+                    user.username ||
+                    user.email ||
+                    "ShrekBook User";
+
+
+                const id =
+                    user.id;
+
+
+                card.innerHTML = `
+
+                    <div class="person-info">
+
+                        <div class="person-name">
+                            ${escapeShrekHTML(name)}
+                        </div>
+
+                        ${
+                            user.username
+                                ? `<div class="person-username">
+                                    @${escapeShrekHTML(user.username)}
+                                   </div>`
+                                : ""
+                        }
+
+                    </div>
+
+                    <button
+                        class="view-profile-button"
+                        data-user-id="${escapeShrekHTML(id)}"
+                    >
+                        View Profile
+                    </button>
+
+                `;
+
+
+                const button =
+                    card.querySelector(
+                        ".view-profile-button"
+                    );
+
+
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        window.location.href =
+                            `/profile.html?id=${encodeURIComponent(id)}`;
+
+                    }
+                );
+
+
+                container.appendChild(
+                    card
+                );
+
+            }
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "❌ PEOPLE ERROR:",
+            error
+        );
+
+
+        container.innerHTML =
+            `<div class="error-state">
+                Couldn't load people.
+                <br>
+                <small>${escapeShrekHTML(error.message)}</small>
+            </div>`;
+
+    }
+
+}
+
+
+/* =========================================================
+   POSTS
+========================================================= */
+
+async function loadPosts() {
+
+    console.log(
+        "📝 Loading posts..."
+    );
+
+
+    const container =
+        document.getElementById(
+            "posts-list"
+        );
+
+
+    if (!container) {
+
+        console.warn(
+            "⚠️ #posts-list not found"
+        );
+
+        return;
+
+    }
+
+
+    container.innerHTML =
+        `<div class="loading">Loading posts...</div>`;
+
+
+    try {
+
+        const data =
+            await shrekFetch(
+                "/api/posts"
+            );
+
+
+        console.log(
+            "📝 POSTS:",
+            data
+        );
+
+
+        const posts =
+            Array.isArray(
+                data.posts
+            )
+                ? data.posts
+                : [];
+
+
+        if (
+            posts.length === 0
+        ) {
+
+            container.innerHTML =
+                `<div class="empty-state">
+                    No posts yet.
+                </div>`;
+
+            return;
+
+        }
+
+
+        container.innerHTML =
+            "";
+
+
+        posts.forEach(
+            post => {
+
+                const element =
+                    document.createElement(
+                        "article"
+                    );
+
+
+                element.className =
+                    "post-card";
+
+
+                const content =
+                    post.content ||
+                    "";
+
+
+                const image =
+                    post.image_url ||
+                    post.imageUrl ||
+                    "";
+
+
+                element.innerHTML = `
+
+                    <div class="post-body">
+
+                        ${
+                            content
+                                ? `<div class="post-content">
+                                    ${escapeShrekHTML(content)}
+                                   </div>`
+                                : ""
+                        }
+
+                        ${
+                            image
+                                ? `<img
+                                    class="post-image"
+                                    src="${escapeShrekHTML(image)}"
+                                    alt="Post image"
+                                    loading="lazy"
+                                   >`
+                                : ""
+                        }
+
+                    </div>
+
+                `;
+
+
+                container.appendChild(
+                    element
+                );
+
+            }
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "❌ POSTS ERROR:",
+            error
+        );
+
+
+        container.innerHTML =
+            `<div class="error-state">
+                Couldn't load posts.
+                <br>
+                <small>${escapeShrekHTML(error.message)}</small>
+            </div>`;
+
+    }
+
+}
+
+
+/* =========================================================
+   HTML ESCAPE
+========================================================= */
+
+function escapeShrekHTML(value) {
+
+    return String(value)
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+}
+
+
+/* =========================================================
+   START
+========================================================= */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        console.log(
+            "🧌 SHREKBOOK HOMEPAGE READY"
+        );
+
+
+        loadPeople();
+
+        loadPosts();
+
+    }
+);
+
+

@@ -1,31 +1,36 @@
-/* =========================================================
-   SHREKCHAT ROUTES
-========================================================= */
 
-const express =
-    require("express");
+"use strict";
 
-const router =
-    express.Router();
+const express = require("express");
+
+const router = express.Router();
 
 const supabase =
     require("../utils/supabase.js");
 
 
 /* =========================================================
-   AUTH MIDDLEWARE
+   LOGIN CHECK
 ========================================================= */
 
 function requireLogin(req, res, next) {
 
-    if (!req.session.user) {
+    if (
+        !req.session ||
+        !req.session.user
+    ) {
 
         return res.status(401).json({
+
+            success: false,
+
             error:
                 "You must be logged in."
+
         });
 
     }
+
 
     next();
 
@@ -33,7 +38,8 @@ function requireLogin(req, res, next) {
 
 
 /* =========================================================
-   GET ROOMS
+   GET CHAT ROOMS
+   GET /api/chat/rooms
 ========================================================= */
 
 router.get(
@@ -41,11 +47,17 @@ router.get(
     requireLogin,
     async (req, res) => {
 
+        const userId =
+            req.session.user.id;
+
+
+        console.log(
+            "💬 GET CHAT ROOMS:",
+            userId
+        );
+
+
         try {
-
-            const userId =
-                req.session.user.id;
-
 
             const {
                 data: memberships,
@@ -53,7 +65,7 @@ router.get(
             } =
                 await supabase
                     .from("chat_members")
-                    .select("room_id")
+                    .select("*")
                     .eq(
                         "user_id",
                         userId
@@ -63,35 +75,46 @@ router.get(
             if (membershipError) {
 
                 console.error(
-                    "CHAT MEMBERS ERROR:",
+                    "❌ CHAT MEMBERS ERROR:",
                     membershipError
                 );
 
+
                 return res.status(500).json({
+
+                    success: false,
+
                     error:
-                        membershipError.message
+                        membershipError.message,
+
+                    rooms: []
+
+                });
+
+            }
+
+
+            if (
+                !memberships ||
+                memberships.length === 0
+            ) {
+
+                return res.json({
+
+                    success: true,
+
+                    rooms: []
+
                 });
 
             }
 
 
             const roomIds =
-                (memberships || [])
-                    .map(
-                        member =>
-                            member.room_id
-                    )
-                    .filter(Boolean);
-
-
-            if (!roomIds.length) {
-
-                return res.json({
-                    success: true,
-                    rooms: []
-                });
-
-            }
+                memberships.map(
+                    member =>
+                        member.room_id
+                );
 
 
             const {
@@ -110,13 +133,20 @@ router.get(
             if (roomError) {
 
                 console.error(
-                    "CHAT ROOMS ERROR:",
+                    "❌ CHAT ROOMS ERROR:",
                     roomError
                 );
 
+
                 return res.status(500).json({
+
+                    success: false,
+
                     error:
-                        roomError.message
+                        roomError.message,
+
+                    rooms: []
+
                 });
 
             }
@@ -124,26 +154,30 @@ router.get(
 
             return res.json({
 
-                success:
-                    true,
+                success: true,
 
                 rooms:
                     rooms || []
 
             });
 
-
         } catch (error) {
 
             console.error(
-                "GET CHAT ROOMS ERROR:",
+                "❌ CHAT ROOMS CRASH:",
                 error
             );
 
+
             return res.status(500).json({
+
+                success: false,
+
                 error:
-                    error.message ||
-                    "Server error."
+                    error.message,
+
+                rooms: []
+
             });
 
         }
@@ -154,6 +188,7 @@ router.get(
 
 /* =========================================================
    GET MESSAGES
+   GET /api/chat/rooms/:roomId/messages
 ========================================================= */
 
 router.get(
@@ -161,57 +196,14 @@ router.get(
     requireLogin,
     async (req, res) => {
 
+        const roomId =
+            req.params.roomId;
+
+
         try {
 
-            const roomId =
-                req.params.roomId;
-
-            const userId =
-                req.session.user.id;
-
-
-            /* Make sure user belongs to room */
-
             const {
-                data: membership,
-                error: membershipError
-            } =
-                await supabase
-                    .from("chat_members")
-                    .select("room_id")
-                    .eq(
-                        "room_id",
-                        roomId
-                    )
-                    .eq(
-                        "user_id",
-                        userId
-                    )
-                    .maybeSingle();
-
-
-            if (membershipError) {
-
-                return res.status(500).json({
-                    error:
-                        membershipError.message
-                });
-
-            }
-
-
-            if (!membership) {
-
-                return res.status(403).json({
-                    error:
-                        "You are not a member of this chat."
-                });
-
-            }
-
-
-            const {
-                data: messages,
+                data,
                 error
             } =
                 await supabase
@@ -232,13 +224,20 @@ router.get(
             if (error) {
 
                 console.error(
-                    "CHAT MESSAGE ERROR:",
+                    "❌ CHAT MESSAGE ERROR:",
                     error
                 );
 
+
                 return res.status(500).json({
+
+                    success: false,
+
                     error:
-                        error.message
+                        error.message,
+
+                    messages: []
+
                 });
 
             }
@@ -246,26 +245,30 @@ router.get(
 
             return res.json({
 
-                success:
-                    true,
+                success: true,
 
                 messages:
-                    messages || []
+                    data || []
 
             });
-
 
         } catch (error) {
 
             console.error(
-                "GET MESSAGES ERROR:",
+                "❌ MESSAGE CRASH:",
                 error
             );
 
+
             return res.status(500).json({
+
+                success: false,
+
                 error:
-                    error.message ||
-                    "Server error."
+                    error.message,
+
+                messages: []
+
             });
 
         }
@@ -276,6 +279,7 @@ router.get(
 
 /* =========================================================
    SEND MESSAGE
+   POST /api/chat/rooms/:roomId/messages
 ========================================================= */
 
 router.post(
@@ -283,42 +287,39 @@ router.post(
     requireLogin,
     async (req, res) => {
 
+        const roomId =
+            req.params.roomId;
+
+        const userId =
+            req.session.user.id;
+
+        const content =
+            String(
+                req.body?.content ||
+                ""
+            ).trim();
+
+
+        if (!content) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                error:
+                    "Message cannot be empty."
+
+            });
+
+        }
+
+
         try {
 
-            const roomId =
-                req.params.roomId;
-
-            const userId =
-                req.session.user.id;
-
-            const content =
-                String(
-                    req.body.content ||
-                    ""
-                ).trim();
-
-
-            if (!content) {
-
-                return res.status(400).json({
-                    error:
-                        "Message cannot be empty."
-                });
-
-            }
-
-
-            if (content.length > 5000) {
-
-                return res.status(400).json({
-                    error:
-                        "Message is too long."
-                });
-
-            }
-
-
-            /* Verify membership */
+            /*
+             * Verify that the user belongs
+             * to this room.
+             */
 
             const {
                 data: membership,
@@ -326,7 +327,7 @@ router.post(
             } =
                 await supabase
                     .from("chat_members")
-                    .select("room_id")
+                    .select("*")
                     .eq(
                         "room_id",
                         roomId
@@ -341,8 +342,12 @@ router.post(
             if (membershipError) {
 
                 return res.status(500).json({
+
+                    success: false,
+
                     error:
                         membershipError.message
+
                 });
 
             }
@@ -351,15 +356,19 @@ router.post(
             if (!membership) {
 
                 return res.status(403).json({
+
+                    success: false,
+
                     error:
                         "You are not a member of this chat."
+
                 });
 
             }
 
 
             const {
-                data: message,
+                data,
                 error
             } =
                 await supabase
@@ -369,27 +378,32 @@ router.post(
                         room_id:
                             roomId,
 
-                        sender_id:
+                        user_id:
                             userId,
 
                         content:
                             content
 
                     })
-                    .select()
+                    .select("*")
                     .single();
 
 
             if (error) {
 
                 console.error(
-                    "SEND CHAT MESSAGE ERROR:",
+                    "❌ SEND MESSAGE ERROR:",
                     error
                 );
 
+
                 return res.status(500).json({
+
+                    success: false,
+
                     error:
                         error.message
+
                 });
 
             }
@@ -397,26 +411,28 @@ router.post(
 
             return res.status(201).json({
 
-                success:
-                    true,
+                success: true,
 
                 message:
-                    message
+                    data
 
             });
-
 
         } catch (error) {
 
             console.error(
-                "SEND MESSAGE CRASH:",
+                "❌ SEND MESSAGE CRASH:",
                 error
             );
 
+
             return res.status(500).json({
+
+                success: false,
+
                 error:
-                    error.message ||
-                    "Server error."
+                    error.message
+
             });
 
         }
@@ -427,3 +443,4 @@ router.post(
 
 module.exports =
     router;
+
