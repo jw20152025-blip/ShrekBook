@@ -9,8 +9,8 @@ const express = require("express");
 const path = require("path");
 const session = require("express-session");
 
-const { createClient } =
-    require(".utils/supabase.js");
+const supabase =
+    require("./utils/supabase.js");
 
 
 /* ==================================================
@@ -27,40 +27,19 @@ const PORT =
    ENVIRONMENT
 ================================================== */
 
-const SUPABASE_URL =
-    process.env.SUPABASE_URL;
-
-const SUPABASE_SERVICE_ROLE_KEY =
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
-
 const SESSION_SECRET =
     process.env.SESSION_SECRET;
 
 
-if (
-    !SUPABASE_URL ||
-    !SUPABASE_SERVICE_ROLE_KEY ||
-    !SESSION_SECRET
-) {
+if (!SESSION_SECRET) {
 
     console.error(
-        "❌ Missing required environment variables."
+        "❌ Missing SESSION_SECRET environment variable."
     );
 
     process.exit(1);
 
 }
-
-
-/* ==================================================
-   SUPABASE
-================================================== */
-
-const supabase =
-    createClient(
-        SUPABASE_URL,
-        SUPABASE_SERVICE_ROLE_KEY
-    );
 
 
 /* ==================================================
@@ -186,24 +165,6 @@ app.get(
    ROUTERS
 ================================================== */
 
-/*
-   IMPORTANT:
-
-   These files contain the actual routes.
-
-   server.js ONLY connects them.
-
-   Example structure:
-
-   routes/
-       auth.js
-       profiles.js
-       posts.js
-       reactions.js
-       chat.js
-*/
-
-
 const authRouter =
     require("./routes/auth");
 
@@ -281,11 +242,20 @@ app.use(
    FRONTEND FALLBACK
 ================================================== */
 
-app.get("/{*splat}", (req, res) => {
-    res.sendFile(
-        path.join(__dirname, "public", "index.html")
-    );
-});
+app.get(
+    "/{*splat}",
+    (req, res) => {
+
+        res.sendFile(
+            path.join(
+                __dirname,
+                "public",
+                "index.html"
+            )
+        );
+
+    }
+);
 
 
 /* ==================================================
