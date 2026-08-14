@@ -2,9 +2,9 @@ const express = require("express");
 
 const router = express.Router();
 
-const {
-    supabase
-} = require("../server");
+
+const supabase =
+    require("../utils/supabase.js");
 
 const {
     uploadImage
