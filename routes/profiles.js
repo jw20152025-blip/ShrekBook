@@ -79,71 +79,54 @@ router.get(
    GET ALL USERS
 ================================================== */
 
-router.get(
-    "/users",
-    async (req, res) => {
+router.get("/users", async (req, res) => {
 
-        try {
+    console.log("🔥 /api/users reached");
 
-            const {
-                data: users,
-                error
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "id, username, display_name, avatar, bio"
-                )
-                .order(
-                    "username",
-                    {
-                        ascending: true
-                    }
-                );
+    try {
 
+        const result = await supabase
+            .from("profiles")
+            .select("*");
 
-            if (error) {
+        console.log(
+            "SUPABASE RESULT:",
+            result
+        );
 
-                console.error(
-                    "GET USERS ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            res.json({
-
-                success:
-                    true,
-
-                users:
-                    users || []
-
-            });
-
-
-        } catch (error) {
+        if (result.error) {
 
             console.error(
-                "GET USERS CRASH:",
-                error
+                "❌ SUPABASE ERROR:",
+                result.error
             );
 
-            res.status(500).json({
-
-                error:
-                    "Server error."
-
+            return res.status(500).json({
+                error: result.error.message
             });
 
         }
 
+        return res.json({
+            success: true,
+            users: result.data || []
+        });
+
+    } catch (error) {
+
+        console.error(
+            "❌ USERS CRASH:",
+            error
+        );
+
+        return res.status(500).json({
+            error:
+                error.message ||
+                "Server error."
+        });
+
     }
-);
+
+});
 module.exports =
     router;
