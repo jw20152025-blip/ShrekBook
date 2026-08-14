@@ -1,6 +1,5 @@
 /* ==================================================
    SHREKBOOK CLIENT SCRIPT
-   public/script.js
 ================================================== */
 
 
@@ -21,40 +20,74 @@ function escapeHtml(text) {
 
 
 /* ==================================================
+   WARNING
+================================================== */
+
+function warn() {
+
+    const element =
+        document.getElementById(
+            "upload-avatar-button-warn"
+        );
+
+
+    if (element) {
+
+        element.textContent =
+            "When changing your avatar, do not press the Save Profile button. Instead, press Upload Avatar.";
+
+    }
+
+}
+
+
+/* ==================================================
    FILE -> BASE64
 ================================================== */
 
 function fileToBase64(file) {
 
-    return new Promise((resolve, reject) => {
+    return new Promise(
+        (resolve, reject) => {
 
-        const reader =
-            new FileReader();
+            const reader =
+                new FileReader();
 
-        reader.onload = () => {
 
-            const result =
-                reader.result;
+            reader.onload =
+                () => {
 
-            const base64 =
-                result.split(",")[1];
+                    const result =
+                        reader.result;
 
-            resolve(base64);
-        };
 
-        reader.onerror = () => {
+                    const base64 =
+                        result.split(",")[1];
 
-            reject(
-                new Error(
-                    "Could not read image."
-                )
+
+                    resolve(base64);
+
+                };
+
+
+            reader.onerror =
+                () => {
+
+                    reject(
+                        new Error(
+                            "Could not read image."
+                        )
+                    );
+
+                };
+
+
+            reader.readAsDataURL(
+                file
             );
 
-        };
-
-        reader.readAsDataURL(file);
-
-    });
+        }
+    );
 
 }
 
@@ -66,8 +99,11 @@ function fileToBase64(file) {
 async function prepareImage(file) {
 
     if (!file) {
+
         return null;
+
     }
+
 
     if (!file.type.startsWith("image/")) {
 
@@ -77,7 +113,11 @@ async function prepareImage(file) {
 
     }
 
-    if (file.size > 5 * 1024 * 1024) {
+
+    if (
+        file.size >
+        5 * 1024 * 1024
+    ) {
 
         throw new Error(
             "Image must be under 5MB."
@@ -85,8 +125,10 @@ async function prepareImage(file) {
 
     }
 
+
     const data =
         await fileToBase64(file);
+
 
     return {
 
@@ -115,15 +157,18 @@ async function login() {
             "login-email"
         )?.value.trim();
 
+
     const password =
         document.getElementById(
             "login-password"
         )?.value;
 
+
     const status =
         document.getElementById(
             "login-status"
         );
+
 
     if (!email || !password) {
 
@@ -135,7 +180,9 @@ async function login() {
         }
 
         return;
+
     }
+
 
     if (status) {
 
@@ -143,6 +190,7 @@ async function login() {
             "Logging in...";
 
     }
+
 
     try {
 
@@ -200,12 +248,14 @@ async function login() {
 
         showApp();
 
+
     } catch (error) {
 
         console.error(
             "LOGIN ERROR:",
             error
         );
+
 
         if (status) {
 
@@ -231,20 +281,24 @@ async function signup() {
             "signup-username"
         )?.value.trim();
 
+
     const displayName =
         document.getElementById(
             "signup-display-name"
         )?.value.trim();
+
 
     const email =
         document.getElementById(
             "signup-email"
         )?.value.trim();
 
+
     const password =
         document.getElementById(
             "signup-password"
         )?.value;
+
 
     const status =
         document.getElementById(
@@ -266,6 +320,7 @@ async function signup() {
         }
 
         return;
+
     }
 
 
@@ -340,12 +395,14 @@ async function signup() {
 
         showLogin();
 
+
     } catch (error) {
 
         console.error(
             "SIGNUP ERROR:",
             error
         );
+
 
         if (status) {
 
@@ -370,6 +427,7 @@ function showSignup() {
         document.getElementById(
             "login-box"
         );
+
 
     const signupBox =
         document.getElementById(
@@ -402,6 +460,7 @@ function showLogin() {
             "login-box"
         );
 
+
     const signupBox =
         document.getElementById(
             "signup-box"
@@ -427,6 +486,54 @@ function showLogin() {
 
 
 /* ==================================================
+   SESSION CHECK
+================================================== */
+
+async function checkLogin() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/me"
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (
+            response.ok &&
+            data.loggedIn &&
+            data.user
+        ) {
+
+            showApp();
+
+        } else {
+
+            showAuth();
+
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "SESSION ERROR:",
+            error
+        );
+
+
+        showAuth();
+
+    }
+
+}
+
+
+/* ==================================================
    SHOW AUTH
 ================================================== */
 
@@ -437,10 +544,12 @@ function showAuth() {
             "auth-section"
         );
 
+
     const app =
         document.getElementById(
             "app-section"
         );
+
 
     const logoutButton =
         document.getElementById(
@@ -485,10 +594,12 @@ function showApp() {
             "auth-section"
         );
 
+
     const app =
         document.getElementById(
             "app-section"
         );
+
 
     const logoutButton =
         document.getElementById(
@@ -528,52 +639,6 @@ function showApp() {
 
 
 /* ==================================================
-   SESSION CHECK
-================================================== */
-
-async function checkLogin() {
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/me"
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (
-            response.ok &&
-            data.loggedIn &&
-            data.user
-        ) {
-
-            showApp();
-
-        } else {
-
-            showAuth();
-
-        }
-
-    } catch (error) {
-
-        console.error(
-            "SESSION ERROR:",
-            error
-        );
-
-        showAuth();
-
-    }
-
-}
-
-
-/* ==================================================
    LOGOUT
 ================================================== */
 
@@ -588,6 +653,7 @@ async function logout() {
                     "POST"
             }
         );
+
 
     } catch (error) {
 
@@ -615,8 +681,11 @@ async function loadPosts() {
             "posts"
         );
 
+
     if (!container) {
+
         return;
+
     }
 
 
@@ -653,263 +722,366 @@ async function loadPosts() {
 
 
         container.innerHTML =
-            posts.map(post => {
+            posts.map(
+                post => {
 
-                const avatar =
-                    post.avatar ||
-                    "/default-avatar.png";
-
-                const displayName =
-                    post.display_name ||
-                    post.username ||
-                    "User";
+                    const avatar =
+                        post.avatar ||
+                        "/default-avatar.png";
 
 
-                let imageHTML =
-                    "";
+                    const displayName =
+                        post.display_name ||
+                        post.username ||
+                        "User";
 
 
-                if (post.image_url) {
-
-                    imageHTML = `
-
-                        <div
-                            class="post-image-container"
-                            style="margin-top:12px;">
-
-                            <img
-                                src="${escapeHtml(
-                                    post.image_url
-                                )}"
-                                alt="Post image"
-                                style="
-                                    max-width:100%;
-                                    max-height:600px;
-                                    border-radius:12px;
-                                    object-fit:contain;
-                                    display:block;
-                                "
-                            >
-
-                        </div>
-
-                    `;
-
-                }
+                    let imageHTML =
+                        "";
 
 
-                return `
+                    if (post.image_url) {
 
-                    <article class="post">
-
-                        <div
-                            class="post-header"
-                            style="
-                                display:flex;
-                                align-items:center;
-                                gap:10px;
-                            "
-                        >
-
-                            <img
-                                src="${escapeHtml(
-                                    avatar
-                                )}"
-                                alt="Avatar"
-                                style="
-                                    width:45px;
-                                    height:45px;
-                                    border-radius:50%;
-                                    object-fit:cover;
-                                "
-                                onerror="
-                                    this.src='/default-avatar.png';
-                                "
-                            >
-
-                            <a
-                                href="/profile.html?id=${encodeURIComponent(
-                                    post.user_id
-                                )}"
-                                style="
-                                    text-decoration:none;
-                                    color:inherit;
-                                "
-                            >
-
-                                <strong>
-                                    ${escapeHtml(
-                                        displayName
-                                    )}
-                                </strong>
-
-                                <div>
-                                    @${escapeHtml(
-                                        post.username ||
-                                        "user"
-                                    )}
-                                </div>
-
-                            </a>
-
-                        </div>
-
-
-                        ${
-                            post.content
-                                ? `
-
-                                    <div
-                                        class="post-content"
-                                        style="
-                                            margin-top:10px;
-                                        "
-                                    >
-
-                                        ${escapeHtml(
-                                            post.content
-                                        )}
-
-                                    </div>
-
-                                  `
-                                : ""
-                        }
-
-
-                        ${imageHTML}
-
-
-                        <button
-                            onclick="
-                                toggleComments(
-                                    '${escapeHtml(
-                                        post.id
-                                    )}'
-                                )
-                            "
-                        >
-
-                            💬 Comments
-
-                        </button>
-
-
-                        <div
-                            id="comments-${escapeHtml(
-                                post.id
-                            )}"
-                            class="comments"
-                            style="display:none;"
-                        >
+                        imageHTML = `
 
                             <div
-                                id="comment-list-${escapeHtml(
-                                    post.id
-                                )}"
-                            >
+                                class="post-image-container"
+                                style="
+                                    margin-top:12px;
+                                ">
 
-                                Loading...
+                                <img
+                                    src="${escapeHtml(
+                                        post.image_url
+                                    )}"
+                                    alt="Post image"
+                                    style="
+                                        max-width:100%;
+                                        max-height:600px;
+                                        border-radius:12px;
+                                        object-fit:contain;
+                                        display:block;
+                                    ">
+
+                            </div>
+
+                        `;
+
+                    }
+
+
+                    return `
+
+                        <article class="post">
+
+                            <div
+                                class="post-header"
+                                style="
+                                    display:flex;
+                                    align-items:center;
+                                    gap:10px;
+                                ">
+
+                                <img
+                                    src="${escapeHtml(
+                                        avatar
+                                    )}"
+                                    alt="Avatar"
+                                    style="
+                                        width:45px;
+                                        height:45px;
+                                        border-radius:50%;
+                                        object-fit:cover;
+                                    "
+                                    onerror="
+                                        this.src='/default-avatar.png';
+                                    ">
+
+
+                                <a
+                                    href="/profile.html?id=${encodeURIComponent(
+                                        post.user_id
+                                    )}"
+                                    style="
+                                        text-decoration:none;
+                                        color:inherit;
+                                    ">
+
+                                    <strong>
+                                        ${escapeHtml(
+                                            displayName
+                                        )}
+                                    </strong>
+
+                                    <div>
+                                        @${escapeHtml(
+                                            post.username ||
+                                            "user"
+                                        )}
+                                    </div>
+
+                                </a>
 
                             </div>
 
 
+                            ${
+                                post.content
+                                    ? `
+
+                                        <div
+                                            class="post-content"
+                                            style="
+                                                margin-top:10px;
+                                            ">
+
+                                            ${escapeHtml(
+                                                post.content
+                                            )}
+
+                                        </div>
+
+                                    `
+                                    : ""
+                            }
+
+
+                            ${imageHTML}
+
+
+                            <button
+                                onclick="
+                                    toggleComments(
+                                        '${escapeHtml(
+                                            post.id
+                                        )}'
+                                    )
+                                ">
+
+                                💬 Comments
+
+                            </button>
+
+
                             <div
-                                class="comment-form"
-                                style="margin-top:10px;"
-                            >
+                                id="comments-${escapeHtml(
+                                    post.id
+                                )}"
+                                class="comments"
+                                style="
+                                    display:none;
+                                ">
 
-                                <input
-                                    id="comment-input-${escapeHtml(
+                                <div
+                                    id="comment-list-${escapeHtml(
                                         post.id
-                                    )}"
-                                    placeholder="Write a comment..."
-                                    maxlength="500"
-                                >
+                                    )}">
 
+                                    Loading...
 
-                                <input
-                                    id="comment-image-${escapeHtml(
-                                        post.id
-                                    )}"
-                                    type="file"
-                                    accept="
-                                        image/png,
-                                        image/jpeg,
-                                        image/webp,
-                                        image/gif
-                                    "
-                                >
-
-
-                                <button
-                                    onclick="
-                                        submitComment(
-                                            '${escapeHtml(
-                                                post.id
-                                            )}'
-                                        )
-                                    "
-                                >
-
-                                    Send
-
-                                </button>
+                                </div>
 
 
                                 <div
-                                    id="comment-preview-${escapeHtml(
-                                        post.id
-                                    )}"
+                                    class="comment-form"
                                     style="
-                                        display:none;
-                                        margin-top:8px;
-                                    "
-                                >
+                                        margin-top:10px;
+                                    ">
 
-                                    <img
-                                        id="comment-preview-image-${escapeHtml(
+                                    <input
+                                        id="comment-input-${escapeHtml(
                                             post.id
                                         )}"
-                                        alt="Comment image preview"
-                                        style="
-                                            max-width:200px;
-                                            max-height:200px;
-                                            border-radius:10px;
-                                        "
-                                    >
+                                        placeholder="Write a comment..."
+                                        maxlength="500">
 
-                                    <br>
+
+                                    <input
+                                        id="comment-image-${escapeHtml(
+                                            post.id
+                                        )}"
+                                        type="file"
+                                        accept="
+                                            image/png,
+                                            image/jpeg,
+                                            image/webp,
+                                            image/gif
+                                        ">
+
 
                                     <button
-                                        type="button"
                                         onclick="
-                                            clearCommentImage(
+                                            submitComment(
                                                 '${escapeHtml(
                                                     post.id
                                                 )}'
                                             )
-                                        "
-                                    >
+                                        ">
 
-                                        ❌ Remove image
+                                        Send
 
                                     </button>
+
+
+                                    <div
+                                        id="comment-preview-${escapeHtml(
+                                            post.id
+                                        )}"
+                                        style="
+                                            display:none;
+                                            margin-top:8px;
+                                        ">
+
+                                        <img
+                                            id="comment-preview-image-${escapeHtml(
+                                                post.id
+                                            )}"
+                                            alt="Comment image preview"
+                                            style="
+                                                max-width:200px;
+                                                max-height:200px;
+                                                border-radius:10px;
+                                            ">
+
+
+                                        <br>
+
+
+                                        <button
+                                            type="button"
+                                            onclick="
+                                                clearCommentImage(
+                                                    '${escapeHtml(
+                                                        post.id
+                                                    )}'
+                                                )
+                                            ">
+
+                                            ❌ Remove image
+
+                                        </button>
+
+                                    </div>
 
                                 </div>
 
                             </div>
 
-                        </div>
+                        </article>
 
-                    </article>
+                    `;
 
-                `;
+                }
+            ).join("");
 
-            }).join("");
+
+        posts.forEach(
+            post => {
+
+                const input =
+                    document.getElementById(
+                        `comment-image-${post.id}`
+                    );
 
 
-        setupCommentImagePreviews(posts);
+                const preview =
+                    document.getElementById(
+                        `comment-preview-${post.id}`
+                    );
+
+
+                const previewImage =
+                    document.getElementById(
+                        `comment-preview-image-${post.id}`
+                    );
+
+
+                if (!input) {
+
+                    return;
+
+                }
+
+
+                input.addEventListener(
+                    "change",
+                    () => {
+
+                        const file =
+                            input.files[0];
+
+
+                        if (!file) {
+
+                            preview.style.display =
+                                "none";
+
+                            return;
+
+                        }
+
+
+                        if (
+                            !file.type.startsWith(
+                                "image/"
+                            )
+                        ) {
+
+                            alert(
+                                "❌ Please choose an image."
+                            );
+
+                            input.value =
+                                "";
+
+                            return;
+
+                        }
+
+
+                        if (
+                            file.size >
+                            5 * 1024 * 1024
+                        ) {
+
+                            alert(
+                                "❌ Image must be under 5MB."
+                            );
+
+                            input.value =
+                                "";
+
+                            return;
+
+                        }
+
+
+                        const reader =
+                            new FileReader();
+
+
+                        reader.onload =
+                            event => {
+
+                                previewImage.src =
+                                    event.target.result;
+
+                                preview.style.display =
+                                    "block";
+
+                            };
+
+
+                        reader.readAsDataURL(
+                            file
+                        );
+
+                    }
+                );
+
+            }
+        );
+
 
     } catch (error) {
 
@@ -918,122 +1090,13 @@ async function loadPosts() {
             error
         );
 
+
         container.innerHTML =
             `<p>❌ ${escapeHtml(
                 error.message
             )}</p>`;
 
     }
-
-}
-
-
-/* ==================================================
-   COMMENT IMAGE PREVIEWS
-================================================== */
-
-function setupCommentImagePreviews(posts) {
-
-    posts.forEach(post => {
-
-        const input =
-            document.getElementById(
-                `comment-image-${post.id}`
-            );
-
-        const preview =
-            document.getElementById(
-                `comment-preview-${post.id}`
-            );
-
-        const previewImage =
-            document.getElementById(
-                `comment-preview-image-${post.id}`
-            );
-
-
-        if (!input) {
-            return;
-        }
-
-
-        input.addEventListener(
-            "change",
-            () => {
-
-                const file =
-                    input.files[0];
-
-
-                if (!file) {
-
-                    preview.style.display =
-                        "none";
-
-                    return;
-
-                }
-
-
-                if (
-                    !file.type.startsWith(
-                        "image/"
-                    )
-                ) {
-
-                    alert(
-                        "❌ Please choose an image."
-                    );
-
-                    input.value =
-                        "";
-
-                    return;
-
-                }
-
-
-                if (
-                    file.size >
-                    5 * 1024 * 1024
-                ) {
-
-                    alert(
-                        "❌ Image must be under 5MB."
-                    );
-
-                    input.value =
-                        "";
-
-                    return;
-
-                }
-
-
-                const reader =
-                    new FileReader();
-
-
-                reader.onload =
-                    event => {
-
-                        previewImage.src =
-                            event.target.result;
-
-                        preview.style.display =
-                            "block";
-
-                    };
-
-
-                reader.readAsDataURL(
-                    file
-                );
-
-            }
-        );
-
-    });
 
 }
 
@@ -1049,10 +1112,12 @@ async function createPost() {
             "post-content"
         );
 
+
     const imageInput =
         document.getElementById(
             "post-image"
         );
+
 
     const status =
         document.getElementById(
@@ -1145,37 +1210,16 @@ async function createPost() {
 
 
         if (input) {
-            input.value = "";
+
+            input.value =
+                "";
+
         }
 
 
         if (imageInput) {
-            imageInput.value = "";
-        }
 
-
-        const preview =
-            document.getElementById(
-                "post-image-preview"
-            );
-
-        const previewImage =
-            document.getElementById(
-                "post-preview-image"
-            );
-
-
-        if (preview) {
-
-            preview.style.display =
-                "none";
-
-        }
-
-
-        if (previewImage) {
-
-            previewImage.src =
+            imageInput.value =
                 "";
 
         }
@@ -1191,12 +1235,14 @@ async function createPost() {
 
         loadPosts();
 
+
     } catch (error) {
 
         console.error(
             "CREATE POST ERROR:",
             error
         );
+
 
         if (status) {
 
@@ -1224,7 +1270,9 @@ async function toggleComments(postId) {
 
 
     if (!box) {
+
         return;
+
     }
 
 
@@ -1235,6 +1283,7 @@ async function toggleComments(postId) {
 
         box.style.display =
             "block";
+
 
         loadComments(
             postId
@@ -1263,7 +1312,9 @@ async function loadComments(postId) {
 
 
     if (!list) {
+
         return;
+
     }
 
 
@@ -1271,7 +1322,9 @@ async function loadComments(postId) {
 
         const response =
             await fetch(
-                `/api/posts/${postId}/comments`
+                `/api/posts/${encodeURIComponent(
+                    postId
+                )}/comments`
             );
 
 
@@ -1300,107 +1353,114 @@ async function loadComments(postId) {
 
 
         list.innerHTML =
-            comments.map(comment => {
+            comments.map(
+                comment => {
 
-                const avatar =
-                    comment.avatar ||
-                    "/default-avatar.png";
-
-                const displayName =
-                    comment.display_name ||
-                    comment.username ||
-                    "User";
+                    const avatar =
+                        comment.avatar ||
+                        "/default-avatar.png";
 
 
-                let imageHTML =
-                    "";
+                    const displayName =
+                        comment.display_name ||
+                        comment.username ||
+                        "User";
 
 
-                if (comment.image_url) {
+                    let imageHTML =
+                        "";
 
-                    imageHTML = `
 
-                        <img
-                            src="${escapeHtml(
-                                comment.image_url
-                            )}"
-                            alt="Comment image"
+                    if (comment.image_url) {
+
+                        imageHTML = `
+
+                            <img
+                                src="${escapeHtml(
+                                    comment.image_url
+                                )}"
+                                alt="Comment image"
+                                style="
+                                    max-width:300px;
+                                    max-height:300px;
+                                    border-radius:10px;
+                                    margin-top:8px;
+                                    display:block;
+                                "
+                                onerror="
+                                    this.style.display='none';
+                                ">
+
+                        `;
+
+                    }
+
+
+                    return `
+
+                        <div
+                            class="comment"
                             style="
-                                max-width:300px;
-                                max-height:300px;
-                                border-radius:10px;
-                                margin-top:8px;
-                                display:block;
-                            "
-                        >
+                                padding:10px;
+                                margin-bottom:10px;
+                            ">
+
+                            <div
+                                style="
+                                    display:flex;
+                                    align-items:center;
+                                    gap:8px;
+                                ">
+
+                                <img
+                                    src="${escapeHtml(
+                                        avatar
+                                    )}"
+                                    alt="Avatar"
+                                    style="
+                                        width:35px;
+                                        height:35px;
+                                        border-radius:50%;
+                                        object-fit:cover;
+                                    "
+                                    onerror="
+                                        this.src='/default-avatar.png';
+                                    ">
+
+
+                                <strong>
+                                    ${escapeHtml(
+                                        displayName
+                                    )}
+                                </strong>
+
+                            </div>
+
+
+                            ${
+                                comment.content
+                                    ? `
+
+                                        <p>
+                                            ${escapeHtml(
+                                                comment.content
+                                            )}
+                                        </p>
+
+                                    `
+                                    : ""
+                            }
+
+
+                            ${imageHTML}
+
+                        </div>
 
                     `;
 
                 }
+            ).join("");
 
-
-                return `
-
-                    <div
-                        class="comment"
-                        style="
-                            padding:10px;
-                            margin-bottom:10px;
-                        "
-                    >
-
-                        <div
-                            style="
-                                display:flex;
-                                align-items:center;
-                                gap:8px;
-                            "
-                        >
-
-                            <img
-                                src="${escapeHtml(
-                                    avatar
-                                )}"
-                                alt="Avatar"
-                                style="
-                                    width:35px;
-                                    height:35px;
-                                    border-radius:50%;
-                                    object-fit:cover;
-                                "
-                            >
-
-                            <strong>
-                                ${escapeHtml(
-                                    displayName
-                                )}
-                            </strong>
-
-                        </div>
-
-
-                        ${
-                            comment.content
-                                ? `
-
-                                    <p>
-                                        ${escapeHtml(
-                                            comment.content
-                                        )}
-                                    </p>
-
-                                  `
-                                : ""
-                        }
-
-
-                        ${imageHTML}
-
-                    </div>
-
-                `;
-
-            }).join("");
 
     } catch (error) {
 
@@ -1408,6 +1468,7 @@ async function loadComments(postId) {
             "COMMENTS ERROR:",
             error
         );
+
 
         list.innerHTML =
             `<p>❌ ${escapeHtml(
@@ -1430,6 +1491,7 @@ async function submitComment(postId) {
             `comment-input-${postId}`
         );
 
+
     const imageInput =
         document.getElementById(
             `comment-image-${postId}`
@@ -1447,7 +1509,9 @@ async function submitComment(postId) {
 
 
     if (!content && !file) {
+
         return;
+
     }
 
 
@@ -1461,7 +1525,9 @@ async function submitComment(postId) {
 
         const response =
             await fetch(
-                `/api/posts/${postId}/comments`,
+                `/api/posts/${encodeURIComponent(
+                    postId
+                )}/comments`,
                 {
 
                     method:
@@ -1504,7 +1570,18 @@ async function submitComment(postId) {
 
 
         if (input) {
-            input.value = "";
+
+            input.value =
+                "";
+
+        }
+
+
+        if (imageInput) {
+
+            imageInput.value =
+                "";
+
         }
 
 
@@ -1524,6 +1601,7 @@ async function submitComment(postId) {
             "COMMENT ERROR:",
             error
         );
+
 
         alert(
             "❌ " +
@@ -1546,10 +1624,12 @@ function clearCommentImage(postId) {
             `comment-image-${postId}`
         );
 
+
     const preview =
         document.getElementById(
             `comment-preview-${postId}`
         );
+
 
     const previewImage =
         document.getElementById(
@@ -1584,7 +1664,7 @@ function clearCommentImage(postId) {
 
 
 /* ==================================================
-   LOAD PEOPLE
+   PEOPLE
 ================================================== */
 
 async function loadPeople() {
@@ -1596,7 +1676,9 @@ async function loadPeople() {
 
 
     if (!container) {
+
         return;
+
     }
 
 
@@ -1633,73 +1715,75 @@ async function loadPeople() {
 
 
         container.innerHTML =
-            users.map(user => {
+            users.map(
+                user => {
 
-                const avatar =
-                    user.avatar ||
-                    "/default-avatar.png";
-
-                const displayName =
-                    user.display_name ||
-                    user.username ||
-                    "User";
+                    const avatar =
+                        user.avatar ||
+                        "/default-avatar.png";
 
 
-                return `
+                    const displayName =
+                        user.display_name ||
+                        user.username ||
+                        "User";
 
-                    <a
-                        href="/profile.html?id=${encodeURIComponent(
-                            user.id
-                        )}"
-                        class="person"
-                        style="
-                            text-decoration:none;
-                            color:inherit;
-                            display:flex;
-                            align-items:center;
-                            gap:12px;
-                        "
-                    >
 
-                        <img
-                            class="avatar"
-                            src="${escapeHtml(
-                                avatar
+                    return `
+
+                        <a
+                            href="/profile.html?id=${encodeURIComponent(
+                                user.id
                             )}"
-                            alt="Avatar"
+                            class="person"
                             style="
-                                width:50px;
-                                height:50px;
-                                border-radius:50%;
-                                object-fit:cover;
-                            "
-                            onerror="
-                                this.src='/default-avatar.png';
-                            "
-                        >
+                                text-decoration:none;
+                                color:inherit;
+                                display:flex;
+                                align-items:center;
+                                gap:12px;
+                            ">
 
-                        <div>
+                            <img
+                                class="avatar"
+                                src="${escapeHtml(
+                                    avatar
+                                )}"
+                                alt="Avatar"
+                                style="
+                                    width:50px;
+                                    height:50px;
+                                    border-radius:50%;
+                                    object-fit:cover;
+                                "
+                                onerror="
+                                    this.src='/default-avatar.png';
+                                ">
 
-                            <strong>
-                                ${escapeHtml(
-                                    displayName
-                                )}
-                            </strong>
 
-                            <p>
-                                @${escapeHtml(
-                                    user.username ||
-                                    "user"
-                                )}
-                            </p>
+                            <div>
 
-                        </div>
+                                <strong>
+                                    ${escapeHtml(
+                                        displayName
+                                    )}
+                                </strong>
 
-                    </a>
+                                <p>
+                                    @${escapeHtml(
+                                        user.username ||
+                                        "user"
+                                    )}
+                                </p>
 
-                `;
+                            </div>
 
-            }).join("");
+                        </a>
+
+                    `;
+
+                }
+            ).join("");
 
 
     } catch (error) {
@@ -1708,6 +1792,7 @@ async function loadPeople() {
             "PEOPLE ERROR:",
             error
         );
+
 
         container.innerHTML =
             `<p>❌ ${escapeHtml(
@@ -1720,7 +1805,7 @@ async function loadPeople() {
 
 
 /* ==================================================
-   ENTER KEY FOR COMMENTS
+   COMMENT ENTER KEY
 ================================================== */
 
 document.addEventListener(

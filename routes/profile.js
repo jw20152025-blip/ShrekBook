@@ -16,7 +16,6 @@ function escapeHtml(text) {
         text ?? "";
 
     return div.innerHTML;
-
 }
 
 
@@ -26,114 +25,9 @@ function escapeHtml(text) {
 
 function getProfileId() {
 
-    const params =
-        new URLSearchParams(
-            window.location.search
-        );
-
-    return params.get("id");
-
-}
-
-
-/* ==================================================
-   LOAD REACTIONS
-================================================== */
-
-async function loadReactions() {
-
-    const userId =
-        getProfileId();
-
-    if (!userId) {
-
-        console.error(
-            "No profile ID."
-        );
-
-        return;
-
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/users/${encodeURIComponent(
-                    userId
-                )}/reactions`
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Could not load reactions."
-            );
-
-        }
-
-
-        const counts =
-            data.counts || {};
-
-
-        const gyatt =
-            document.getElementById(
-                "gyatt-count"
-            );
-
-
-        const cat =
-            document.getElementById(
-                "cat-count"
-            );
-
-
-        const ogred =
-            document.getElementById(
-                "ogred-count"
-            );
-
-
-        if (gyatt) {
-
-            gyatt.textContent =
-                counts.gyatt || 0;
-
-        }
-
-
-        if (cat) {
-
-            cat.textContent =
-                counts.cat || 0;
-
-        }
-
-
-        if (ogred) {
-
-            ogred.textContent =
-                counts.ogred || 0;
-
-        }
-
-
-    } catch (error) {
-
-        console.error(
-            "LOAD REACTIONS ERROR:",
-            error
-        );
-
-    }
+    return new URLSearchParams(
+        window.location.search
+    ).get("id");
 
 }
 
@@ -147,7 +41,6 @@ async function giveReaction(type) {
     const userId =
         getProfileId();
 
-
     if (!userId) {
 
         alert(
@@ -160,20 +53,16 @@ async function giveReaction(type) {
 
 
     const allowedTypes = [
-
         "gyatt",
         "cat",
         "ogred"
-
     ];
 
 
-    if (
-        !allowedTypes.includes(type)
-    ) {
+    if (!allowedTypes.includes(type)) {
 
         alert(
-            "❌ Invalid reaction."
+            "❌ Invalid reaction type."
         );
 
         return;
@@ -185,11 +74,9 @@ async function giveReaction(type) {
 
         const response =
             await fetch(
-
                 `/api/users/${encodeURIComponent(
                     userId
                 )}/reaction`,
-
                 {
 
                     method:
@@ -211,7 +98,6 @@ async function giveReaction(type) {
                         })
 
                 }
-
             );
 
 
@@ -221,58 +107,73 @@ async function giveReaction(type) {
 
         if (!response.ok) {
 
-            throw new Error(
-
-                data.error ||
-                "Could not give reaction."
-
+            alert(
+                "❌ " +
+                (
+                    data.error ||
+                    "Could not give reaction."
+                )
             );
+
+            return;
 
         }
 
 
-        const counts =
-            data.counts || {};
+        /*
+         * Server returns:
+         *
+         * {
+         *     success: true,
+         *     counts: {
+         *         gyatt,
+         *         cat,
+         *         ogred
+         *     }
+         * }
+         */
 
 
-        const gyatt =
-            document.getElementById(
-                "gyatt-count"
-            );
+        if (data.counts) {
+
+            const gyattCount =
+                document.getElementById(
+                    "gyatt-count"
+                );
+
+            const catCount =
+                document.getElementById(
+                    "cat-count"
+                );
+
+            const ogredCount =
+                document.getElementById(
+                    "ogred-count"
+                );
 
 
-        const cat =
-            document.getElementById(
-                "cat-count"
-            );
+            if (gyattCount) {
+
+                gyattCount.textContent =
+                    data.counts.gyatt ?? 0;
+
+            }
 
 
-        const ogred =
-            document.getElementById(
-                "ogred-count"
-            );
+            if (catCount) {
+
+                catCount.textContent =
+                    data.counts.cat ?? 0;
+
+            }
 
 
-        if (gyatt) {
+            if (ogredCount) {
 
-            gyatt.textContent =
-                counts.gyatt || 0;
+                ogredCount.textContent =
+                    data.counts.ogred ?? 0;
 
-        }
-
-
-        if (cat) {
-
-            cat.textContent =
-                counts.cat || 0;
-
-        }
-
-
-        if (ogred) {
-
-            ogred.textContent =
-                counts.ogred || 0;
+            }
 
         }
 
@@ -284,10 +185,8 @@ async function giveReaction(type) {
             error
         );
 
-
         alert(
-            "❌ " +
-            error.message
+            "❌ Could not give reaction."
         );
 
     }
@@ -308,7 +207,7 @@ async function loadProfile() {
     if (!userId) {
 
         console.error(
-            "No profile ID."
+            "No profile ID in URL."
         );
 
         return;
@@ -341,25 +240,16 @@ async function loadProfile() {
 
 
         const user =
-            data.user ||
-            data;
+            data.user || data;
 
+
+        /* ------------------------------------------
+           NAME
+        ------------------------------------------ */
 
         const displayName =
             document.getElementById(
                 "profile-display-name"
-            );
-
-
-        const username =
-            document.getElementById(
-                "profile-username"
-            );
-
-
-        const avatar =
-            document.getElementById(
-                "profile-avatar"
             );
 
 
@@ -371,6 +261,16 @@ async function loadProfile() {
                 "User";
 
         }
+
+
+        /* ------------------------------------------
+           USERNAME
+        ------------------------------------------ */
+
+        const username =
+            document.getElementById(
+                "profile-username"
+            );
 
 
         if (username) {
@@ -385,11 +285,102 @@ async function loadProfile() {
         }
 
 
+        /* ------------------------------------------
+           BIO
+        ------------------------------------------ */
+
+        const bio =
+            document.getElementById(
+                "profile-bio"
+            );
+
+
+        if (bio) {
+
+            bio.textContent =
+                user.bio ||
+                "";
+
+        }
+
+
+        /* ------------------------------------------
+           AVATAR
+        ------------------------------------------ */
+
+        const avatar =
+            document.getElementById(
+                "profile-avatar"
+            );
+
+
         if (avatar) {
 
             avatar.src =
                 user.avatar ||
                 "/default-avatar.png";
+
+            avatar.onerror =
+                () => {
+
+                    avatar.src =
+                        "/default-avatar.png";
+
+                };
+
+        }
+
+
+        /* ------------------------------------------
+           REACTION COUNTS
+        ------------------------------------------ */
+
+        const counts =
+            data.counts ||
+            user.reaction_counts ||
+            null;
+
+
+        if (counts) {
+
+            const gyatt =
+                document.getElementById(
+                    "gyatt-count"
+                );
+
+            const cat =
+                document.getElementById(
+                    "cat-count"
+                );
+
+            const ogred =
+                document.getElementById(
+                    "ogred-count"
+                );
+
+
+            if (gyatt) {
+
+                gyatt.textContent =
+                    counts.gyatt ?? 0;
+
+            }
+
+
+            if (cat) {
+
+                cat.textContent =
+                    counts.cat ?? 0;
+
+            }
+
+
+            if (ogred) {
+
+                ogred.textContent =
+                    counts.ogred ?? 0;
+
+            }
 
         }
 
@@ -400,6 +391,26 @@ async function loadProfile() {
             "PROFILE ERROR:",
             error
         );
+
+
+        const profile =
+            document.getElementById(
+                "profile"
+            );
+
+
+        if (profile) {
+
+            profile.innerHTML =
+                `
+                <p>
+                    ❌ ${escapeHtml(
+                        error.message
+                    )}
+                </p>
+                `;
+
+        }
 
     }
 
@@ -415,8 +426,6 @@ document.addEventListener(
     () => {
 
         loadProfile();
-
-        loadReactions();
 
     }
 );
