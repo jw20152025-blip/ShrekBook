@@ -281,30 +281,21 @@ app.use(
    FRONTEND FALLBACK
 ================================================== */
 
-app.get(
-    "*",
-    (req, res, next) => {
-
-        if (
-            req.path.startsWith(
-                "/api/"
-            )
-        ) {
-
-            return next();
-
-        }
-
-        res.sendFile(
-            path.join(
-                __dirname,
-                "public",
-                "index.html"
-            )
-        );
-
+app.use((req, res) => {
+    if (req.originalUrl.startsWith("/api/")) {
+        return res.status(404).json({
+            success: false,
+            error: "Not found."
+        });
     }
-);
+
+    return res.sendFile(
+        path.join(
+            publicPath,
+            "index.html"
+        )
+    );
+});
 
 
 /* ==================================================
