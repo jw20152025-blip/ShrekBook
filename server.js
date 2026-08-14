@@ -9,8 +9,7 @@ const express = require("express");
 const path = require("path");
 const session = require("express-session");
 
-const supabase =
-    require("./utils/supabase.js");
+const { createClient } = require("./utils/supabase.js");
 
 
 /* ==================================================
@@ -27,19 +26,40 @@ const PORT =
    ENVIRONMENT
 ================================================== */
 
+const SUPABASE_URL =
+    process.env.SUPABASE_URL;
+
+const SUPABASE_SERVICE_ROLE_KEY =
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
+
 const SESSION_SECRET =
     process.env.SESSION_SECRET;
 
 
-if (!SESSION_SECRET) {
+if (
+    !SUPABASE_URL ||
+    !SUPABASE_SERVICE_ROLE_KEY ||
+    !SESSION_SECRET
+) {
 
     console.error(
-        "❌ Missing SESSION_SECRET environment variable."
+        "❌ Missing required environment variables."
     );
 
     process.exit(1);
 
 }
+
+
+/* ==================================================
+   SUPABASE
+================================================== */
+
+const supabase =
+    createClient(
+        SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY
+    );
 
 
 /* ==================================================
@@ -108,7 +128,7 @@ app.use(
 
 
 /* ==================================================
-   STATIC FILES
+   STATIC FRONTEND
 ================================================== */
 
 app.use(
@@ -122,7 +142,7 @@ app.use(
 
 
 /* ==================================================
-   HEALTH / TEST
+   HEALTH
 ================================================== */
 
 app.get(
@@ -162,24 +182,20 @@ app.get(
 
 
 /* ==================================================
-   ROUTERS
+   ROUTES
 ================================================== */
 
 const authRouter =
     require("./routes/auth");
 
-
 const profilesRouter =
-    require("./routes/profile.js");
-
+    require("./routes/profiles");
 
 const postsRouter =
     require("./routes/posts");
 
-
 const reactionsRouter =
     require("./routes/reactions");
-
 
 const chatRouter =
     require("./routes/chat");
@@ -194,24 +210,20 @@ app.use(
     authRouter
 );
 
-
 app.use(
     "/api",
     profilesRouter
 );
-
 
 app.use(
     "/api",
     postsRouter
 );
 
-
 app.use(
     "/api",
     reactionsRouter
 );
-
 
 app.use(
     "/api",
@@ -220,7 +232,7 @@ app.use(
 
 
 /* ==================================================
-   404 API HANDLER
+   API 404
 ================================================== */
 
 app.use(
@@ -295,7 +307,7 @@ app.use(
 
 
 /* ==================================================
-   START SERVER
+   START
 ================================================== */
 
 app.listen(

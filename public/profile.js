@@ -2,11 +2,6 @@
    SHREKBOOK PROFILE CLIENT
 ================================================== */
 
-
-/* ==================================================
-   ESCAPE HTML
-================================================== */
-
 function escapeHtml(text) {
 
     const div =
@@ -44,7 +39,6 @@ function updateReactionCounts(counts) {
     if (!counts) {
         return;
     }
-
 
     const gyattCount =
         document.getElementById(
@@ -170,31 +164,21 @@ async function giveReaction(type) {
             );
 
 
-        /*
-         * Don't blindly call response.json().
-         *
-         * If the server accidentally sends
-         * HTML, this prevents:
-         *
-         * Unexpected token '<'
-         */
-
         const text =
             await response.text();
 
 
         let data;
 
-
         try {
 
             data =
                 JSON.parse(text);
 
-        } catch (jsonError) {
+        } catch (error) {
 
             console.error(
-                "SERVER RETURNED NON-JSON:",
+                "NON-JSON RESPONSE:",
                 text
             );
 
@@ -220,21 +204,6 @@ async function giveReaction(type) {
         }
 
 
-        /*
-         * Server response:
-         *
-         * {
-         *     success: true,
-         *     reaction: {...},
-         *     counts: {
-         *         gyatt: 0,
-         *         cat: 0,
-         *         ogred: 0
-         *     }
-         * }
-         */
-
-
         if (data.counts) {
 
             updateReactionCounts(
@@ -244,21 +213,14 @@ async function giveReaction(type) {
         }
 
 
-        /*
-         * Extra fallback in case the server
-         * only returns `count`.
-         */
-
         if (
-            data.count !== undefined &&
-            data.counts
+            data.count !== undefined
         ) {
 
             const element =
                 document.getElementById(
                     `${type}-count`
                 );
-
 
             if (element) {
 
@@ -269,14 +231,12 @@ async function giveReaction(type) {
 
         }
 
-
     } catch (error) {
 
         console.error(
             "REACTION ERROR:",
             error
         );
-
 
         alert(
             "❌ " +
@@ -303,10 +263,6 @@ async function loadProfile() {
 
     if (!userId) {
 
-        console.error(
-            "No profile ID in URL."
-        );
-
         const profile =
             document.getElementById(
                 "profile"
@@ -324,12 +280,6 @@ async function loadProfile() {
     }
 
 
-    console.log(
-        "Loading profile:",
-        userId
-    );
-
-
     try {
 
         const response =
@@ -338,9 +288,6 @@ async function loadProfile() {
                     userId
                 )}`,
                 {
-
-                    method:
-                        "GET",
 
                     headers: {
 
@@ -362,16 +309,15 @@ async function loadProfile() {
 
         let data;
 
-
         try {
 
             data =
                 JSON.parse(text);
 
-        } catch (jsonError) {
+        } catch (error) {
 
             console.error(
-                "PROFILE SERVER RESPONSE:",
+                "PROFILE NON-JSON RESPONSE:",
                 text
             );
 
@@ -392,33 +338,15 @@ async function loadProfile() {
         }
 
 
-        /*
-         * Supports either:
-         *
-         * {
-         *     user: {...},
-         *     counts: {...}
-         * }
-         *
-         * OR:
-         *
-         * {...user}
-         */
-
         const user =
             data.user ||
             data;
 
 
-        /* ==================================================
-           DISPLAY NAME
-        ================================================== */
-
         const displayName =
             document.getElementById(
                 "profile-display-name"
             );
-
 
         if (displayName) {
 
@@ -430,15 +358,10 @@ async function loadProfile() {
         }
 
 
-        /* ==================================================
-           USERNAME
-        ================================================== */
-
         const username =
             document.getElementById(
                 "profile-username"
             );
-
 
         if (username) {
 
@@ -452,15 +375,10 @@ async function loadProfile() {
         }
 
 
-        /* ==================================================
-           BIO
-        ================================================== */
-
         const bio =
             document.getElementById(
                 "profile-bio"
             );
-
 
         if (bio) {
 
@@ -471,22 +389,16 @@ async function loadProfile() {
         }
 
 
-        /* ==================================================
-           AVATAR
-        ================================================== */
-
         const avatar =
             document.getElementById(
                 "profile-avatar"
             );
-
 
         if (avatar) {
 
             avatar.src =
                 user.avatar ||
                 "/default-avatar.png";
-
 
             avatar.onerror =
                 () => {
@@ -501,10 +413,6 @@ async function loadProfile() {
 
         }
 
-
-        /* ==================================================
-           REACTION COUNTS
-        ================================================== */
 
         const counts =
             data.counts ||
