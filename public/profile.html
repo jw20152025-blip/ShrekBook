@@ -1,24 +1,134 @@
-<div class="profile-header">
 
-    <h1
-        id="profile-name"
-        class="profile-name"
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
     >
-        Loading...
-    </h1>
+
+    <title>Profile — ShrekBook</title>
+
+    <link
+        rel="stylesheet"
+        href="/style.css"
+    >
+
+</head>
+
+
+<body>
+
+<header class="site-header">
+
+    <div class="header-inner">
+
+        <a
+            href="/"
+            class="logo"
+        >
+            🧌 ShrekBook
+        </a>
+
+
+        <nav class="nav">
+
+            <a href="/">
+                Home
+            </a>
+
+            <a href="/chat.html">
+                💬 ShrekChat
+            </a>
+
+            <a
+                href="/login.html"
+                id="login-nav"
+            >
+                Log In
+            </a>
+
+            <button
+                id="logout-button"
+                style="display:none;"
+            >
+                Log Out
+            </button>
+
+        </nav>
+
+    </div>
+
+</header>
+
+
+<main class="container">
 
     <div
-        id="profile-username"
-        class="profile-username"
+        id="profile-error"
+        class="card"
+        style="display:none;"
     ></div>
 
-    <div
-        id="profile-bio"
-        class="profile-bio"
-    ></div>
 
-</div>
+    <!-- PROFILE -->
 
-<div id="profile-posts"></div>
+    <section class="profile-header">
+
+        <h1
+            id="profile-name"
+            class="profile-name"
+        >
+            Loading...
+        </h1>
+
+
+        <div
+            id="profile-username"
+            class="profile-username"
+        ></div>
+
+
+        <div
+            id="profile-bio"
+            class="profile-bio"
+        ></div>
+
+    </section>
+
+
+    <!-- POSTS -->
+
+    <section>
+
+        <h2
+            class="page-title"
+            style="font-size:27px;"
+        >
+            📝 Posts
+        </h2>
+
+
+        <div id="profile-posts">
+
+            <div class="loading">
+                Loading posts...
+            </div>
+
+        </div>
+
+    </section>
+
+</main>
+
 
 <script src="/profile.js"></script>
+
+</body>
+
+</html>
+

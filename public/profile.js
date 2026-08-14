@@ -3,7 +3,7 @@
 
 
 /* =========================================================
-   GET USER ID FROM URL
+   PROFILE ID
 ========================================================= */
 
 const params =
@@ -40,9 +40,19 @@ const profilePosts =
         "profile-posts"
     );
 
+const profileError =
+    document.getElementById(
+        "profile-error"
+    );
+
+const logoutButton =
+    document.getElementById(
+        "logout-button"
+    );
+
 
 /* =========================================================
-   FETCH JSON
+   API
 ========================================================= */
 
 async function fetchJSON(
@@ -77,7 +87,7 @@ async function fetchJSON(
         await response.text();
 
 
-    let data;
+    let data = {};
 
 
     try {
@@ -100,7 +110,7 @@ async function fetchJSON(
 
         throw new Error(
             data.error ||
-            `Server error (${response.status})`
+            `Request failed (${response.status})`
         );
 
     }
@@ -112,273 +122,7 @@ async function fetchJSON(
 
 
 /* =========================================================
-   LOAD PROFILE
-========================================================= */
-
-async function loadProfile() {
-
-    if (!profileId) {
-
-        profileName.textContent =
-            "Profile not found";
-
-        profileUsername.textContent =
-            "";
-
-        profileBio.textContent =
-            "No profile ID was provided.";
-
-        return;
-
-    }
-
-
-    try {
-
-        console.log(
-            "👤 Loading profile:",
-            profileId
-        );
-
-
-        const data =
-            await fetchJSON(
-                `/api/users/${encodeURIComponent(profileId)}`
-            );
-
-
-        const user =
-            data.user;
-
-
-        if (!user) {
-
-            throw new Error(
-                "User not found."
-            );
-
-        }
-
-
-        /*
-         * These names support both your
-         * current profiles table and the
-         * older naming style.
-         */
-
-        const name =
-            user.display_name ||
-            user.username ||
-            "Unknown user";
-
-
-        const username =
-            user.username
-                ? `@${user.username}`
-                : "";
-
-
-        const bio =
-            user.bio ||
-            "No bio yet.";
-
-
-        profileName.textContent =
-            name;
-
-
-        profileUsername.textContent =
-            username;
-
-
-        profileBio.textContent =
-            bio;
-
-
-        document.title =
-            `${name} — ShrekBook`;
-
-
-        await loadProfilePosts(
-            user.id
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "❌ PROFILE ERROR:",
-            error
-        );
-
-
-        profileName.textContent =
-            "Unable to load profile";
-
-
-        profileUsername.textContent =
-            "";
-
-
-        profileBio.textContent =
-            error.message;
-
-    }
-
-}
-
-
-/* =========================================================
-   LOAD PROFILE POSTS
-========================================================= */
-
-async function loadProfilePosts(
-    userId
-) {
-
-    if (!profilePosts) {
-        return;
-    }
-
-
-    profilePosts.innerHTML =
-        `<div class="loading">Loading posts...</div>`;
-
-
-    try {
-
-        const data =
-            await fetchJSON(
-                `/api/posts/user/${encodeURIComponent(userId)}`
-            );
-
-
-        const posts =
-            Array.isArray(data.posts)
-                ? data.posts
-                : [];
-
-
-        if (
-            posts.length === 0
-        ) {
-
-            profilePosts.innerHTML =
-                `<div class="empty">No posts yet.</div>`;
-
-            return;
-
-        }
-
-
-        profilePosts.innerHTML =
-            "";
-
-
-        posts.forEach(
-            post => {
-
-                profilePosts.appendChild(
-                    createPostElement(
-                        post
-                    )
-                );
-
-            }
-        );
-
-
-    } catch (error) {
-
-        /*
-         * If your posts route doesn't have
-         * the user-specific endpoint yet,
-         * don't make the entire profile crash.
-         */
-
-        console.warn(
-            "Profile posts unavailable:",
-            error
-        );
-
-
-        profilePosts.innerHTML =
-            `<div class="empty">No posts to show.</div>`;
-
-    }
-
-}
-
-
-/* =========================================================
-   CREATE POST ELEMENT
-========================================================= */
-
-function createPostElement(
-    post
-) {
-
-    const article =
-        document.createElement(
-            "article"
-        );
-
-
-    article.className =
-        "post";
-
-
-    const author =
-        post.profiles?.display_name ||
-        post.display_name ||
-        post.username ||
-        "Unknown user";
-
-
-    const content =
-        post.content ||
-        "";
-
-
-    article.innerHTML = `
-
-        <div class="post-header">
-
-            <div>
-
-                <div class="post-author">
-                    ${escapeHTML(author)}
-                </div>
-
-                ${
-                    post.created_at
-                    ?
-                    `<div class="post-time">
-                        ${formatDate(post.created_at)}
-                    </div>`
-                    :
-                    ""
-                }
-
-            </div>
-
-        </div>
-
-
-        <div class="post-content">
-            ${escapeHTML(content)}
-        </div>
-
-    `;
-
-
-    return article;
-
-}
-
-
-/* =========================================================
-   ESCAPE HTML
+   ESCAPE
 ========================================================= */
 
 function escapeHTML(
@@ -417,16 +161,21 @@ function escapeHTML(
 ========================================================= */
 
 function formatDate(
-    date
+    value
 ) {
 
-    const parsed =
-        new Date(date);
+    if (!value) {
+        return "";
+    }
+
+
+    const date =
+        new Date(value);
 
 
     if (
         Number.isNaN(
-            parsed.getTime()
+            date.getTime()
         )
     ) {
 
@@ -435,7 +184,343 @@ function formatDate(
     }
 
 
-    return parsed.toLocaleString();
+    return date.toLocaleString();
+
+}
+
+
+/* =========================================================
+   LOAD PROFILE
+========================================================= */
+
+async function loadProfile() {
+
+    console.log(
+        "👤 PROFILE ID:",
+        profileId
+    );
+
+
+    if (!profileId) {
+
+        showProfileError(
+            "No profile ID was supplied."
+        );
+
+        return;
+
+    }
+
+
+    try {
+
+        const data =
+            await fetchJSON(
+                `/api/users/${encodeURIComponent(
+                    profileId
+                )}`
+            );
+
+
+        console.log(
+            "PROFILE RESPONSE:",
+            data
+        );
+
+
+        const user =
+            data.user;
+
+
+        if (!user) {
+
+            throw new Error(
+                "User not found."
+            );
+
+        }
+
+
+        const name =
+            user.display_name ||
+            user.username ||
+            "Unknown user";
+
+
+        const username =
+            user.username
+                ? `@${user.username}`
+                : "";
+
+
+        const bio =
+            user.bio ||
+            "No bio yet.";
+
+
+        profileName.textContent =
+            name;
+
+
+        profileUsername.textContent =
+            username;
+
+
+        profileBio.textContent =
+            bio;
+
+
+        document.title =
+            `${name} — ShrekBook`;
+
+
+        /*
+         * Load posts separately.
+         * If this fails, the profile itself
+         * remains functional.
+         */
+
+        loadProfilePosts(
+            user.id
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "❌ PROFILE ERROR:",
+            error
+        );
+
+
+        showProfileError(
+            error.message
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   PROFILE ERROR
+========================================================= */
+
+function showProfileError(
+    message
+) {
+
+    if (profileError) {
+
+        profileError.style.display =
+            "block";
+
+        profileError.textContent =
+            message;
+
+    }
+
+
+    if (profileName) {
+
+        profileName.textContent =
+            "Profile unavailable";
+
+    }
+
+
+    if (profileUsername) {
+
+        profileUsername.textContent =
+            "";
+
+    }
+
+
+    if (profileBio) {
+
+        profileBio.textContent =
+            "";
+
+    }
+
+}
+
+
+/* =========================================================
+   PROFILE POSTS
+========================================================= */
+
+async function loadProfilePosts(
+    userId
+) {
+
+    if (!profilePosts) {
+        return;
+    }
+
+
+    try {
+
+        const data =
+            await fetchJSON(
+                `/api/posts/user/${encodeURIComponent(
+                    userId
+                )}`
+            );
+
+
+        const posts =
+            Array.isArray(
+                data.posts
+            )
+                ? data.posts
+                : Array.isArray(data)
+                    ? data
+                    : [];
+
+
+        if (
+            posts.length === 0
+        ) {
+
+            profilePosts.innerHTML =
+                `<div class="empty">
+                    No posts yet.
+                </div>`;
+
+            return;
+
+        }
+
+
+        profilePosts.innerHTML =
+            "";
+
+
+        posts.forEach(
+            post => {
+
+                const article =
+                    document.createElement(
+                        "article"
+                    );
+
+
+                article.className =
+                    "post";
+
+
+                article.innerHTML = `
+
+                    <div class="post-content">
+                        ${escapeHTML(
+                            post.content ||
+                            ""
+                        )}
+                    </div>
+
+                    ${
+                        post.image_url
+                            ?
+                            `<img
+                                class="post-image"
+                                src="${escapeHTML(
+                                    post.image_url
+                                )}"
+                                alt="Post image"
+                            >`
+                            :
+                            ""
+                    }
+
+                    <div class="post-time">
+                        ${escapeHTML(
+                            formatDate(
+                                post.created_at
+                            )
+                        )}
+                    </div>
+
+                `;
+
+
+                profilePosts.appendChild(
+                    article
+                );
+
+            }
+        );
+
+
+    } catch (error) {
+
+        /*
+         * Don't destroy the profile if the
+         * user-post endpoint doesn't exist.
+         */
+
+        console.warn(
+            "PROFILE POSTS:",
+            error
+        );
+
+
+        profilePosts.innerHTML =
+            `<div class="empty">
+                No posts to show.
+            </div>`;
+
+    }
+
+}
+
+
+/* =========================================================
+   LOGOUT
+========================================================= */
+
+async function logout() {
+
+    try {
+
+        await fetch(
+            "/api/logout",
+            {
+
+                method:
+                    "POST",
+
+                credentials:
+                    "include"
+
+            }
+        );
+
+
+        window.location.replace(
+            "/login.html"
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "LOGOUT ERROR:",
+            error
+        );
+
+    }
+
+}
+
+
+if (logoutButton) {
+
+    logoutButton.addEventListener(
+        "click",
+        logout
+    );
 
 }
 

@@ -1,12 +1,69 @@
-/* ==================================================
-   SHREKBOOK MAIN SCRIPT
-================================================== */
 
 "use strict";
 
-/* ==================================================
+/* =========================================================
+   SHREKBOOK HOME
+========================================================= */
+
+
+/* =========================================================
+   ELEMENTS
+========================================================= */
+
+const welcomeText =
+    document.getElementById(
+        "welcome-text"
+    );
+
+const createPost =
+    document.getElementById(
+        "create-post"
+    );
+
+const postContent =
+    document.getElementById(
+        "post-content"
+    );
+
+const postButton =
+    document.getElementById(
+        "post-button"
+    );
+
+const postMessage =
+    document.getElementById(
+        "post-message"
+    );
+
+const peopleContainer =
+    document.getElementById(
+        "people"
+    );
+
+const postsContainer =
+    document.getElementById(
+        "posts"
+    );
+
+const loginNav =
+    document.getElementById(
+        "login-nav"
+    );
+
+const profileNav =
+    document.getElementById(
+        "profile-nav"
+    );
+
+const logoutButton =
+    document.getElementById(
+        "logout-button"
+    );
+
+
+/* =========================================================
    API HELPER
-================================================== */
+========================================================= */
 
 async function fetchJSON(
     url,
@@ -17,23 +74,31 @@ async function fetchJSON(
         await fetch(
             url,
             {
-                credentials: "include",
+
+                credentials:
+                    "include",
 
                 ...options,
 
                 headers: {
-                    "Content-Type":
+
+                    "Accept":
                         "application/json",
 
                     ...(options.headers || {})
+
                 }
+
             }
         );
+
 
     const text =
         await response.text();
 
+
     let data = {};
+
 
     try {
 
@@ -42,296 +107,316 @@ async function fetchJSON(
                 ? JSON.parse(text)
                 : {};
 
-    } catch {
+    } catch (error) {
+
+        console.error(
+            "INVALID JSON FROM:",
+            url,
+            text
+        );
 
         throw new Error(
-            "Server returned invalid JSON."
+            "The server returned an invalid response."
         );
 
     }
+
 
     if (!response.ok) {
 
         throw new Error(
             data.error ||
-            `Server error (${response.status})`
+            `Request failed (${response.status})`
         );
 
     }
+
 
     return data;
 
 }
 
-/* ==================================================
+
+/* =========================================================
    ESCAPE HTML
-================================================== */
+========================================================= */
 
-function escapeHtml(text) {
+function escapeHTML(
+    value
+) {
 
-    const div =
-        document.createElement("div");
-
-    div.textContent =
-        text ?? "";
-
-    return div.innerHTML;
+    return String(
+        value ?? ""
+    )
+    .replaceAll(
+        "&",
+        "&amp;"
+    )
+    .replaceAll(
+        "<",
+        "&lt;"
+    )
+    .replaceAll(
+        ">",
+        "&gt;"
+    )
+    .replaceAll(
+        '"',
+        "&quot;"
+    )
+    .replaceAll(
+        "'",
+        "&#039;"
+    );
 
 }
 
-/* ==================================================
-   LOGIN
-================================================== */
 
-let loginInProgress = false;
+/* =========================================================
+   FORMAT DATE
+========================================================= */
 
-async function login() {
+function formatDate(
+    value
+) {
 
-    if (loginInProgress) {
-        return;
+    if (!value) {
+        return "";
     }
 
-    loginInProgress = true;
 
-    console.log(
-        "🔐 LOGIN START"
-    );
+    const date =
+        new Date(value);
 
-    const emailInput =
-        document.getElementById(
-            "login-email"
-        );
-
-    const passwordInput =
-        document.getElementById(
-            "login-password"
-        );
 
     if (
-        !emailInput ||
-        !passwordInput
+        Number.isNaN(
+            date.getTime()
+        )
     ) {
 
-        console.error(
-            "Login inputs not found."
-        );
-
-        loginInProgress = false;
-
-        return;
+        return "";
 
     }
 
-    const email =
-        emailInput.value.trim();
 
-    const password =
-        passwordInput.value;
+    return date.toLocaleString();
 
-    if (!email || !password) {
+}
 
-        alert(
-            "Please enter your email and password."
-        );
 
-        loginInProgress = false;
+/* =========================================================
+   LOAD SESSION
+========================================================= */
 
-        return;
+async function loadSession() {
 
-    }
+    console.log(
+        "🔐 Checking login session..."
+    );
 
-    const button =
-        document.querySelector(
-            "#login-button"
-        );
-
-    if (button) {
-        button.disabled = true;
-    }
 
     try {
 
         const data =
             await fetchJSON(
-                "/api/login",
-                {
-
-                    method: "POST",
-
-                    body:
-                        JSON.stringify({
-
-                            email,
-
-                            password
-
-                        })
-
-                }
+                "/api/session"
             );
 
+
         console.log(
-            "✅ LOGIN SUCCESS:",
+            "SESSION:",
             data
         );
 
-        if (!data.success) {
 
-            throw new Error(
-                "Login failed."
-            );
+        if (
+            data.loggedIn &&
+            data.user
+        ) {
+
+            const user =
+                data.user;
+
+
+            /* -------------------------
+               WELCOME
+            ------------------------- */
+
+            if (welcomeText) {
+
+                welcomeText.innerHTML =
+                    `Welcome back, <strong>${escapeHTML(
+                        user.display_name ||
+                        user.username ||
+                        "Shrek"
+                    )}</strong>! 🧌`;
+
+            }
+
+
+            /* -------------------------
+               CREATE POST
+            ------------------------- */
+
+            if (createPost) {
+
+                createPost.style.display =
+                    "block";
+
+            }
+
+
+            /* -------------------------
+               LOGIN BUTTON
+            ------------------------- */
+
+            if (loginNav) {
+
+                loginNav.style.display =
+                    "none";
+
+            }
+
+
+            /* -------------------------
+               PROFILE
+            ------------------------- */
+
+            if (profileNav) {
+
+                profileNav.style.display =
+                    "inline-block";
+
+                profileNav.href =
+                    `/profile.html?id=${encodeURIComponent(
+                        user.id
+                    )}`;
+
+            }
+
+
+            /* -------------------------
+               LOGOUT
+            ------------------------- */
+
+            if (logoutButton) {
+
+                logoutButton.style.display =
+                    "inline-block";
+
+            }
+
+        } else {
+
+            /* -------------------------
+               LOGGED OUT
+            ------------------------- */
+
+            if (welcomeText) {
+
+                welcomeText.innerHTML =
+                    `Welcome to ShrekBook! 🧌<br>
+                    <span style="font-size:16px;color:var(--muted);">
+                        Log in to post, chat, and interact with people.
+                    </span>`;
+
+            }
+
+
+            if (createPost) {
+
+                createPost.style.display =
+                    "none";
+
+            }
+
+
+            if (loginNav) {
+
+                loginNav.style.display =
+                    "inline-block";
+
+            }
+
+
+            if (profileNav) {
+
+                profileNav.style.display =
+                    "none";
+
+            }
+
+
+            if (logoutButton) {
+
+                logoutButton.style.display =
+                    "none";
+
+            }
 
         }
 
-        /*
-         * THIS IS THE REDIRECT.
-         */
 
-        window.location.replace("/");
+        return data;
 
     } catch (error) {
 
         console.error(
-            "LOGIN ERROR:",
+            "❌ SESSION ERROR:",
             error
         );
 
-        alert(
-            "❌ " +
-            error.message
-        );
 
-        loginInProgress = false;
+        if (welcomeText) {
 
-        if (button) {
-            button.disabled = false;
+            welcomeText.textContent =
+                "Unable to check login status.";
+
         }
+
+
+        return {
+            loggedIn: false
+        };
 
     }
 
 }
 
-/* ==================================================
-   SIGNUP
-================================================== */
 
-let signupInProgress = false;
-
-async function signup() {
-
-    if (signupInProgress) {
-        return;
-    }
-
-    signupInProgress = true;
-
-    const username =
-        document.getElementById(
-            "signup-username"
-        );
-
-    const displayName =
-        document.getElementById(
-            "signup-display-name"
-        );
-
-    const email =
-        document.getElementById(
-            "signup-email"
-        );
-
-    const password =
-        document.getElementById(
-            "signup-password"
-        );
-
-    if (
-        !username ||
-        !email ||
-        !password
-    ) {
-
-        signupInProgress = false;
-
-        return;
-
-    }
-
-    try {
-
-        const data =
-            await fetchJSON(
-                "/api/signup",
-                {
-
-                    method: "POST",
-
-                    body:
-                        JSON.stringify({
-
-                            username:
-                                username.value,
-
-                            display_name:
-                                displayName
-                                    ?.value ||
-                                username.value,
-
-                            email:
-                                email.value,
-
-                            password:
-                                password.value
-
-                        })
-
-                }
-            );
-
-        alert(
-            "✅ Account created! You can now log in."
-        );
-
-        window.location.href =
-            "/login";
-
-    } catch (error) {
-
-        console.error(
-            "SIGNUP ERROR:",
-            error
-        );
-
-        alert(
-            "❌ " +
-            error.message
-        );
-
-    } finally {
-
-        signupInProgress = false;
-
-    }
-
-}
-
-/* ==================================================
+/* =========================================================
    LOGOUT
-================================================== */
+========================================================= */
 
 async function logout() {
+
+    if (!logoutButton) {
+        return;
+    }
+
+
+    logoutButton.disabled =
+        true;
+
 
     try {
 
         await fetchJSON(
             "/api/logout",
             {
-                method: "POST"
+
+                method:
+                    "POST"
+
             }
         );
 
-        window.location.href =
-            "/login";
+
+        window.location.replace(
+            "/login.html"
+        );
+
 
     } catch (error) {
 
@@ -340,499 +425,627 @@ async function logout() {
             error
         );
 
+
         alert(
-            "❌ " +
-            error.message
+            error.message ||
+            "Logout failed."
         );
+
+
+        logoutButton.disabled =
+            false;
 
     }
 
 }
 
-/* ==================================================
-   CURRENT USER
-================================================== */
 
-async function getCurrentUser() {
+if (logoutButton) {
 
-    return await fetchJSON(
-        "/api/me"
+    logoutButton.addEventListener(
+        "click",
+        logout
     );
 
 }
 
-/* ==================================================
+
+/* =========================================================
    LOAD PEOPLE
-================================================== */
+========================================================= */
 
 async function loadPeople() {
 
-    const container =
-        document.getElementById(
-            "people-list"
-        );
-
-    if (!container) {
+    if (!peopleContainer) {
         return;
     }
 
+
+    peopleContainer.innerHTML =
+        `<div class="loading">
+            Loading people...
+        </div>`;
+
+
     try {
+
+        console.log(
+            "👥 Loading people..."
+        );
+
 
         const data =
             await fetchJSON(
                 "/api/users"
             );
 
+
+        console.log(
+            "PEOPLE RESPONSE:",
+            data
+        );
+
+
         const users =
-            data.users || [];
+            Array.isArray(
+                data.users
+            )
+                ? data.users
+                : [];
 
-        if (!users.length) {
 
-            container.innerHTML =
-                "<p>No users yet.</p>";
+        if (
+            users.length === 0
+        ) {
+
+            peopleContainer.innerHTML =
+                `<div class="empty">
+                    No users yet.
+                </div>`;
 
             return;
 
         }
 
-        container.innerHTML =
-            users.map(
-                user => `
 
-                <div class="person-card">
+        peopleContainer.innerHTML =
+            "";
 
-                    <img
-                        src="${
-                            escapeHtml(
-                                user.avatar ||
-                                "/default-avatar.png"
-                            )
-                        }"
-                        class="person-avatar"
-                        onerror="this.src='/default-avatar.png'"
-                    >
 
-                    <div>
+        users.forEach(
+            user => {
 
-                        <strong>
-                            ${
-                                escapeHtml(
-                                    user.display_name ||
-                                    user.username ||
-                                    "User"
-                                )
-                            }
-                        </strong>
+                const card =
+                    document.createElement(
+                        "div"
+                    );
 
-                        <div>
-                            @${escapeHtml(
-                                user.username ||
-                                "user"
-                            )}
-                        </div>
 
+                card.className =
+                    "person-card";
+
+
+                const name =
+                    user.display_name ||
+                    user.username ||
+                    "Unknown user";
+
+
+                const username =
+                    user.username
+                        ? `@${user.username}`
+                        : "";
+
+
+                /*
+                 * IMPORTANT:
+                 * The View button uses the
+                 * Supabase profile ID.
+                 */
+
+                card.innerHTML = `
+
+                    <div class="person-name">
+                        ${escapeHTML(name)}
                     </div>
 
-                    <button
-                        onclick="openProfile('${user.id}')"
+                    <div class="person-username">
+                        ${escapeHTML(username)}
+                    </div>
+
+                    <a
+                        class="view-button"
+                        href="/profile.html?id=${encodeURIComponent(
+                            user.id
+                        )}"
                     >
-                        View
-                    </button>
+                        View Profile
+                    </a>
 
-                </div>
+                `;
 
-            `
-            ).join("");
+
+                peopleContainer.appendChild(
+                    card
+                );
+
+            }
+        );
+
 
     } catch (error) {
 
         console.error(
-            "PEOPLE ERROR:",
+            "❌ PEOPLE ERROR:",
             error
         );
 
-        container.innerHTML =
-            `<p>❌ ${
-                escapeHtml(
+
+        peopleContainer.innerHTML =
+            `<div class="empty">
+                Couldn't load people.<br>
+                <small>${escapeHTML(
                     error.message
-                )
-            }</p>`;
+                )}</small>
+            </div>`;
 
     }
 
 }
 
-/* ==================================================
-   OPEN PROFILE
-================================================== */
 
-function openProfile(id) {
+/* =========================================================
+   LOAD POSTS
+========================================================= */
 
-    window.location.href =
-        `/profile?id=${encodeURIComponent(id)}`;
+async function loadPosts() {
 
-}
-
-/* ==================================================
-   LOAD FEED
-================================================== */
-
-async function loadFeed() {
-
-    const container =
-        document.getElementById(
-            "feed"
-        );
-
-    if (!container) {
+    if (!postsContainer) {
         return;
     }
 
+
+    postsContainer.innerHTML =
+        `<div class="loading">
+            Loading posts...
+        </div>`;
+
+
     try {
+
+        console.log(
+            "📝 Loading posts..."
+        );
+
 
         const data =
             await fetchJSON(
                 "/api/posts"
             );
 
-        const posts =
-            data.posts || [];
 
-        if (!posts.length) {
+        console.log(
+            "POSTS RESPONSE:",
+            data
+        );
 
-            container.innerHTML =
-                "<p>No posts yet. Be the first! 🧌</p>";
+
+        /*
+         * Support either:
+         *
+         * { posts: [...] }
+         *
+         * or
+         *
+         * [...] 
+         */
+
+        let posts;
+
+
+        if (
+            Array.isArray(
+                data
+            )
+        ) {
+
+            posts =
+                data;
+
+        } else {
+
+            posts =
+                Array.isArray(
+                    data.posts
+                )
+                    ? data.posts
+                    : [];
+
+        }
+
+
+        if (
+            posts.length === 0
+        ) {
+
+            postsContainer.innerHTML =
+                `<div class="empty">
+                    No posts yet. Be the first to post! 🧌
+                </div>`;
 
             return;
 
         }
 
-        container.innerHTML =
-            posts.map(
-                post => {
 
-                    const user =
-                        post.user || {};
+        postsContainer.innerHTML =
+            "";
 
-                    return `
 
-                    <article class="post">
+        posts.forEach(
+            post => {
 
-                        <div class="post-author">
-
-                            <img
-                                src="${
-                                    escapeHtml(
-                                        user.avatar ||
-                                        "/default-avatar.png"
-                                    )
-                                }"
-                                onerror="this.src='/default-avatar.png'"
-                            >
-
-                            <div>
-
-                                <strong>
-                                    ${
-                                        escapeHtml(
-                                            user.display_name ||
-                                            user.username ||
-                                            "User"
-                                        )
-                                    }
-                                </strong>
-
-                                <small>
-                                    @${escapeHtml(
-                                        user.username ||
-                                        "user"
-                                    )}
-                                </small>
-
-                            </div>
-
-                        </div>
-
-                        <div class="post-content">
-
-                            ${escapeHtml(
-                                post.content
-                            )}
-
-                        </div>
-
-                        <small>
-                            ${
-                                new Date(
-                                    post.created_at
-                                ).toLocaleString()
-                            }
-                        </small>
-
-                    </article>
-
-                    `;
-
-                }
-            ).join("");
-
-    } catch (error) {
-
-        console.error(
-            "FEED ERROR:",
-            error
-        );
-
-        container.innerHTML =
-            `<p>❌ ${
-                escapeHtml(
-                    error.message
-                )
-            }</p>`;
-
-    }
-
-}
-
-/* ==================================================
-   CREATE POST
-================================================== */
-
-async function createPost() {
-
-    const input =
-        document.getElementById(
-            "post-content"
-        );
-
-    if (!input) {
-        return;
-    }
-
-    const content =
-        input.value.trim();
-
-    if (!content) {
-        return;
-    }
-
-    try {
-
-        await fetchJSON(
-            "/api/posts",
-            {
-
-                method: "POST",
-
-                body:
-                    JSON.stringify({
-                        content
-                    })
+                postsContainer.appendChild(
+                    createPost(
+                        post
+                    )
+                );
 
             }
         );
 
-        input.value = "";
-
-        await loadFeed();
 
     } catch (error) {
 
-        alert(
-            "❌ " +
-            error.message
+        console.error(
+            "❌ POSTS ERROR:",
+            error
         );
+
+
+        postsContainer.innerHTML =
+            `<div class="empty">
+                Couldn't load posts.<br>
+                <small>${escapeHTML(
+                    error.message
+                )}</small>
+            </div>`;
 
     }
 
 }
 
-/* ==================================================
-   HOME INITIALIZATION
-================================================== */
 
-async function initHome() {
+/* =========================================================
+   CREATE POST
+========================================================= */
 
-    console.log(
-        "🏠 Initializing ShrekBook home"
+function createPost(
+    post
+) {
+
+    const article =
+        document.createElement(
+            "article"
+        );
+
+
+    article.className =
+        "post";
+
+
+    /*
+     * Your posts may return the profile
+     * in several different shapes.
+     */
+
+    const profile =
+        post.profiles ||
+        post.profile ||
+        {};
+
+
+    const author =
+        post.display_name ||
+        profile.display_name ||
+        post.username ||
+        profile.username ||
+        "Unknown user";
+
+
+    const authorId =
+        post.user_id ||
+        post.author_id ||
+        post.from_user_id ||
+        profile.id ||
+        "";
+
+
+    const content =
+        post.content ||
+        post.text ||
+        "";
+
+
+    article.innerHTML = `
+
+        <div class="post-header">
+
+            <div>
+
+                <a
+                    class="post-author"
+                    href="${
+                        authorId
+                            ? `/profile.html?id=${encodeURIComponent(
+                                authorId
+                            )}`
+                            : "#"
+                    }"
+                >
+                    ${escapeHTML(author)}
+                </a>
+
+                <div class="post-time">
+                    ${escapeHTML(
+                        formatDate(
+                            post.created_at
+                        )
+                    )}
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="post-content">
+            ${escapeHTML(content)}
+        </div>
+
+
+        ${
+            post.image_url
+                ?
+                `<img
+                    class="post-image"
+                    src="${escapeHTML(
+                        post.image_url
+                    )}"
+                    alt="Post image"
+                >`
+                :
+                ""
+        }
+
+
+        <div class="post-actions">
+
+            <button
+                type="button"
+                onclick="viewPost('${escapeHTML(
+                    post.id || ""
+                )}')"
+            >
+                👁️ View
+            </button>
+
+        </div>
+
+    `;
+
+
+    return article;
+
+}
+
+
+/* =========================================================
+   VIEW POST
+========================================================= */
+
+function viewPost(
+    postId
+) {
+
+    if (!postId) {
+
+        console.warn(
+            "No post ID supplied."
+        );
+
+        return;
+
+    }
+
+
+    /*
+     * This supports a normal post view
+     * page if you have one.
+     */
+
+    window.location.href =
+        `/view.html?id=${encodeURIComponent(
+            postId
+        )}`;
+
+}
+
+
+window.viewPost =
+    viewPost;
+
+
+/* =========================================================
+   CREATE POST
+========================================================= */
+
+async function createNewPost() {
+
+    if (!postContent) {
+        return;
+    }
+
+
+    const content =
+        postContent.value.trim();
+
+
+    if (!content) {
+
+        if (postMessage) {
+
+            postMessage.textContent =
+                "Write something first!";
+
+            postMessage.style.color =
+                "var(--danger)";
+
+        }
+
+        return;
+
+    }
+
+
+    postButton.disabled =
+        true;
+
+    postButton.textContent =
+        "Posting...";
+
+
+    try {
+
+        const data =
+            await fetchJSON(
+                "/api/posts",
+                {
+
+                    method:
+                        "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            content:
+                                content
+
+                        })
+
+                }
+            );
+
+
+        console.log(
+            "POST CREATED:",
+            data
+        );
+
+
+        postContent.value =
+            "";
+
+
+        if (postMessage) {
+
+            postMessage.textContent =
+                "✅ Posted!";
+
+            postMessage.style.color =
+                "var(--green)";
+
+        }
+
+
+        await loadPosts();
+
+
+    } catch (error) {
+
+        console.error(
+            "CREATE POST ERROR:",
+            error
+        );
+
+
+        if (postMessage) {
+
+            postMessage.textContent =
+                error.message;
+
+            postMessage.style.color =
+                "var(--danger)";
+
+        }
+
+    } finally {
+
+        postButton.disabled =
+            false;
+
+        postButton.textContent =
+            "📝 Post";
+
+    }
+
+}
+
+
+if (postButton) {
+
+    postButton.addEventListener(
+        "click",
+        createNewPost
     );
 
-    try {
-
-        const data =
-            await getCurrentUser();
-
-        if (!data.loggedIn) {
-
-            window.location.replace(
-                "/login"
-            );
-
-            return;
-
-        }
-
-        const name =
-            document.getElementById(
-                "current-user-name"
-            );
-
-        if (name) {
-
-            name.textContent =
-                data.user.display_name ||
-                data.user.username;
-
-        }
-
-        const avatar =
-            document.getElementById(
-                "current-user-avatar"
-            );
-
-        if (avatar) {
-
-            avatar.src =
-                data.user.avatar ||
-                "/default-avatar.png";
-
-        }
-
-        await Promise.all([
-
-            loadPeople(),
-
-            loadFeed()
-
-        ]);
-
-    } catch (error) {
-
-        console.error(
-            "HOME ERROR:",
-            error
-        );
-
-    }
-
 }
 
-/* ==================================================
-   LOGIN PAGE INITIALIZATION
-================================================== */
 
-async function initLoginPage() {
-
-    try {
-
-        const data =
-            await getCurrentUser();
-
-        if (data.loggedIn) {
-
-            window.location.replace(
-                "/"
-            );
-
-        }
-
-    } catch (error) {
-
-        console.error(
-            "LOGIN CHECK ERROR:",
-            error
-        );
-
-    }
-
-}
-
-/* ==================================================
-   ENTER KEY
-================================================== */
-
-document.addEventListener(
-    "keydown",
-    event => {
-
-        if (
-            event.key !== "Enter"
-        ) {
-            return;
-        }
-
-        const active =
-            document.activeElement;
-
-        if (
-            active &&
-            (
-                active.id ===
-                    "login-email" ||
-                active.id ===
-                    "login-password"
-            )
-        ) {
-
-            login();
-
-        }
-
-    }
-);
-
-/* ==================================================
+/* =========================================================
    START
-================================================== */
+========================================================= */
+
+async function startHome() {
+
+    console.log(
+        "🧌 ShrekBook home starting..."
+    );
+
+
+    /*
+     * Run these independently.
+     * If one API fails, the others
+     * can still load.
+     */
+
+    await loadSession();
+
+    await Promise.allSettled([
+
+        loadPeople(),
+
+        loadPosts()
+
+    ]);
+
+
+    console.log(
+        "🧌 ShrekBook home loaded."
+    );
+
+}
+
 
 document.addEventListener(
     "DOMContentLoaded",
-    () => {
-
-        console.log(
-            "🧌 ShrekBook script loaded"
-        );
-
-        const path =
-            window.location.pathname;
-
-        if (
-            path === "/login"
-        ) {
-
-            initLoginPage();
-
-        } else {
-
-            initHome();
-
-        }
-
-    }
+    startHome
 );
 
-/*
- * IMPORTANT:
- * Expose functions for inline HTML onclick.
- */
-
-window.login =
-    login;
-
-window.signup =
-    signup;
-
-window.logout =
-    logout;
-
-window.createPost =
-    createPost;
-
-window.loadPeople =
-    loadPeople;
-
-window.loadFeed =
-    loadFeed;
-
-window.openProfile =
-    openProfile;
