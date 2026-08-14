@@ -51,7 +51,11 @@ async function fetchJSON(
         );
 
     }
+    // ✅ Login successful
+    console.log("✅ Login successful!");
 
+    // Redirect to homepage
+    window.location.href = "/";
 
     return data;
 
