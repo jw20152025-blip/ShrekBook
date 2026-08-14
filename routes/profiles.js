@@ -1,87 +1,91 @@
 const express = require("express");
 
-const router = express.Router();
+const router =
+    express.Router();
 
 const supabase =
     require("../utils/supabase.js");
-
-console.log(
-    "PROFILES SUPABASE:",
-    !!supabase,
-    typeof supabase?.from
-);
 
 
 /* ==================================================
    GET ALL USERS
 ================================================== */
 
-router.get("/users", async (req, res) => {
+router.get(
+    "/users",
+    async (req, res) => {
 
-    console.log("🔥 /api/users reached");
+        try {
 
-    try {
+            console.log(
+                "🔥 GET /api/users"
+            );
 
-        const {
-            data,
-            error
-        } =
-            await supabase
-                .from("profiles")
-                .select("*")
-                .order(
-                    "username",
-                    {
-                        ascending: true
-                    }
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(
+                        "id,username,display_name,avatar,bio"
+                    )
+                    .order(
+                        "username",
+                        {
+                            ascending:
+                                true
+                        }
+                    );
+
+
+            if (error) {
+
+                console.error(
+                    "SUPABASE USERS ERROR:",
+                    error
                 );
 
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
 
-        if (error) {
+            }
+
+
+            res.json({
+
+                success:
+                    true,
+
+                users:
+                    data || []
+
+            });
+
+        } catch (error) {
 
             console.error(
-                "❌ USERS SUPABASE ERROR:",
+                "USERS ERROR:",
                 error
             );
 
-            return res.status(500).json({
+            res.status(500).json({
                 error:
-                    error.message
+                    error.message ||
+                    "Server error."
             });
 
         }
 
-
-        res.json({
-
-            success: true,
-
-            users:
-                data || []
-
-        });
-
-
-    } catch (error) {
-
-        console.error(
-            "❌ USERS ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error:
-                error.message ||
-                "Server error."
-        });
-
     }
-
-});
+);
 
 
 /* ==================================================
-   GET ONE PROFILE
+   GET ONE USER
 ================================================== */
 
 router.get(
@@ -90,8 +94,12 @@ router.get(
 
         try {
 
+            const id =
+                req.params.id;
+
+
             const {
-                data: user,
+                data,
                 error
             } =
                 await supabase
@@ -99,7 +107,7 @@ router.get(
                     .select("*")
                     .eq(
                         "id",
-                        req.params.id
+                        id
                     )
                     .maybeSingle();
 
@@ -114,7 +122,7 @@ router.get(
             }
 
 
-            if (!user) {
+            if (!data) {
 
                 return res.status(404).json({
                     error:
@@ -125,9 +133,11 @@ router.get(
 
 
             res.json({
-                user
-            });
 
+                user:
+                    data
+
+            });
 
         } catch (error) {
 
@@ -147,4 +157,5 @@ router.get(
 );
 
 
-module.exports = router;
+module.exports =
+    router;

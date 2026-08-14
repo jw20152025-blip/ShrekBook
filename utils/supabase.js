@@ -1,27 +1,49 @@
-require("dotenv").config();
+/* ==================================================
+   SHREKBOOK SUPABASE CLIENT
+================================================== */
 
-const { createClient } = require("@supabase/supabase-js");
+const {
+    createClient
+} = require("@supabase/supabase-js");
 
-const url = process.env.SUPABASE_URL;
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL =
+    process.env.SUPABASE_URL;
 
-if (!url) {
-    throw new Error("Missing SUPABASE_URL");
+const SUPABASE_KEY =
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SUPABASE_URL) {
+    throw new Error(
+        "Missing SUPABASE_URL"
+    );
 }
 
-if (!key) {
-    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
+if (!SUPABASE_KEY) {
+    throw new Error(
+        "Missing SUPABASE_SERVICE_ROLE_KEY"
+    );
 }
 
-console.log("SUPABASE URL:", true);
-console.log("SUPABASE KEY:", true);
+console.log(
+    "SUPABASE URL:",
+    !!SUPABASE_URL
+);
 
-const supabase = createClient(url, key, {
-    auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-        detectSessionInUrl: false
-    }
-});
+console.log(
+    "SUPABASE KEY:",
+    !!SUPABASE_KEY
+);
+
+const supabase =
+    createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY,
+        {
+            auth: {
+                autoRefreshToken: false,
+                persistSession: false
+            }
+        }
+    );
 
 module.exports = supabase;

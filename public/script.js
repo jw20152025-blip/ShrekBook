@@ -1,8 +1,10 @@
-console.log("🧌 SHREKBOOK SCRIPT.JS LOADED");
+/* ==================================================
+   SHREKBOOK FRONTEND
+================================================== */
 
 
 /* ==================================================
-   FETCH JSON
+   HELPER
 ================================================== */
 
 async function fetchJSON(
@@ -14,8 +16,20 @@ async function fetchJSON(
         await fetch(
             url,
             {
-                credentials: "include",
-                ...options
+                credentials:
+                    "include",
+
+                ...options,
+
+                headers: {
+
+                    "Accept":
+                        "application/json",
+
+                    ...(options.headers || {})
+
+                }
+
             }
         );
 
@@ -24,7 +38,7 @@ async function fetchJSON(
         await response.text();
 
 
-    let data = {};
+    let data;
 
 
     try {
@@ -35,6 +49,11 @@ async function fetchJSON(
                 : {};
 
     } catch {
+
+        console.error(
+            "INVALID SERVER RESPONSE:",
+            text
+        );
 
         throw new Error(
             "Server returned invalid JSON."
@@ -51,14 +70,9 @@ async function fetchJSON(
         );
 
     }
-    // ✅ Login successful
-    console.log("✅ Login successful!");
 
-    // Redirect to homepage
-    window.location.href = "/";
 
     return data;
-
 }
 
 
@@ -69,39 +83,52 @@ async function fetchJSON(
 async function login() {
 
     console.log(
-        "🔥 LOGIN FUNCTION CALLED"
+        "🔐 LOGIN BUTTON CLICKED"
     );
+
+
+    const emailElement =
+        document.getElementById(
+            "login-email"
+        );
+
+
+    const passwordElement =
+        document.getElementById(
+            "login-password"
+        );
+
+
+    if (
+        !emailElement ||
+        !passwordElement
+    ) {
+
+        console.error(
+            "❌ Login fields not found."
+        );
+
+        alert(
+            "Login form is missing."
+        );
+
+        return;
+
+    }
 
 
     const email =
-        document
-            .getElementById(
-                "login-email"
-            )
-            ?.value
-            ?.trim();
+        emailElement.value.trim();
 
 
     const password =
-        document
-            .getElementById(
-                "login-password"
-            )
-            ?.value || "";
+        passwordElement.value;
 
 
-    console.log(
-        "EMAIL:",
-        email
-    );
-
-    console.log(
-        "PASSWORD ENTERED:",
-        password.length > 0
-    );
-
-
-    if (!email || !password) {
+    if (
+        !email ||
+        !password
+    ) {
 
         alert(
             "Please enter your email and password."
@@ -114,16 +141,24 @@ async function login() {
 
     try {
 
+        console.log(
+            "📡 POST /api/login"
+        );
+
+
         const data =
             await fetchJSON(
                 "/api/login",
                 {
 
-                    method: "POST",
+                    method:
+                        "POST",
 
                     headers: {
+
                         "Content-Type":
                             "application/json"
+
                     },
 
                     body:
@@ -145,25 +180,56 @@ async function login() {
         );
 
 
-        alert(
-            "✅ Logged in!"
+        /*
+         * Confirm the server actually sees
+         * us as logged in before redirecting.
+         */
+
+        const me =
+            await fetchJSON(
+                "/api/me"
+            );
+
+
+        console.log(
+            "SESSION CHECK:",
+            me
         );
 
 
-        window.location.reload();
+        if (
+            !me.loggedIn
+        ) {
 
+            throw new Error(
+                "Login succeeded, but the session was not saved."
+            );
+
+        }
+
+
+        /*
+         * 🎉 FINALLY REDIRECT
+         */
+
+        window.location.replace(
+            "/"
+        );
 
     } catch (error) {
 
         console.error(
-            "LOGIN ERROR:",
+            "❌ LOGIN ERROR:",
             error
         );
 
 
         alert(
             "❌ " +
-            error.message
+            (
+                error.message ||
+                "Login failed."
+            )
         );
 
     }
@@ -177,18 +243,13 @@ async function login() {
 
 async function signup() {
 
-    console.log(
-        "🔥 SIGNUP FUNCTION CALLED"
-    );
-
-
     const username =
         document
             .getElementById(
                 "signup-username"
             )
             ?.value
-            ?.trim();
+            .trim();
 
 
     const displayName =
@@ -197,7 +258,7 @@ async function signup() {
                 "signup-display-name"
             )
             ?.value
-            ?.trim();
+            .trim();
 
 
     const email =
@@ -206,7 +267,7 @@ async function signup() {
                 "signup-email"
             )
             ?.value
-            ?.trim();
+            .trim();
 
 
     const password =
@@ -214,7 +275,22 @@ async function signup() {
             .getElementById(
                 "signup-password"
             )
-            ?.value || "";
+            ?.value;
+
+
+    if (
+        !username ||
+        !email ||
+        !password
+    ) {
+
+        alert(
+            "Please fill out all required fields."
+        );
+
+        return;
+
+    }
 
 
     try {
@@ -224,11 +300,14 @@ async function signup() {
                 "/api/signup",
                 {
 
-                    method: "POST",
+                    method:
+                        "POST",
 
                     headers: {
+
                         "Content-Type":
                             "application/json"
+
                     },
 
                     body:
@@ -289,12 +368,17 @@ async function logout() {
         await fetchJSON(
             "/api/logout",
             {
-                method: "POST"
+
+                method:
+                    "POST"
+
             }
         );
 
 
-        window.location.reload();
+        window.location.replace(
+            "/"
+        );
 
 
     } catch (error) {
@@ -304,13 +388,17 @@ async function logout() {
             error
         );
 
+        alert(
+            "❌ Logout failed."
+        );
+
     }
 
 }
 
 
 /* ==================================================
-   CURRENT USER
+   LOAD CURRENT USER
 ================================================== */
 
 async function loadCurrentUser() {
@@ -329,17 +417,71 @@ async function loadCurrentUser() {
         );
 
 
+        const loginSection =
+            document.getElementById(
+                "login-section"
+            );
+
+
+        const accountSection =
+            document.getElementById(
+                "account-section"
+            );
+
+
         if (
             data.loggedIn
         ) {
 
-            console.log(
-                "🟢 Logged in as:",
-                data.user.username
-            );
+            if (loginSection) {
+
+                loginSection.style.display =
+                    "none";
+
+            }
+
+
+            if (accountSection) {
+
+                accountSection.style.display =
+                    "block";
+
+            }
+
+
+            const accountName =
+                document.getElementById(
+                    "account-name"
+                );
+
+
+            if (accountName) {
+
+                accountName.textContent =
+                    data.user.display_name ||
+                    data.user.username ||
+                    "User";
+
+            }
+
+        } else {
+
+            if (loginSection) {
+
+                loginSection.style.display =
+                    "block";
+
+            }
+
+
+            if (accountSection) {
+
+                accountSection.style.display =
+                    "none";
+
+            }
 
         }
-
 
     } catch (error) {
 
@@ -354,10 +496,21 @@ async function loadCurrentUser() {
 
 
 /* ==================================================
-   PEOPLE
+   LOAD PEOPLE
 ================================================== */
 
 async function loadPeople() {
+
+    const container =
+        document.getElementById(
+            "people"
+        );
+
+
+    if (!container) {
+        return;
+    }
+
 
     try {
 
@@ -367,62 +520,79 @@ async function loadPeople() {
             );
 
 
-        console.log(
-            "PEOPLE:",
-            data
-        );
+        if (
+            !Array.isArray(
+                data.users
+            )
+        ) {
 
-
-        const people =
-            document.getElementById(
-                "people"
+            throw new Error(
+                "Invalid users response."
             );
 
-
-        if (!people) {
-            return;
         }
 
 
-        people.innerHTML = "";
+        container.innerHTML =
+            "";
+
+
+        if (
+            data.users.length === 0
+        ) {
+
+            container.innerHTML =
+                "<p>No users yet.</p>";
+
+            return;
+
+        }
 
 
         for (
-            const user
-            of data.users || []
+            const user of data.users
         ) {
 
-            const element =
+            const person =
                 document.createElement(
                     "div"
                 );
 
 
-            element.innerHTML = `
+            person.className =
+                "person";
 
-                <a href="/profile.html?id=${encodeURIComponent(
-                    user.id
-                )}">
+
+            const name =
+                user.display_name ||
+                user.username ||
+                "User";
+
+
+            person.innerHTML = `
+
+                <a href="/profile.html?id=${encodeURIComponent(user.id)}">
 
                     <strong>
-                        ${
-                            user.display_name ||
-                            user.username ||
-                            "User"
-                        }
+                        ${escapeHtml(name)}
                     </strong>
 
                 </a>
 
+                <p>
+                    @${escapeHtml(
+                        user.username || ""
+                    )}
+                </p>
+
             `;
 
 
-            people.appendChild(
-                element
+            container.appendChild(
+                person
             );
 
         }
-
 
     } catch (error) {
 
@@ -431,14 +601,50 @@ async function loadPeople() {
             error
         );
 
+
+        container.innerHTML =
+            `
+            <p>
+                ❌ ${escapeHtml(
+                    error.message
+                )}
+            </p>
+            `;
+
     }
 
 }
 
 
 /* ==================================================
-   MAKE GLOBAL
+   ESCAPE HTML
 ================================================== */
+
+function escapeHtml(text) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+
+    div.textContent =
+        text ?? "";
+
+
+    return div.innerHTML;
+
+}
+
+
+/* ==================================================
+   GLOBAL FUNCTIONS
+================================================== */
+
+/*
+ * Your HTML uses onclick="login()",
+ * so explicitly expose the functions.
+ */
 
 window.login =
     login;
@@ -448,12 +654,6 @@ window.signup =
 
 window.logout =
     logout;
-
-window.loadPeople =
-    loadPeople;
-
-window.loadCurrentUser =
-    loadCurrentUser;
 
 
 /* ==================================================
@@ -465,7 +665,7 @@ document.addEventListener(
     () => {
 
         console.log(
-            "🧌 ShrekBook DOM ready"
+            "🧌 ShrekBook script.js loaded"
         );
 
 
