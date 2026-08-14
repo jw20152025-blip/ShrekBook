@@ -1,7 +1,7 @@
 /* ==================================================
    SHREKBOOK CLIENT
 ================================================== */
-
+console.log("🧌 SHREKBOOK SCRIPT.JS LOADED");
 
 async function fetchJSON(
     url,
