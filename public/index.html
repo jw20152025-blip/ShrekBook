@@ -607,7 +607,49 @@ function clearCommentImage(postId) {
 /* ==================================================
 START
 ================================================== */
+/* ==================================================
+ONLINE STATUS HEARTBEAT
+================================================== */
 
+async function updateOnlineStatus() {
+
+    try {
+
+        const response = await fetch(
+            "/api/online",
+            {
+                method: "POST",
+                credentials: "include"
+            }
+        );
+
+        // If we're not logged in, that's fine.
+        if (response.status === 401) {
+            return;
+        }
+
+    } catch (error) {
+
+        console.error(
+            "ONLINE STATUS ERROR:",
+            error
+        );
+
+    }
+
+}
+
+
+// Tell the server we're online immediately
+updateOnlineStatus();
+
+
+// Keep telling the server we're online
+// every 30 seconds
+setInterval(
+    updateOnlineStatus,
+    30 * 1000
+);
 </script>
 
 <h2>Other</h2>

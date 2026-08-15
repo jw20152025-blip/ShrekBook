@@ -2728,7 +2728,43 @@ app.post(
 );
 
 
+// ==================================================
+// HEARTBEAT / LAST SEEN
+// ==================================================
 
+app.post("/api/heartbeat", async (req, res) => {
+    try {
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+        const { error } = await supabase
+            .from("profiles")
+            .update({
+                last_seen: new Date().toISOString()
+            })
+            .eq("id", req.session.user.id);
+
+        if (error) {
+            return res.status(500).json({
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true
+        });
+
+    } catch (error) {
+        console.error("HEARTBEAT ERROR:", error);
+
+        res.status(500).json({
+            error: "Server error."
+        });
+    }
+});
 // ==================================================
 // START
 // ==================================================
