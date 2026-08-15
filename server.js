@@ -388,10 +388,7 @@ app.get("/api/me", async (req, res) => {
 
 app.get("/api/users", async (req, res) => {
     try {
-        const {
-            data,
-            error
-        } = await supabase
+        const { data: users, error: usersError } = await supabase
             .from("profiles")
             .select(`
                 id,
@@ -399,24 +396,71 @@ app.get("/api/users", async (req, res) => {
                 display_name,
                 avatar,
                 bio,
-                gyatt,
-                cat,
-                ogred,
                 created_at
             `)
             .order("created_at", {
                 ascending: false
             });
 
-        if (error) {
+        if (usersError) {
             return res.status(500).json({
-                error: error.message
+                error: usersError.message
             });
         }
 
-        res.json(data || []);
+        const { data: reactions, error: reactionsError } =
+            await supabase
+                .from("reactions")
+                .select(`
+                    to_user_id,
+                    type
+                `);
+
+        if (reactionsError) {
+            return res.status(500).json({
+                error: reactionsError.message
+            });
+        }
+
+        const reactionCounts = {};
+
+        for (const reaction of reactions || []) {
+            const userId = reaction.to_user_id;
+
+            if (!reactionCounts[userId]) {
+                reactionCounts[userId] = {
+                    gyatt: 0,
+                    cat: 0,
+                    ogred: 0
+                };
+            }
+
+            if (reaction.type === "gyatt") {
+                reactionCounts[userId].gyatt++;
+            }
+
+            if (reaction.type === "cat") {
+                reactionCounts[userId].cat++;
+            }
+
+            if (reaction.type === "ogred") {
+                reactionCounts[userId].ogred++;
+            }
+        }
+
+        const result = (users || []).map(user => ({
+            ...user,
+
+            gyatt: reactionCounts[user.id]?.gyatt || 0,
+            cat: reactionCounts[user.id]?.cat || 0,
+            ogred: reactionCounts[user.id]?.ogred || 0
+        }));
+
+        res.json(result);
 
     } catch (error) {
+        console.error("USERS ERROR:", error);
+
         res.status(500).json({
             error: "Server error."
         });
