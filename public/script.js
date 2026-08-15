@@ -1733,3 +1733,19 @@ document.addEventListener(
 
     }
 );
+async function updateOnlineStatus() {
+    try {
+        await fetch("/api/online", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            }
+        });
+    } catch (error) {
+        console.error("Online heartbeat failed:", error);
+    }
+}
+
+updateOnlineStatus();
+
+setInterval(updateOnlineStatus, 30000);

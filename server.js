@@ -153,10 +153,7 @@ app.post("/api/signup", async (req, res) => {
                 username,
                 display_name: display_name || username,
                 avatar: null,
-                bio: "",
-                gyatt: 0,
-                cat: 0,
-                ogred: 0
+                bio: ""
             })
             .select()
             .single();
@@ -448,14 +445,24 @@ app.get("/api/users", async (req, res) => {
             }
         }
 
-        const result = (users || []).map(user => ({
-            ...user,
+        const result = (users || []).map(user => {
+            const lastSeen = user.last_seen
+                ? new Date(user.last_seen).getTime()
+                : 0;
 
-            gyatt: reactionCounts[user.id]?.gyatt || 0,
-            cat: reactionCounts[user.id]?.cat || 0,
-            ogred: reactionCounts[user.id]?.ogred || 0
-        }));
+            const online =
+                Date.now() - lastSeen < 60 * 1000;
 
+            return {
+                ...user,
+
+                online,
+
+                gyatt: reactionCounts[user.id]?.gyatt || 0,
+                cat: reactionCounts[user.id]?.cat || 0,
+                ogred: reactionCounts[user.id]?.ogred || 0
+            };
+        });
         res.json(result);
 
     } catch (error) {
@@ -466,7 +473,43 @@ app.get("/api/users", async (req, res) => {
         });
     }
 });
+// ==================================================
+// ONLINE STATUS
+// ==================================================
 
+app.post("/api/online", async (req, res) => {
+    try {
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+        const { error } = await supabase
+            .from("profiles")
+            .update({
+                last_seen: new Date().toISOString()
+            })
+            .eq("id", req.session.user.id);
+
+        if (error) {
+            return res.status(500).json({
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true
+        });
+
+    } catch (error) {
+        console.error("ONLINE STATUS ERROR:", error);
+
+        res.status(500).json({
+            error: "Server error."
+        });
+    }
+});
 
 // ==================================================
 // ONE USER
