@@ -467,6 +467,7 @@ app.get("/api/users", async (req, res) => {
     }
 });
 
+
 // ==================================================
 // ONE USER
 // ==================================================
@@ -481,9 +482,10 @@ app.get("/api/users/:id", async (req, res) => {
             });
         }
 
+        // Get profile
         const {
             data: profile,
-            error
+            error: profileError
         } = await supabase
             .from("profiles")
             .select(`
@@ -492,20 +494,26 @@ app.get("/api/users/:id", async (req, res) => {
                 display_name,
                 avatar,
                 bio,
-                gyatt,
-                cat,
-                ogred,
                 created_at
             `)
             .eq("id", id)
-            .single();
+            .maybeSingle();
 
-        if (error || !profile) {
+        if (profileError) {
+            console.error("PROFILE ERROR:", profileError);
+
+            return res.status(500).json({
+                error: profileError.message
+            });
+        }
+
+        if (!profile) {
             return res.status(404).json({
                 error: "User not found."
             });
         }
 
+        // Get posts made by this user
         const {
             data: posts,
             error: postsError
@@ -515,6 +523,7 @@ app.get("/api/users/:id", async (req, res) => {
                 id,
                 user_id,
                 content,
+                image_url,
                 created_at
             `)
             .eq("user_id", id)
@@ -523,26 +532,75 @@ app.get("/api/users/:id", async (req, res) => {
             });
 
         if (postsError) {
+            console.error("PROFILE POSTS ERROR:", postsError);
+
             return res.status(500).json({
                 error: postsError.message
             });
         }
 
+        // Get reactions FROM the reactions table
+        const {
+            data: reactions,
+            error: reactionsError
+        } = await supabase
+            .from("reactions")
+            .select("type")
+            .eq("to_user_id", id);
+
+        if (reactionsError) {
+            console.error("PROFILE REACTIONS ERROR:", reactionsError);
+
+            return res.status(500).json({
+                error: reactionsError.message
+            });
+        }
+
+        const reactionCounts = {
+            gyatt: 0,
+            cat: 0,
+            ogred: 0
+        };
+
+        for (const reaction of reactions || []) {
+            if (reaction.type === "gyatt") {
+                reactionCounts.gyatt++;
+            }
+
+            if (reaction.type === "cat") {
+                reactionCounts.cat++;
+            }
+
+            if (reaction.type === "ogred") {
+                reactionCounts.ogred++;
+            }
+        }
+
         res.json({
             ...profile,
+
+            gyatt: reactionCounts.gyatt,
+            cat: reactionCounts.cat,
+            ogred: reactionCounts.ogred,
+
             posts: posts || []
         });
 
     } catch (error) {
+        console.error("ONE USER ERROR:", error);
+
         res.status(500).json({
             error: "Server error."
         });
     }
 });
 
+
+
 // ==================================================
 // UPDATE PROFILE
 // ==================================================
+
 
 app.put("/api/profile", async (req, res) => {
     try {
@@ -552,14 +610,29 @@ app.put("/api/profile", async (req, res) => {
             });
         }
 
-        const {
-            display_name,
-            bio,
-            avatar,
-            gyatt,
-            cat,
-            ogred
-        } = req.body;
+        const display_name =
+            String(req.body.display_name || "").trim();
+
+        const bio =
+            String(req.body.bio || "").trim();
+
+        if (!display_name) {
+            return res.status(400).json({
+                error: "Display name cannot be empty."
+            });
+        }
+
+        if (display_name.length > 50) {
+            return res.status(400).json({
+                error: "Display name is too long."
+            });
+        }
+
+        if (bio.length > 500) {
+            return res.status(400).json({
+                error: "Bio is too long."
+            });
+        }
 
         const {
             data,
@@ -567,48 +640,63 @@ app.put("/api/profile", async (req, res) => {
         } = await supabase
             .from("profiles")
             .update({
-                display_name:
-                    String(display_name || "").trim(),
-
-                bio:
-                    String(bio || "").trim(),
-
-                avatar:
-                    avatar || null,
-
-                gyatt:
-                    Math.max(0, parseInt(gyatt) || 0),
-
-                cat:
-                    Math.max(0, parseInt(cat) || 0),
-
-                ogred:
-                    Math.max(0, parseInt(ogred) || 0)
+                display_name,
+                bio
             })
             .eq("id", req.session.user.id)
-            .select()
+            .select(`
+                id,
+                username,
+                display_name,
+                avatar,
+                bio,
+                created_at
+            `)
             .single();
 
         if (error) {
+            console.error("UPDATE PROFILE ERROR:", error);
+
             return res.status(500).json({
                 error: error.message
             });
         }
 
+        // Keep the login session's display name updated
         req.session.user.display_name =
             data.display_name;
 
-        res.json({
-            success: true,
-            user: data
+        req.session.save(sessionError => {
+            if (sessionError) {
+                console.error(
+                    "PROFILE SESSION ERROR:",
+                    sessionError
+                );
+
+                return res.status(500).json({
+                    error: "Could not save profile session."
+                });
+            }
+
+            res.json({
+                success: true,
+                user: data
+            });
         });
 
     } catch (error) {
+        console.error(
+            "UPDATE PROFILE ERROR:",
+            error
+        );
+
         res.status(500).json({
             error: "Server error."
         });
     }
 });
+
+
 
 // ==================================================
 // AVATAR UPLOAD

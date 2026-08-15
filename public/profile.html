@@ -36,24 +36,7 @@
     </div>
 
 </header>
-<div class="profile-reactions">
 
-    <button onclick="giveReaction('gyatt')">
-        🍑 Gyatt
-        <span id="gyatt-count">0</span>
-    </button>
-
-    <button onclick="giveReaction('cat')">
-        🐱 Cat
-        <span id="cat-count">0</span>
-    </button>
-
-    <button onclick="giveReaction('ogred')">
-        🧌 Ogred
-        <span id="ogred-count">0</span>
-    </button>
-
-</div>
 
 <main class="container">
 
@@ -77,9 +60,53 @@
 
         <p id="profile-bio"></p>
 
+
+        <!-- REACTIONS -->
+
+        <div class="profile-reactions">
+
+            <button
+                onclick="giveReaction('gyatt')">
+
+                🍑 Gyatt
+
+                <span id="gyatt-count">
+                    0
+                </span>
+
+            </button>
+
+
+            <button
+                onclick="giveReaction('cat')">
+
+                🐱 Cat
+
+                <span id="cat-count">
+                    0
+                </span>
+
+            </button>
+
+
+            <button
+                onclick="giveReaction('ogred')">
+
+                🧌 Ogred
+
+                <span id="ogred-count">
+                    0
+                </span>
+
+            </button>
+
+        </div>
+
+
         <button
             id="edit-button"
-            onclick="showEditProfile()">
+            onclick="showEditProfile()"
+            style="display:none;">
 
             ✏️ Edit Profile
 
@@ -99,6 +126,7 @@
             ✏️ Edit Profile
         </h2>
 
+
         <label>
             Display name
         </label>
@@ -108,6 +136,7 @@
             type="text"
             maxlength="50">
 
+
         <label>
             Bio
         </label>
@@ -115,8 +144,8 @@
         <textarea
             id="edit-bio"
             maxlength="500"
-            placeholder="Tell people about yourself...">
-        </textarea>
+            placeholder="Tell people about yourself..."></textarea>
+
 
         <h3>
             🖼️ Change Avatar
@@ -127,14 +156,22 @@
             type="file"
             accept="image/png,image/jpeg,image/webp,image/gif">
 
-        <button id="upload-avatar-button" onclick="uploadAvatar()">
-            📸 Upload Avatar
-        </button>
-        <p id="upload-avatar-button-warn"></p>
 
-        <button onclick="saveProfile()">
-            💾 Save Profile
+        <button
+            onclick="uploadAvatar()">
+
+            📸 Upload Avatar
+
         </button>
+
+
+        <button
+            onclick="saveProfile()">
+
+            💾 Save Profile
+
+        </button>
+
 
         <button
             class="secondary-button"
@@ -143,6 +180,7 @@
             Cancel
 
         </button>
+
 
         <p id="profile-status"></p>
 
@@ -172,6 +210,21 @@ let profileUser = null;
 
 
 // ==================================================
+// GET PROFILE ID
+// ==================================================
+
+function getProfileId() {
+
+    const params =
+        new URLSearchParams(
+            window.location.search
+        );
+
+    return params.get("id");
+}
+
+
+// ==================================================
 // ESCAPE HTML
 // ==================================================
 
@@ -188,21 +241,6 @@ function escapeHtml(text) {
 
 
 // ==================================================
-// GET PROFILE ID
-// ==================================================
-
-function getProfileId() {
-
-    const params =
-        new URLSearchParams(
-            window.location.search
-        );
-
-    return params.get("id");
-}
-
-
-// ==================================================
 // LOAD PROFILE
 // ==================================================
 
@@ -211,24 +249,10 @@ async function loadProfile() {
     const id =
         getProfileId();
 
-    let url;
-
-    /*
-       If there is no ?id=...
-       load the currently logged-in user.
-    */
-
-    if (id) {
-
-        url =
-            `/api/users/${encodeURIComponent(id)}`;
-
-    } else {
-
-        url =
-            "/api/me";
-
-    }
+    const url =
+        id
+            ? `/api/users/${encodeURIComponent(id)}`
+            : "/api/me";
 
     try {
 
@@ -244,19 +268,9 @@ async function loadProfile() {
                 data.error ||
                 "Could not load profile."
             );
+
         }
 
-
-        /*
-           /api/users/:id returns the
-           profile directly.
-
-           /api/me returns:
-           {
-               loggedIn: true,
-               user: {...}
-           }
-        */
 
         profileUser =
             id
@@ -309,13 +323,34 @@ async function loadProfile() {
             "/default-avatar.png";
 
 
-        // EDIT BUTTON ONLY FOR OWN PROFILE
+        // REACTIONS
+
+        document.getElementById(
+            "gyatt-count"
+        ).textContent =
+            profileUser.gyatt || 0;
+
+
+        document.getElementById(
+            "cat-count"
+        ).textContent =
+            profileUser.cat || 0;
+
+
+        document.getElementById(
+            "ogred-count"
+        ).textContent =
+            profileUser.ogred || 0;
+
+
+        // CHECK IF THIS IS OUR PROFILE
 
         const meResponse =
             await fetch("/api/me");
 
         const me =
             await meResponse.json();
+
 
         if (
             me.loggedIn &&
@@ -328,12 +363,6 @@ async function loadProfile() {
             ).style.display =
                 "inline-block";
 
-        } else {
-
-            document.getElementById(
-                "edit-button"
-            ).style.display =
-                "none";
         }
 
 
@@ -355,7 +384,94 @@ async function loadProfile() {
             "profile-display-name"
         ).textContent =
             "❌ " + error.message;
+
     }
+
+}
+
+
+// ==================================================
+// REACTIONS
+// ==================================================
+
+async function giveReaction(type) {
+
+    if (!profileUser) {
+        return;
+    }
+
+    const id =
+        profileUser.id;
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/users/${encodeURIComponent(id)}/${type}`,
+                {
+                    method: "POST"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            alert(
+                data.error ||
+                "Could not give reaction."
+            );
+
+            return;
+        }
+
+
+        if (type === "gyatt") {
+
+            document.getElementById(
+                "gyatt-count"
+            ).textContent =
+                data.gyatt;
+
+        }
+
+
+        if (type === "cat") {
+
+            document.getElementById(
+                "cat-count"
+            ).textContent =
+                data.cat;
+
+        }
+
+
+        if (type === "ogred") {
+
+            document.getElementById(
+                "ogred-count"
+            ).textContent =
+                data.ogred;
+
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "REACTION ERROR:",
+            error
+        );
+
+        alert(
+            "Could not give reaction."
+        );
+
+    }
+
 }
 
 
@@ -365,12 +481,15 @@ async function loadProfile() {
 
 function showEditProfile() {
 
-    if (!profileUser) return;
+    if (!profileUser) {
+        return;
+    }
 
     document.getElementById(
         "edit-profile"
     ).style.display =
         "block";
+
 
     document.getElementById(
         "edit-display-name"
@@ -378,6 +497,7 @@ function showEditProfile() {
         profileUser.display_name ||
         profileUser.username ||
         "";
+
 
     document.getElementById(
         "edit-bio"
@@ -413,15 +533,18 @@ async function saveProfile() {
             "edit-display-name"
         ).value.trim();
 
+
     const bio =
         document.getElementById(
             "edit-bio"
         ).value.trim();
 
+
     const status =
         document.getElementById(
             "profile-status"
         );
+
 
     if (!display_name) {
 
@@ -429,7 +552,9 @@ async function saveProfile() {
             "❌ Display name cannot be empty.";
 
         return;
+
     }
+
 
     status.textContent =
         "Saving...";
@@ -449,16 +574,16 @@ async function saveProfile() {
                     },
 
                     body: JSON.stringify({
-
                         display_name,
-
                         bio
                     })
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -471,7 +596,10 @@ async function saveProfile() {
 
 
         profileUser =
-            data.user;
+            {
+                ...profileUser,
+                ...data.user
+            };
 
 
         document.getElementById(
@@ -505,8 +633,11 @@ async function saveProfile() {
         );
 
         status.textContent =
-            "❌ " + error.message;
+            "❌ " +
+            error.message;
+
     }
+
 }
 
 
@@ -521,13 +652,16 @@ async function uploadAvatar() {
             "avatar-input"
         );
 
+
     const status =
         document.getElementById(
             "profile-status"
         );
 
+
     const file =
         input.files[0];
+
 
     if (!file) {
 
@@ -535,6 +669,7 @@ async function uploadAvatar() {
             "❌ Choose an image first.";
 
         return;
+
     }
 
 
@@ -544,6 +679,7 @@ async function uploadAvatar() {
             "❌ Image must be under 5MB.";
 
         return;
+
     }
 
 
@@ -551,101 +687,95 @@ async function uploadAvatar() {
         "Uploading avatar...";
 
 
-    try {
-
-        const reader =
-            new FileReader();
+    const reader =
+        new FileReader();
 
 
-        reader.onload = async function () {
+    reader.onload = async function () {
 
-            try {
+        try {
 
-                const base64 =
-                    reader.result
-                        .split(",")[1];
-
-
-                const response =
-                    await fetch(
-                        "/api/profile/avatar",
-                        {
-                            method: "POST",
-
-                            headers: {
-                                "Content-Type":
-                                    "application/json"
-                            },
-
-                            body:
-                                JSON.stringify({
-
-                                    fileName:
-                                        file.name,
-
-                                    fileType:
-                                        file.type,
-
-                                    fileData:
-                                        base64
-
-                                })
-                        }
-                    );
+            const base64 =
+                reader.result
+                    .split(",")[1];
 
 
-                const data =
-                    await response.json();
+            const response =
+                await fetch(
+                    "/api/profile/avatar",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body: JSON.stringify({
+
+                            fileName:
+                                file.name,
+
+                            fileType:
+                                file.type,
+
+                            fileData:
+                                base64
+
+                        })
+                    }
+                );
 
 
-                if (!response.ok) {
-
-                    throw new Error(
-                        data.error ||
-                        "Avatar upload failed."
-                    );
-
-                }
+            const data =
+                await response.json();
 
 
-                profileUser.avatar =
-                    data.avatar;
+            if (!response.ok) {
 
-
-                document.getElementById(
-                    "profile-avatar"
-                ).src =
-                    data.avatar;
-
-
-                status.textContent =
-                    "✅ Avatar updated!";
-
-
-                input.value = "";
-
-
-            } catch (error) {
-
-                status.textContent =
-                    "❌ " +
-                    error.message;
+                throw new Error(
+                    data.error ||
+                    "Avatar upload failed."
+                );
 
             }
 
-        };
+
+            profileUser.avatar =
+                data.avatar;
 
 
-        reader.readAsDataURL(file);
+            document.getElementById(
+                "profile-avatar"
+            ).src =
+                data.avatar;
 
 
-    } catch (error) {
+            status.textContent =
+                "✅ Avatar updated!";
 
-        status.textContent =
-            "❌ " +
-            error.message;
 
-    }
+            input.value = "";
+
+
+        } catch (error) {
+
+            console.error(
+                "AVATAR ERROR:",
+                error
+            );
+
+            status.textContent =
+                "❌ " +
+                error.message;
+
+        }
+
+    };
+
+
+    reader.readAsDataURL(file);
+
 }
 
 
@@ -667,6 +797,7 @@ function loadProfilePosts(posts) {
             "<p>No posts yet.</p>";
 
         return;
+
     }
 
 
@@ -686,6 +817,7 @@ function loadProfilePosts(posts) {
 
                 </div>
 
+
                 <div class="post-content">
 
                     ${escapeHtml(
@@ -697,6 +829,7 @@ function loadProfilePosts(posts) {
             </article>
 
         `).join("");
+
 }
 
 
