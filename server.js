@@ -153,10 +153,29 @@ app.post("/api/signup", async (req, res) => {
                 username,
                 display_name: display_name || username,
                 avatar: null,
-                bio: ""
+                bio: "",
+                last_seen: new Date().toISOString(),
             })
             .select()
             .single();
+        if (profileError) {
+            return res.status(500).json({   
+                error: profileError.message
+            });
+        }
+
+        if (!profile) {
+            return res.status(404).json({
+                error: "User not found."
+            });
+        }
+
+        const lastSeen = profile.last_seen
+            ? new Date(profile.last_seen).getTime()
+            : 0;
+
+        const online =
+            Date.now() - lastSeen < 60 * 1000;
 
         if (profileError) {
             await supabase.auth.admin.deleteUser(userId);
