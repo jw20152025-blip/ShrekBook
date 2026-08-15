@@ -404,7 +404,10 @@ app.get("/api/me", async (req, res) => {
 
 app.get("/api/users", async (req, res) => {
     try {
-        const { data: users, error: usersError } = await supabase
+        const {
+            data: users,
+            error: usersError
+        } = await supabase
             .from("profiles")
             .select(`
                 id,
@@ -412,7 +415,8 @@ app.get("/api/users", async (req, res) => {
                 display_name,
                 avatar,
                 bio,
-                created_at
+                created_at,
+                last_seen
             `)
             .order("created_at", {
                 ascending: false
@@ -424,13 +428,15 @@ app.get("/api/users", async (req, res) => {
             });
         }
 
-        const { data: reactions, error: reactionsError } =
-            await supabase
-                .from("reactions")
-                .select(`
-                    to_user_id,
-                    type
-                `);
+        const {
+            data: reactions,
+            error: reactionsError
+        } = await supabase
+            .from("reactions")
+            .select(`
+                to_user_id,
+                type
+            `);
 
         if (reactionsError) {
             return res.status(500).json({
@@ -469,60 +475,35 @@ app.get("/api/users", async (req, res) => {
                 ? new Date(user.last_seen).getTime()
                 : 0;
 
+            // Consider someone online if they've
+            // contacted the server within the last 60 seconds.
             const online =
-                Date.now() - lastSeen < 60 * 1000;
+                lastSeen > 0 &&
+                (Date.now() - lastSeen < 60 * 1000);
 
             return {
                 ...user,
 
                 online,
 
-                gyatt: reactionCounts[user.id]?.gyatt || 0,
-                cat: reactionCounts[user.id]?.cat || 0,
-                ogred: reactionCounts[user.id]?.ogred || 0
+                gyatt:
+                    reactionCounts[user.id]?.gyatt || 0,
+
+                cat:
+                    reactionCounts[user.id]?.cat || 0,
+
+                ogred:
+                    reactionCounts[user.id]?.ogred || 0
             };
         });
+
         res.json(result);
 
     } catch (error) {
-        console.error("USERS ERROR:", error);
-
-        res.status(500).json({
-            error: "Server error."
-        });
-    }
-});
-// ==================================================
-// ONLINE STATUS
-// ==================================================
-
-app.post("/api/online", async (req, res) => {
-    try {
-        if (!req.session.user) {
-            return res.status(401).json({
-                error: "You must be logged in."
-            });
-        }
-
-        const { error } = await supabase
-            .from("profiles")
-            .update({
-                last_seen: new Date().toISOString()
-            })
-            .eq("id", req.session.user.id);
-
-        if (error) {
-            return res.status(500).json({
-                error: error.message
-            });
-        }
-
-        res.json({
-            success: true
-        });
-
-    } catch (error) {
-        console.error("ONLINE STATUS ERROR:", error);
+        console.error(
+            "USERS ERROR:",
+            error
+        );
 
         res.status(500).json({
             error: "Server error."
