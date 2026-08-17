@@ -1053,11 +1053,7 @@ function renderPost(post) {
                         post.user_id
                     )}">
 
-                    <img
-                        class="post-avatar"
-                        src="${avatar}"
-                        alt="Avatar"
-                        onerror="this.src='${DEFAULT_AVATAR}'">
+
 
                 </a>
 
