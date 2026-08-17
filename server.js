@@ -1,4 +1,5 @@
 require("dotenv").config();
+
 const express = require("express");
 const path = require("path");
 const session = require("express-session");
@@ -30,6 +31,12 @@ const supabase = createClient(
 );
 
 // ==================================================
+// CONSTANTS
+// ==================================================
+
+const DEFAULT_AVATAR = "/default-avatar.png";
+
+// ==================================================
 // EXPRESS
 // ==================================================
 
@@ -59,6 +66,57 @@ app.use(session({
 app.use(express.static(
     path.join(__dirname, "public")
 ));
+
+// ==================================================
+// HELPERS
+// ==================================================
+
+function getAvatar(avatar) {
+    if (
+        typeof avatar === "string" &&
+        avatar.trim() !== ""
+    ) {
+        return avatar;
+    }
+
+    return DEFAULT_AVATAR;
+}
+
+async function getReactionCounts(userId) {
+    const counts = {
+        gyatt: 0,
+        cat: 0,
+        ogred: 0
+    };
+
+    const {
+        data: reactions,
+        error
+    } = await supabase
+        .from("reactions")
+        .select("type")
+        .eq("to_user_id", userId);
+
+    if (error) {
+        throw error;
+    }
+
+    for (const reaction of reactions || []) {
+        if (reaction.type === "gyatt") {
+            counts.gyatt++;
+        }
+
+        if (reaction.type === "cat") {
+            counts.cat++;
+        }
+
+        if (reaction.type === "ogred") {
+            counts.ogred++;
+        }
+    }
+
+    return counts;
+}
 
 // ==================================================
 // TEST
@@ -154,28 +212,10 @@ app.post("/api/signup", async (req, res) => {
                 display_name: display_name || username,
                 avatar: null,
                 bio: "",
-                last_seen: new Date().toISOString(),
+                last_seen: new Date().toISOString()
             })
             .select()
             .single();
-        if (profileError) {
-            return res.status(500).json({   
-                error: profileError.message
-            });
-        }
-
-        if (!profile) {
-            return res.status(404).json({
-                error: "User not found."
-            });
-        }
-
-        const lastSeen = profile.last_seen
-            ? new Date(profile.last_seen).getTime()
-            : 0;
-
-        const online =
-            Date.now() - lastSeen < 60 * 1000;
 
         if (profileError) {
             await supabase.auth.admin.deleteUser(userId);
@@ -185,9 +225,21 @@ app.post("/api/signup", async (req, res) => {
             });
         }
 
+        if (!profile) {
+            await supabase.auth.admin.deleteUser(userId);
+
+            return res.status(404).json({
+                error: "User not found."
+            });
+        }
+
         res.status(201).json({
             success: true,
-            user: profile
+
+            user: {
+                ...profile,
+                avatar: getAvatar(profile.avatar)
+            }
         });
 
     } catch (error) {
@@ -293,10 +345,7 @@ app.post("/api/login", async (req, res) => {
                     username,
                     display_name: username,
                     avatar: null,
-                    bio: "",
-                    gyatt: 0,
-                    cat: 0,
-                    ogred: 0
+                    bio: ""
                 })
                 .select()
                 .single();
@@ -326,7 +375,11 @@ app.post("/api/login", async (req, res) => {
 
             res.json({
                 success: true,
-                user: profile
+
+                user: {
+                    ...profile,
+                    avatar: getAvatar(profile.avatar)
+                }
             });
         });
 
@@ -386,12 +439,26 @@ app.get("/api/me", async (req, res) => {
             });
         }
 
+        const reactions =
+            await getReactionCounts(data.id);
+
         res.json({
             loggedIn: true,
-            user: data
+
+            user: {
+                ...data,
+
+                avatar: getAvatar(data.avatar),
+
+                gyatt: reactions.gyatt,
+                cat: reactions.cat,
+                ogred: reactions.ogred
+            }
         });
 
     } catch (error) {
+        console.error("ME ERROR:", error);
+
         res.status(500).json({
             error: "Server error."
         });
@@ -447,7 +514,8 @@ app.get("/api/users", async (req, res) => {
         const reactionCounts = {};
 
         for (const reaction of reactions || []) {
-            const userId = reaction.to_user_id;
+            const userId =
+                reaction.to_user_id;
 
             if (!reactionCounts[userId]) {
                 reactionCounts[userId] = {
@@ -470,32 +538,42 @@ app.get("/api/users", async (req, res) => {
             }
         }
 
-        const result = (users || []).map(user => {
-            const lastSeen = user.last_seen
-                ? new Date(user.last_seen).getTime()
-                : 0;
+        const result =
+            (users || []).map(user => {
 
-            // Consider someone online if they've
-            // contacted the server within the last 60 seconds.
-            const online =
-                lastSeen > 0 &&
-                (Date.now() - lastSeen < 60 * 1000);
+                const lastSeen =
+                    user.last_seen
+                        ? new Date(
+                            user.last_seen
+                        ).getTime()
+                        : 0;
 
-            return {
-                ...user,
+                const online =
+                    lastSeen > 0 &&
+                    Date.now() - lastSeen <
+                    60 * 1000;
 
-                online,
+                return {
+                    ...user,
 
-                gyatt:
-                    reactionCounts[user.id]?.gyatt || 0,
+                    avatar:
+                        getAvatar(user.avatar),
 
-                cat:
-                    reactionCounts[user.id]?.cat || 0,
+                    online,
 
-                ogred:
-                    reactionCounts[user.id]?.ogred || 0
-            };
-        });
+                    gyatt:
+                        reactionCounts[user.id]?.gyatt ||
+                        0,
+
+                    cat:
+                        reactionCounts[user.id]?.cat ||
+                        0,
+
+                    ogred:
+                        reactionCounts[user.id]?.ogred ||
+                        0
+                };
+            });
 
         res.json(result);
 
@@ -517,15 +595,16 @@ app.get("/api/users", async (req, res) => {
 
 app.get("/api/users/:id", async (req, res) => {
     try {
-        const id = req.params.id;
+        const id =
+            req.params.id;
 
         if (!id) {
             return res.status(400).json({
-                error: "No profile ID was provided."
+                error:
+                    "No profile ID was provided."
             });
         }
 
-        // Get profile
         const {
             data: profile,
             error: profileError
@@ -543,7 +622,10 @@ app.get("/api/users/:id", async (req, res) => {
             .maybeSingle();
 
         if (profileError) {
-            console.error("PROFILE ERROR:", profileError);
+            console.error(
+                "PROFILE ERROR:",
+                profileError
+            );
 
             return res.status(500).json({
                 error: profileError.message
@@ -556,7 +638,7 @@ app.get("/api/users/:id", async (req, res) => {
             });
         }
 
-        // Get posts made by this user
+        // Posts
         const {
             data: posts,
             error: postsError
@@ -575,62 +657,44 @@ app.get("/api/users/:id", async (req, res) => {
             });
 
         if (postsError) {
-            console.error("PROFILE POSTS ERROR:", postsError);
+            console.error(
+                "PROFILE POSTS ERROR:",
+                postsError
+            );
 
             return res.status(500).json({
                 error: postsError.message
             });
         }
 
-        // Get reactions FROM the reactions table
-        const {
-            data: reactions,
-            error: reactionsError
-        } = await supabase
-            .from("reactions")
-            .select("type")
-            .eq("to_user_id", id);
-
-        if (reactionsError) {
-            console.error("PROFILE REACTIONS ERROR:", reactionsError);
-
-            return res.status(500).json({
-                error: reactionsError.message
-            });
-        }
-
-        const reactionCounts = {
-            gyatt: 0,
-            cat: 0,
-            ogred: 0
-        };
-
-        for (const reaction of reactions || []) {
-            if (reaction.type === "gyatt") {
-                reactionCounts.gyatt++;
-            }
-
-            if (reaction.type === "cat") {
-                reactionCounts.cat++;
-            }
-
-            if (reaction.type === "ogred") {
-                reactionCounts.ogred++;
-            }
-        }
+        // Reactions
+        const reactions =
+            await getReactionCounts(id);
 
         res.json({
             ...profile,
 
-            gyatt: reactionCounts.gyatt,
-            cat: reactionCounts.cat,
-            ogred: reactionCounts.ogred,
+            avatar:
+                getAvatar(profile.avatar),
 
-            posts: posts || []
+            gyatt:
+                reactions.gyatt,
+
+            cat:
+                reactions.cat,
+
+            ogred:
+                reactions.ogred,
+
+            posts:
+                posts || []
         });
 
     } catch (error) {
-        console.error("ONE USER ERROR:", error);
+        console.error(
+            "ONE USER ERROR:",
+            error
+        );
 
         res.status(500).json({
             error: "Server error."
@@ -638,12 +702,9 @@ app.get("/api/users/:id", async (req, res) => {
     }
 });
 
-
-
 // ==================================================
 // UPDATE PROFILE
 // ==================================================
-
 
 app.put("/api/profile", async (req, res) => {
     try {
@@ -654,26 +715,33 @@ app.put("/api/profile", async (req, res) => {
         }
 
         const display_name =
-            String(req.body.display_name || "").trim();
+            String(
+                req.body.display_name || ""
+            ).trim();
 
         const bio =
-            String(req.body.bio || "").trim();
+            String(
+                req.body.bio || ""
+            ).trim();
 
         if (!display_name) {
             return res.status(400).json({
-                error: "Display name cannot be empty."
+                error:
+                    "Display name cannot be empty."
             });
         }
 
         if (display_name.length > 50) {
             return res.status(400).json({
-                error: "Display name is too long."
+                error:
+                    "Display name is too long."
             });
         }
 
         if (bio.length > 500) {
             return res.status(400).json({
-                error: "Bio is too long."
+                error:
+                    "Bio is too long."
             });
         }
 
@@ -686,7 +754,10 @@ app.put("/api/profile", async (req, res) => {
                 display_name,
                 bio
             })
-            .eq("id", req.session.user.id)
+            .eq(
+                "id",
+                req.session.user.id
+            )
             .select(`
                 id,
                 username,
@@ -698,14 +769,16 @@ app.put("/api/profile", async (req, res) => {
             .single();
 
         if (error) {
-            console.error("UPDATE PROFILE ERROR:", error);
+            console.error(
+                "UPDATE PROFILE ERROR:",
+                error
+            );
 
             return res.status(500).json({
                 error: error.message
             });
         }
 
-        // Keep the login session's display name updated
         req.session.user.display_name =
             data.display_name;
 
@@ -717,13 +790,19 @@ app.put("/api/profile", async (req, res) => {
                 );
 
                 return res.status(500).json({
-                    error: "Could not save profile session."
+                    error:
+                        "Could not save profile session."
                 });
             }
 
             res.json({
                 success: true,
-                user: data
+
+                user: {
+                    ...data,
+                    avatar:
+                        getAvatar(data.avatar)
+                }
             });
         });
 
@@ -739,139 +818,166 @@ app.put("/api/profile", async (req, res) => {
     }
 });
 
-
-
 // ==================================================
 // AVATAR UPLOAD
 // ==================================================
 
-app.post("/api/profile/avatar", async (req, res) => {
-    try {
-        if (!req.session.user) {
-            return res.status(401).json({
-                error: "You must be logged in."
-            });
-        }
+app.post(
+    "/api/profile/avatar",
+    async (req, res) => {
 
-        const {
-            fileName,
-            fileType,
-            fileData
-        } = req.body;
+        try {
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
 
-        if (!fileName || !fileType || !fileData) {
-            return res.status(400).json({
-                error: "Missing image data."
-            });
-        }
+            const {
+                fileName,
+                fileType,
+                fileData
+            } = req.body;
 
-        if (!fileType.startsWith("image/")) {
-            return res.status(400).json({
-                error: "File must be an image."
-            });
-        }
+            if (
+                !fileName ||
+                !fileType ||
+                !fileData
+            ) {
+                return res.status(400).json({
+                    error:
+                        "Missing image data."
+                });
+            }
 
-        const buffer = Buffer.from(
-            fileData,
-            "base64"
-        );
+            if (!fileType.startsWith("image/")) {
+                return res.status(400).json({
+                    error:
+                        "File must be an image."
+                });
+            }
 
-        if (buffer.length > 5 * 1024 * 1024) {
-            return res.status(400).json({
-                error: "Image must be under 5MB."
-            });
-        }
+            const buffer =
+                Buffer.from(
+                    fileData,
+                    "base64"
+                );
 
-        const extension =
-            fileName
-                .split(".")
-                .pop()
-                .toLowerCase();
+            if (
+                buffer.length >
+                5 * 1024 * 1024
+            ) {
+                return res.status(400).json({
+                    error:
+                        "Image must be under 5MB."
+                });
+            }
 
-        const allowed = [
-            "png",
-            "jpg",
-            "jpeg",
-            "webp",
-            "gif"
-        ];
+            const extension =
+                fileName
+                    .split(".")
+                    .pop()
+                    .toLowerCase();
 
-        if (!allowed.includes(extension)) {
-            return res.status(400).json({
-                error: "Unsupported image type."
-            });
-        }
+            const allowed = [
+                "png",
+                "jpg",
+                "jpeg",
+                "webp",
+                "gif"
+            ];
 
-        const filePath =
-            `${req.session.user.id}/${Date.now()}.${extension}`;
+            if (!allowed.includes(extension)) {
+                return res.status(400).json({
+                    error:
+                        "Unsupported image type."
+                });
+            }
 
-        const {
-            error: uploadError
-        } = await supabase.storage
-            .from("avatars")
-            .upload(
-                filePath,
-                buffer,
-                {
-                    contentType: fileType,
-                    upsert: true
+            const filePath =
+                `${req.session.user.id}/${Date.now()}.${extension}`;
+
+            const {
+                error: uploadError
+            } = await supabase.storage
+                .from("avatars")
+                .upload(
+                    filePath,
+                    buffer,
+                    {
+                        contentType:
+                            fileType,
+
+                        upsert: true
+                    }
+                );
+
+            if (uploadError) {
+                return res.status(500).json({
+                    error:
+                        uploadError.message
+                });
+            }
+
+            const {
+                data: publicData
+            } = supabase.storage
+                .from("avatars")
+                .getPublicUrl(
+                    filePath
+                );
+
+            const avatarUrl =
+                publicData.publicUrl;
+
+            const {
+                data: profile,
+                error: profileError
+            } = await supabase
+                .from("profiles")
+                .update({
+                    avatar: avatarUrl
+                })
+                .eq(
+                    "id",
+                    req.session.user.id
+                )
+                .select()
+                .single();
+
+            if (profileError) {
+                return res.status(500).json({
+                    error:
+                        profileError.message
+                });
+            }
+
+            res.json({
+                success: true,
+
+                avatar:
+                    avatarUrl,
+
+                user: {
+                    ...profile,
+                    avatar:
+                        avatarUrl
                 }
+            });
+
+        } catch (error) {
+            console.error(
+                "AVATAR ERROR:",
+                error
             );
 
-        if (uploadError) {
-            return res.status(500).json({
-                error: uploadError.message
+            res.status(500).json({
+                error: "Server error."
             });
         }
-
-        const {
-            data: publicData
-        } = supabase.storage
-            .from("avatars")
-            .getPublicUrl(filePath);
-
-        const avatarUrl =
-            publicData.publicUrl;
-
-        const {
-            data: profile,
-            error: profileError
-        } = await supabase
-            .from("profiles")
-            .update({
-                avatar: avatarUrl
-            })
-            .eq(
-                "id",
-                req.session.user.id
-            )
-            .select()
-            .single();
-
-        if (profileError) {
-            return res.status(500).json({
-                error: profileError.message
-            });
-        }
-
-        res.json({
-            success: true,
-            avatar: avatarUrl,
-            user: profile
-        });
-
-    } catch (error) {
-
-        console.error(
-            "AVATAR ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error: "Server error."
-        });
     }
-});
+);
 
 // ==================================================
 // GENERIC IMAGE UPLOAD
@@ -883,21 +989,32 @@ async function uploadImage(
     fileName,
     userId
 ) {
-
-    if (!fileData || !fileType || !fileName) {
-        throw new Error("Missing image data.");
+    if (
+        !fileData ||
+        !fileType ||
+        !fileName
+    ) {
+        throw new Error(
+            "Missing image data."
+        );
     }
 
     if (!fileType.startsWith("image/")) {
-        throw new Error("File must be an image.");
+        throw new Error(
+            "File must be an image."
+        );
     }
 
-    const buffer = Buffer.from(
-        fileData,
-        "base64"
-    );
+    const buffer =
+        Buffer.from(
+            fileData,
+            "base64"
+        );
 
-    if (buffer.length > 5 * 1024 * 1024) {
+    if (
+        buffer.length >
+        5 * 1024 * 1024
+    ) {
         throw new Error(
             "Image must be under 5MB."
         );
@@ -936,7 +1053,9 @@ async function uploadImage(
             filePath,
             buffer,
             {
-                contentType: fileType,
+                contentType:
+                    fileType,
+
                 upsert: false
             }
         );
@@ -951,20 +1070,19 @@ async function uploadImage(
         data: publicData
     } = supabase.storage
         .from("avatars")
-        .getPublicUrl(filePath);
+        .getPublicUrl(
+            filePath
+        );
 
     return publicData.publicUrl;
 }
-
 
 // ==================================================
 // GET POSTS
 // ==================================================
 
 app.get("/api/posts", async (req, res) => {
-
     try {
-
         const {
             data: posts,
             error
@@ -983,7 +1101,6 @@ app.get("/api/posts", async (req, res) => {
             .limit(100);
 
         if (error) {
-
             console.error(
                 "GET POSTS ERROR:",
                 error
@@ -992,7 +1109,6 @@ app.get("/api/posts", async (req, res) => {
             return res.status(500).json({
                 error: error.message
             });
-
         }
 
         const result = [];
@@ -1001,23 +1117,20 @@ app.get("/api/posts", async (req, res) => {
 
             const {
                 data: profile
-            } = 
-                await supabase
-                    .from("profiles")
-                    .select(`
-                        username,
-                        display_name,
-                        avatar
-                    `)
-                    .eq(
-                        "id",
-                        post.user_id
-                    )
-                    .maybeSingle();
-
+            } = await supabase
+                .from("profiles")
+                .select(`
+                    username,
+                    display_name,
+                    avatar
+                `)
+                .eq(
+                    "id",
+                    post.user_id
+                )
+                .maybeSingle();
 
             result.push({
-
                 ...post,
 
                 username:
@@ -1030,17 +1143,15 @@ app.get("/api/posts", async (req, res) => {
                     "User",
 
                 avatar:
-                    profile?.avatar ||
-                    null
-
+                    getAvatar(
+                        profile?.avatar
+                    )
             });
-
         }
 
         res.json(result);
 
     } catch (error) {
-
         console.error(
             "GET POSTS ERROR:",
             error
@@ -1049,32 +1160,31 @@ app.get("/api/posts", async (req, res) => {
         res.status(500).json({
             error: "Server error."
         });
-
     }
-
 });
 
-
 // ==================================================
-// POSTS
+// CREATE POST
 // ==================================================
 
 app.post("/api/posts", async (req, res) => {
-
     try {
-
         if (!req.session.user) {
             return res.status(401).json({
-                error: "You must be logged in."
+                error:
+                    "You must be logged in."
             });
         }
 
         const content =
-            String(req.body.content || "").trim();
+            String(
+                req.body.content || ""
+            ).trim();
 
         if (content.length > 5000) {
             return res.status(400).json({
-                error: "Post is too long."
+                error:
+                    "Post is too long."
             });
         }
 
@@ -1086,28 +1196,27 @@ app.post("/api/posts", async (req, res) => {
             req.body.image.type &&
             req.body.image.name
         ) {
-
             try {
-
-                imageUrl = await uploadImage(
-                    req.body.image.data,
-                    req.body.image.type,
-                    req.body.image.name,
-                    req.session.user.id
-                );
+                imageUrl =
+                    await uploadImage(
+                        req.body.image.data,
+                        req.body.image.type,
+                        req.body.image.name,
+                        req.session.user.id
+                    );
 
             } catch (error) {
-
                 return res.status(400).json({
-                    error: error.message
+                    error:
+                        error.message
                 });
-
             }
         }
 
         if (!content && !imageUrl) {
             return res.status(400).json({
-                error: "Post cannot be empty."
+                error:
+                    "Post cannot be empty."
             });
         }
 
@@ -1129,17 +1238,15 @@ app.post("/api/posts", async (req, res) => {
             .single();
 
         if (error) {
-
             return res.status(500).json({
-                error: error.message
+                error:
+                    error.message
             });
-
         }
 
         res.status(201).json(data);
 
     } catch (error) {
-
         console.error(
             "CREATE POST ERROR:",
             error
@@ -1148,9 +1255,7 @@ app.post("/api/posts", async (req, res) => {
         res.status(500).json({
             error: "Server error."
         });
-
     }
-
 });
 
 // ==================================================
@@ -1160,6 +1265,7 @@ app.post("/api/posts", async (req, res) => {
 app.get(
     "/api/posts/:postId/comments",
     async (req, res) => {
+
         try {
             const {
                 data: comments,
@@ -1171,31 +1277,40 @@ app.get(
                     post_id,
                     user_id,
                     content,
+                    image_url,
                     created_at
                 `)
                 .eq(
                     "post_id",
                     req.params.postId
                 )
-                .order("created_at", {
-                    ascending: true
-                });
+                .order(
+                    "created_at",
+                    {
+                        ascending: true
+                    }
+                );
 
             if (error) {
                 return res.status(500).json({
-                    error: error.message
+                    error:
+                        error.message
                 });
             }
 
             const result = [];
 
-            for (const comment of comments || []) {
+            for (
+                const comment of
+                comments || []
+            ) {
+
                 const {
                     data: profile
                 } = await supabase
                     .from("profiles")
                     .select(
-                        "username, display_name"
+                        "username, display_name, avatar"
                     )
                     .eq(
                         "id",
@@ -1213,15 +1328,26 @@ app.get(
                     display_name:
                         profile?.display_name ||
                         profile?.username ||
-                        "User"
+                        "User",
+
+                    avatar:
+                        getAvatar(
+                            profile?.avatar
+                        )
                 });
             }
 
             res.json(result);
 
         } catch (error) {
+            console.error(
+                "COMMENTS ERROR:",
+                error
+            );
+
             res.status(500).json({
-                error: "Server error."
+                error:
+                    "Server error."
             });
         }
     }
@@ -1232,10 +1358,10 @@ app.post(
     async (req, res) => {
 
         try {
-
             if (!req.session.user) {
                 return res.status(401).json({
-                    error: "You must be logged in."
+                    error:
+                        "You must be logged in."
                 });
             }
 
@@ -1246,7 +1372,8 @@ app.post(
 
             if (content.length > 500) {
                 return res.status(400).json({
-                    error: "Comment is too long."
+                    error:
+                        "Comment is too long."
                 });
             }
 
@@ -1258,9 +1385,7 @@ app.post(
                 req.body.image.type &&
                 req.body.image.name
             ) {
-
                 try {
-
                     imageUrl =
                         await uploadImage(
                             req.body.image.data,
@@ -1270,13 +1395,11 @@ app.post(
                         );
 
                 } catch (error) {
-
                     return res.status(400).json({
-                        error: error.message
+                        error:
+                            error.message
                     });
-
                 }
-
             }
 
             if (!content && !imageUrl) {
@@ -1292,7 +1415,6 @@ app.post(
             } = await supabase
                 .from("comments")
                 .insert({
-
                     post_id:
                         req.params.postId,
 
@@ -1303,41 +1425,47 @@ app.post(
 
                     image_url:
                         imageUrl
-
                 })
                 .select()
                 .single();
 
             if (error) {
-
                 return res.status(500).json({
-                    error: error.message
+                    error:
+                        error.message
                 });
-
             }
 
             res.status(201).json(data);
 
         } catch (error) {
-
             console.error(
                 "COMMENT ERROR:",
                 error
             );
 
             res.status(500).json({
-                error: "Server error."
+                error:
+                    "Server error."
             });
-
         }
-
     }
 );
-app.post("/api/users/:id/gyatt", async (req, res) => {
+
+// ==================================================
+// REACTIONS
+// ==================================================
+
+async function addReaction(
+    req,
+    res,
+    type
+) {
     try {
         if (!req.session.user) {
             return res.status(401).json({
-                error: "You must be logged in."
+                error:
+                    "You must be logged in."
             });
         }
 
@@ -1349,7 +1477,31 @@ app.post("/api/users/:id/gyatt", async (req, res) => {
 
         if (fromUserId === toUserId) {
             return res.status(400).json({
-                error: "You cannot react to yourself."
+                error:
+                    "You cannot react to yourself."
+            });
+        }
+
+        const {
+            data: targetUser,
+            error: targetError
+        } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("id", toUserId)
+            .maybeSingle();
+
+        if (targetError) {
+            return res.status(500).json({
+                error:
+                    targetError.message
+            });
+        }
+
+        if (!targetUser) {
+            return res.status(404).json({
+                error:
+                    "User not found."
             });
         }
 
@@ -1358,24 +1510,37 @@ app.post("/api/users/:id/gyatt", async (req, res) => {
         } = await supabase
             .from("reactions")
             .insert({
-                from_user_id: fromUserId,
-                to_user_id: toUserId,
-                type: "gyatt"
+                from_user_id:
+                    fromUserId,
+
+                to_user_id:
+                    toUserId,
+
+                type
             });
 
         if (insertError) {
 
             if (
-                insertError.code === "23505"
+                insertError.code ===
+                "23505"
             ) {
+
+                const names = {
+                    gyatt: "Gyatt",
+                    cat: "Cat",
+                    ogred: "Ogred"
+                };
+
                 return res.status(400).json({
                     error:
-                        "You already gave this person a Gyatt."
+                        `You already gave this person a ${names[type]}.`
                 });
             }
 
             return res.status(500).json({
-                error: insertError.message
+                error:
+                    insertError.message
             });
         }
 
@@ -1388,506 +1553,301 @@ app.post("/api/users/:id/gyatt", async (req, res) => {
                 count: "exact",
                 head: true
             })
-            .eq("to_user_id", toUserId)
-            .eq("type", "gyatt");
+            .eq(
+                "to_user_id",
+                toUserId
+            )
+            .eq(
+                "type",
+                type
+            );
 
         if (countError) {
             return res.status(500).json({
-                error: countError.message
+                error:
+                    countError.message
             });
         }
 
         res.json({
             success: true,
-            gyatt: count || 0
+            [type]:
+                count || 0
         });
 
     } catch (error) {
-
         console.error(
-            "GYATT ERROR:",
+            `${type.toUpperCase()} ERROR:`,
             error
         );
 
         res.status(500).json({
-            error: "Server error."
+            error:
+                "Server error."
         });
     }
-});
-app.post("/api/users/:id/cat", async (req, res) => {
-    try {
-        if (!req.session.user) {
-            return res.status(401).json({
-                error: "You must be logged in."
-            });
-        }
+}
 
-        const fromUserId =
-            req.session.user.id;
-
-        const toUserId =
-            req.params.id;
-
-        if (fromUserId === toUserId) {
-            return res.status(400).json({
-                error: "You cannot react to yourself."
-            });
-        }
-
-        const {
-            error: insertError
-        } = await supabase
-            .from("reactions")
-            .insert({
-                from_user_id: fromUserId,
-                to_user_id: toUserId,
-                type: "cat"
-            });
-
-        if (insertError) {
-
-            if (
-                insertError.code === "23505"
-            ) {
-                return res.status(400).json({
-                    error:
-                        "You already gave this person a Cat."
-                });
-            }
-
-            return res.status(500).json({
-                error: insertError.message
-            });
-        }
-
-        const {
-            count,
-            error: countError
-        } = await supabase
-            .from("reactions")
-            .select("*", {
-                count: "exact",
-                head: true
-            })
-            .eq("to_user_id", toUserId)
-            .eq("type", "cat");
-
-        if (countError) {
-            return res.status(500).json({
-                error: countError.message
-            });
-        }
-
-        res.json({
-            success: true,
-            cat: count || 0
-        });
-
-    } catch (error) {
-
-        console.error(
-            "CAT ERROR:",
-            error
+app.post(
+    "/api/users/:id/gyatt",
+    async (req, res) => {
+        await addReaction(
+            req,
+            res,
+            "gyatt"
         );
-
-        res.status(500).json({
-            error: "Server error."
-        });
     }
-});
-app.post("/api/users/:id/gyatt", async (req, res) => {
-    try {
-        if (!req.session.user) {
-            return res.status(401).json({
-                error: "You must be logged in."
-            });
-        }
+);
 
-        const fromUserId =
-            req.session.user.id;
-
-        const toUserId =
-            req.params.id;
-
-        if (fromUserId === toUserId) {
-            return res.status(400).json({
-                error: "You cannot react to yourself."
-            });
-        }
-
-        const {
-            error: insertError
-        } = await supabase
-            .from("reactions")
-            .insert({
-                from_user_id: fromUserId,
-                to_user_id: toUserId,
-                type: "gyatt"
-            });
-
-        if (insertError) {
-
-            if (
-                insertError.code === "23505"
-            ) {
-                return res.status(400).json({
-                    error:
-                        "You already gave this person a Gyatt."
-                });
-            }
-
-            return res.status(500).json({
-                error: insertError.message
-            });
-        }
-
-        const {
-            count,
-            error: countError
-        } = await supabase
-            .from("reactions")
-            .select("*", {
-                count: "exact",
-                head: true
-            })
-            .eq("to_user_id", toUserId)
-            .eq("type", "gyatt");
-
-        if (countError) {
-            return res.status(500).json({
-                error: countError.message
-            });
-        }
-
-        res.json({
-            success: true,
-            gyatt: count || 0
-        });
-
-    } catch (error) {
-
-        console.error(
-            "GYATT ERROR:",
-            error
+app.post(
+    "/api/users/:id/cat",
+    async (req, res) => {
+        await addReaction(
+            req,
+            res,
+            "cat"
         );
-
-        res.status(500).json({
-            error: "Server error."
-        });
     }
-});
-app.post("/api/users/:id/ogred", async (req, res) => {
-    try {
-        if (!req.session.user) {
-            return res.status(401).json({
-                error: "You must be logged in."
-            });
-        }
+);
 
-        const fromUserId =
-            req.session.user.id;
-
-        const toUserId =
-            req.params.id;
-
-        if (fromUserId === toUserId) {
-            return res.status(400).json({
-                error: "You cannot react to yourself."
-            });
-        }
-
-        const {
-            error: insertError
-        } = await supabase
-            .from("reactions")
-            .insert({
-                from_user_id: fromUserId,
-                to_user_id: toUserId,
-                type: "ogred"
-            });
-
-        if (insertError) {
-
-            if (
-                insertError.code === "23505"
-            ) {
-                return res.status(400).json({
-                    error:
-                        "You already Ogred this person."
-                });
-            }
-
-            return res.status(500).json({
-                error: insertError.message
-            });
-        }
-
-        const {
-            count,
-            error: countError
-        } = await supabase
-            .from("reactions")
-            .select("*", {
-                count: "exact",
-                head: true
-            })
-            .eq("to_user_id", toUserId)
-            .eq("type", "ogred");
-
-        if (countError) {
-            return res.status(500).json({
-                error: countError.message
-            });
-        }
-
-        res.json({
-            success: true,
-            ogred: count || 0
-        });
-
-    } catch (error) {
-
-        console.error(
-            "OGRED ERROR:",
-            error
+app.post(
+    "/api/users/:id/ogred",
+    async (req, res) => {
+        await addReaction(
+            req,
+            res,
+            "ogred"
         );
-
-        res.status(500).json({
-            error: "Server error."
-        });
     }
-});
+);
+
 // ==================================================
 // SHREKCHAT
 // ==================================================
-
 
 // ==================================================
 // GET ROOMS
 // ==================================================
 
-app.get("/api/chat/rooms", async (req, res) => {
+app.get(
+    "/api/chat/rooms",
+    async (req, res) => {
 
-    try {
+        try {
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
 
-        if (!req.session.user) {
-            return res.status(401).json({
-                error: "You must be logged in."
-            });
-        }
+            const userId =
+                req.session.user.id;
 
-        const userId =
-            req.session.user.id;
-
-
-        const {
-            data: rooms,
-            error: roomError
-        } = await supabase
-            .from("chat_rooms")
-            .select(`
-                id,
-                name,
-                created_by,
-                is_private,
-                created_at
-            `)
-            .order("created_at", {
-                ascending: true
-            });
-
-
-        if (roomError) {
-            return res.status(500).json({
-                error: roomError.message
-            });
-        }
-
-
-        const {
-            data: memberships,
-            error: memberError
-        } = await supabase
-            .from("chat_members")
-            .select("room_id")
-            .eq("user_id", userId);
-
-
-        if (memberError) {
-            return res.status(500).json({
-                error: memberError.message
-            });
-        }
-
-
-        const memberRooms =
-            new Set(
-                (memberships || [])
-                    .map(member =>
-                        member.room_id
-                    )
-            );
-
-
-        const visibleRooms =
-            (rooms || []).filter(room => {
-
-                if (!room.is_private) {
-                    return true;
-                }
-
-                return (
-                    room.created_by === userId ||
-                    memberRooms.has(room.id)
+            const {
+                data: rooms,
+                error: roomError
+            } = await supabase
+                .from("chat_rooms")
+                .select(`
+                    id,
+                    name,
+                    created_by,
+                    is_private,
+                    created_at
+                `)
+                .order(
+                    "created_at",
+                    {
+                        ascending: true
+                    }
                 );
 
+            if (roomError) {
+                return res.status(500).json({
+                    error:
+                        roomError.message
+                });
+            }
+
+            const {
+                data: memberships,
+                error: memberError
+            } = await supabase
+                .from("chat_members")
+                .select(
+                    "room_id"
+                )
+                .eq(
+                    "user_id",
+                    userId
+                );
+
+            if (memberError) {
+                return res.status(500).json({
+                    error:
+                        memberError.message
+                });
+            }
+
+            const memberRooms =
+                new Set(
+                    (memberships || [])
+                        .map(
+                            member =>
+                                member.room_id
+                        )
+                );
+
+            const visibleRooms =
+                (rooms || [])
+                    .filter(room => {
+
+                        if (!room.is_private) {
+                            return true;
+                        }
+
+                        return (
+                            room.created_by ===
+                            userId ||
+
+                            memberRooms.has(
+                                room.id
+                            )
+                        );
+                    });
+
+            res.json(
+                visibleRooms
+            );
+
+        } catch (error) {
+            console.error(
+                "GET ROOMS ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
             });
-
-
-        res.json(visibleRooms);
-
-    } catch (error) {
-
-        console.error(
-            "GET ROOMS ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error: "Server error."
-        });
-
+        }
     }
-
-});
-
+);
 
 // ==================================================
 // CREATE ROOM
 // ==================================================
 
-app.post("/api/chat/rooms", async (req, res) => {
+app.post(
+    "/api/chat/rooms",
+    async (req, res) => {
 
-    try {
+        try {
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
 
-        if (!req.session.user) {
-            return res.status(401).json({
-                error: "You must be logged in."
-            });
-        }
+            const name =
+                String(
+                    req.body.name || ""
+                ).trim();
 
+            const isPrivate =
+                req.body.is_private === true;
 
-        const name =
-            String(
-                req.body.name || ""
-            ).trim();
+            if (!name) {
+                return res.status(400).json({
+                    error:
+                        "Room name cannot be empty."
+                });
+            }
 
+            if (name.length > 50) {
+                return res.status(400).json({
+                    error:
+                        "Room name is too long."
+                });
+            }
 
-        const isPrivate =
-            req.body.is_private === true;
+            const {
+                data: room,
+                error
+            } = await supabase
+                .from("chat_rooms")
+                .insert({
+                    name,
 
+                    created_by:
+                        req.session.user.id,
 
-        if (!name) {
-            return res.status(400).json({
-                error:
-                    "Room name cannot be empty."
-            });
-        }
+                    is_private:
+                        isPrivate
+                })
+                .select()
+                .single();
 
+            if (error) {
+                console.error(
+                    "CREATE ROOM ERROR:",
+                    error
+                );
 
-        if (name.length > 50) {
-            return res.status(400).json({
-                error:
-                    "Room name is too long."
-            });
-        }
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
 
+            // Creator automatically joins
+            const {
+                error: memberError
+            } = await supabase
+                .from("chat_members")
+                .insert({
+                    room_id:
+                        room.id,
 
-        const {
-            data: room,
-            error
-        } = await supabase
-            .from("chat_rooms")
-            .insert({
+                    user_id:
+                        req.session.user.id
+                });
 
-                name,
+            if (memberError) {
 
-                created_by:
-                    req.session.user.id,
+                await supabase
+                    .from("chat_rooms")
+                    .delete()
+                    .eq(
+                        "id",
+                        room.id
+                    );
 
-                is_private:
-                    isPrivate
+                return res.status(500).json({
+                    error:
+                        memberError.message
+                });
+            }
 
-            })
-            .select()
-            .single();
+            res.status(201).json(
+                room
+            );
 
-
-        if (error) {
-
+        } catch (error) {
             console.error(
                 "CREATE ROOM ERROR:",
                 error
             );
 
-            return res.status(500).json({
-                error: error.message
-            });
-
-        }
-
-
-        // Creator automatically joins
-
-        const {
-            error: memberError
-        } = await supabase
-            .from("chat_members")
-            .insert({
-
-                room_id:
-                    room.id,
-
-                user_id:
-                    req.session.user.id
-
-            });
-
-
-        if (memberError) {
-
-            await supabase
-                .from("chat_rooms")
-                .delete()
-                .eq("id", room.id);
-
-
-            return res.status(500).json({
+            res.status(500).json({
                 error:
-                    memberError.message
+                    "Server error."
             });
-
         }
-
-
-        res.status(201).json(room);
-
-
-    } catch (error) {
-
-        console.error(
-            "CREATE ROOM ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error: "Server error."
-        });
-
     }
-
-});
-
+);
 
 // ==================================================
 // JOIN ROOM
@@ -1898,7 +1858,6 @@ app.post(
     async (req, res) => {
 
         try {
-
             if (!req.session.user) {
                 return res.status(401).json({
                     error:
@@ -1906,13 +1865,11 @@ app.post(
                 });
             }
 
-
             const roomId =
                 req.params.roomId;
 
             const userId =
                 req.session.user.id;
-
 
             const {
                 data: room,
@@ -1924,16 +1881,18 @@ app.post(
                     created_by,
                     is_private
                 `)
-                .eq("id", roomId)
+                .eq(
+                    "id",
+                    roomId
+                )
                 .maybeSingle();
-
 
             if (error) {
                 return res.status(500).json({
-                    error: error.message
+                    error:
+                        error.message
                 });
             }
-
 
             if (!room) {
                 return res.status(404).json({
@@ -1942,16 +1901,16 @@ app.post(
                 });
             }
 
-
             // Private room access check
-
             if (room.is_private) {
 
                 const {
                     data: membership
                 } = await supabase
                     .from("chat_members")
-                    .select("room_id")
+                    .select(
+                        "room_id"
+                    )
                     .eq(
                         "room_id",
                         roomId
@@ -1962,41 +1921,34 @@ app.post(
                     )
                     .maybeSingle();
 
-
                 if (
                     !membership &&
                     room.created_by !== userId
                 ) {
-
                     return res.status(403).json({
                         error:
                             "🔒 You need an invitation to enter this room."
                     });
-
                 }
-
             }
-
-
-            // Public room OR already invited
 
             const {
                 error: joinError
             } = await supabase
                 .from("chat_members")
-                .upsert({
+                .upsert(
+                    {
+                        room_id:
+                            roomId,
 
-                    room_id:
-                        roomId,
-
-                    user_id:
-                        userId
-
-                }, {
-                    onConflict:
-                        "room_id,user_id"
-                });
-
+                        user_id:
+                            userId
+                    },
+                    {
+                        onConflict:
+                            "room_id,user_id"
+                    }
+                );
 
             if (joinError) {
                 return res.status(500).json({
@@ -2005,28 +1957,23 @@ app.post(
                 });
             }
 
-
             res.json({
                 success: true
             });
 
-
         } catch (error) {
-
             console.error(
                 "JOIN ERROR:",
                 error
             );
 
             res.status(500).json({
-                error: "Server error."
+                error:
+                    "Server error."
             });
-
         }
-
     }
 );
-
 
 // ==================================================
 // LEAVE ROOM
@@ -2037,14 +1984,12 @@ app.post(
     async (req, res) => {
 
         try {
-
             if (!req.session.user) {
                 return res.status(401).json({
                     error:
                         "You must be logged in."
                 });
             }
-
 
             const {
                 error
@@ -2060,7 +2005,6 @@ app.post(
                     req.session.user.id
                 );
 
-
             if (error) {
                 return res.status(500).json({
                     error:
@@ -2068,23 +2012,23 @@ app.post(
                 });
             }
 
-
             res.json({
                 success: true
             });
 
-
         } catch (error) {
+            console.error(
+                "LEAVE ERROR:",
+                error
+            );
 
             res.status(500).json({
-                error: "Server error."
+                error:
+                    "Server error."
             });
-
         }
-
     }
 );
-
 
 // ==================================================
 // DELETE ROOM
@@ -2095,7 +2039,6 @@ app.delete(
     async (req, res) => {
 
         try {
-
             if (!req.session.user) {
                 return res.status(401).json({
                     error:
@@ -2103,18 +2046,18 @@ app.delete(
                 });
             }
 
-
             const {
                 data: room
             } = await supabase
                 .from("chat_rooms")
-                .select("created_by")
+                .select(
+                    "created_by"
+                )
                 .eq(
                     "id",
                     req.params.roomId
                 )
                 .maybeSingle();
-
 
             if (!room) {
                 return res.status(404).json({
@@ -2123,19 +2066,15 @@ app.delete(
                 });
             }
 
-
             if (
                 room.created_by !==
                 req.session.user.id
             ) {
-
                 return res.status(403).json({
                     error:
                         "Only the room creator can delete it."
                 });
-
             }
-
 
             const {
                 error
@@ -2147,7 +2086,6 @@ app.delete(
                     req.params.roomId
                 );
 
-
             if (error) {
                 return res.status(500).json({
                     error:
@@ -2155,23 +2093,23 @@ app.delete(
                 });
             }
 
-
             res.json({
                 success: true
             });
 
-
         } catch (error) {
+            console.error(
+                "DELETE ROOM ERROR:",
+                error
+            );
 
             res.status(500).json({
-                error: "Server error."
+                error:
+                    "Server error."
             });
-
         }
-
     }
 );
-
 
 // ==================================================
 // GET INVITABLE USERS
@@ -2182,7 +2120,6 @@ app.get(
     async (req, res) => {
 
         try {
-
             if (!req.session.user) {
                 return res.status(401).json({
                     error:
@@ -2190,10 +2127,8 @@ app.get(
                 });
             }
 
-
             const roomId =
                 req.params.roomId;
-
 
             const {
                 data: room
@@ -2209,7 +2144,6 @@ app.get(
                 )
                 .maybeSingle();
 
-
             if (!room) {
                 return res.status(404).json({
                     error:
@@ -2217,39 +2151,36 @@ app.get(
                 });
             }
 
-
             if (
                 room.created_by !==
                 req.session.user.id
             ) {
-
                 return res.status(403).json({
                     error:
                         "Only the creator can invite people."
                 });
-
             }
-
 
             const {
                 data: members
             } = await supabase
                 .from("chat_members")
-                .select("user_id")
+                .select(
+                    "user_id"
+                )
                 .eq(
                     "room_id",
                     roomId
                 );
 
-
             const memberIds =
                 new Set(
                     (members || [])
-                        .map(member =>
-                            member.user_id
+                        .map(
+                            member =>
+                                member.user_id
                         )
                 );
-
 
             const {
                 data: users,
@@ -2260,10 +2191,7 @@ app.get(
                     id,
                     username,
                     display_name,
-                    avatar,
-                    cat,
-                    gyatt,
-                    ogred
+                    avatar
                 `)
                 .order(
                     "username",
@@ -2272,38 +2200,45 @@ app.get(
                     }
                 );
 
-
             if (error) {
                 return res.status(500).json({
-                    error: error.message
+                    error:
+                        error.message
                 });
             }
 
+            const result =
+                (users || [])
+                    .filter(
+                        user =>
+                            !memberIds.has(
+                                user.id
+                            )
+                    )
+                    .map(user => ({
+                        ...user,
 
-            res.json(
-                (users || []).filter(
-                    user =>
-                        !memberIds.has(user.id)
-                )
-            );
+                        avatar:
+                            getAvatar(
+                                user.avatar
+                            )
+                    }));
 
+            res.json(result);
 
         } catch (error) {
-
             console.error(
                 "INVITE USERS ERROR:",
                 error
             );
 
             res.status(500).json({
-                error: "Server error."
+                error:
+                    "Server error."
             });
-
         }
-
     }
 );
-
 
 // ==================================================
 // INVITE USER
@@ -2314,7 +2249,6 @@ app.post(
     async (req, res) => {
 
         try {
-
             if (!req.session.user) {
                 return res.status(401).json({
                     error:
@@ -2322,13 +2256,11 @@ app.post(
                 });
             }
 
-
             const roomId =
                 req.params.roomId;
 
             const invitedUserId =
                 req.body.user_id;
-
 
             if (!invitedUserId) {
                 return res.status(400).json({
@@ -2336,7 +2268,6 @@ app.post(
                         "No user selected."
                 });
             }
-
 
             const {
                 data: room
@@ -2352,7 +2283,6 @@ app.post(
                 )
                 .maybeSingle();
 
-
             if (!room) {
                 return res.status(404).json({
                     error:
@@ -2360,19 +2290,15 @@ app.post(
                 });
             }
 
-
             if (
                 room.created_by !==
                 req.session.user.id
             ) {
-
                 return res.status(403).json({
                     error:
                         "Only the creator can invite people."
                 });
-
             }
-
 
             const {
                 data: user
@@ -2385,7 +2311,6 @@ app.post(
                 )
                 .maybeSingle();
 
-
             if (!user) {
                 return res.status(404).json({
                     error:
@@ -2393,24 +2318,23 @@ app.post(
                 });
             }
 
-
             const {
                 error
             } = await supabase
                 .from("chat_members")
-                .upsert({
+                .upsert(
+                    {
+                        room_id:
+                            roomId,
 
-                    room_id:
-                        roomId,
-
-                    user_id:
-                        invitedUserId
-
-                }, {
-                    onConflict:
-                        "room_id,user_id"
-                });
-
+                        user_id:
+                            invitedUserId
+                    },
+                    {
+                        onConflict:
+                            "room_id,user_id"
+                    }
+                );
 
             if (error) {
                 return res.status(500).json({
@@ -2419,28 +2343,23 @@ app.post(
                 });
             }
 
-
             res.json({
                 success: true
             });
 
-
         } catch (error) {
-
             console.error(
                 "INVITE ERROR:",
                 error
             );
 
             res.status(500).json({
-                error: "Server error."
+                error:
+                    "Server error."
             });
-
         }
-
     }
 );
-
 
 // ==================================================
 // GET MESSAGES
@@ -2451,7 +2370,6 @@ app.get(
     async (req, res) => {
 
         try {
-
             if (!req.session.user) {
                 return res.status(401).json({
                     error:
@@ -2459,21 +2377,20 @@ app.get(
                 });
             }
 
-
             const roomId =
                 req.params.roomId;
 
             const userId =
                 req.session.user.id;
 
-
             // Verify membership
-
             const {
                 data: membership
             } = await supabase
                 .from("chat_members")
-                .select("room_id")
+                .select(
+                    "room_id"
+                )
                 .eq(
                     "room_id",
                     roomId
@@ -2484,14 +2401,12 @@ app.get(
                 )
                 .maybeSingle();
 
-
             if (!membership) {
                 return res.status(403).json({
                     error:
                         "You are not a member of this room."
                 });
             }
-
 
             const {
                 data: messages,
@@ -2517,7 +2432,6 @@ app.get(
                 )
                 .limit(200);
 
-
             if (error) {
                 return res.status(500).json({
                     error:
@@ -2525,9 +2439,7 @@ app.get(
                 });
             }
 
-
             const result = [];
-
 
             for (
                 const message of
@@ -2539,12 +2451,10 @@ app.get(
                 } = await supabase
                     .from("profiles")
                     .select(`
+                        id,
                         username,
                         display_name,
-                        avatar,
-                        cat,
-                        gyatt,
-                        ogred
+                        avatar
                     `)
                     .eq(
                         "id",
@@ -2552,9 +2462,25 @@ app.get(
                     )
                     .maybeSingle();
 
+                let reactions = {
+                    gyatt: 0,
+                    cat: 0,
+                    ogred: 0
+                };
+
+                try {
+                    reactions =
+                        await getReactionCounts(
+                            message.user_id
+                        );
+                } catch (reactionError) {
+                    console.error(
+                        "MESSAGE REACTION ERROR:",
+                        reactionError
+                    );
+                }
 
                 result.push({
-
                     ...message,
 
                     username:
@@ -2567,45 +2493,36 @@ app.get(
                         "User",
 
                     avatar:
-                        profile?.avatar ||
-                        null,
+                        getAvatar(
+                            profile?.avatar
+                        ),
 
                     cat:
-                        profile?.cat ||
-                        0,
+                        reactions.cat,
 
                     gyatt:
-                        profile?.gyatt ||
-                        0,
+                        reactions.gyatt,
 
                     ogred:
-                        profile?.ogred ||
-                        0
-
+                        reactions.ogred
                 });
-
             }
-
 
             res.json(result);
 
-
         } catch (error) {
-
             console.error(
                 "MESSAGES ERROR:",
                 error
             );
 
             res.status(500).json({
-                error: "Server error."
+                error:
+                    "Server error."
             });
-
         }
-
     }
 );
-
 
 // ==================================================
 // SEND MESSAGE
@@ -2616,7 +2533,6 @@ app.post(
     async (req, res) => {
 
         try {
-
             if (!req.session.user) {
                 return res.status(401).json({
                     error:
@@ -2624,21 +2540,20 @@ app.post(
                 });
             }
 
-
             const roomId =
                 req.params.roomId;
 
             const userId =
                 req.session.user.id;
 
-
             // Must be member
-
             const {
                 data: membership
             } = await supabase
                 .from("chat_members")
-                .select("room_id")
+                .select(
+                    "room_id"
+                )
                 .eq(
                     "room_id",
                     roomId
@@ -2649,7 +2564,6 @@ app.post(
                 )
                 .maybeSingle();
 
-
             if (!membership) {
                 return res.status(403).json({
                     error:
@@ -2657,12 +2571,10 @@ app.post(
                 });
             }
 
-
             const content =
                 String(
                     req.body.content || ""
                 ).trim();
-
 
             if (!content) {
                 return res.status(400).json({
@@ -2671,7 +2583,6 @@ app.post(
                 });
             }
 
-
             if (content.length > 1000) {
                 return res.status(400).json({
                     error:
@@ -2679,14 +2590,12 @@ app.post(
                 });
             }
 
-
             const {
                 data,
                 error
             } = await supabase
                 .from("chat_messages")
                 .insert({
-
                     room_id:
                         roomId,
 
@@ -2694,11 +2603,9 @@ app.post(
                         userId,
 
                     content
-
                 })
                 .select()
                 .single();
-
 
             if (error) {
                 return res.status(500).json({
@@ -2707,64 +2614,79 @@ app.post(
                 });
             }
 
-
-            res.status(201).json(data);
-
+            res.status(201).json(
+                data
+            );
 
         } catch (error) {
-
             console.error(
                 "SEND MESSAGE ERROR:",
                 error
             );
 
             res.status(500).json({
-                error: "Server error."
+                error:
+                    "Server error."
             });
-
         }
-
     }
 );
-
 
 // ==================================================
 // HEARTBEAT / LAST SEEN
 // ==================================================
 
-app.post("/api/heartbeat", async (req, res) => {
-    try {
-        if (!req.session.user) {
-            return res.status(401).json({
-                error: "You must be logged in."
+app.post(
+    "/api/heartbeat",
+    async (req, res) => {
+
+        try {
+            if (!req.session.user) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
+
+            const {
+                error
+            } = await supabase
+                .from("profiles")
+                .update({
+                    last_seen:
+                        new Date()
+                            .toISOString()
+                })
+                .eq(
+                    "id",
+                    req.session.user.id
+                );
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+            res.json({
+                success: true
+            });
+
+        } catch (error) {
+            console.error(
+                "HEARTBEAT ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
             });
         }
-
-        const { error } = await supabase
-            .from("profiles")
-            .update({
-                last_seen: new Date().toISOString()
-            })
-            .eq("id", req.session.user.id);
-
-        if (error) {
-            return res.status(500).json({
-                error: error.message
-            });
-        }
-
-        res.json({
-            success: true
-        });
-
-    } catch (error) {
-        console.error("HEARTBEAT ERROR:", error);
-
-        res.status(500).json({
-            error: "Server error."
-        });
     }
-});
+);
+
 // ==================================================
 // START
 // ==================================================
