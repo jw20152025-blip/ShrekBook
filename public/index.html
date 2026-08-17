@@ -639,7 +639,26 @@ async function updateOnlineStatus() {
 
 }
 
+async function sendHeartbeat() {
+    try {
+        const response = await fetch("/api/heartbeat", {
+            method: "POST",
+            credentials: "include"
+        });
 
+        if (!response.ok) {
+            console.log("Heartbeat failed:", response.status);
+        }
+    } catch (error) {
+        console.error("Heartbeat error:", error);
+    }
+}
+
+// Send immediately
+sendHeartbeat();
+
+// Then every 30 seconds
+setInterval(sendHeartbeat, 30000);
 // Tell the server we're online immediately
 updateOnlineStatus();
 
@@ -650,6 +669,7 @@ setInterval(
     updateOnlineStatus,
     30 * 1000
 );
+
 </script>
 
 <h2>Other</h2>

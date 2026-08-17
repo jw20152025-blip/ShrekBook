@@ -378,18 +378,46 @@ nav a {
     color: #888;
 }
 
-.online-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #28c840;
-    display: inline-block;
+
+/* ==========================================
+   ONLINE STATUS
+   ========================================== */
+
+.person-avatar-wrapper {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    flex-shrink: 0;
 }
 
-.offline-dot {
-    width: 8px;
-    height: 8px;
+.person-avatar {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
     border-radius: 50%;
-    background: #888;
-    display: inline-block;
+    display: block;
+}
+
+.online-dot {
+    position: absolute;
+
+    width: 15px;
+    height: 15px;
+
+    right: 0;
+    bottom: 0;
+
+    border-radius: 50%;
+
+    border: 3px solid white;
+
+    box-sizing: border-box;
+}
+
+.online-dot.online {
+    background: #22c55e;
+}
+
+.online-dot.offline {
+    background: #9ca3af;
 }

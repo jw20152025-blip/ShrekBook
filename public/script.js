@@ -1,215 +1,254 @@
 /* ==================================================
-SHREKBOOK CLIENT SCRIPT
-================================================== */
+   SHREKBOOK - COMPLETE SCRIPT.JS
+   ================================================== */
+
+let currentUser = null;
 
 
 /* ==================================================
-ESCAPE HTML
-================================================== */
+   DEFAULT AVATAR
+   ================================================== */
 
-function escapeHtml(text) {
+// We use a built-in SVG instead of requesting
+// /default-avatar.png, so there is no 404.
+const DEFAULT_AVATAR =
+    "data:image/svg+xml;charset=UTF-8," +
+    encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg"
+             width="200"
+             height="200"
+             viewBox="0 0 200 200">
 
-    const div =
-        document.createElement("div");
+            <rect width="200"
+                  height="200"
+                  fill="#7fbf3f"/>
 
-    div.textContent =
-        text ?? "";
+            <circle
+                cx="100"
+                cy="78"
+                r="45"
+                fill="#9bd45a"/>
 
-    return div.innerHTML;
-}
+            <ellipse
+                cx="70"
+                cy="35"
+                rx="18"
+                ry="12"
+                fill="#9bd45a"/>
+
+            <ellipse
+                cx="130"
+                cy="35"
+                rx="18"
+                ry="12"
+                fill="#9bd45a"/>
+
+            <circle
+                cx="83"
+                cy="75"
+                r="7"
+                fill="#222"/>
+
+            <circle
+                cx="117"
+                cy="75"
+                r="7"
+                fill="#222"/>
+
+            <path
+                d="M75 105 Q100 120 125 105"
+                fill="none"
+                stroke="#222"
+                stroke-width="5"
+                stroke-linecap="round"/>
+
+            <text
+                x="100"
+                y="170"
+                text-anchor="middle"
+                font-size="20"
+                font-family="Arial">
+                🧌
+            </text>
+
+        </svg>
+    `);
 
 
 /* ==================================================
-WARNING
-================================================== */
+   HELPERS
+   ================================================== */
 
-function warn() {
+function getAvatar(avatar) {
 
-    const element =
-        document.getElementById(
-            "upload-avatar-button-warn"
-        );
-
-    if (element) {
-
-        element.innerHTML =
-            "When changing your avatar, do not press the Save Profile button. Instead, press Upload Avatar.";
-
+    if (
+        typeof avatar === "string" &&
+        avatar.trim() !== ""
+    ) {
+        return avatar;
     }
 
+    return DEFAULT_AVATAR;
+}
+
+
+function escapeHTML(value) {
+
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+function formatDate(dateString) {
+
+    if (!dateString) {
+        return "";
+    }
+
+    const date = new Date(dateString);
+
+    if (isNaN(date.getTime())) {
+        return "";
+    }
+
+    return date.toLocaleString();
 }
 
 
 /* ==================================================
-FILE -> BASE64
-================================================== */
+   ONLINE STATUS
+   ================================================== */
 
-function fileToBase64(file) {
-
-    return new Promise((resolve, reject) => {
-
-        const reader =
-            new FileReader();
-
-        reader.onload = () => {
-
-            const result =
-                reader.result;
-
-            const base64 =
-                result.split(",")[1];
-
-            resolve(base64);
-
-        };
-
-        reader.onerror = () => {
-
-            reject(
-                new Error(
-                    "Could not read image."
-                )
-            );
-
-        };
-
-        reader.readAsDataURL(file);
-
-    });
-
-}
-
-async function giveReaction(type) {
-
-    const userId =
-        new URLSearchParams(
-            window.location.search
-        ).get("id");
-
-    if (!userId) {
-        return;
-    }
+async function sendHeartbeat() {
 
     try {
 
-        const response =
-            await fetch(
-                `/api/users/${userId}/${type}`,
-                {
-                    method: "POST"
-                }
-            );
+        const response = await fetch(
+            "/api/heartbeat",
+            {
+                method: "POST",
+                credentials: "include"
+            }
+        );
 
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-            alert(
-                "❌ " +
-                data.error
-            );
-
+        if (response.status === 401) {
             return;
         }
 
-        if (type === "gyatt") {
+        if (!response.ok) {
 
-            document.getElementById(
-                "gyatt-count"
-            ).textContent =
-                data.gyatt;
-
-        }
-
-        if (type === "cat") {
-
-            document.getElementById(
-                "cat-count"
-            ).textContent =
-                data.cat;
-
-        }
-
-        if (type === "ogred") {
-
-            document.getElementById(
-                "ogred-count"
-            ).textContent =
-                data.ogred;
+            console.log(
+                "Heartbeat failed:",
+                response.status
+            );
 
         }
 
     } catch (error) {
 
         console.error(
-            "REACTION ERROR:",
+            "HEARTBEAT ERROR:",
             error
         );
 
-        alert(
-            "❌ Could not react."
-        );
     }
 }
-/* ==================================================
-MAKE IMAGE OBJECT
-================================================== */
 
-async function prepareImage(file) {
 
-    if (!file) {
-        return null;
-    }
+/*
+   Send heartbeat immediately,
+   then every 30 seconds.
+*/
 
-    if (!file.type.startsWith("image/")) {
+sendHeartbeat();
 
-        throw new Error(
-            "Selected file is not an image."
-        );
+setInterval(
+    sendHeartbeat,
+    30000
+);
 
-    }
 
-    if (file.size > 5 * 1024 * 1024) {
+/*
+   Refresh the People list every 30 seconds too.
+   This is important because the green dots need
+   to update when somebody comes online/offline.
+*/
 
-        throw new Error(
-            "Image must be under 5MB."
-        );
+setInterval(
+    async () => {
 
-    }
+        if (currentUser) {
+            await loadPeople();
+        }
 
-    const data =
-        await fileToBase64(file);
-
-    return {
-
-        data: data,
-
-        type:
-            file.type,
-
-        name:
-            file.name
-
-    };
-
-}
+    },
+    30000
+);
 
 
 /* ==================================================
-LOGIN
-================================================== */
+   LOGIN / AUTH UI
+   ================================================== */
+
+function showLogin() {
+
+    const loginBox =
+        document.getElementById("login-box");
+
+    const signupBox =
+        document.getElementById("signup-box");
+
+    if (loginBox) {
+        loginBox.style.display = "block";
+    }
+
+    if (signupBox) {
+        signupBox.style.display = "none";
+    }
+}
+
+
+function showSignup() {
+
+    const loginBox =
+        document.getElementById("login-box");
+
+    const signupBox =
+        document.getElementById("signup-box");
+
+    if (loginBox) {
+        loginBox.style.display = "none";
+    }
+
+    if (signupBox) {
+        signupBox.style.display = "block";
+    }
+}
+
+
+/* ==================================================
+   LOGIN
+   ================================================== */
 
 async function login() {
 
     const email =
         document.getElementById(
             "login-email"
-        ).value.trim();
+        )?.value.trim();
 
     const password =
         document.getElementById(
             "login-password"
-        ).value;
+        )?.value;
 
     const status =
         document.getElementById(
@@ -218,15 +257,18 @@ async function login() {
 
     if (!email || !password) {
 
-        status.textContent =
-            "❌ Enter your email and password.";
+        if (status) {
+            status.textContent =
+                "❌ Enter your email and password.";
+        }
 
         return;
-
     }
 
-    status.textContent =
-        "Logging in...";
+    if (status) {
+        status.textContent =
+            "🔐 Logging in...";
+    }
 
     try {
 
@@ -234,28 +276,19 @@ async function login() {
             await fetch(
                 "/api/login",
                 {
-
-                    method:
-                        "POST",
+                    method: "POST",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
 
-                    body:
-                        JSON.stringify({
+                    credentials: "include",
 
-                            email:
-                                email,
-
-                            password:
-                                password
-
-                        })
-
+                    body: JSON.stringify({
+                        email,
+                        password
+                    })
                 }
             );
 
@@ -264,17 +297,25 @@ async function login() {
 
         if (!response.ok) {
 
-            throw new Error(
-                data.error ||
-                "Login failed."
-            );
+            if (status) {
+                status.textContent =
+                    "❌ " +
+                    (data.error ||
+                        "Login failed.");
+            }
 
+            return;
         }
 
-        status.textContent =
-            "✅ Logged in!";
+        currentUser =
+            data.user;
 
-        showApp();
+        if (status) {
+            status.textContent =
+                "✅ Login successful!";
+        }
+
+        await refreshApp();
 
     } catch (error) {
 
@@ -283,40 +324,40 @@ async function login() {
             error
         );
 
-        status.textContent =
-            "❌ " +
-            error.message;
+        if (status) {
+            status.textContent =
+                "❌ Could not connect to server.";
+        }
 
     }
-
 }
 
 
 /* ==================================================
-SIGNUP
-================================================== */
+   SIGNUP
+   ================================================== */
 
 async function signup() {
 
     const username =
         document.getElementById(
             "signup-username"
-        ).value.trim();
+        )?.value.trim();
 
-    const displayName =
+    const display_name =
         document.getElementById(
             "signup-display-name"
-        ).value.trim();
+        )?.value.trim();
 
     const email =
         document.getElementById(
             "signup-email"
-        ).value.trim();
+        )?.value.trim();
 
     const password =
         document.getElementById(
             "signup-password"
-        ).value;
+        )?.value;
 
     const status =
         document.getElementById(
@@ -329,15 +370,18 @@ async function signup() {
         !password
     ) {
 
-        status.textContent =
-            "❌ Fill in all required fields.";
+        if (status) {
+            status.textContent =
+                "❌ Please fill in all required fields.";
+        }
 
         return;
-
     }
 
-    status.textContent =
-        "Creating account...";
+    if (status) {
+        status.textContent =
+            "📝 Creating account...";
+    }
 
     try {
 
@@ -345,35 +389,28 @@ async function signup() {
             await fetch(
                 "/api/signup",
                 {
-
-                    method:
-                        "POST",
+                    method: "POST",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
 
-                    body:
-                        JSON.stringify({
+                    credentials: "include",
 
-                            username:
-                                username,
+                    body: JSON.stringify({
 
-                            display_name:
-                                displayName ||
-                                username,
+                        username,
 
-                            email:
-                                email,
+                        display_name:
+                            display_name ||
+                            username,
 
-                            password:
-                                password
+                        email,
 
-                        })
+                        password
 
+                    })
                 }
             );
 
@@ -382,15 +419,24 @@ async function signup() {
 
         if (!response.ok) {
 
-            throw new Error(
-                data.error ||
-                "Signup failed."
-            );
+            if (status) {
+                status.textContent =
+                    "❌ " +
+                    (data.error ||
+                        "Signup failed.");
+            }
 
+            return;
         }
 
-        status.textContent =
-            "✅ Account created!";
+        if (status) {
+            status.textContent =
+                "✅ Account created! You can now log in.";
+        }
+
+        document.getElementById(
+            "login-email"
+        ).value = email;
 
         showLogin();
 
@@ -401,218 +447,18 @@ async function signup() {
             error
         );
 
-        status.textContent =
-            "❌ " +
-            error.message;
-
-    }
-
-}
-
-
-/* ==================================================
-AUTH UI
-================================================== */
-
-function showSignup() {
-
-    const loginBox =
-        document.getElementById(
-            "login-box"
-        );
-
-    const signupBox =
-        document.getElementById(
-            "signup-box"
-        );
-
-    if (loginBox) {
-
-        loginBox.style.display =
-            "none";
-
-    }
-
-    if (signupBox) {
-
-        signupBox.style.display =
-            "block";
-
-    }
-
-}
-
-
-function showLogin() {
-
-    const loginBox =
-        document.getElementById(
-            "login-box"
-        );
-
-    const signupBox =
-        document.getElementById(
-            "signup-box"
-        );
-
-    if (loginBox) {
-
-        loginBox.style.display =
-            "block";
-
-    }
-
-    if (signupBox) {
-
-        signupBox.style.display =
-            "none";
-
-    }
-
-}
-
-
-/* ==================================================
-SESSION CHECK
-================================================== */
-
-async function checkLogin() {
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/me"
-            );
-
-        const data =
-            await response.json();
-
-        if (
-            response.ok &&
-            data.loggedIn &&
-            data.user
-        ) {
-
-            showApp();
-
-        } else {
-
-            showAuth();
-
+        if (status) {
+            status.textContent =
+                "❌ Could not connect to server.";
         }
 
-    } catch (error) {
-
-        console.error(
-            "SESSION ERROR:",
-            error
-        );
-
-        showAuth();
-
     }
-
 }
 
 
 /* ==================================================
-SHOW AUTH
-================================================== */
-
-function showAuth() {
-
-    const auth =
-        document.getElementById(
-            "auth-section"
-        );
-
-    const app =
-        document.getElementById(
-            "app-section"
-        );
-
-    const logoutButton =
-        document.getElementById(
-            "logout-button"
-        );
-
-    if (auth) {
-
-        auth.style.display =
-            "block";
-
-    }
-
-    if (app) {
-
-        app.style.display =
-            "none";
-
-    }
-
-    if (logoutButton) {
-
-        logoutButton.style.display =
-            "none";
-
-    }
-
-}
-
-
-/* ==================================================
-SHOW APP
-================================================== */
-
-function showApp() {
-
-    const auth =
-        document.getElementById(
-            "auth-section"
-        );
-
-    const app =
-        document.getElementById(
-            "app-section"
-        );
-
-    const logoutButton =
-        document.getElementById(
-            "logout-button"
-        );
-
-    if (auth) {
-
-        auth.style.display =
-            "none";
-
-    }
-
-    if (app) {
-
-        app.style.display =
-            "block";
-
-    }
-
-    if (logoutButton) {
-
-        logoutButton.style.display =
-            "inline-block";
-
-    }
-
-    loadPosts();
-
-    loadPeople();
-
-}
-
-
-/* ==================================================
-LOGOUT
-================================================== */
+   LOGOUT
+   ================================================== */
 
 async function logout() {
 
@@ -621,8 +467,8 @@ async function logout() {
         await fetch(
             "/api/logout",
             {
-                method:
-                    "POST"
+                method: "POST",
+                credentials: "include"
             }
         );
 
@@ -635,23 +481,201 @@ async function logout() {
 
     }
 
-    showAuth();
+    currentUser = null;
 
+    const appSection =
+        document.getElementById(
+            "app-section"
+        );
+
+    const authSection =
+        document.getElementById(
+            "auth-section"
+        );
+
+    const logoutButton =
+        document.getElementById(
+            "logout-button"
+        );
+
+    if (appSection) {
+        appSection.style.display = "none";
+    }
+
+    if (authSection) {
+        authSection.style.display = "block";
+    }
+
+    if (logoutButton) {
+        logoutButton.style.display = "none";
+    }
+
+    showLogin();
 }
 
 
 /* ==================================================
-LOAD POSTS
-================================================== */
+   CHECK CURRENT USER
+   ================================================== */
 
-async function loadPosts() {
+async function checkLogin() {
 
-    const container =
-        document.getElementById(
-            "posts"
+    try {
+
+        const response =
+            await fetch(
+                "/api/me",
+                {
+                    credentials: "include"
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (
+            response.ok &&
+            data.loggedIn
+        ) {
+
+            currentUser =
+                data.user;
+
+            await refreshApp();
+
+            return true;
+        }
+
+        currentUser = null;
+
+        showLoggedOut();
+
+        return false;
+
+    } catch (error) {
+
+        console.error(
+            "CHECK LOGIN ERROR:",
+            error
         );
 
-    if (!container) {
+        showLoggedOut();
+
+        return false;
+    }
+}
+
+
+/* ==================================================
+   SHOW LOGGED OUT
+   ================================================== */
+
+function showLoggedOut() {
+
+    const appSection =
+        document.getElementById(
+            "app-section"
+        );
+
+    const authSection =
+        document.getElementById(
+            "auth-section"
+        );
+
+    const logoutButton =
+        document.getElementById(
+            "logout-button"
+        );
+
+    if (appSection) {
+        appSection.style.display =
+            "none";
+    }
+
+    if (authSection) {
+        authSection.style.display =
+            "block";
+    }
+
+    if (logoutButton) {
+        logoutButton.style.display =
+            "none";
+    }
+}
+
+
+/* ==================================================
+   SHOW LOGGED IN
+   ================================================== */
+
+function showLoggedIn() {
+
+    const appSection =
+        document.getElementById(
+            "app-section"
+        );
+
+    const authSection =
+        document.getElementById(
+            "auth-section"
+        );
+
+    const logoutButton =
+        document.getElementById(
+            "logout-button"
+        );
+
+    if (appSection) {
+        appSection.style.display =
+            "block";
+    }
+
+    if (authSection) {
+        authSection.style.display =
+            "none";
+    }
+
+    if (logoutButton) {
+        logoutButton.style.display =
+            "inline-block";
+    }
+}
+
+
+/* ==================================================
+   REFRESH APP
+   ================================================== */
+
+async function refreshApp() {
+
+    showLoggedIn();
+
+    /*
+       Make sure our last_seen timestamp is
+       updated immediately after login.
+    */
+
+    await sendHeartbeat();
+
+    await Promise.all([
+        loadPosts(),
+        loadPeople()
+    ]);
+}
+
+
+/* ==================================================
+   LOAD PEOPLE
+   ================================================== */
+
+async function loadPeople() {
+
+    const people =
+        document.getElementById(
+            "people"
+        );
+
+    if (!people) {
         return;
     }
 
@@ -659,7 +683,277 @@ async function loadPosts() {
 
         const response =
             await fetch(
-                "/api/posts"
+                "/api/users",
+                {
+                    credentials: "include"
+                }
+            );
+
+        const users =
+            await response.json();
+
+        if (!response.ok) {
+
+            people.innerHTML =
+                `<p>❌ ${
+                    escapeHTML(
+                        users.error ||
+                        "Could not load people."
+                    )
+                }</p>`;
+
+            return;
+        }
+
+        if (
+            !Array.isArray(users) ||
+            users.length === 0
+        ) {
+
+            people.innerHTML =
+                "<p>No users yet.</p>";
+
+            return;
+        }
+
+        people.innerHTML =
+            users.map(
+                renderPerson
+            ).join("");
+
+    } catch (error) {
+
+        console.error(
+            "LOAD PEOPLE ERROR:",
+            error
+        );
+
+        people.innerHTML =
+            "<p>❌ Could not load people.</p>";
+    }
+}
+
+
+/* ==================================================
+   RENDER PERSON
+   ================================================== */
+
+function renderPerson(user) {
+
+    const avatar =
+        getAvatar(user.avatar);
+
+    /*
+       THIS IS THE IMPORTANT PART.
+
+       The server sends:
+
+       online: true
+
+       or
+
+       online: false
+
+       We turn that into a green/gray dot.
+    */
+
+    const online =
+        user.online === true;
+
+    const onlineDot =
+        online
+            ? `
+                <span
+                    class="online-dot online"
+                    title="Online">
+                </span>
+              `
+            : `
+                <span
+                    class="online-dot offline"
+                    title="Offline">
+                </span>
+              `;
+
+    const onlineText =
+        online
+            ? "Online"
+            : "Offline";
+
+    const safeId =
+        encodeURIComponent(
+            user.id
+        );
+
+    return `
+        <div
+            class="person-card"
+            data-user-id="${escapeHTML(user.id)}">
+
+            <a
+                href="/profile.html?id=${safeId}"
+                class="person-link">
+
+                <div class="person-avatar-wrapper">
+
+                    <img
+                        class="person-avatar"
+                        src="${avatar}"
+                        alt="${escapeHTML(
+                            user.display_name ||
+                            user.username ||
+                            "User"
+                        )}"
+                        onerror="this.src='${DEFAULT_AVATAR}'">
+
+                    ${onlineDot}
+
+                </div>
+
+                <div class="person-info">
+
+                    <h3>
+                        ${escapeHTML(
+                            user.display_name ||
+                            user.username ||
+                            "User"
+                        )}
+                    </h3>
+
+                    <p>
+                        @${escapeHTML(
+                            user.username ||
+                            "user"
+                        )}
+                    </p>
+
+                    <small class="online-status-text">
+                        ${onlineText}
+                    </small>
+
+                </div>
+
+            </a>
+
+            <div class="reaction-buttons">
+
+                <button
+                    onclick="giveReaction(
+                        '${escapeHTML(user.id)}',
+                        'gyatt'
+                    )">
+
+                    🍑
+                    ${user.gyatt || 0}
+
+                </button>
+
+                <button
+                    onclick="giveReaction(
+                        '${escapeHTML(user.id)}',
+                        'cat'
+                    )">
+
+                    🐱
+                    ${user.cat || 0}
+
+                </button>
+
+                <button
+                    onclick="giveReaction(
+                        '${escapeHTML(user.id)}',
+                        'ogred'
+                    )">
+
+                    🧌
+                    ${user.ogred || 0}
+
+                </button>
+
+            </div>
+
+        </div>
+    `;
+}
+
+
+/* ==================================================
+   REACTIONS
+   ================================================== */
+
+async function giveReaction(
+    userId,
+    type
+) {
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/users/${encodeURIComponent(
+                    userId
+                )}/${type}`,
+                {
+                    method: "POST",
+                    credentials: "include"
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            alert(
+                "❌ " +
+                (
+                    data.error ||
+                    "Could not give reaction."
+                )
+            );
+
+            return;
+        }
+
+        await loadPeople();
+
+    } catch (error) {
+
+        console.error(
+            "REACTION ERROR:",
+            error
+        );
+
+        alert(
+            "❌ Could not connect to server."
+        );
+    }
+}
+
+
+/* ==================================================
+   LOAD POSTS
+   ================================================== */
+
+async function loadPosts() {
+
+    const postsContainer =
+        document.getElementById(
+            "posts"
+        );
+
+    if (!postsContainer) {
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/posts",
+                {
+                    credentials: "include"
+                }
             );
 
         const posts =
@@ -667,378 +961,242 @@ async function loadPosts() {
 
         if (!response.ok) {
 
-            throw new Error(
-                posts.error ||
-                "Could not load posts."
-            );
+            postsContainer.innerHTML =
+                `<p>❌ ${
+                    escapeHTML(
+                        posts.error ||
+                        "Could not load posts."
+                    )
+                }</p>`;
 
+            return;
         }
 
-        if (!posts.length) {
+        if (
+            !Array.isArray(posts) ||
+            posts.length === 0
+        ) {
 
-            container.innerHTML =
+            postsContainer.innerHTML =
                 "<p>No posts yet. Be the first! 🧌</p>";
 
             return;
-
         }
 
-        container.innerHTML =
-            posts.map(post => {
-
-                const avatar =
-                    post.avatar ||
-                    "/default-avatar.png";
-
-                const displayName =
-                    post.display_name ||
-                    post.username ||
-                    "User";
-
-                let imageHTML =
-                    "";
-
-                /*
-                 * IMPORTANT:
-                 * Server uses image_url
-                 */
-
-                if (post.image_url) {
-
-                    imageHTML = `
-
-                        <div
-                            class="post-image-container"
-                            style="
-                                margin-top:12px;
-                            ">
-
-                            <img
-                                src="${escapeHtml(
-                                    post.image_url
-                                )}"
-                                alt="Post image"
-                                style="
-                                    max-width:100%;
-                                    max-height:600px;
-                                    border-radius:12px;
-                                    object-fit:contain;
-                                    display:block;
-                                ">
-
-                        </div>
-
-                    `;
-
-                }
-
-                return `
-
-                    <article
-                        class="post">
-
-                        <div
-                            class="post-header"
-                            style="
-                                display:flex;
-                                align-items:center;
-                                gap:10px;
-                            ">
-
-                            <img
-                                src="${escapeHtml(
-                                    avatar
-                                )}"
-                                alt="Avatar"
-                                style="
-                                    width:45px;
-                                    height:45px;
-                                    border-radius:50%;
-                                    object-fit:cover;
-                                "
-                                onerror="
-                                    this.src='/default-avatar.png';
-                                ">
-
-                            <a
-                                href="/profile.html?id=${encodeURIComponent(
-                                    post.user_id
-                                )}"
-                                style="
-                                    text-decoration:none;
-                                    color:inherit;
-                                ">
-
-                                <strong>
-                                    ${escapeHtml(
-                                        displayName
-                                    )}
-                                </strong>
-
-                                <div>
-                                    @${escapeHtml(
-                                        post.username ||
-                                        "user"
-                                    )}
-                                </div>
-
-                            </a>
-
-                        </div>
-
-
-                        ${
-                            post.content
-                                ? `
-
-                                    <div
-                                        class="post-content"
-                                        style="
-                                            margin-top:10px;
-                                        ">
-
-                                        ${escapeHtml(
-                                            post.content
-                                        )}
-
-                                    </div>
-
-                                  `
-                                : ""
-                        }
-
-
-                        ${imageHTML}
-
-
-                        <button
-                            onclick="
-                                toggleComments(
-                                    '${escapeHtml(post.id)}'
-                                )
-                            ">
-
-                            💬 Comments
-
-                        </button>
-
-
-                        <div
-                            id="comments-${escapeHtml(post.id)}"
-                            class="comments"
-                            style="
-                                display:none;
-                            ">
-
-                            <div
-                                id="comment-list-${escapeHtml(post.id)}">
-
-                                Loading...
-
-                            </div>
-
-
-                            <div
-                                class="comment-form"
-                                style="
-                                    margin-top:10px;
-                                ">
-
-                                <input
-                                    id="comment-input-${escapeHtml(post.id)}"
-                                    placeholder="Write a comment..."
-                                    maxlength="500">
-
-
-                                <input
-                                    id="comment-image-${escapeHtml(post.id)}"
-                                    type="file"
-                                    accept="
-                                        image/png,
-                                        image/jpeg,
-                                        image/webp,
-                                        image/gif
-                                    ">
-
-
-                                <button
-                                    onclick="
-                                        submitComment(
-                                            '${escapeHtml(post.id)}'
-                                        )
-                                    ">
-
-                                    Send
-
-                                </button>
-
-
-                                <div
-                                    id="comment-preview-${escapeHtml(post.id)}"
-                                    style="
-                                        display:none;
-                                        margin-top:8px;
-                                    ">
-
-                                    <img
-                                        id="comment-preview-image-${escapeHtml(post.id)}"
-                                        alt="Comment image preview"
-                                        style="
-                                            max-width:200px;
-                                            max-height:200px;
-                                            border-radius:10px;
-                                        ">
-
-
-                                    <br>
-
-
-                                    <button
-                                        type="button"
-                                        onclick="
-                                            clearCommentImage(
-                                                '${escapeHtml(post.id)}'
-                                            )
-                                        ">
-
-                                        ❌ Remove image
-
-                                    </button>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </article>
-
-                `;
-
-            }).join("");
-
+        postsContainer.innerHTML =
+            posts.map(
+                renderPost
+            ).join("");
 
         /*
-         * Setup comment image previews
-         */
+           Comments are dynamically created,
+           so attach their image handlers now.
+        */
 
-        posts.forEach(post => {
+        for (const post of posts) {
 
-            const input =
-                document.getElementById(
-                    `comment-image-${post.id}`
-                );
-
-            const preview =
-                document.getElementById(
-                    `comment-preview-${post.id}`
-                );
-
-            const previewImage =
-                document.getElementById(
-                    `comment-preview-image-${post.id}`
-                );
-
-            if (!input) {
-                return;
-            }
-
-            input.addEventListener(
-                "change",
-                () => {
-
-                    const file =
-                        input.files[0];
-
-                    if (!file) {
-
-                        preview.style.display =
-                            "none";
-
-                        return;
-
-                    }
-
-                    if (
-                        !file.type.startsWith(
-                            "image/"
-                        )
-                    ) {
-
-                        alert(
-                            "❌ Please choose an image."
-                        );
-
-                        input.value =
-                            "";
-
-                        return;
-
-                    }
-
-                    if (
-                        file.size >
-                        5 * 1024 * 1024
-                    ) {
-
-                        alert(
-                            "❌ Image must be under 5MB."
-                        );
-
-                        input.value =
-                            "";
-
-                        return;
-
-                    }
-
-                    const reader =
-                        new FileReader();
-
-                    reader.onload =
-                        event => {
-
-                            previewImage.src =
-                                event.target.result;
-
-                            preview.style.display =
-                                "block";
-
-                        };
-
-                    reader.readAsDataURL(
-                        file
-                    );
-
-                }
+            setupCommentImagePreview(
+                post.id
             );
 
-        });
+            await loadComments(
+                post.id
+            );
+        }
 
     } catch (error) {
 
         console.error(
-            "POST ERROR:",
+            "LOAD POSTS ERROR:",
             error
         );
 
-        container.innerHTML =
-            `<p>❌ ${escapeHtml(
-                error.message
-            )}</p>`;
-
+        postsContainer.innerHTML =
+            "<p>❌ Could not load posts.</p>";
     }
-
 }
 
 
 /* ==================================================
-CREATE POST
-================================================== */
+   RENDER POST
+   ================================================== */
+
+function renderPost(post) {
+
+    const avatar =
+        getAvatar(post.avatar);
+
+    const image =
+        post.image_url
+            ? `
+                <img
+                    class="post-image"
+                    src="${escapeHTML(
+                        post.image_url
+                    )}"
+                    alt="Post image"
+                    onerror="this.style.display='none'">
+              `
+            : "";
+
+    return `
+        <article
+            class="post"
+            data-post-id="${escapeHTML(
+                post.id
+            )}">
+
+            <div class="post-header">
+
+                <a
+                    href="/profile.html?id=${encodeURIComponent(
+                        post.user_id
+                    )}">
+
+                    <img
+                        class="post-avatar"
+                        src="${avatar}"
+                        alt="Avatar"
+                        onerror="this.src='${DEFAULT_AVATAR}'">
+
+                </a>
+
+                <div>
+
+                    <a
+                        href="/profile.html?id=${encodeURIComponent(
+                            post.user_id
+                        )}">
+
+                        <strong>
+                            ${escapeHTML(
+                                post.display_name ||
+                                post.username ||
+                                "User"
+                            )}
+                        </strong>
+
+                    </a>
+
+                    <small>
+                        @${escapeHTML(
+                            post.username ||
+                            "user"
+                        )}
+                    </small>
+
+                    <small>
+                        ${formatDate(
+                            post.created_at
+                        )}
+                    </small>
+
+                </div>
+
+            </div>
+
+            ${
+                post.content
+                    ? `
+                        <div class="post-content">
+                            ${escapeHTML(
+                                post.content
+                            ).replace(
+                                /\n/g,
+                                "<br>"
+                            )}
+                        </div>
+                      `
+                    : ""
+            }
+
+            ${image}
+
+            <div
+                class="comments"
+                id="comments-${escapeHTML(
+                    post.id
+                )}">
+
+                Loading comments...
+
+            </div>
+
+            <div class="comment-form">
+
+                <textarea
+                    id="comment-content-${escapeHTML(
+                        post.id
+                    )}"
+                    maxlength="500"
+                    placeholder="Write a comment...">
+                </textarea>
+
+                <div>
+
+                    <label>
+                        🖼️ Image
+                        <input
+                            type="file"
+                            id="comment-image-${escapeHTML(
+                                post.id
+                            )}"
+                            accept="image/png,image/jpeg,image/webp,image/gif">
+                    </label>
+
+                </div>
+
+                <div
+                    id="comment-preview-${escapeHTML(
+                        post.id
+                    )}"
+                    style="display:none;">
+
+                    <img
+                        id="comment-preview-image-${escapeHTML(
+                            post.id
+                        )}"
+                        style="
+                            max-width:300px;
+                            max-height:300px;
+                            border-radius:12px;
+                        ">
+
+                    <button
+                        type="button"
+                        onclick="clearCommentImage(
+                            '${escapeHTML(post.id)}'
+                        )">
+
+                        ❌ Remove
+
+                    </button>
+
+                </div>
+
+                <button
+                    onclick="createComment(
+                        '${escapeHTML(post.id)}'
+                    )">
+
+                    💬 Comment
+
+                </button>
+
+            </div>
+
+        </article>
+    `;
+}
+
+
+/* ==================================================
+   CREATE POST
+   ================================================== */
 
 async function createPost() {
 
-    const input =
+    const contentInput =
         document.getElementById(
             "post-content"
         );
@@ -1054,67 +1212,76 @@ async function createPost() {
         );
 
     const content =
-        input?.value.trim() ||
-        "";
+        contentInput?.value.trim() || "";
 
     const file =
-        imageInput?.files?.[0] ||
-        null;
+        imageInput?.files?.[0];
 
     if (!content && !file) {
 
-        status.textContent =
-            "❌ Write something or select an image.";
+        if (status) {
+            status.textContent =
+                "❌ Post cannot be empty.";
+        }
 
         return;
-
     }
 
-    status.textContent =
-        "Posting...";
+    if (file && file.size > 5 * 1024 * 1024) {
+
+        if (status) {
+            status.textContent =
+                "❌ Image must be under 5MB.";
+        }
+
+        return;
+    }
+
+    if (status) {
+        status.textContent =
+            "📝 Posting...";
+    }
 
     try {
 
-        /*
-         * IMPORTANT:
-         * Server expects:
-         *
-         * image: {
-         *   data,
-         *   type,
-         *   name
-         * }
-         */
+        let image = null;
 
-        const image =
-            await prepareImage(file);
+        if (file) {
+
+            const fileData =
+                await fileToBase64(file);
+
+            image = {
+
+                name:
+                    file.name,
+
+                type:
+                    file.type,
+
+                data:
+                    fileData
+
+            };
+        }
 
         const response =
             await fetch(
                 "/api/posts",
                 {
-
-                    method:
-                        "POST",
+                    method: "POST",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
 
-                    body:
-                        JSON.stringify({
+                    credentials: "include",
 
-                            content:
-                                content,
-
-                            image:
-                                image
-
-                        })
-
+                    body: JSON.stringify({
+                        content,
+                        image
+                    })
                 }
             );
 
@@ -1123,51 +1290,32 @@ async function createPost() {
 
         if (!response.ok) {
 
-            throw new Error(
-                data.error ||
-                "Could not create post."
-            );
+            if (status) {
+                status.textContent =
+                    "❌ " +
+                    (
+                        data.error ||
+                        "Could not create post."
+                    );
+            }
 
+            return;
         }
 
-        input.value =
-            "";
-
-        if (imageInput) {
-
-            imageInput.value =
-                "";
-
+        if (contentInput) {
+            contentInput.value = "";
         }
 
-        const preview =
-            document.getElementById(
-                "post-image-preview"
-            );
-
-        const previewImage =
-            document.getElementById(
-                "post-preview-image"
-            );
-
-        if (preview) {
-
-            preview.style.display =
-                "none";
-
+        if (typeof clearPostImage === "function") {
+            clearPostImage();
         }
 
-        if (previewImage) {
-
-            previewImage.src =
-                "";
-
+        if (status) {
+            status.textContent =
+                "✅ Posted!";
         }
 
-        status.textContent =
-            "✅ Posted!";
-
-        loadPosts();
+        await loadPosts();
 
     } catch (error) {
 
@@ -1176,64 +1324,65 @@ async function createPost() {
             error
         );
 
-        status.textContent =
-            "❌ " +
-            error.message;
-
+        if (status) {
+            status.textContent =
+                "❌ Could not create post.";
+        }
     }
-
 }
 
 
 /* ==================================================
-TOGGLE COMMENTS
-================================================== */
+   FILE -> BASE64
+   ================================================== */
 
-async function toggleComments(postId) {
+function fileToBase64(file) {
 
-    const box =
+    return new Promise(
+        (resolve, reject) => {
+
+            const reader =
+                new FileReader();
+
+            reader.onload =
+                () => {
+
+                    const result =
+                        reader.result;
+
+                    /*
+                       Remove:
+                       data:image/png;base64,
+                    */
+
+                    const base64 =
+                        String(result)
+                            .split(",")[1];
+
+                    resolve(base64);
+                };
+
+            reader.onerror =
+                reject;
+
+            reader.readAsDataURL(file);
+        }
+    );
+}
+
+
+/* ==================================================
+   LOAD COMMENTS
+   ================================================== */
+
+async function loadComments(postId) {
+
+    const container =
         document.getElementById(
             `comments-${postId}`
         );
 
-    if (!box) {
-        return;
-    }
-
-    if (
-        box.style.display ===
-        "none"
-    ) {
-
-        box.style.display =
-            "block";
-
-        loadComments(
-            postId
-        );
-
-    } else {
-
-        box.style.display =
-            "none";
-
-    }
-
-}
-
-
-/* ==================================================
-LOAD COMMENTS
-================================================== */
-
-async function loadComments(postId) {
-
-    const list =
-        document.getElementById(
-            `comment-list-${postId}`
-        );
-
-    if (!list) {
+    if (!container) {
         return;
     }
 
@@ -1241,7 +1390,12 @@ async function loadComments(postId) {
 
         const response =
             await fetch(
-                `/api/posts/${postId}/comments`
+                `/api/posts/${encodeURIComponent(
+                    postId
+                )}/comments`,
+                {
+                    credentials: "include"
+                }
             );
 
         const comments =
@@ -1249,157 +1403,140 @@ async function loadComments(postId) {
 
         if (!response.ok) {
 
-            throw new Error(
-                comments.error ||
-                "Could not load comments."
-            );
-
-        }
-
-        if (!comments.length) {
-
-            list.innerHTML =
-                "<p>No comments yet 😼</p>";
+            container.innerHTML =
+                `<p>❌ ${
+                    escapeHTML(
+                        comments.error ||
+                        "Could not load comments."
+                    )
+                }</p>`;
 
             return;
-
         }
 
-        list.innerHTML =
-            comments.map(comment => {
+        if (
+            !Array.isArray(comments) ||
+            comments.length === 0
+        ) {
 
-                const avatar =
-                    comment.avatar ||
-                    "/default-avatar.png";
+            container.innerHTML =
+                "<p>No comments yet.</p>";
 
-                const displayName =
-                    comment.display_name ||
-                    comment.username ||
-                    "User";
+            return;
+        }
 
-                let imageHTML =
-                    "";
-
-                /*
-                 * IMPORTANT:
-                 * Server uses image_url
-                 */
-
-                if (comment.image_url) {
-
-                    imageHTML = `
-
-                        <img
-                            src="${escapeHtml(
-                                comment.image_url
-                            )}"
-                            alt="Comment image"
-                            style="
-                                max-width:300px;
-                                max-height:300px;
-                                border-radius:10px;
-                                margin-top:8px;
-                                display:block;
-                            "
-                            onerror="
-                                this.style.display='none';
-                            ">
-
-                    `;
-
-                }
-
-                return `
-
-                    <div
-                        class="comment"
-                        style="
-                            padding:10px;
-                            margin-bottom:10px;
-                        ">
-
-                        <div
-                            style="
-                                display:flex;
-                                align-items:center;
-                                gap:8px;
-                            ">
-
-                            <img
-                                src="${escapeHtml(
-                                    avatar
-                                )}"
-                                alt="Avatar"
-                                style="
-                                    width:35px;
-                                    height:35px;
-                                    border-radius:50%;
-                                    object-fit:cover;
-                                "
-                                onerror="
-                                    this.src='/default-avatar.png';
-                                ">
-
-                            <strong>
-
-                                ${escapeHtml(
-                                    displayName
-                                )}
-
-                            </strong>
-
-                        </div>
-
-
-                        ${
-                            comment.content
-                                ? `
-
-                                    <p>
-                                        ${escapeHtml(
-                                            comment.content
-                                        )}
-                                    </p>
-
-                                  `
-                                : ""
-                        }
-
-
-                        ${imageHTML}
-
-                    </div>
-
-                `;
-
-            }).join("");
+        container.innerHTML =
+            comments.map(
+                renderComment
+            ).join("");
 
     } catch (error) {
 
         console.error(
-            "COMMENTS ERROR:",
+            "LOAD COMMENTS ERROR:",
             error
         );
 
-        list.innerHTML =
-            `<p>❌ ${escapeHtml(
-                error.message
-            )}</p>`;
-
+        container.innerHTML =
+            "<p>❌ Could not load comments.</p>";
     }
-
 }
 
 
 /* ==================================================
-SUBMIT COMMENT
-================================================== */
+   RENDER COMMENT
+   ================================================== */
 
-async function submitComment(postId) {
+function renderComment(comment) {
 
-    const input =
+    const avatar =
+        getAvatar(comment.avatar);
+
+    const image =
+        comment.image_url
+            ? `
+                <img
+                    src="${escapeHTML(
+                        comment.image_url
+                    )}"
+                    style="
+                        max-width:300px;
+                        max-height:300px;
+                        border-radius:12px;
+                    "
+                    alt="Comment image">
+              `
+            : "";
+
+    return `
+        <div class="comment">
+
+            <img
+                class="comment-avatar"
+                src="${avatar}"
+                alt="Avatar"
+                onerror="this.src='${DEFAULT_AVATAR}'">
+
+            <div class="comment-body">
+
+                <div>
+
+                    <strong>
+                        ${escapeHTML(
+                            comment.display_name ||
+                            comment.username ||
+                            "User"
+                        )}
+                    </strong>
+
+                    <small>
+                        @${escapeHTML(
+                            comment.username ||
+                            "user"
+                        )}
+                    </small>
+
+                </div>
+
+                <small>
+                    ${formatDate(
+                        comment.created_at
+                    )}
+                </small>
+
+                ${
+                    comment.content
+                        ? `
+                            <p>
+                                ${escapeHTML(
+                                    comment.content
+                                ).replace(
+                                    /\n/g,
+                                    "<br>"
+                                )}
+                            </p>
+                          `
+                        : ""
+                }
+
+                ${image}
+
+            </div>
+
+        </div>
+    `;
+}
+
+
+/* ==================================================
+   CREATE COMMENT
+   ================================================== */
+
+async function createComment(postId) {
+
+    const contentInput =
         document.getElementById(
-            `comment-input-${postId}`
+            `comment-content-${postId}`
         );
 
     const imageInput =
@@ -1408,53 +1545,71 @@ async function submitComment(postId) {
         );
 
     const content =
-        input?.value.trim() ||
-        "";
+        contentInput?.value.trim() || "";
 
     const file =
-        imageInput?.files?.[0] ||
-        null;
+        imageInput?.files?.[0];
 
     if (!content && !file) {
+
+        alert(
+            "❌ Comment cannot be empty."
+        );
+
         return;
     }
 
     try {
 
-        /*
-         * Convert file to the exact
-         * object expected by server.
-         */
+        let image = null;
 
-        const image =
-            await prepareImage(file);
+        if (file) {
+
+            if (
+                file.size >
+                5 * 1024 * 1024
+            ) {
+
+                alert(
+                    "❌ Image must be under 5MB."
+                );
+
+                return;
+            }
+
+            image = {
+
+                name:
+                    file.name,
+
+                type:
+                    file.type,
+
+                data:
+                    await fileToBase64(file)
+
+            };
+        }
 
         const response =
             await fetch(
-                `/api/posts/${postId}/comments`,
+                `/api/posts/${encodeURIComponent(
+                    postId
+                )}/comments`,
                 {
-
-                    method:
-                        "POST",
+                    method: "POST",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
 
-                    body:
-                        JSON.stringify({
+                    credentials: "include",
 
-                            content:
-                                content,
-
-                            image:
-                                image
-
-                        })
-
+                    body: JSON.stringify({
+                        content,
+                        image
+                    })
                 }
             );
 
@@ -1463,51 +1618,141 @@ async function submitComment(postId) {
 
         if (!response.ok) {
 
-            throw new Error(
-                data.error ||
-                "Could not comment."
+            alert(
+                "❌ " +
+                (
+                    data.error ||
+                    "Could not create comment."
+                )
             );
 
+            return;
         }
 
-        input.value =
-            "";
-
-        if (imageInput) {
-
-            imageInput.value =
-                "";
-
+        if (contentInput) {
+            contentInput.value = "";
         }
 
-        clearCommentImage(
-            postId
-        );
+        if (
+            typeof clearCommentImage ===
+            "function"
+        ) {
+            clearCommentImage(postId);
+        }
 
-        loadComments(
-            postId
-        );
+        await loadComments(postId);
 
     } catch (error) {
 
         console.error(
-            "COMMENT ERROR:",
+            "CREATE COMMENT ERROR:",
             error
         );
 
         alert(
-            "❌ " +
-            error.message
+            "❌ Could not create comment."
         );
-
     }
-
 }
 
 
 /* ==================================================
-CLEAR COMMENT IMAGE
-================================================== */
+   COMMENT IMAGE PREVIEW
+   ================================================== */
+
+function setupCommentImagePreview(postId) {
+
+    const input =
+        document.getElementById(
+            `comment-image-${postId}`
+        );
+
+    const preview =
+        document.getElementById(
+            `comment-preview-${postId}`
+        );
+
+    const image =
+        document.getElementById(
+            `comment-preview-image-${postId}`
+        );
+
+    if (!input) {
+        return;
+    }
+
+    input.addEventListener(
+        "change",
+        () => {
+
+            const file =
+                input.files[0];
+
+            if (!file) {
+
+                clearCommentImage(
+                    postId
+                );
+
+                return;
+            }
+
+            if (!file.type.startsWith("image/")) {
+
+                alert(
+                    "❌ Please select an image."
+                );
+
+                clearCommentImage(
+                    postId
+                );
+
+                return;
+            }
+
+            if (
+                file.size >
+                5 * 1024 * 1024
+            ) {
+
+                alert(
+                    "❌ Images must be under 5MB."
+                );
+
+                clearCommentImage(
+                    postId
+                );
+
+                return;
+            }
+
+            const reader =
+                new FileReader();
+
+            reader.onload =
+                event => {
+
+                    if (image) {
+                        image.src =
+                            event.target.result;
+                    }
+
+                    if (preview) {
+                        preview.style.display =
+                            "block";
+                    }
+
+                };
+
+            reader.readAsDataURL(file);
+        }
+    );
+}
+
+
+/* ==================================================
+   CLEAR COMMENT IMAGE
+   ================================================== */
 
 function clearCommentImage(postId) {
 
@@ -1521,231 +1766,151 @@ function clearCommentImage(postId) {
             `comment-preview-${postId}`
         );
 
-    const previewImage =
+    const image =
         document.getElementById(
             `comment-preview-image-${postId}`
         );
 
     if (input) {
-
-        input.value =
-            "";
-
+        input.value = "";
     }
 
-    if (previewImage) {
-
-        previewImage.src =
-            "";
-
+    if (image) {
+        image.src = "";
     }
 
     if (preview) {
-
         preview.style.display =
             "none";
-
     }
-
 }
 
 
 /* ==================================================
-PEOPLE
-================================================== */
+   POST IMAGE PREVIEW
+   ================================================== */
 
-async function loadPeople() {
+const postImageInput =
+    document.getElementById(
+        "post-image"
+    );
 
-    const container =
-        document.getElementById(
-            "people"
-        );
+const postImagePreview =
+    document.getElementById(
+        "post-image-preview"
+    );
 
-    if (!container) {
-        return;
-    }
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/users"
-            );
-
-        const users =
-            await response.json();
-
-        if (!response.ok) {
-
-            throw new Error(
-                users.error ||
-                "Could not load people."
-            );
-
-        }
-
-        if (!users.length) {
-
-            container.innerHTML =
-                "<p>No users yet. 🧌</p>";
-
-            return;
-
-        }
-
-        container.innerHTML =
-            users.map(user => {
-
-                const avatar =
-                    user.avatar ||
-                    "/default-avatar.png";
-
-                const displayName =
-                    user.display_name ||
-                    user.username ||
-                    "User";
-
-                return `
-
-                    <a
-                        href="/profile.html?id=${encodeURIComponent(
-                            user.id
-                        )}"
-                        class="person"
-                        style="
-                            text-decoration:none;
-                            color:inherit;
-                            display:flex;
-                            align-items:center;
-                            gap:12px;
-                        ">
-
-                        <img
-                            class="avatar"
-                            src="${escapeHtml(
-                                avatar
-                            )}"
-                            alt="Avatar"
-                            style="
-                                width:50px;
-                                height:50px;
-                                border-radius:50%;
-                                object-fit:cover;
-                            "
-                            onerror="
-                                this.src='/default-avatar.png';
-                            ">
-
-                        <div>
-
-                            <strong>
-                                ${escapeHtml(
-                                    displayName
-                                )}
-                            </strong>
-
-                            <p>
-                                @${escapeHtml(
-                                    user.username
-                                )}
-                            </p>
-
-                        </div>
-
-                    </a>
-
-                `;
-
-            }).join("");
-
-    } catch (error) {
-
-        console.error(
-            "PEOPLE ERROR:",
-            error
-        );
-
-        container.innerHTML =
-            `<p>❌ ${escapeHtml(
-                error.message
-            )}</p>`;
-
-    }
-
-}
+const postPreviewImage =
+    document.getElementById(
+        "post-preview-image"
+    );
 
 
-/* ==================================================
-ENTER KEY FOR COMMENTS
-================================================== */
+if (postImageInput) {
 
-document.addEventListener(
-    "keydown",
-    event => {
+    postImageInput.addEventListener(
+        "change",
+        () => {
 
-        if (
-            event.key !== "Enter" ||
-            event.shiftKey
-        ) {
+            const file =
+                postImageInput.files[0];
 
-            return;
+            if (!file) {
 
-        }
+                clearPostImage();
 
-        const target =
-            event.target;
+                return;
+            }
 
-        if (
-            target &&
-            target.id &&
-            target.id.startsWith(
-                "comment-input-"
-            )
-        ) {
+            if (!file.type.startsWith("image/")) {
 
-            event.preventDefault();
-
-            const postId =
-                target.id.replace(
-                    "comment-input-",
-                    ""
+                alert(
+                    "❌ Please select an image."
                 );
 
-            submitComment(
-                postId
-            );
+                clearPostImage();
 
+                return;
+            }
+
+            if (
+                file.size >
+                5 * 1024 * 1024
+            ) {
+
+                alert(
+                    "❌ Images must be under 5MB."
+                );
+
+                clearPostImage();
+
+                return;
+            }
+
+            const reader =
+                new FileReader();
+
+            reader.onload =
+                event => {
+
+                    if (postPreviewImage) {
+
+                        postPreviewImage.src =
+                            event.target.result;
+
+                    }
+
+                    if (postImagePreview) {
+
+                        postImagePreview.style.display =
+                            "block";
+
+                    }
+                };
+
+            reader.readAsDataURL(file);
         }
-
-    }
-);
+    );
+}
 
 
 /* ==================================================
-START
-================================================== */
+   CLEAR POST IMAGE
+   ================================================== */
+
+function clearPostImage() {
+
+    if (postImageInput) {
+        postImageInput.value = "";
+    }
+
+    if (postPreviewImage) {
+        postPreviewImage.src = "";
+    }
+
+    if (postImagePreview) {
+        postImagePreview.style.display =
+            "none";
+    }
+}
+
+
+/* ==================================================
+   START APP
+   ================================================== */
 
 document.addEventListener(
     "DOMContentLoaded",
-    () => {
+    async () => {
 
-        checkLogin();
+        console.log(
+            "🧌 ShrekBook starting..."
+        );
 
+        await checkLogin();
+
+        console.log(
+            "🧌 ShrekBook ready!"
+        );
     }
 );
-async function updateOnlineStatus() {
-    try {
-        await fetch("/api/online", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            }
-        });
-    } catch (error) {
-        console.error("Online heartbeat failed:", error);
-    }
-}
-
-updateOnlineStatus();
-
-setInterval(updateOnlineStatus, 30000);
