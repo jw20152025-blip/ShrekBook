@@ -738,7 +738,38 @@ app.post("/api/login", async (req, res) => {
     }
 
 });
+const normalizedEmail =
+    email.toLowerCase();
 
+try {
+
+    const banned =
+        await isEmailBanned(
+            normalizedEmail
+        );
+
+    if (banned) {
+
+        return res.status(403).json({
+            error:
+                "This email address is banned from ShrekBook."
+        });
+
+    }
+
+} catch (error) {
+
+    console.error(
+        "LOGIN BAN CHECK ERROR:",
+        error
+    );
+
+    return res.status(500).json({
+        error:
+            "Could not verify account eligibility."
+    });
+
+}
 // ==================================================
 // LOGOUT
 // ==================================================
@@ -3908,7 +3939,121 @@ app.post(
 
     }
 );
+// ==================================================
+// ADMIN / BAN SYSTEM
+// ==================================================
 
+async function isAdmin(userId) {
+
+    if (!userId) {
+        return false;
+    }
+
+    const {
+        data,
+        error
+    } = await supabase
+        .from("admins")
+        .select("user_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (error) {
+        console.error("ADMIN CHECK ERROR:", error);
+        return false;
+    }
+
+    return !!data;
+}
+
+
+// ==================================================
+// REQUIRE LOGIN
+// ==================================================
+
+function requireLogin(req, res, next) {
+
+    if (!req.session.user) {
+
+        return res.status(401).json({
+            error: "You must be logged in."
+        });
+
+    }
+
+    next();
+}
+
+
+// ==================================================
+// REQUIRE ADMIN
+// ==================================================
+
+async function requireAdmin(req, res, next) {
+
+    if (!req.session.user) {
+
+        return res.status(401).json({
+            error: "You must be logged in."
+        });
+
+    }
+
+    const admin =
+        await isAdmin(
+            req.session.user.id
+        );
+
+    if (!admin) {
+
+        return res.status(403).json({
+            error: "Administrator access required."
+        });
+
+    }
+
+    next();
+}
+
+
+// ==================================================
+// CHECK BAN
+// ==================================================
+
+async function isEmailBanned(email) {
+
+    if (!email) {
+        return false;
+    }
+
+    const normalizedEmail =
+        String(email)
+            .trim()
+            .toLowerCase();
+
+    const {
+        data,
+        error
+    } = await supabase
+        .from("bans")
+        .select("id")
+        .eq("email", normalizedEmail)
+        .eq("active", true)
+        .maybeSingle();
+
+    if (error) {
+
+        console.error(
+            "BAN CHECK ERROR:",
+            error
+        );
+
+        // Fail closed for authentication.
+        throw error;
+    }
+
+    return !!data;
+}
 // ==================================================
 // ADMIN USER SEARCH
 // ==================================================
@@ -3993,7 +4138,544 @@ app.get(
 
     }
 );
+// ==================================================
+// ADMIN STATUS
+// ==================================================
 
+app.get(
+    "/api/admin/me",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            const admin =
+                await isAdmin(
+                    req.session.user.id
+                );
+
+            res.json({
+                isAdmin: admin
+            });
+
+        } catch (error) {
+
+            console.error(
+                "ADMIN STATUS ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// GET BANS
+// ==================================================
+
+app.get(
+    "/api/admin/bans",
+    requireAdmin,
+    async (req, res) => {
+
+        try {
+
+            const {
+                data,
+                error
+            } = await supabase
+                .from("bans")
+                .select(`
+                    id,
+                    email,
+                    reason,
+                    banned_by,
+                    created_at,
+                    active
+                `)
+                .eq("active", true)
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                );
+
+            if (error) {
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+            res.json({
+                bans: data || []
+            });
+
+        } catch (error) {
+
+            console.error(
+                "GET BANS ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// BAN EMAIL
+// ==================================================
+
+app.post(
+    "/api/admin/bans",
+    requireAdmin,
+    async (req, res) => {
+
+        try {
+
+            const email =
+                String(
+                    req.body.email || ""
+                )
+                .trim()
+                .toLowerCase();
+
+            const reason =
+                String(
+                    req.body.reason || ""
+                )
+                .trim();
+
+            if (!email) {
+
+                return res.status(400).json({
+                    error:
+                        "Email is required."
+                });
+
+            }
+
+            if (
+                !email.includes("@") ||
+                email.length > 320
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Invalid email address."
+                });
+
+            }
+
+
+            const {
+                data: existing
+            } = await supabase
+                .from("bans")
+                .select("id")
+                .eq("email", email)
+                .maybeSingle();
+
+
+            if (existing) {
+
+                const {
+                    data,
+                    error
+                } = await supabase
+                    .from("bans")
+                    .update({
+                        reason,
+                        active: true,
+                        banned_by:
+                            req.session.user.id
+                    })
+                    .eq(
+                        "id",
+                        existing.id
+                    )
+                    .select()
+                    .single();
+
+                if (error) {
+
+                    return res.status(500).json({
+                        error:
+                            error.message
+                    });
+
+                }
+
+                res.json({
+                    success: true,
+                    ban: data
+                });
+
+                return;
+            }
+
+
+            const {
+                data,
+                error
+            } = await supabase
+                .from("bans")
+                .insert({
+                    email,
+                    reason,
+                    banned_by:
+                        req.session.user.id,
+                    active: true
+                })
+                .select()
+                .single();
+
+
+            if (error) {
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+
+            res.status(201).json({
+                success: true,
+                ban: data
+            });
+
+        } catch (error) {
+
+            console.error(
+                "BAN ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// UNBAN EMAIL
+// ==================================================
+
+app.delete(
+    "/api/admin/bans/:email",
+    requireAdmin,
+    async (req, res) => {
+
+        try {
+
+            const email =
+                decodeURIComponent(
+                    req.params.email
+                )
+                .trim()
+                .toLowerCase();
+
+
+            const {
+                data,
+                error
+            } = await supabase
+                .from("bans")
+                .update({
+                    active: false
+                })
+                .eq(
+                    "email",
+                    email
+                )
+                .eq(
+                    "active",
+                    true
+                )
+                .select();
+
+
+            if (error) {
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+
+            if (
+                !data ||
+                data.length === 0
+            ) {
+
+                return res.status(404).json({
+                    error:
+                        "That email is not currently banned."
+                });
+
+            }
+
+
+            res.json({
+                success: true,
+                message:
+                    "Email has been unbanned."
+            });
+
+        } catch (error) {
+
+            console.error(
+                "UNBAN ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// GET ADMINS
+// ==================================================
+
+app.get(
+    "/api/admin/admins",
+    requireAdmin,
+    async (req, res) => {
+
+        try {
+
+            const {
+                data: admins,
+                error
+            } = await supabase
+                .from("admins")
+                .select("user_id, created_at")
+                .order(
+                    "created_at",
+                    {
+                        ascending: true
+                    }
+                );
+
+
+            if (error) {
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+
+            const result = [];
+
+
+            for (
+                const admin of
+                admins || []
+            ) {
+
+                const {
+                    data: profile
+                } = await supabase
+                    .from("profiles")
+                    .select(`
+                        id,
+                        username,
+                        display_name,
+                        avatar
+                    `)
+                    .eq(
+                        "id",
+                        admin.user_id
+                    )
+                    .maybeSingle();
+
+
+                result.push({
+                    id:
+                        admin.user_id,
+
+                    created_at:
+                        admin.created_at,
+
+                    username:
+                        profile?.username ||
+                        "Unknown",
+
+                    display_name:
+                        profile?.display_name ||
+                        profile?.username ||
+                        "Unknown",
+
+                    avatar:
+                        getAvatar(
+                            profile?.avatar
+                        )
+                });
+
+            }
+
+
+            res.json({
+                admins: result
+            });
+
+        } catch (error) {
+
+            console.error(
+                "GET ADMINS ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// ADD ADMIN
+// ==================================================
+
+app.post(
+    "/api/admin/admins",
+    requireAdmin,
+    async (req, res) => {
+
+        try {
+
+            const userId =
+                String(
+                    req.body.user_id || ""
+                ).trim();
+
+
+            if (!userId) {
+
+                return res.status(400).json({
+                    error:
+                        "User ID is required."
+                });
+
+            }
+
+
+            const {
+                data: user,
+                error: userError
+            } = await supabase.auth.admin.getUserById(
+                userId
+            );
+
+
+            if (
+                userError ||
+                !user
+            ) {
+
+                return res.status(404).json({
+                    error:
+                        "Supabase user not found."
+                });
+
+            }
+
+
+            const {
+                data,
+                error
+            } = await supabase
+                .from("admins")
+                .insert({
+                    user_id: userId
+                })
+                .select()
+                .single();
+
+
+            if (error) {
+
+                if (
+                    error.code ===
+                    "23505"
+                ) {
+
+                    return res.status(400).json({
+                        error:
+                            "That user is already an administrator."
+                    });
+
+                }
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+
+            res.status(201).json({
+                success: true,
+                admin: data
+            });
+
+        } catch (error) {
+
+            console.error(
+                "ADD ADMIN ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
 // ==================================================
 // START
 // ==================================================
