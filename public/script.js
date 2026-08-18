@@ -785,7 +785,68 @@ function showAuth() {
     }
 
 }
+/* ==================================================
+ADMIN CHECK
+================================================== */
 
+async function checkAdmin() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/check"
+            );
+
+        const data =
+            await response.json();
+
+        const adminButton =
+            document.getElementById(
+                "admin-button"
+            );
+
+        if (!adminButton) {
+            return;
+        }
+
+        if (
+            response.ok &&
+            data.isAdmin
+        ) {
+
+            adminButton.style.display =
+                "inline-block";
+
+        } else {
+
+            adminButton.style.display =
+                "none";
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "ADMIN CHECK ERROR:",
+            error
+        );
+
+        const adminButton =
+            document.getElementById(
+                "admin-button"
+            );
+
+        if (adminButton) {
+
+            adminButton.style.display =
+                "none";
+
+        }
+
+    }
+
+}
 
 /* ==================================================
 SHOW APP
@@ -834,6 +895,8 @@ function showApp() {
     loadPeople();
 
     updateOnlineStatus();
+
+    checkAdmin();
 
 }
 
