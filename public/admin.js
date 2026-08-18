@@ -1,9 +1,33 @@
+
 // ==================================================
-// SHREKBOOK — ADMIN / MODERATOR PANEL
+// SHREKBOOK STAFF PANEL
 // ==================================================
 
 let currentUser = null;
-let currentRank = null;
+let currentUserRole = null;
+let selectedRoleUser = null;
+
+
+// ==================================================
+// ROLE DEFINITIONS
+// ==================================================
+
+const ROLE_POWER = {
+    peasant: 1,
+    moderator: 2,
+    senior_moderator: 3,
+    administrator: 4,
+    owner: 5
+};
+
+
+const ROLE_NAMES = {
+    peasant: "👤 Peasant",
+    moderator: "🔨 Moderator",
+    senior_moderator: "⚔️ Senior Moderator",
+    administrator: "🛡️ Administrator",
+    owner: "👑 Owner"
+};
 
 
 // ==================================================
@@ -11,154 +35,111 @@ let currentRank = null;
 // ==================================================
 
 function escapeHtml(value) {
+
     return String(value ?? "")
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+
 }
 
 
 // ==================================================
-// RANK INFORMATION
+// GET ROLE NAME
 // ==================================================
 
-const RANK_INFO = {
+function roleName(role) {
 
-    owner: {
-        name: "Owner",
-        emoji: "👑",
-        description:
-            "The owner has absolute control over ShrekBook. The owner cannot be banned, revoked, or kicked by other staff."
-    },
+    return (
+        ROLE_NAMES[role] ||
+        "👤 Peasant"
+    );
 
-    administrator: {
-        name: "Administrator",
-        emoji: "🛡️",
-        description:
-            "Administrators manage users, bans, revokes, and major moderation actions. They cannot punish the Owner."
-    },
-
-    senior_moderator: {
-        name: "Senior Moderator",
-        emoji: "⚔️",
-        description:
-            "Senior Moderators are trusted staff members who can kick users and coordinate moderation. They cannot ban or revoke higher-ranking staff."
-    },
-
-    moderator: {
-        name: "Moderator",
-        emoji: "🔨",
-        description:
-            "Moderators handle everyday moderation and can kick users when necessary."
-    },
-
-    user: {
-        name: "Peasant",
-        emoji: "👨‍🌾",
-        description:
-            "Regular ShrekBook users. They have no administrative powers."
-    }
-
-};
-
-
-// ==================================================
-// RANK NORMALIZATION
-// ==================================================
-
-function normalizeRank(rank) {
-
-    if (!rank) {
-        return "user";
-    }
-
-    rank = String(rank)
-        .trim()
-        .toLowerCase()
-        .replace(/-/g, "_")
-        .replace(/ /g, "_");
-
-    if (
-        rank === "owner" ||
-        rank === "administrator" ||
-        rank === "admin" ||
-        rank === "senior_moderator" ||
-        rank === "moderator" ||
-        rank === "user"
-    ) {
-
-        if (rank === "admin") {
-            return "administrator";
-        }
-
-        return rank;
-
-    }
-
-    return "user";
 }
 
 
 // ==================================================
-// LOAD CURRENT USER / RANK
+// CHECK STAFF
 // ==================================================
 
-async function loadCurrentUser() {
+async function checkStaff() {
 
     try {
 
-        const response = await fetch(
-            "/api/admin/me",
-            {
-                credentials: "include"
-            }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Could not determine your rank."
+        const response =
+            await fetch(
+                "/api/admin/me",
+                {
+                    credentials: "include"
+                }
             );
+
+        const data =
+            await response.json();
+
+        document
+            .getElementById("loading")
+            .classList.add("hidden");
+
+
+        if (
+            !response.ok ||
+            !data.isAdmin
+        ) {
+
+            document
+                .getElementById("not-staff")
+                .classList.remove("hidden");
+
+            return;
 
         }
 
+
         currentUser =
             data.user ||
-            data.currentUser ||
             null;
 
-        currentRank =
-            normalizeRank(
-                data.rank ||
-                data.role ||
-                data.user?.rank ||
-                data.user?.role
-            );
+        currentUserRole =
+            data.role ||
+            "administrator";
 
-        renderWelcome();
 
-        applyPermissions();
+        document
+            .getElementById("staff-panel")
+            .classList.remove("hidden");
 
-        return true;
+
+        updateWelcome();
+
+
+        await Promise.all([
+            loadUsers(),
+            loadBans(),
+            loadAdmins(),
+            loadKicks(),
+            loadRevokes()
+        ]);
+
 
     } catch (error) {
 
         console.error(
-            "CURRENT USER ERROR:",
+            "STAFF CHECK ERROR:",
             error
         );
 
-        showError(
-            error.message ||
-            "Could not determine your rank."
-        );
+        document
+            .getElementById("loading")
+            .innerHTML = `
+                <h2>❌ Error</h2>
+                <p>
+                    Could not check staff status.
+                </p>
+            `;
 
-        return false;
     }
 
 }
@@ -168,189 +149,558 @@ async function loadCurrentUser() {
 // WELCOME MESSAGE
 // ==================================================
 
-function renderWelcome() {
+function updateWelcome() {
 
     const welcome =
         document.getElementById(
-            "welcome"
+            "staff-welcome"
         );
 
-    if (!welcome) {
-        return;
-    }
+    const role =
+        roleName(
+            currentUserRole
+        );
 
-    const rank =
-        RANK_INFO[currentRank] ||
-        RANK_INFO.user;
+    welcome.textContent =
+        `Welcome, ${role}. Use your powers wisely. 🏰`;
 
-    const username =
-        currentUser?.display_name ||
-        currentUser?.username ||
-        currentUser?.email ||
-        "Staff member";
-
-    welcome.innerHTML = `
-
-        <div class="welcome-box">
-
-            <h1>
-                ${rank.emoji}
-                Welcome, ${escapeHtml(username)}!
-            </h1>
-
-            <h2>
-                Rank: ${escapeHtml(rank.name)}
-            </h2>
-
-            <p>
-                ${escapeHtml(rank.description)}
-            </p>
-
-        </div>
-
-    `;
 }
 
 
 // ==================================================
-// ROLE EXPLANATIONS
+// LOAD USERS
 // ==================================================
 
-function renderRoles() {
+async function loadUsers(search = "") {
 
     const container =
         document.getElementById(
-            "role-list"
+            "user-list"
         );
 
     if (!container) {
         return;
     }
 
-    container.innerHTML = Object.values(
-        RANK_INFO
-    ).map(rank => `
 
-        <div class="role-card">
+    container.innerHTML =
+        "<p>Loading users...</p>";
 
-            <div class="role-title">
-                ${rank.emoji}
-                ${escapeHtml(rank.name)}
-            </div>
 
-            <div class="role-description">
-                ${escapeHtml(rank.description)}
-            </div>
+    try {
 
-        </div>
+        const url =
+            search
+                ? `/api/admin/users?search=${encodeURIComponent(search)}`
+                : "/api/admin/users";
 
-    `).join("");
+
+        const response =
+            await fetch(
+                url,
+                {
+                    credentials: "include"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            container.innerHTML =
+                `<p class="error">
+                    ❌ ${escapeHtml(
+                        data.error ||
+                        "Could not load users."
+                    )}
+                </p>`;
+
+            return;
+
+        }
+
+
+        const users =
+            Array.isArray(data)
+                ? data
+                : Array.isArray(data.users)
+                    ? data.users
+                    : [];
+
+
+        if (users.length === 0) {
+
+            container.innerHTML =
+                "<p>No users found.</p>";
+
+            return;
+
+        }
+
+
+        container.innerHTML =
+            users.map(
+                renderUser
+            ).join("");
+
+
+    } catch (error) {
+
+        console.error(
+            "LOAD USERS ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            `<p class="error">
+                ❌ Could not load users.
+            </p>`;
+
+    }
+
 }
 
 
 // ==================================================
-// PERMISSIONS
+// RENDER USER
 // ==================================================
 
-function applyPermissions() {
+function renderUser(user) {
+
+    const id =
+        user.id ||
+        user.user_id ||
+        "";
+
+    const username =
+        user.username ||
+        "Unknown";
+
+    const displayName =
+        user.display_name ||
+        username;
+
+    const role =
+        user.role ||
+        "peasant";
+
 
     const isOwner =
-        currentRank === "owner";
+        role === "owner";
 
-    const isAdmin =
-        currentRank === "administrator";
 
-    const isSeniorMod =
-        currentRank === "senior_moderator";
+    return `
 
-    const isModerator =
-        currentRank === "moderator";
+        <div class="user-card">
 
-    const canManageUsers =
-        isOwner ||
-        isAdmin;
+            <h3>
+                ${escapeHtml(
+                    displayName
+                )}
+            </h3>
 
-    const canKick =
-        isOwner ||
-        isAdmin ||
-        isSeniorMod ||
-        isModerator;
+            <p class="muted">
+                @${escapeHtml(
+                    username
+                )}
+            </p>
 
-    const canBan =
-        isOwner ||
-        isAdmin;
+            <span class="role-badge">
+                ${escapeHtml(
+                    roleName(role)
+                )}
+            </span>
 
-    const canRevoke =
-        isOwner ||
-        isAdmin;
+            <p class="muted">
+                ID:
+                ${escapeHtml(id)}
+            </p>
 
-    const canManageAdmins =
-        isOwner;
+            <div class="actions">
+
+                ${
+                    isOwner
+
+                    ?
+
+                    `
+                    <button
+                        class="secondary"
+                        disabled
+                    >
+                        👑 Owner Protected
+                    </button>
+                    `
+
+                    :
+
+                    `
+                    <button
+                        class="success"
+                        onclick='openRoleModal(
+                            ${JSON.stringify({
+                                id,
+                                username,
+                                display_name:
+                                    displayName,
+                                role
+                            })}
+                        )'
+                    >
+                        🔄 Change Role
+                    </button>
+                    `
+                }
+
+            </div>
+
+        </div>
+
+    `;
+
+}
+
+
+// ==================================================
+// SEARCH USERS
+// ==================================================
+
+async function searchUsers() {
+
+    const input =
+        document.getElementById(
+            "user-search"
+        );
+
+    const search =
+        input.value.trim();
+
+
+    await loadUsers(
+        search
+    );
+
+}
+
+
+// ==================================================
+// ENTER TO SEARCH
+// ==================================================
+
+document.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key === "Enter" &&
+            document.activeElement?.id ===
+                "user-search"
+        ) {
+
+            searchUsers();
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// OPEN ROLE MODAL
+// ==================================================
+
+function openRoleModal(user) {
+
+    if (!user || !user.id) {
+        return;
+    }
+
+
+    if (
+        user.role === "owner"
+    ) {
+
+        alert(
+            "👑 The owner cannot be modified."
+        );
+
+        return;
+
+    }
+
+
+    selectedRoleUser =
+        user;
+
 
     document
-        .querySelectorAll(
-            "[data-permission='ban']"
+        .getElementById(
+            "role-user-name"
         )
-        .forEach(element => {
+        .textContent =
+            user.display_name ||
+            user.username ||
+            "Unknown User";
 
-            element.style.display =
-                canBan
-                    ? ""
-                    : "none";
-
-        });
 
     document
-        .querySelectorAll(
-            "[data-permission='revoke']"
+        .getElementById(
+            "role-current"
         )
-        .forEach(element => {
+        .textContent =
+            roleName(
+                user.role
+            );
 
-            element.style.display =
-                canRevoke
-                    ? ""
-                    : "none";
 
-        });
+    const select =
+        document.getElementById(
+            "role-select"
+        );
+
+
+    select.value =
+        user.role ||
+        "peasant";
+
+
+    updateRoleWarning();
+
 
     document
-        .querySelectorAll(
-            "[data-permission='kick']"
+        .getElementById(
+            "role-modal"
         )
-        .forEach(element => {
+        .classList.remove(
+            "hidden"
+        );
 
-            element.style.display =
-                canKick
-                    ? ""
-                    : "none";
+}
 
-        });
+
+// ==================================================
+// CLOSE ROLE MODAL
+// ==================================================
+
+function closeRoleModal() {
+
+    selectedRoleUser =
+        null;
+
 
     document
-        .querySelectorAll(
-            "[data-permission='admins']"
+        .getElementById(
+            "role-modal"
         )
-        .forEach(element => {
+        .classList.add(
+            "hidden"
+        );
 
-            element.style.display =
-                canManageAdmins
-                    ? ""
-                    : "none";
+}
 
-        });
 
-    document
-        .querySelectorAll(
-            "[data-permission='users']"
-        )
-        .forEach(element => {
+// ==================================================
+// ROLE CHANGE WARNING
+// ==================================================
 
-            element.style.display =
-                canManageUsers
-                    ? ""
-                    : "none";
+function updateRoleWarning() {
 
-        });
+    const select =
+        document.getElementById(
+            "role-select"
+        );
+
+    const warning =
+        document.getElementById(
+            "role-warning"
+        );
+
+
+    const newRole =
+        select.value;
+
+
+    if (
+        newRole === "owner"
+    ) {
+
+        warning.textContent =
+            "⚠️ Owner is reserved for the site owner.";
+
+        return;
+
+    }
+
+
+    if (
+        selectedRoleUser &&
+        newRole === selectedRoleUser.role
+    ) {
+
+        warning.textContent =
+            "No role change will be made.";
+
+        return;
+
+    }
+
+
+    warning.textContent =
+        `Change this user's role to ${roleName(newRole)}?`;
+
+}
+
+
+document
+    .getElementById("role-select")
+    ?.addEventListener(
+        "change",
+        updateRoleWarning
+    );
+
+
+// ==================================================
+// SAVE ROLE
+// ==================================================
+
+async function saveRole() {
+
+    if (
+        !selectedRoleUser
+    ) {
+        return;
+    }
+
+
+    const newRole =
+        document.getElementById(
+            "role-select"
+        ).value;
+
+
+    if (
+        newRole === "owner"
+    ) {
+
+        alert(
+            "👑 Owner cannot be assigned through this panel."
+        );
+
+        return;
+
+    }
+
+
+    if (
+        newRole ===
+        selectedRoleUser.role
+    ) {
+
+        closeRoleModal();
+        return;
+
+    }
+
+
+    const confirmed =
+        confirm(
+            `Change ${
+                selectedRoleUser.display_name ||
+                selectedRoleUser.username
+            } to ${roleName(newRole)}?`
+        );
+
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/role",
+                {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    credentials:
+                        "include",
+
+                    body:
+                        JSON.stringify({
+
+                            user_id:
+                                selectedRoleUser.id,
+
+                            role:
+                                newRole
+
+                        })
+
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            alert(
+                "❌ " +
+                (
+                    data.error ||
+                    "Could not change role."
+                )
+            );
+
+            return;
+
+        }
+
+
+        alert(
+            `✅ Role changed to ${roleName(newRole)}`
+        );
+
+
+        closeRoleModal();
+
+
+        await loadUsers(
+            document
+                .getElementById(
+                    "user-search"
+                )
+                .value
+                .trim()
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "CHANGE ROLE ERROR:",
+            error
+        );
+
+        alert(
+            "❌ Server error while changing role."
+        );
+
+    }
+
 }
 
 
@@ -365,12 +715,6 @@ async function loadBans() {
             "ban-list"
         );
 
-    if (!container) {
-        return;
-    }
-
-    container.innerHTML =
-        "<p>Loading bans...</p>";
 
     try {
 
@@ -382,26 +726,33 @@ async function loadBans() {
                 }
             );
 
+
         const data =
             await response.json();
 
+
         if (!response.ok) {
 
-            throw new Error(
-                data.error ||
-                "Could not load bans."
-            );
+            container.innerHTML =
+                `<p class="error">
+                    ❌ ${escapeHtml(
+                        data.error ||
+                        "Could not load bans."
+                    )}
+                </p>`;
+
+            return;
 
         }
+
 
         const bans =
             Array.isArray(data)
                 ? data
-                : Array.isArray(data.bans)
-                    ? data.bans
-                    : [];
+                : data.bans || [];
 
-        const activeBans =
+
+        const active =
             bans.filter(
                 ban =>
                     ban.active === true ||
@@ -409,59 +760,70 @@ async function loadBans() {
                     ban.active === 1
             );
 
-        if (!activeBans.length) {
+
+        if (
+            active.length === 0
+        ) {
 
             container.innerHTML =
                 "<p>No active bans.</p>";
 
             return;
+
         }
 
+
         container.innerHTML =
-            activeBans.map(ban => `
+            active.map(
+                ban => `
 
-                <div class="staff-card">
+                    <div class="ban-card">
 
-                    <h3>
-                        🚫
-                        ${escapeHtml(
-                            ban.email ||
-                            ban.user_id ||
-                            "Unknown user"
-                        )}
-                    </h3>
+                        <h3>
+                            🚫
+                            ${escapeHtml(
+                                ban.email ||
+                                "Unknown"
+                            )}
+                        </h3>
 
-                    <p>
-                        <strong>Reason:</strong>
-                        ${escapeHtml(
-                            ban.reason ||
-                            "No reason provided."
-                        )}
-                    </p>
+                        <p>
+                            <strong>
+                                Reason:
+                            </strong>
 
-                    <p>
-                        <strong>Date:</strong>
-                        ${escapeHtml(
-                            ban.banned_at
-                                ? new Date(
-                                    ban.banned_at
-                                ).toLocaleString()
-                                : "Unknown"
-                        )}
-                    </p>
+                            ${escapeHtml(
+                                ban.reason ||
+                                "No reason provided."
+                            )}
+                        </p>
 
-                    <button
-                        onclick="unbanUser('${escapeHtml(
-                            ban.id
-                        )}')">
+                        <p class="muted">
+                            ${escapeHtml(
+                                ban.banned_at
+                                    ? new Date(
+                                        ban.banned_at
+                                    ).toLocaleString()
+                                    : ""
+                            )}
+                        </p>
 
-                        ✅ Unban
+                        <button
+                            class="success"
+                            onclick="unban(
+                                '${encodeURIComponent(
+                                    ban.id
+                                )}'
+                            )"
+                        >
+                            Unban
+                        </button>
 
-                    </button>
+                    </div>
 
-                </div>
+                `
+            ).join("");
 
-            `).join("");
 
     } catch (error) {
 
@@ -471,180 +833,10 @@ async function loadBans() {
         );
 
         container.innerHTML =
-            `<p>❌ ${escapeHtml(
-                error.message
-            )}</p>`;
-    }
-}
-
-
-// ==================================================
-// UNBAN
-// ==================================================
-
-async function unbanUser(banId) {
-
-    if (!confirm(
-        "Unban this user?"
-    )) {
-        return;
-    }
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/admin/bans/${encodeURIComponent(
-                    banId
-                )}/unban`,
-                {
-                    method: "POST",
-                    credentials: "include"
-                }
-            );
-
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Unban failed."
-            );
-
-        }
-
-        await loadBans();
-
-    } catch (error) {
-
-        alert(
-            "❌ " +
-            error.message
-        );
+            "<p class='error'>❌ Could not load bans.</p>";
 
     }
-}
 
-
-// ==================================================
-// LOAD ADMINS / STAFF
-// ==================================================
-
-async function loadAdmins() {
-
-    const container =
-        document.getElementById(
-            "admin-list"
-        );
-
-    if (!container) {
-        return;
-    }
-
-    container.innerHTML =
-        "<p>Loading staff...</p>";
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/admin/admins",
-                {
-                    credentials: "include"
-                }
-            );
-
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Could not load staff."
-            );
-
-        }
-
-        const admins =
-            Array.isArray(data)
-                ? data
-                : Array.isArray(data.admins)
-                    ? data.admins
-                    : [];
-
-        if (!admins.length) {
-
-            container.innerHTML =
-                "<p>No administrators found.</p>";
-
-            return;
-        }
-
-        container.innerHTML =
-            admins.map(admin => {
-
-                const rank =
-                    normalizeRank(
-                        admin.rank ||
-                        admin.role
-                    );
-
-                const info =
-                    RANK_INFO[rank] ||
-                    RANK_INFO.administrator;
-
-                return `
-
-                    <div class="staff-card">
-
-                        <h3>
-                            ${info.emoji}
-                            ${escapeHtml(
-                                admin.display_name ||
-                                admin.username ||
-                                "Unknown"
-                            )}
-                        </h3>
-
-                        <p>
-                            <strong>
-                                Rank:
-                            </strong>
-
-                            ${escapeHtml(
-                                info.name
-                            )}
-                        </p>
-
-                        <small>
-                            ${escapeHtml(
-                                admin.user_id ||
-                                admin.id ||
-                                ""
-                            )}
-                        </small>
-
-                    </div>
-
-                `;
-
-            }).join("");
-
-    } catch (error) {
-
-        console.error(
-            "LOAD STAFF ERROR:",
-            error
-        );
-
-        container.innerHTML =
-            `<p>❌ ${escapeHtml(
-                error.message
-            )}</p>`;
-    }
 }
 
 
@@ -652,51 +844,45 @@ async function loadAdmins() {
 // BAN USER
 // ==================================================
 
-async function banUser() {
-
-    if (
-        currentRank !== "owner" &&
-        currentRank !== "administrator"
-    ) {
-
-        alert(
-            "❌ Your rank cannot ban users."
-        );
-
-        return;
-    }
+async function banEmail() {
 
     const email =
         document
-            .getElementById("ban-email")
-            ?.value
+            .getElementById(
+                "ban-email"
+            )
+            .value
             .trim();
+
 
     const reason =
         document
-            .getElementById("ban-reason")
-            ?.value
+            .getElementById(
+                "ban-reason"
+            )
+            .value
             .trim();
+
 
     const status =
         document.getElementById(
             "ban-status"
         );
 
+
     if (!email) {
 
-        if (status) {
-            status.textContent =
-                "❌ Enter an email.";
-        }
+        status.textContent =
+            "❌ Enter an email.";
 
         return;
+
     }
 
-    if (status) {
-        status.textContent =
-            "Banning...";
-    }
+
+    status.textContent =
+        "Banning...";
+
 
     try {
 
@@ -724,31 +910,44 @@ async function banUser() {
                 }
             );
 
+
         const data =
             await response.json();
 
+
         if (!response.ok) {
 
-            throw new Error(
-                data.error ||
-                "Ban failed."
-            );
-        }
-
-        if (status) {
             status.textContent =
-                "✅ User banned.";
+                `❌ ${
+                    data.error ||
+                    "Ban failed."
+                }`;
+
+            return;
+
         }
 
-        document.getElementById(
-            "ban-email"
-        ).value = "";
 
-        document.getElementById(
-            "ban-reason"
-        ).value = "";
+        status.textContent =
+            "✅ User banned.";
+
+
+        document
+            .getElementById(
+                "ban-email"
+            )
+            .value = "";
+
+
+        document
+            .getElementById(
+                "ban-reason"
+            )
+            .value = "";
+
 
         await loadBans();
+
 
     } catch (error) {
 
@@ -757,12 +956,540 @@ async function banUser() {
             error
         );
 
-        if (status) {
-            status.textContent =
-                "❌ " +
-                error.message;
-        }
+        status.textContent =
+            "❌ Server error.";
+
     }
+
+}
+
+
+// ==================================================
+// UNBAN
+// ==================================================
+
+async function unban(
+    encodedId
+) {
+
+    const id =
+        decodeURIComponent(
+            encodedId
+        );
+
+
+    if (
+        !confirm(
+            "Unban this user?"
+        )
+    ) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/admin/bans/${encodeURIComponent(id)}/unban`,
+                {
+
+                    method: "POST",
+
+                    credentials:
+                        "include"
+
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            alert(
+                "❌ " +
+                (
+                    data.error ||
+                    "Unban failed."
+                )
+            );
+
+            return;
+
+        }
+
+
+        await loadBans();
+
+
+    } catch (error) {
+
+        console.error(
+            "UNBAN ERROR:",
+            error
+        );
+
+        alert(
+            "❌ Server error."
+        );
+
+    }
+
+}
+
+
+// ==================================================
+// LOAD ADMINS
+// ==================================================
+
+async function loadAdmins() {
+
+    const container =
+        document.getElementById(
+            "admin-list"
+        );
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/admins",
+                {
+                    credentials: "include"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            container.innerHTML =
+                `<p class="error">
+                    ❌ ${escapeHtml(
+                        data.error ||
+                        "Could not load administrators."
+                    )}
+                </p>`;
+
+            return;
+
+        }
+
+
+        const admins =
+            data.admins ||
+            [];
+
+
+        if (
+            admins.length === 0
+        ) {
+
+            container.innerHTML =
+                "<p>No administrators.</p>";
+
+            return;
+
+        }
+
+
+        container.innerHTML =
+            admins.map(
+                admin => `
+
+                    <div class="admin-card">
+
+                        <h3>
+                            🛡️
+                            ${escapeHtml(
+                                admin.display_name ||
+                                admin.username ||
+                                "Administrator"
+                            )}
+                        </h3>
+
+                        <p>
+                            Administrator
+                        </p>
+
+                        <small>
+                            ${escapeHtml(
+                                admin.id ||
+                                admin.user_id ||
+                                ""
+                            )}
+                        </small>
+
+                    </div>
+
+                `
+            ).join("");
+
+
+    } catch (error) {
+
+        console.error(
+            "LOAD ADMINS ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            "<p class='error'>❌ Could not load administrators.</p>";
+
+    }
+
+}
+
+
+// ==================================================
+// ADD ADMIN
+// ==================================================
+
+async function addAdmin() {
+
+    const userId =
+        document
+            .getElementById(
+                "admin-user-id"
+            )
+            .value
+            .trim();
+
+
+    const status =
+        document.getElementById(
+            "admin-status"
+        );
+
+
+    if (!userId) {
+
+        status.textContent =
+            "❌ Enter a user UUID.";
+
+        return;
+
+    }
+
+
+    status.textContent =
+        "Adding...";
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/admins",
+                {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    credentials:
+                        "include",
+
+                    body:
+                        JSON.stringify({
+                            user_id:
+                                userId
+                        })
+
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            status.textContent =
+                `❌ ${
+                    data.error ||
+                    "Could not add administrator."
+                }`;
+
+            return;
+
+        }
+
+
+        status.textContent =
+            "✅ Administrator added.";
+
+
+        document
+            .getElementById(
+                "admin-user-id"
+            )
+            .value = "";
+
+
+        await loadAdmins();
+
+
+    } catch (error) {
+
+        console.error(
+            "ADD ADMIN ERROR:",
+            error
+        );
+
+        status.textContent =
+            "❌ Server error.";
+
+    }
+
+}
+
+
+// ==================================================
+// LOAD KICKS
+// ==================================================
+
+async function loadKicks() {
+
+    const container =
+        document.getElementById(
+            "kick-list"
+        );
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/kicks",
+                {
+                    credentials: "include"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            container.innerHTML =
+                `<p class="error">
+                    ❌ ${escapeHtml(
+                        data.error ||
+                        "Could not load kicks."
+                    )}
+                </p>`;
+
+            return;
+
+        }
+
+
+        const kicks =
+            data.kicks ||
+            (Array.isArray(data)
+                ? data
+                : []);
+
+
+        if (
+            kicks.length === 0
+        ) {
+
+            container.innerHTML =
+                "<p>No kicks recorded.</p>";
+
+            return;
+
+        }
+
+
+        container.innerHTML =
+            kicks.map(
+                kick => `
+
+                    <div class="kick-card">
+
+                        <h3>
+                            👢 Kick
+                        </h3>
+
+                        <p>
+                            User:
+                            ${escapeHtml(
+                                kick.user_id
+                            )}
+                        </p>
+
+                        <p>
+                            Reason:
+                            ${escapeHtml(
+                                kick.reason ||
+                                "No reason provided."
+                            )}
+                        </p>
+
+                        <p class="muted">
+                            ${escapeHtml(
+                                kick.kicked_at ||
+                                ""
+                            )}
+                        </p>
+
+                    </div>
+
+                `
+            ).join("");
+
+
+    } catch (error) {
+
+        console.error(
+            "LOAD KICKS ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            "<p class='error'>❌ Could not load kicks.</p>";
+
+    }
+
+}
+
+
+// ==================================================
+// LOAD REVOKES
+// ==================================================
+
+async function loadRevokes() {
+
+    const container =
+        document.getElementById(
+            "revoke-list"
+        );
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/revokes",
+                {
+                    credentials: "include"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            container.innerHTML =
+                `<p class="error">
+                    ❌ ${escapeHtml(
+                        data.error ||
+                        "Could not load revocations."
+                    )}
+                </p>`;
+
+            return;
+
+        }
+
+
+        const revokes =
+            data.revokes ||
+            (Array.isArray(data)
+                ? data
+                : []);
+
+
+        if (
+            revokes.length === 0
+        ) {
+
+            container.innerHTML =
+                "<p>No staff revocations.</p>";
+
+            return;
+
+        }
+
+
+        container.innerHTML =
+            revokes.map(
+                revoke => `
+
+                    <div class="revoke-card">
+
+                        <h3>
+                            🔒 Staff Revocation
+                        </h3>
+
+                        <p>
+                            User:
+                            ${escapeHtml(
+                                revoke.user_id
+                            )}
+                        </p>
+
+                        <p>
+                            Previous role:
+                            ${escapeHtml(
+                                roleName(
+                                    revoke.previous_role
+                                )
+                            )}
+                        </p>
+
+                        <p>
+                            Reason:
+                            ${escapeHtml(
+                                revoke.reason ||
+                                "No reason provided."
+                            )}
+                        </p>
+
+                        <p class="muted">
+                            ${escapeHtml(
+                                revoke.revoked_at ||
+                                ""
+                            )}
+                        </p>
+
+                    </div>
+
+                `
+            ).join("");
+
+
+    } catch (error) {
+
+        console.error(
+            "LOAD REVOKES ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            "<p class='error'>❌ Could not load revocations.</p>";
+
+    }
+
 }
 
 
@@ -777,8 +1504,12 @@ async function logout() {
         await fetch(
             "/api/logout",
             {
+
                 method: "POST",
-                credentials: "include"
+
+                credentials:
+                    "include"
+
             }
         );
 
@@ -788,31 +1519,31 @@ async function logout() {
             "/";
 
     }
+
 }
 
 
 // ==================================================
-// ERROR DISPLAY
+// CLOSE MODAL WHEN CLICKING BACKDROP
 // ==================================================
 
-function showError(message) {
+document
+    .getElementById("role-modal")
+    ?.addEventListener(
+        "click",
+        event => {
 
-    const loading =
-        document.getElementById(
-            "loading"
-        );
+            if (
+                event.target.id ===
+                "role-modal"
+            ) {
 
-    if (loading) {
+                closeRoleModal();
 
-        loading.innerHTML = `
-            <h2>❌ Error</h2>
-            <p>
-                ${escapeHtml(message)}
-            </p>
-        `;
+            }
 
-    }
-}
+        }
+    );
 
 
 // ==================================================
@@ -821,39 +1552,10 @@ function showError(message) {
 
 document.addEventListener(
     "DOMContentLoaded",
-    async () => {
+    () => {
 
-        renderRoles();
-
-        const allowed =
-            await loadCurrentUser();
-
-        if (!allowed) {
-            return;
-        }
-
-        const loading =
-            document.getElementById(
-                "loading"
-            );
-
-        const panel =
-            document.getElementById(
-                "admin-page"
-            );
-
-        if (loading) {
-            loading.style.display =
-                "none";
-        }
-
-        if (panel) {
-            panel.style.display =
-                "block";
-        }
-
-        await loadBans();
-        await loadAdmins();
+        checkStaff();
 
     }
 );
+
