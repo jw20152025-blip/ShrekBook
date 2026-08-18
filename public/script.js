@@ -1,3 +1,4 @@
+
 // ==================================================
 // SHREKBOOK FRONTEND
 // public/script.js
@@ -5,9 +6,8 @@
 
 console.log("🧌 ShrekBook frontend loaded");
 
-
 // ==================================================
-// HELPERS
+// API HELPER
 // ==================================================
 
 async function api(url, options = {}) {
@@ -16,7 +16,9 @@ async function api(url, options = {}) {
         credentials: "same-origin",
         ...options,
         headers: {
-            "Content-Type": "application/json",
+            ...(options.body instanceof FormData
+                ? {}
+                : { "Content-Type": "application/json" }),
             ...(options.headers || {})
         }
     });
@@ -46,33 +48,33 @@ async function api(url, options = {}) {
 
 function showLogin() {
 
-    const loginBox = document.getElementById("login-box");
-    const signupBox = document.getElementById("signup-box");
+    const loginBox =
+        document.getElementById("login-box");
 
-    if (loginBox) {
+    const signupBox =
+        document.getElementById("signup-box");
+
+    if (loginBox)
         loginBox.style.display = "block";
-    }
 
-    if (signupBox) {
+    if (signupBox)
         signupBox.style.display = "none";
-    }
-
 }
 
 
 function showSignup() {
 
-    const loginBox = document.getElementById("login-box");
-    const signupBox = document.getElementById("signup-box");
+    const loginBox =
+        document.getElementById("login-box");
 
-    if (loginBox) {
+    const signupBox =
+        document.getElementById("signup-box");
+
+    if (loginBox)
         loginBox.style.display = "none";
-    }
 
-    if (signupBox) {
+    if (signupBox)
         signupBox.style.display = "block";
-    }
-
 }
 
 
@@ -82,42 +84,26 @@ function showSignup() {
 
 async function login() {
 
-    const emailInput =
-        document.getElementById("login-email");
+    const email =
+        document.getElementById("login-email")?.value.trim();
 
-    const passwordInput =
-        document.getElementById("login-password");
+    const password =
+        document.getElementById("login-password")?.value;
 
     const status =
         document.getElementById("login-status");
 
-
-    const email =
-        emailInput
-            ? emailInput.value.trim()
-            : "";
-
-    const password =
-        passwordInput
-            ? passwordInput.value
-            : "";
-
-
     if (!email || !password) {
 
-        if (status) {
+        if (status)
             status.textContent =
                 "Please enter your email and password.";
-        }
 
         return;
     }
 
-
-    if (status) {
+    if (status)
         status.textContent = "Logging in...";
-    }
-
 
     try {
 
@@ -125,7 +111,6 @@ async function login() {
             "/api/login",
             {
                 method: "POST",
-
                 body: JSON.stringify({
                     email,
                     password
@@ -133,41 +118,21 @@ async function login() {
             }
         );
 
+        console.log("LOGIN SUCCESS:", data);
 
-        console.log(
-            "LOGIN SUCCESS:",
-            data
-        );
-
-
-        if (status) {
+        if (status)
             status.textContent =
                 "Login successful! 🧌";
-        }
-
-
-        // IMPORTANT:
-        // The server has now created the session.
-        // Reloading the page makes the browser
-        // load the logged-in state.
 
         await loadCurrentUser();
 
-
     } catch (error) {
 
-        console.error(
-            "LOGIN ERROR:",
-            error
-        );
+        console.error("LOGIN ERROR:", error);
 
-        if (status) {
-            status.textContent =
-                error.message;
-        }
-
+        if (status)
+            status.textContent = error.message;
     }
-
 }
 
 
@@ -177,130 +142,67 @@ async function login() {
 
 async function signup() {
 
-    const usernameInput =
-        document.getElementById("signup-username");
+    const username =
+        document.getElementById("signup-username")?.value.trim();
 
-    const displayNameInput =
-        document.getElementById("signup-display-name");
+    const displayName =
+        document.getElementById("signup-display-name")?.value.trim();
 
-    const emailInput =
-        document.getElementById("signup-email");
+    const email =
+        document.getElementById("signup-email")?.value.trim();
 
-    const passwordInput =
-        document.getElementById("signup-password");
+    const password =
+        document.getElementById("signup-password")?.value;
 
     const status =
         document.getElementById("signup-status");
 
+    if (!username || !email || !password) {
 
-    const username =
-        usernameInput
-            ? usernameInput.value.trim()
-            : "";
-
-    const displayName =
-        displayNameInput
-            ? displayNameInput.value.trim()
-            : "";
-
-    const email =
-        emailInput
-            ? emailInput.value.trim()
-            : "";
-
-    const password =
-        passwordInput
-            ? passwordInput.value
-            : "";
-
-
-    if (
-        !username ||
-        !email ||
-        !password
-    ) {
-
-        if (status) {
+        if (status)
             status.textContent =
                 "Username, email, and password are required.";
-        }
 
         return;
     }
 
-
-    if (status) {
-        status.textContent =
-            "Creating account...";
-    }
-
+    if (status)
+        status.textContent = "Creating account...";
 
     try {
 
-        const data = await api(
+        await api(
             "/api/signup",
             {
                 method: "POST",
-
                 body: JSON.stringify({
-
                     username,
-
-                    display_name:
-                        displayName,
-
+                    display_name: displayName,
                     email,
-
                     password
-
                 })
             }
         );
 
-
-        console.log(
-            "SIGNUP SUCCESS:",
-            data
-        );
-
-
-        if (status) {
+        if (status)
             status.textContent =
                 "Account created! You can now log in. 🧌";
-        }
-
-
-        // Switch back to login.
 
         showLogin();
 
-
-        // Put email into login field.
-
         const loginEmail =
-            document.getElementById(
-                "login-email"
-            );
+            document.getElementById("login-email");
 
-        if (loginEmail) {
+        if (loginEmail)
             loginEmail.value = email;
-        }
-
 
     } catch (error) {
 
-        console.error(
-            "SIGNUP ERROR:",
-            error
-        );
+        console.error("SIGNUP ERROR:", error);
 
-        if (status) {
-            status.textContent =
-                error.message;
-        }
-
+        if (status)
+            status.textContent = error.message;
     }
-
 }
 
 
@@ -319,28 +221,16 @@ async function logout() {
             }
         );
 
-
-        console.log(
-            "Logged out"
-        );
-
-
         showLoggedOut();
 
+        window.location.href = "/";
 
     } catch (error) {
 
-        console.error(
-            "LOGOUT ERROR:",
-            error
-        );
+        console.error("LOGOUT ERROR:", error);
 
-        alert(
-            error.message
-        );
-
+        alert(error.message);
     }
-
 }
 
 
@@ -353,16 +243,9 @@ async function loadCurrentUser() {
     try {
 
         const data =
-            await api(
-                "/api/me"
-            );
+            await api("/api/me");
 
-
-        console.log(
-            "CURRENT USER:",
-            data
-        );
-
+        console.log("CURRENT USER:", data);
 
         if (
             data &&
@@ -370,16 +253,13 @@ async function loadCurrentUser() {
             data.user
         ) {
 
-            showLoggedIn(
-                data.user
-            );
+            showLoggedIn(data.user);
 
         } else {
 
             showLoggedOut();
 
         }
-
 
     } catch (error) {
 
@@ -389,9 +269,7 @@ async function loadCurrentUser() {
         );
 
         showLoggedOut();
-
     }
-
 }
 
 
@@ -401,82 +279,37 @@ async function loadCurrentUser() {
 
 function showLoggedIn(user) {
 
-    console.log(
-        "Showing logged-in UI:",
-        user
-    );
-
-
     const authSection =
-        document.getElementById(
-            "auth-section"
-        );
+        document.getElementById("auth-section");
 
     const appSection =
-        document.getElementById(
-            "app-section"
-        );
+        document.getElementById("app-section");
 
     const logoutButton =
-        document.getElementById(
-            "logout-button"
-        );
+        document.getElementById("logout-button");
 
-    const adminButton =
-        document.getElementById(
-            "admin-button"
-        );
+    if (authSection)
+        authSection.style.display = "none";
 
+    if (appSection)
+        appSection.style.display = "block";
 
-    if (authSection) {
-        authSection.style.display =
-            "none";
-    }
-
-
-    if (appSection) {
-        appSection.style.display =
-            "block";
-    }
-
-
-    if (logoutButton) {
-        logoutButton.style.display =
-            "inline-block";
-    }
-
-
-    // Load the actual app.
-
-    loadPosts();
-
-    loadPeople();
-
-    checkAdmin();
-
-
-    // Update profile link.
+    if (logoutButton)
+        logoutButton.style.display = "inline-block";
 
     const profileLink =
-        document.getElementById(
-            "profile-link"
-        );
+        document.getElementById("profile-link");
 
-
-    if (
-        profileLink &&
-        user &&
-        user.id
-    ) {
+    if (profileLink && user?.id) {
 
         profileLink.href =
             "/profile.html?id=" +
-            encodeURIComponent(
-                user.id
-            );
-
+            encodeURIComponent(user.id);
     }
 
+    loadPosts();
+    loadPeople();
+    checkAdmin();
 }
 
 
@@ -487,91 +320,52 @@ function showLoggedIn(user) {
 function showLoggedOut() {
 
     const authSection =
-        document.getElementById(
-            "auth-section"
-        );
+        document.getElementById("auth-section");
 
     const appSection =
-        document.getElementById(
-            "app-section"
-        );
+        document.getElementById("app-section");
 
     const logoutButton =
-        document.getElementById(
-            "logout-button"
-        );
+        document.getElementById("logout-button");
 
     const adminButton =
-        document.getElementById(
-            "admin-button"
-        );
+        document.getElementById("admin-button");
 
+    if (authSection)
+        authSection.style.display = "block";
 
-    if (authSection) {
-        authSection.style.display =
-            "block";
-    }
+    if (appSection)
+        appSection.style.display = "none";
 
+    if (logoutButton)
+        logoutButton.style.display = "none";
 
-    if (appSection) {
-        appSection.style.display =
-            "none";
-    }
-
-
-    if (logoutButton) {
-        logoutButton.style.display =
-            "none";
-    }
-
-
-    if (adminButton) {
-        adminButton.style.display =
-            "none";
-    }
-
+    if (adminButton)
+        adminButton.style.display = "none";
 }
 
 
 // ==================================================
-// ADMIN CHECK
+// ADMIN
 // ==================================================
 
 async function checkAdmin() {
 
-    const adminButton =
-        document.getElementById(
-            "admin-button"
-        );
+    const button =
+        document.getElementById("admin-button");
 
-
-    if (!adminButton) {
+    if (!button)
         return;
-    }
-
 
     try {
 
         const data =
-            await api(
-                "/api/admin/me"
-            );
+            await api("/api/admin/me");
 
-
-        if (
-            data &&
-            data.isAdmin
-        ) {
-
-            adminButton.style.display =
-                "inline-block";
-
-        } else {
-
-            adminButton.style.display =
-                "none";
-
-        }
+        button.style.display =
+            data?.isAdmin
+                ? "inline-block"
+                : "none";
 
     } catch (error) {
 
@@ -580,11 +374,8 @@ async function checkAdmin() {
             error
         );
 
-        adminButton.style.display =
-            "none";
-
+        button.style.display = "none";
     }
-
 }
 
 
@@ -595,33 +386,23 @@ async function checkAdmin() {
 async function loadPosts() {
 
     const container =
-        document.getElementById(
-            "posts"
-        );
+        document.getElementById("posts");
 
-
-    if (!container) {
+    if (!container)
         return;
-    }
-
 
     container.innerHTML =
         "Loading posts...";
 
-
     try {
 
         const data =
-            await api(
-                "/api/"
-            );
-
+            await api("/api/");
 
         const posts =
             data.posts || [];
 
-
-        if (posts.length === 0) {
+        if (!posts.length) {
 
             container.innerHTML =
                 "<p>No posts yet. Be the first! 🧌</p>";
@@ -629,36 +410,20 @@ async function loadPosts() {
             return;
         }
 
-
         container.innerHTML = "";
 
-
-        for (
-            const post of posts
-        ) {
+        for (const post of posts) {
 
             const element =
-                document.createElement(
-                    "article"
-                );
+                document.createElement("article");
 
-
-            element.className =
-                "post";
-
-
-            const content =
-                escapeHTML(
-                    post.content || ""
-                );
-
+            element.className = "post";
 
             let html = `
                 <div class="post-content">
-                    ${content}
+                    ${escapeHTML(post.content || "")}
                 </div>
             `;
-
 
             if (post.image_url) {
 
@@ -674,27 +439,74 @@ async function loadPosts() {
                         "
                     >
                 `;
-
             }
-
 
             html += `
                 <small>
                     ${formatDate(post.created_at)}
                 </small>
+
+                <div class="post-reactions">
+                    <button onclick="reactToPost('${post.id}', 'like')">
+                        👍 <span id="like-${post.id}">0</span>
+                    </button>
+
+                    <button onclick="reactToPost('${post.id}', 'love')">
+                        ❤️ <span id="love-${post.id}">0</span>
+                    </button>
+
+                    <button onclick="reactToPost('${post.id}', 'laugh')">
+                        😂 <span id="laugh-${post.id}">0</span>
+                    </button>
+
+                    <button onclick="reactToPost('${post.id}', 'angry')">
+                        😡 <span id="angry-${post.id}">0</span>
+                    </button>
+
+                    <button onclick="reactToPost('${post.id}', 'sad')">
+                        😢 <span id="sad-${post.id}">0</span>
+                    </button>
+
+                    <button onclick="reactToPost('${post.id}', 'gyatt')">
+                        🍑 <span id="gyatt-${post.id}">0</span>
+                    </button>
+                </div>
+
+                <div class="comments">
+
+                    <h4>Comments</h4>
+
+                    <div id="comments-${post.id}">
+                        Loading comments...
+                    </div>
+
+                    <div class="comment-form">
+
+                        <input
+                            id="comment-input-${post.id}"
+                            type="text"
+                            maxlength="1000"
+                            placeholder="Write a comment..."
+                        >
+
+                        <button
+                            onclick="addComment('${post.id}')"
+                        >
+                            Comment
+                        </button>
+
+                    </div>
+
+                </div>
             `;
 
+            element.innerHTML = html;
 
-            element.innerHTML =
-                html;
+            container.appendChild(element);
 
-
-            container.appendChild(
-                element
-            );
-
+            loadReactions(post.id);
+            loadComments(post.id);
         }
-
 
     } catch (error) {
 
@@ -705,9 +517,7 @@ async function loadPosts() {
 
         container.innerHTML =
             `<p>Could not load posts: ${escapeHTML(error.message)}</p>`;
-
     }
-
 }
 
 
@@ -718,45 +528,28 @@ async function loadPosts() {
 async function createPost() {
 
     const contentInput =
-        document.getElementById(
-            "post-content"
-        );
+        document.getElementById("post-content");
 
     const imageInput =
-        document.getElementById(
-            "post-image"
-        );
+        document.getElementById("post-image");
 
     const status =
-        document.getElementById(
-            "post-status"
-        );
-
+        document.getElementById("post-status");
 
     const content =
-        contentInput
-            ? contentInput.value.trim()
-            : "";
-
+        contentInput?.value.trim() || "";
 
     let imageUrl = "";
-
-
-    // ----------------------------------------------
-    // IMAGE
-    // ----------------------------------------------
 
     if (
         imageInput &&
         imageInput.files &&
-        imageInput.files.length > 0
+        imageInput.files.length
     ) {
 
-        if (status) {
+        if (status)
             status.textContent =
                 "Uploading image...";
-        }
-
 
         try {
 
@@ -772,38 +565,28 @@ async function createPost() {
                 error
             );
 
-            if (status) {
+            if (status)
                 status.textContent =
                     error.message;
-            }
 
             return;
         }
-
     }
 
+    if (!content && !imageUrl) {
 
-    if (
-        !content &&
-        !imageUrl
-    ) {
-
-        if (status) {
+        if (status)
             status.textContent =
                 "Post cannot be empty.";
-        }
 
         return;
     }
 
-
     try {
 
-        if (status) {
+        if (status)
             status.textContent =
                 "Posting...";
-        }
-
 
         await api(
             "/api/",
@@ -811,33 +594,22 @@ async function createPost() {
                 method: "POST",
 
                 body: JSON.stringify({
-
                     content,
-
-                    image_url:
-                        imageUrl
-
+                    image_url: imageUrl
                 })
             }
         );
 
-
-        if (contentInput) {
+        if (contentInput)
             contentInput.value = "";
-        }
-
 
         clearPostImage();
 
-
-        if (status) {
+        if (status)
             status.textContent =
                 "Posted! 🧌";
-        }
-
 
         await loadPosts();
-
 
     } catch (error) {
 
@@ -846,13 +618,10 @@ async function createPost() {
             error
         );
 
-        if (status) {
+        if (status)
             status.textContent =
                 error.message;
-        }
-
     }
-
 }
 
 
@@ -869,43 +638,27 @@ async function uploadPostImage(file) {
         "image/gif"
     ];
 
-
-    if (
-        !allowedTypes.includes(
-            file.type
-        )
-    ) {
+    if (!allowedTypes.includes(file.type)) {
 
         throw new Error(
             "Unsupported image type."
         );
-
     }
 
-
-    // 10 MB maximum.
-
-    if (
-        file.size >
-        10 * 1024 * 1024
-    ) {
+    if (file.size > 10 * 1024 * 1024) {
 
         throw new Error(
             "Image must be smaller than 10 MB."
         );
-
     }
-
 
     const formData =
         new FormData();
-
 
     formData.append(
         "image",
         file
     );
-
 
     const response =
         await fetch(
@@ -917,15 +670,11 @@ async function uploadPostImage(file) {
             }
         );
 
-
     let data = {};
 
     try {
-        data =
-            await response.json();
+        data = await response.json();
     } catch {}
-
-
 
     if (!response.ok) {
 
@@ -933,16 +682,13 @@ async function uploadPostImage(file) {
             data.error ||
             "Image upload failed."
         );
-
     }
-
 
     return (
         data.image_url ||
         data.avatar_url ||
         ""
     );
-
 }
 
 
@@ -953,37 +699,22 @@ async function uploadPostImage(file) {
 function clearPostImage() {
 
     const input =
-        document.getElementById(
-            "post-image"
-        );
+        document.getElementById("post-image");
 
     const preview =
-        document.getElementById(
-            "post-image-preview"
-        );
+        document.getElementById("post-image-preview");
 
-    const previewImage =
-        document.getElementById(
-            "post-preview-image"
-        );
+    const image =
+        document.getElementById("post-preview-image");
 
-
-    if (input) {
+    if (input)
         input.value = "";
-    }
 
+    if (preview)
+        preview.style.display = "none";
 
-    if (preview) {
-        preview.style.display =
-            "none";
-    }
-
-
-    if (previewImage) {
-        previewImage.src =
-            "";
-    }
-
+    if (image)
+        image.src = "";
 }
 
 
@@ -994,35 +725,23 @@ function clearPostImage() {
 async function loadPeople() {
 
     const container =
-        document.getElementById(
-            "people"
-        );
+        document.getElementById("people");
 
-
-    if (!container) {
+    if (!container)
         return;
-    }
-
 
     container.innerHTML =
         "Loading people...";
 
-
     try {
 
         const data =
-            await api(
-                "/api/users"
-            );
-
+            await api("/api/users");
 
         const users =
             data.users || [];
 
-
-        if (
-            users.length === 0
-        ) {
+        if (!users.length) {
 
             container.innerHTML =
                 "<p>No users found.</p>";
@@ -1030,23 +749,15 @@ async function loadPeople() {
             return;
         }
 
-
         container.innerHTML = "";
 
-
-        for (
-            const user of users
-        ) {
+        for (const user of users) {
 
             const element =
-                document.createElement(
-                    "div"
-                );
-
+                document.createElement("div");
 
             element.className =
                 "person";
-
 
             const name =
                 escapeHTML(
@@ -1055,13 +766,10 @@ async function loadPeople() {
                     "Unknown user"
                 );
 
-
             const username =
                 escapeHTML(
-                    user.username ||
-                    ""
+                    user.username || ""
                 );
-
 
             const avatar =
                 user.avatar_url
@@ -1079,54 +787,31 @@ async function loadPeople() {
                     `
                     : "🧌";
 
-
             element.innerHTML = `
-
                 ${avatar}
 
                 <div>
-
-                    <strong>
-                        ${name}
-                    </strong>
-
+                    <strong>${name}</strong>
                     <br>
-
-                    <small>
-                        @${username}
-                    </small>
-
+                    <small>@${username}</small>
                 </div>
-
             `;
-
 
             element.style.cursor =
                 "pointer";
 
+            element.onclick = () => {
 
-            element.onclick =
-                function () {
+                if (user.id) {
 
-                    if (user.id) {
+                    window.location.href =
+                        "/profile.html?id=" +
+                        encodeURIComponent(user.id);
+                }
+            };
 
-                        window.location.href =
-                            "/profile.html?id=" +
-                            encodeURIComponent(
-                                user.id
-                            );
-
-                    }
-
-                };
-
-
-            container.appendChild(
-                element
-            );
-
+            container.appendChild(element);
         }
-
 
     } catch (error) {
 
@@ -1137,14 +822,256 @@ async function loadPeople() {
 
         container.innerHTML =
             `<p>Could not load people: ${escapeHTML(error.message)}</p>`;
-
     }
-
 }
 
 
 // ==================================================
-// POST IMAGE PREVIEW LISTENER
+// COMMENTS
+// ==================================================
+
+async function loadComments(postId) {
+
+    const container =
+        document.getElementById(
+            `comments-${postId}`
+        );
+
+    if (!container)
+        return;
+
+    try {
+
+        const data =
+            await api(
+                `/api/posts/${encodeURIComponent(postId)}/comments`
+            );
+
+        const comments =
+            data.comments || [];
+
+        if (!comments.length) {
+
+            container.innerHTML =
+                "<p>No comments yet.</p>";
+
+            return;
+        }
+
+        container.innerHTML = "";
+
+        for (const comment of comments) {
+
+            const element =
+                document.createElement("div");
+
+            element.className =
+                "comment";
+
+            element.innerHTML = `
+                <div>
+                    ${escapeHTML(comment.content)}
+                </div>
+
+                <small>
+                    ${formatDate(comment.created_at)}
+                </small>
+
+                <button
+                    onclick="deleteComment('${comment.id}')"
+                >
+                    🗑️
+                </button>
+            `;
+
+            container.appendChild(element);
+        }
+
+    } catch (error) {
+
+        console.error(
+            "LOAD COMMENTS ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            `<p>Could not load comments: ${escapeHTML(error.message)}</p>`;
+    }
+}
+
+
+// ==================================================
+// ADD COMMENT
+// ==================================================
+
+async function addComment(postId) {
+
+    const input =
+        document.getElementById(
+            `comment-input-${postId}`
+        );
+
+    if (!input)
+        return;
+
+    const content =
+        input.value.trim();
+
+    if (!content)
+        return;
+
+    try {
+
+        await api(
+            `/api/posts/${encodeURIComponent(postId)}/comments`,
+            {
+                method: "POST",
+
+                body: JSON.stringify({
+                    content
+                })
+            }
+        );
+
+        input.value = "";
+
+        await loadComments(postId);
+
+    } catch (error) {
+
+        console.error(
+            "ADD COMMENT ERROR:",
+            error
+        );
+
+        alert(error.message);
+    }
+}
+
+
+// ==================================================
+// DELETE COMMENT
+// ==================================================
+
+async function deleteComment(commentId) {
+
+    if (!confirm(
+        "Delete this comment?"
+    )) {
+        return;
+    }
+
+    try {
+
+        await api(
+            `/api/comments/${encodeURIComponent(commentId)}`,
+            {
+                method: "DELETE"
+            }
+        );
+
+        await loadPosts();
+
+    } catch (error) {
+
+        console.error(
+            "DELETE COMMENT ERROR:",
+            error
+        );
+
+        alert(error.message);
+    }
+}
+
+
+// ==================================================
+// REACTIONS
+// ==================================================
+
+async function loadReactions(postId) {
+
+    try {
+
+        const data =
+            await api(
+                `/api/posts/${encodeURIComponent(postId)}/reactions`
+            );
+
+        const counts =
+            data.counts || {};
+
+        const types = [
+            "like",
+            "love",
+            "laugh",
+            "angry",
+            "sad",
+            "gyatt"
+        ];
+
+        for (const type of types) {
+
+            const element =
+                document.getElementById(
+                    `${type}-${postId}`
+                );
+
+            if (element) {
+
+                element.textContent =
+                    counts[type] || 0;
+            }
+        }
+
+    } catch (error) {
+
+        console.error(
+            "LOAD REACTIONS ERROR:",
+            error
+        );
+    }
+}
+
+
+// ==================================================
+// REACT TO POST
+// ==================================================
+
+async function reactToPost(
+    postId,
+    reactionType
+) {
+
+    try {
+
+        await api(
+            `/api/posts/${encodeURIComponent(postId)}/reactions`,
+            {
+                method: "POST",
+
+                body: JSON.stringify({
+                    reaction_type:
+                        reactionType
+                })
+            }
+        );
+
+        await loadReactions(postId);
+
+    } catch (error) {
+
+        console.error(
+            "REACTION ERROR:",
+            error
+        );
+
+        alert(error.message);
+    }
+}
+
+
+// ==================================================
+// DOM READY
 // ==================================================
 
 document.addEventListener(
@@ -1156,7 +1083,6 @@ document.addEventListener(
                 "post-image"
             );
 
-
         if (imageInput) {
 
             imageInput.addEventListener(
@@ -1165,7 +1091,6 @@ document.addEventListener(
 
                     const file =
                         imageInput.files?.[0];
-
 
                     const preview =
                         document.getElementById(
@@ -1177,21 +1102,16 @@ document.addEventListener(
                             "post-preview-image"
                         );
 
-
                     if (
                         !file ||
                         !preview ||
                         !previewImage
                     ) {
-
                         return;
-
                     }
-
 
                     const reader =
                         new FileReader();
-
 
                     reader.onload =
                         event => {
@@ -1201,24 +1121,14 @@ document.addEventListener(
 
                             preview.style.display =
                                 "block";
-
                         };
 
-
-                    reader.readAsDataURL(
-                        file
-                    );
-
+                    reader.readAsDataURL(file);
                 }
             );
-
         }
 
-
-        // Load login state.
-
         loadCurrentUser();
-
     }
 );
 
@@ -1229,91 +1139,54 @@ document.addEventListener(
 
 function escapeHTML(value) {
 
-    return String(
-        value ?? ""
-    )
-        .replaceAll(
-            "&",
-            "&amp;"
-        )
-        .replaceAll(
-            "<",
-            "&lt;"
-        )
-        .replaceAll(
-            ">",
-            "&gt;"
-        )
-        .replaceAll(
-            '"',
-            "&quot;"
-        )
-        .replaceAll(
-            "'",
-            "&#039;"
-        );
-
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
 }
 
 
 function escapeAttribute(value) {
 
-    return escapeHTML(
-        value
-    );
-
+    return escapeHTML(value);
 }
 
 
 function formatDate(date) {
 
-    if (!date) {
+    if (!date)
         return "";
-    }
-
 
     try {
 
-        return new Date(
-            date
-        ).toLocaleString();
+        return new Date(date)
+            .toLocaleString();
 
     } catch {
 
         return "";
-
     }
-
 }
 
 
 // ==================================================
-// MAKE FUNCTIONS AVAILABLE TO HTML onclick=""
+// GLOBAL FUNCTIONS FOR HTML onclick
 // ==================================================
 
-window.login =
-    login;
+window.login = login;
+window.signup = signup;
+window.logout = logout;
+window.showLogin = showLogin;
+window.showSignup = showSignup;
+window.createPost = createPost;
+window.clearPostImage = clearPostImage;
+window.loadPosts = loadPosts;
+window.loadPeople = loadPeople;
+window.addComment = addComment;
+window.deleteComment = deleteComment;
+window.reactToPost = reactToPost;
+window.loadComments = loadComments;
+window.loadReactions = loadReactions;
 
-window.signup =
-    signup;
-
-window.logout =
-    logout;
-
-window.showLogin =
-    showLogin;
-
-window.showSignup =
-    showSignup;
-
-window.createPost =
-    createPost;
-
-window.clearPostImage =
-    clearPostImage;
-
-window.loadPosts =
-    loadPosts;
-
-window.loadPeople =
-    loadPeople;

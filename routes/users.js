@@ -25,7 +25,7 @@ router.get(
                     id,
                     username,
                     display_name,
-                    avatar_url,
+                    avatar,
                     bio
                 `)
                 .order(
@@ -88,7 +88,7 @@ router.get(
                     id,
                     username,
                     display_name,
-                    avatar_url,
+                    avatar,
                     bio
                 `)
                 .eq(

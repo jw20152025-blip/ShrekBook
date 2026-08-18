@@ -5,12 +5,23 @@ const path = require("path");
 const session = require("express-session");
 const { createClient } = require("@supabase/supabase-js");
 
-const authRoutes = require("./routes/auth");
-const adminRoutes = require("./routes/admin");
-const postsRoutes = require("./routes/posts");
-const usersRoutes = require("./routes/users");
-const commentsRoutes = require("./routes/comments");
-const reactionsRoutes = require("./routes/reactions");
+// ==================================================
+// ROUTES
+// ==================================================
+
+app.use("/api", authRoutes);
+
+app.use("/api/admin", adminRoutes);
+
+app.use("/api", postsRoutes);
+
+app.use("/api", usersRoutes);
+
+app.use("/api", commentsRoutes);
+
+app.use("/api", reactionsRoutes);
+
+app.use("/api/shrekchat", shrekchatRoutes);
 
 const app = express();
 
