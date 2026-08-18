@@ -1,5 +1,6 @@
 // ==================================================
 // SHREKBOOK AUTH ROUTES
+// routes/auth.js
 // ==================================================
 
 const express = require("express");
@@ -8,7 +9,31 @@ const router = express.Router();
 
 
 // ==================================================
-// SIGN UP
+// SUPABASE HELPER
+// ==================================================
+
+function getSupabase(req) {
+
+    return req.app.locals.supabase;
+
+}
+
+
+// ==================================================
+// NORMALIZE EMAIL
+// ==================================================
+
+function normalizeEmail(email) {
+
+    return String(email || "")
+        .trim()
+        .toLowerCase();
+
+}
+
+
+// ==================================================
+// SIGNUP
 // ==================================================
 
 router.post(
@@ -17,12 +42,13 @@ router.post(
 
         try {
 
+            const supabase =
+                getSupabase(req);
+
             const email =
-                String(
-                    req.body.email || ""
-                )
-                .trim()
-                .toLowerCase();
+                normalizeEmail(
+                    req.body.email
+                );
 
             const password =
                 String(
@@ -32,8 +58,7 @@ router.post(
             const username =
                 String(
                     req.body.username || ""
-                )
-                .trim();
+                ).trim();
 
             const displayName =
                 String(
@@ -41,18 +66,18 @@ router.post(
                     req.body.displayName ||
                     username ||
                     ""
-                )
-                .trim();
+                ).trim();
 
 
             if (
                 !email ||
-                !password
+                !password ||
+                !username
             ) {
 
                 return res.status(400).json({
                     error:
-                        "Email and password are required."
+                        "Email, password, and username are required."
                 });
 
             }
@@ -68,14 +93,18 @@ router.post(
             }
 
 
-            // Check active email ban.
+            // ==================================================
+            // CHECK BAN
+            // ==================================================
 
             const {
                 data: bans,
                 error: banError
-            } = await req.supabase
+            } = await supabase
                 .from("bans")
-                .select("id,email,active")
+                .select(
+                    "id,user_id,email,reason,active,banned_at"
+                )
                 .eq(
                     "email",
                     email
@@ -103,27 +132,41 @@ router.post(
             ) {
 
                 return res.status(403).json({
+
                     error:
-                        "This email is banned."
+                        "This email is banned.",
+
+                    banned:
+                        true,
+
+                    reason:
+                        bans[0].reason ||
+                        "No reason provided."
+
                 });
 
             }
 
 
+            // ==================================================
+            // CREATE AUTH USER
+            // ==================================================
+
             const {
                 data,
                 error
-            } = await req.supabase.auth.admin
-                .createUser({
+            } =
+                await supabase.auth.admin
+                    .createUser({
 
-                    email,
+                        email,
 
-                    password,
+                        password,
 
-                    email_confirm:
-                        true
+                        email_confirm:
+                            true
 
-                });
+                    });
 
 
             if (error) {
@@ -136,36 +179,43 @@ router.post(
             }
 
 
-            const user =
-                data.user;
-
-
-            if (!user) {
+            if (
+                !data ||
+                !data.user
+            ) {
 
                 return res.status(500).json({
                     error:
-                        "Account could not be created."
+                        "Could not create account."
                 });
 
             }
 
 
+            const user =
+                data.user;
+
+
+            // ==================================================
+            // CREATE PROFILE
+            // ==================================================
+
             const {
                 error: profileError
-            } = await req.supabase
-                .from("profiles")
-                .insert({
+            } =
+                await supabase
+                    .from("profiles")
+                    .insert({
 
-                    id:
-                        user.id,
+                        id:
+                            user.id,
 
-                    username:
-                        username || null,
+                        username,
 
-                    display_name:
-                        displayName || null
+                        display_name:
+                            displayName
 
-                });
+                    });
 
 
             if (profileError) {
@@ -174,6 +224,30 @@ router.post(
                     "PROFILE CREATE ERROR:",
                     profileError
                 );
+
+
+                // Roll back Auth account
+                try {
+
+                    await supabase.auth.admin
+                        .deleteUser(
+                            user.id
+                        );
+
+                } catch (deleteError) {
+
+                    console.error(
+                        "AUTH ROLLBACK ERROR:",
+                        deleteError
+                    );
+
+                }
+
+
+                return res.status(500).json({
+                    error:
+                        profileError.message
+                });
 
             }
 
@@ -184,11 +258,18 @@ router.post(
                     true,
 
                 user: {
+
                     id:
                         user.id,
 
                     email:
-                        user.email
+                        user.email,
+
+                    username,
+
+                    display_name:
+                        displayName
+
                 }
 
             });
@@ -221,12 +302,13 @@ router.post(
 
         try {
 
+            const supabase =
+                getSupabase(req);
+
             const email =
-                String(
-                    req.body.email || ""
-                )
-                .trim()
-                .toLowerCase();
+                normalizeEmail(
+                    req.body.email
+                );
 
             const password =
                 String(
@@ -247,48 +329,83 @@ router.post(
             }
 
 
-            // Check active ban.
+            // ==================================================
+            // CHECK EMAIL BAN
+            // ==================================================
 
             const {
-                data: bans
-            } = await req.supabase
-                .from("bans")
-                .select("id,email,active")
-                .eq(
-                    "email",
-                    email
-                )
-                .eq(
-                    "active",
-                    true
-                )
-                .limit(1);
+                data: emailBans,
+                error: emailBanError
+            } =
+                await supabase
+                    .from("bans")
+                    .select(`
+                        id,
+                        user_id,
+                        email,
+                        reason,
+                        active,
+                        banned_at
+                    `)
+                    .eq(
+                        "email",
+                        email
+                    )
+                    .eq(
+                        "active",
+                        true
+                    )
+                    .limit(1);
+
+
+            if (emailBanError) {
+
+                console.error(
+                    "LOGIN BAN CHECK ERROR:",
+                    emailBanError
+                );
+
+            }
 
 
             if (
-                bans &&
-                bans.length > 0
+                emailBans &&
+                emailBans.length > 0
             ) {
 
                 return res.status(403).json({
+
                     error:
-                        "This account is banned."
+                        "This account is banned.",
+
+                    banned:
+                        true,
+
+                    reason:
+                        emailBans[0].reason ||
+                        "No reason provided."
+
                 });
 
             }
 
 
+            // ==================================================
+            // LOGIN TO SUPABASE
+            // ==================================================
+
             const {
                 data,
                 error
-            } = await req.supabase.auth
-                .signInWithPassword({
+            } =
+                await supabase.auth
+                    .signInWithPassword({
 
-                    email,
+                        email,
 
-                    password
+                        password
 
-                });
+                    });
 
 
             if (error) {
@@ -301,6 +418,84 @@ router.post(
             }
 
 
+            if (
+                !data ||
+                !data.user
+            ) {
+
+                return res.status(401).json({
+                    error:
+                        "Login failed."
+                });
+
+            }
+
+
+            // ==================================================
+            // CHECK USER-ID BAN
+            // ==================================================
+
+            const {
+                data: userBans,
+                error: userBanError
+            } =
+                await supabase
+                    .from("bans")
+                    .select(`
+                        id,
+                        user_id,
+                        email,
+                        reason,
+                        active,
+                        banned_at
+                    `)
+                    .eq(
+                        "user_id",
+                        data.user.id
+                    )
+                    .eq(
+                        "active",
+                        true
+                    )
+                    .limit(1);
+
+
+            if (userBanError) {
+
+                console.error(
+                    "USER BAN CHECK ERROR:",
+                    userBanError
+                );
+
+            }
+
+
+            if (
+                userBans &&
+                userBans.length > 0
+            ) {
+
+                return res.status(403).json({
+
+                    error:
+                        "This account is banned.",
+
+                    banned:
+                        true,
+
+                    reason:
+                        userBans[0].reason ||
+                        "No reason provided."
+
+                });
+
+            }
+
+
+            // ==================================================
+            // CREATE SHREKBOOK SESSION
+            // ==================================================
+
             req.session.user = {
 
                 id:
@@ -312,15 +507,40 @@ router.post(
             };
 
 
-            res.json({
+            // ==================================================
+            // SAVE SESSION
+            // ==================================================
 
-                success:
-                    true,
+            req.session.save(
+                error => {
 
-                user:
-                    req.session.user
+                    if (error) {
 
-            });
+                        console.error(
+                            "SESSION SAVE ERROR:",
+                            error
+                        );
+
+                        return res.status(500).json({
+                            error:
+                                "Could not create login session."
+                        });
+
+                    }
+
+
+                    res.json({
+
+                        success:
+                            true,
+
+                        user:
+                            req.session.user
+
+                    });
+
+                }
+            );
 
         } catch (error) {
 
@@ -366,9 +586,16 @@ router.post(
                 }
 
 
+                res.clearCookie(
+                    "connect.sid"
+                );
+
+
                 res.json({
+
                     success:
                         true
+
                 });
 
             }
@@ -394,36 +621,58 @@ router.get(
             ) {
 
                 return res.json({
+
                     loggedIn:
                         false,
 
                     user:
                         null
+
                 });
 
             }
 
+
+            const supabase =
+                getSupabase(req);
 
             const userId =
                 req.session.user.id;
 
 
             const {
-                data: profile
-            } = await req.supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar_url,
-                    bio
-                `)
-                .eq(
-                    "id",
-                    userId
-                )
-                .maybeSingle();
+                data: profile,
+                error
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(`
+                        id,
+                        username,
+                        display_name,
+                        avatar_url,
+                        bio
+                    `)
+                    .eq(
+                        "id",
+                        userId
+                    )
+                    .maybeSingle();
+
+
+            if (error) {
+
+                console.error(
+                    "PROFILE LOAD ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
 
 
             res.json({
@@ -463,4 +712,9 @@ router.get(
 );
 
 
-module.exports = router;
+// ==================================================
+// EXPORT
+// ==================================================
+
+module.exports =
+    router;
