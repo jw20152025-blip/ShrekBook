@@ -1,9 +1,6 @@
-
 // ============================================================
 // SHREKBOOK - UNIFIED SERVER
-// Persistent PostgreSQL sessions
-// Login / Signup / Posts / Comments / Reactions / Gyatt
-// ShrekChat / Kicks / Revokes / Admin
+// Persistent Express sessions using Supabase PostgreSQL.
 // ============================================================
 
 require("dotenv").config();
@@ -19,6 +16,34 @@ const { createClient } = require("@supabase/supabase-js");
 const app = express();
 
 const PORT = process.env.PORT || 3000;
+
+// ============================================================
+// REQUIRED ENVIRONMENT VARIABLES
+// ============================================================
+
+if (!process.env.SUPABASE_URL) {
+    console.error("ERROR: SUPABASE_URL is missing.");
+    process.exit(1);
+}
+
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error("ERROR: SUPABASE_SERVICE_ROLE_KEY is missing.");
+    process.exit(1);
+}
+
+if (!process.env.SESSION_SECRET) {
+    console.error("ERROR: SESSION_SECRET is missing.");
+    process.exit(1);
+}
+
+if (!process.env.DATABASE_URL) {
+    console.error(
+        "ERROR: DATABASE_URL is missing.\n" +
+        "Add your Supabase PostgreSQL connection string to Render."
+    );
+
+    process.exit(1);
+}
 
 // ============================================================
 // APP SETTINGS
@@ -43,16 +68,6 @@ app.use(
 // SUPABASE
 // ============================================================
 
-if (!process.env.SUPABASE_URL) {
-    console.error("ERROR: SUPABASE_URL is missing.");
-}
-
-if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.error(
-        "ERROR: SUPABASE_SERVICE_ROLE_KEY is missing."
-    );
-}
-
 const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -61,71 +76,62 @@ const supabase = createClient(
 app.locals.supabase = supabase;
 
 // ============================================================
-// POSTGRES SESSION DATABASE
+// POSTGRESQL
+//
+// This is Supabase PostgreSQL.
+// It is ONLY being used here to persist Express sessions.
 // ============================================================
 
-if (!process.env.DATABASE_URL) {
-    console.error(
-        "ERROR: DATABASE_URL is missing."
-    );
-}
-
-const pgPool = new Pool({
+const pool = new Pool({
     connectionString:
         process.env.DATABASE_URL,
 
-    ssl:
-        process.env.NODE_ENV === "production"
-            ? {
-                rejectUnauthorized: false
-            }
-            : false
+    ssl: {
+        rejectUnauthorized: false
+    },
+
+    max: 5,
+
+    idleTimeoutMillis: 30000,
+
+    connectionTimeoutMillis: 10000
 });
 
-// Test PostgreSQL connection when server starts.
+app.locals.pgPool = pool;
 
-pgPool
-    .query("SELECT 1")
-    .then(() => {
-        console.log(
-            "✅ PostgreSQL session database connected."
-        );
-    })
-    .catch(error => {
-        console.error(
-            "❌ PostgreSQL connection failed:",
-            error.message
-        );
+// ============================================================
+// SESSION STORE
+// ============================================================
+
+const PgSession =
+    connectPgSimple(session);
+
+const sessionStore =
+    new PgSession({
+        pool,
+
+        tableName:
+            "shrekbook_sessions",
+
+        createTableIfMissing:
+            true,
+
+        pruneSessionInterval:
+            60 * 60
     });
 
 // ============================================================
-// PERSISTENT SESSION STORE
+// SESSION
 // ============================================================
-
-const PgSession = connectPgSimple(
-    session
-);
 
 app.use(
     session({
 
         store:
-            new PgSession({
-
-                pool:
-                    pgPool,
-
-                tableName:
-                    "shrekbook_sessions",
-
-                createTableIfMissing:
-                    true
-
-            }),
+            sessionStore,
 
         secret:
-            process.env.SESSION_SECRET ||
-            "shrekbook-production-secret-change-this",
+            process.env.SESSION_SECRET,
 
         resave:
             false,
@@ -133,7 +139,7 @@ app.use(
         saveUninitialized:
             false,
 
-        rolling:
+        proxy:
             true,
 
         cookie: {
@@ -152,10 +158,7 @@ app.use(
                 60 *
                 60 *
                 24 *
-                30,
-
-            path:
-                "/"
+                30
 
         }
 
@@ -185,14 +188,13 @@ function db() {
 
 function currentUser(req) {
 
-    if (
+    return (
         req.session &&
         req.session.user
-    ) {
-        return req.session.user;
-    }
+            ? req.session.user
+            : null
+    );
 
-    return null;
 }
 
 function requireLogin(
@@ -201,10 +203,7 @@ function requireLogin(
     next
 ) {
 
-    const user =
-        currentUser(req);
-
-    if (!user) {
+    if (!currentUser(req)) {
 
         return res.status(401).json({
             error:
@@ -214,6 +213,7 @@ function requireLogin(
     }
 
     next();
+
 }
 
 function cleanString(value) {
@@ -233,12 +233,10 @@ function safeUser(profile) {
     return {
 
         id:
-            profile.id ||
-            null,
+            profile.id || null,
 
         username:
-            profile.username ||
-            "",
+            profile.username || "",
 
         display_name:
             profile.display_name ||
@@ -269,7 +267,9 @@ function safeUser(profile) {
 
 }
 
-async function getProfile(userId) {
+async function getProfile(
+    userId
+) {
 
     const {
         data,
@@ -288,6 +288,7 @@ async function getProfile(userId) {
     }
 
     return data;
+
 }
 
 function isAdminUser(user) {
@@ -312,18 +313,18 @@ function isKicked(user) {
         return false;
     }
 
-    const timestamp =
+    const time =
         new Date(
             user.kick_until
         ).getTime();
 
     if (
-        Number.isNaN(timestamp)
+        Number.isNaN(time)
     ) {
         return false;
     }
 
-    return timestamp > Date.now();
+    return time > Date.now();
 
 }
 
@@ -397,7 +398,7 @@ app.get(
 );
 
 // ============================================================
-// SIGNUP
+// AUTH - SIGNUP
 // ============================================================
 
 app.post(
@@ -423,8 +424,7 @@ app.post(
 
             const password =
                 String(
-                    req.body.password ||
-                    ""
+                    req.body.password || ""
                 );
 
             if (
@@ -463,8 +463,7 @@ app.post(
             }
 
             const {
-                data: existing,
-                error: existingError
+                data: existing
             } = await db()
                 .from("profiles")
                 .select(
@@ -475,15 +474,6 @@ app.post(
                     username
                 )
                 .maybeSingle();
-
-            if (existingError) {
-
-                return res.status(500).json({
-                    error:
-                        existingError.message
-                });
-
-            }
 
             if (existing) {
 
@@ -587,7 +577,7 @@ app.post(
 );
 
 // ============================================================
-// LOGIN
+// AUTH - LOGIN
 // ============================================================
 
 app.post(
@@ -603,8 +593,7 @@ app.post(
 
             const password =
                 String(
-                    req.body.password ||
-                    ""
+                    req.body.password || ""
                 );
 
             if (
@@ -667,9 +656,7 @@ app.post(
             const user =
                 safeUser(profile);
 
-            if (
-                user.is_revoked
-            ) {
+            if (user.is_revoked) {
 
                 return res.status(403).json({
                     error:
@@ -678,9 +665,7 @@ app.post(
 
             }
 
-            if (
-                isKicked(user)
-            ) {
+            if (isKicked(user)) {
 
                 return res.status(403).json({
                     error:
@@ -689,30 +674,20 @@ app.post(
 
             }
 
-            // ====================================================
-            // IMPORTANT SESSION FIX
-            // ====================================================
-
             req.session.user =
                 user;
 
             req.session.userId =
                 data.user.id;
 
-            req.session.supabaseUserId =
-                data.user.id;
-
-            req.session.loginTime =
-                new Date().toISOString();
-
             req.session.save(
-                saveError => {
+                error => {
 
-                    if (saveError) {
+                    if (error) {
 
                         console.error(
                             "SESSION SAVE ERROR:",
-                            saveError
+                            error
                         );
 
                         return res.status(500).json({
@@ -723,9 +698,8 @@ app.post(
                     }
 
                     console.log(
-                        "✅ SESSION SAVED:",
-                        req.sessionID,
-                        user.username
+                        "SESSION SAVED:",
+                        req.sessionID
                     );
 
                     res.json({
@@ -752,7 +726,6 @@ app.post(
 
             res.status(500).json({
                 error:
-                    error.message ||
                     "Server error."
             });
 
@@ -773,14 +746,6 @@ app.get(
 
             const sessionUser =
                 currentUser(req);
-
-            console.log(
-                "ME SESSION:",
-                req.sessionID,
-                sessionUser
-                    ? sessionUser.username
-                    : "NO USER"
-            );
 
             if (!sessionUser) {
 
@@ -850,34 +815,14 @@ app.get(
             req.session.user =
                 user;
 
-            req.session.save(
-                saveError => {
+            res.json({
 
-                    if (saveError) {
+                loggedIn:
+                    true,
 
-                        console.error(
-                            "ME SESSION SAVE ERROR:",
-                            saveError
-                        );
+                user
 
-                        return res.status(500).json({
-                            error:
-                                "Could not save session."
-                        });
-
-                    }
-
-                    res.json({
-
-                        loggedIn:
-                            true,
-
-                        user
-
-                    });
-
-                }
-            );
+            });
 
         } catch (error) {
 
@@ -922,11 +867,7 @@ app.post(
                 }
 
                 res.clearCookie(
-                    "connect.sid",
-                    {
-                        path:
-                            "/"
-                    }
+                    "connect.sid"
                 );
 
                 res.json({
@@ -1111,7 +1052,8 @@ app.put(
             }
 
             if (
-                Object.keys(updates).length === 0
+                Object.keys(updates)
+                    .length === 0
             ) {
 
                 return res.status(400).json({
@@ -1146,30 +1088,15 @@ app.put(
             req.session.user =
                 safeUser(data);
 
-            req.session.save(
-                saveError => {
+            res.json({
 
-                    if (saveError) {
+                success:
+                    true,
 
-                        return res.status(500).json({
-                            error:
-                                "Profile updated but session could not be saved."
-                        });
+                user:
+                    safeUser(data)
 
-                    }
-
-                    res.json({
-
-                        success:
-                            true,
-
-                        user:
-                            safeUser(data)
-
-                    });
-
-                }
-            );
+            });
 
         } catch (error) {
 
@@ -1201,8 +1128,7 @@ app.post(
 
             const image =
                 String(
-                    req.body.image ||
-                    ""
+                    req.body.image || ""
                 );
 
             if (!image) {
@@ -1334,33 +1260,18 @@ app.post(
             req.session.user =
                 safeUser(data);
 
-            req.session.save(
-                saveError => {
+            res.json({
 
-                    if (saveError) {
+                success:
+                    true,
 
-                        return res.status(500).json({
-                            error:
-                                "Avatar updated but session could not be saved."
-                        });
+                image_url:
+                    imageUrl,
 
-                    }
+                avatar_url:
+                    imageUrl
 
-                    res.json({
-
-                        success:
-                            true,
-
-                        image_url:
-                            imageUrl,
-
-                        avatar_url:
-                            imageUrl
-
-                    });
-
-                }
-            );
+            });
 
         } catch (error) {
 
@@ -1497,12 +1408,10 @@ app.post(
                         currentUser(req).id,
 
                     content:
-                        content ||
-                        null,
+                        content || null,
 
                     image_url:
-                        imageUrl ||
-                        null
+                        imageUrl || null
 
                 })
                 .select()
@@ -1846,8 +1755,7 @@ app.get(
                     (
                         counts[
                             reaction.reaction_type
-                        ] ||
-                        0
+                        ] || 0
                     ) + 1;
 
             }
@@ -1973,31 +1881,6 @@ app.post(
             }
 
             if (existing) {
-
-                if (
-                    existing.reaction_type ===
-                    reactionType
-                ) {
-
-                    await db()
-                        .from("reactions")
-                        .delete()
-                        .eq(
-                            "id",
-                            existing.id
-                        );
-
-                    return res.json({
-
-                        success:
-                            true,
-
-                        removed:
-                            true
-
-                    });
-
-                }
 
                 const {
                     data,
@@ -2164,7 +2047,9 @@ app.get(
                 data,
                 error
             } = await db()
-                .from("shrekchat_messages")
+                .from(
+                    "shrekchat_messages"
+                )
                 .select(`
                     id,
                     user_id,
@@ -2520,7 +2405,10 @@ app.post(
                     minutes
                 )
             ) {
-                minutes = 60;
+
+                minutes =
+                    60;
+
             }
 
             minutes =
@@ -2650,11 +2538,7 @@ app.post(
 
             }
 
-            // Disable Supabase authentication too.
-
-            const {
-                error: authError
-            } = await db()
+            await db()
                 .auth
                 .admin
                 .updateUserById(
@@ -2664,15 +2548,6 @@ app.post(
                             "876000h"
                     }
                 );
-
-            if (authError) {
-
-                console.error(
-                    "AUTH REVOKE ERROR:",
-                    authError
-                );
-
-            }
 
             res.json({
 
@@ -2748,9 +2623,7 @@ app.post(
 
             }
 
-            const {
-                error: authError
-            } = await db()
+            await db()
                 .auth
                 .admin
                 .updateUserById(
@@ -2760,15 +2633,6 @@ app.post(
                             "none"
                     }
                 );
-
-            if (authError) {
-
-                console.error(
-                    "AUTH UNREVOKE ERROR:",
-                    authError
-                );
-
-            }
 
             res.json({
 
@@ -2892,13 +2756,10 @@ app.use(
 
 // ============================================================
 // FRONTEND FALLBACK
-//
-// Express 5 does not use app.get("*") reliably.
-// Regex avoids the wildcard-route problem.
 // ============================================================
 
 app.get(
-    /.*/,
+    "*",
     (req, res) => {
 
         res.sendFile(
@@ -2913,22 +2774,74 @@ app.get(
 );
 
 // ============================================================
-// START
+// STARTUP
 // ============================================================
 
-app.listen(
-    PORT,
-    "0.0.0.0",
-    () => {
+async function startServer() {
+
+    try {
+
+        // ----------------------------------------------------
+        // Test PostgreSQL connection FIRST.
+        // ----------------------------------------------------
+
+        const client =
+            await pool.connect();
+
+        try {
+
+            await client.query(
+                "SELECT 1"
+            );
+
+        } finally {
+
+            client.release();
+
+        }
 
         console.log(
-            `🧌 ShrekBook running on port ${PORT}`
+            "✅ Supabase PostgreSQL connection successful."
         );
 
         console.log(
             "💾 Persistent PostgreSQL sessions enabled."
         );
 
-    }
-);
+        // ----------------------------------------------------
+        // Start Express only after PostgreSQL works.
+        // ----------------------------------------------------
 
+        app.listen(
+            PORT,
+            "0.0.0.0",
+            () => {
+
+                console.log(
+                    `🧌 ShrekBook running on port ${PORT}`
+                );
+
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "❌ PostgreSQL connection failed:"
+        );
+
+        console.error(
+            error.message
+        );
+
+        console.error(
+            "\nMake sure DATABASE_URL is your Supabase PostgreSQL connection string."
+        );
+
+        process.exit(1);
+
+    }
+
+}
+
+startServer();
