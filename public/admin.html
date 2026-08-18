@@ -1,209 +1,2022 @@
 <!DOCTYPE html>
+
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0">
+```
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-    <title>ShrekBook Admin 🧌</title>
+<title>ShrekBook Admin Panel</title>
 
-    <link
-        rel="stylesheet"
-        href="/styles.css">
+<style>
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: #f1f3f5;
+        color: #222;
+    }
+
+    header {
+        background: #222;
+        color: white;
+        padding: 18px 25px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    header h1 {
+        margin: 0;
+        font-size: 24px;
+    }
+
+    header button {
+        background: #e74c3c;
+        border: none;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 7px;
+        cursor: pointer;
+    }
+
+    header button:hover {
+        opacity: 0.85;
+    }
+
+    .page {
+        max-width: 1200px;
+        margin: 25px auto;
+        padding: 0 15px;
+    }
+
+    .card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .card h2 {
+        margin-top: 0;
+    }
+
+    input,
+    textarea {
+        width: 100%;
+        padding: 11px;
+        border: 1px solid #ccc;
+        border-radius: 7px;
+        margin-bottom: 10px;
+        font-size: 15px;
+    }
+
+    textarea {
+        min-height: 80px;
+        resize: vertical;
+    }
+
+    button {
+        border: none;
+        border-radius: 7px;
+        padding: 10px 14px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    button:hover {
+        opacity: 0.88;
+    }
+
+    .primary {
+        background: #3498db;
+        color: white;
+    }
+
+    .danger {
+        background: #e74c3c;
+        color: white;
+    }
+
+    .warning {
+        background: #f39c12;
+        color: white;
+    }
+
+    .success {
+        background: #27ae60;
+        color: white;
+    }
+
+    .dark {
+        background: #34495e;
+        color: white;
+    }
+
+    .item {
+        border: 1px solid #ddd;
+        border-radius: 9px;
+        padding: 15px;
+        margin-bottom: 12px;
+        background: #fafafa;
+    }
+
+    .item h3 {
+        margin-top: 0;
+    }
+
+    .muted {
+        color: #777;
+        font-size: 13px;
+    }
+
+    .status {
+        margin-top: 8px;
+        font-weight: bold;
+    }
+
+    .error {
+        color: #c0392b;
+    }
+
+    .success-text {
+        color: #27ae60;
+    }
+
+    .loading {
+        color: #777;
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(
+            auto-fit,
+            minmax(300px, 1fr)
+        );
+        gap: 20px;
+    }
+
+    .user-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    code {
+        background: #eee;
+        padding: 3px 6px;
+        border-radius: 5px;
+        word-break: break-all;
+    }
+
+    .avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        object-fit: cover;
+        vertical-align: middle;
+        margin-right: 10px;
+    }
+
+</style>
+```
 
 </head>
 
 <body>
 
-<header class="navbar">
+<header>
 
-    <div class="navbar-inner">
+```
+<h1>🛡️ ShrekBook Admin Panel</h1>
 
-        <a
-            href="/"
-            class="logo">
-
-            🧌 ShrekBook
-
-        </a>
-
-        <nav>
-
-            <a href="/">
-                Home
-            </a>
-
-            <a href="/profile.html">
-                Profile
-            </a>
-
-            <a href="/shrekchat.html">
-                💬 ShrekChat
-            </a>
-
-            <button
-                onclick="logout()">
-
-                Logout
-
-            </button>
-
-        </nav>
-
-    </div>
+<button onclick="logout()">
+    Logout
+</button>
+```
 
 </header>
 
+<div id="loading" class="page">
 
-<main class="container">
+```
+<div class="card">
 
-    <section id="loading">
+    <h2>Checking permissions...</h2>
 
-        <h1>
-            🛡️ Checking administrator access...
-        </h1>
+    <p>
+        Please wait.
+    </p>
 
-    </section>
+</div>
+```
+
+</div>
+
+<div id="not-admin" class="page hidden">
+
+```
+<div class="card">
+
+    <h2>🚫 Access denied</h2>
+
+    <p>
+        You are not an administrator.
+    </p>
+
+    <button
+        class="dark"
+        onclick="location.href='/'"
+    >
+        Return Home
+    </button>
+
+</div>
+```
+
+</div>
+
+<div
+    id="admin-page"
+    class="page hidden"
+>
+
+```
+<!-- ========================= -->
+<!-- USER SEARCH -->
+<!-- ========================= -->
+
+<div class="card">
+
+    <h2>👤 User Management</h2>
+
+    <input
+        id="user-search"
+        type="text"
+        placeholder="Search username or display name..."
+    >
+
+    <button
+        class="primary"
+        onclick="searchUsers()"
+    >
+        Search Users
+    </button>
+
+    <button
+        class="dark"
+        onclick="loadUsers()"
+    >
+        Show All
+    </button>
+
+    <div
+        id="user-list"
+        style="margin-top:15px;"
+    >
+        <p class="loading">
+            Search for a user.
+        </p>
+    </div>
+
+</div>
 
 
-    <section
-        id="not-admin"
-        style="display:none;">
+<div class="grid">
 
-        <h1>
-            🚫 Access denied
-        </h1>
+    <!-- ========================= -->
+    <!-- BAN USER -->
+    <!-- ========================= -->
 
-        <p>
-            You do not have administrator permissions.
+    <div class="card">
+
+        <h2>🚫 Ban User</h2>
+
+        <input
+            id="ban-email"
+            type="email"
+            placeholder="User email"
+        >
+
+        <textarea
+            id="ban-reason"
+            placeholder="Reason for ban..."
+        ></textarea>
+
+        <button
+            class="danger"
+            onclick="banUser()"
+        >
+            Ban User
+        </button>
+
+        <div
+            id="ban-status"
+            class="status"
+        ></div>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- KICK USER -->
+    <!-- ========================= -->
+
+    <div class="card">
+
+        <h2>👢 Kick User</h2>
+
+        <input
+            id="kick-user-id"
+            type="text"
+            placeholder="User UUID"
+        >
+
+        <input
+            id="kick-reason"
+            type="text"
+            placeholder="Reason for kick..."
+        >
+
+        <button
+            class="warning"
+            onclick="kickUser()"
+        >
+            Kick User
+        </button>
+
+        <div
+            id="kick-status"
+            class="status"
+        ></div>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- REVOKE USER -->
+    <!-- ========================= -->
+
+    <div class="card">
+
+        <h2>🔒 Revoke User</h2>
+
+        <input
+            id="revoke-user-id"
+            type="text"
+            placeholder="User UUID"
+        >
+
+        <input
+            id="revoke-reason"
+            type="text"
+            placeholder="Reason for revoke..."
+        >
+
+        <button
+            class="danger"
+            onclick="revokeUser()"
+        >
+            Revoke User
+        </button>
+
+        <div
+            id="revoke-status"
+            class="status"
+        ></div>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- ADD ADMIN -->
+    <!-- ========================= -->
+
+    <div class="card">
+
+        <h2>👮 Add Administrator</h2>
+
+        <input
+            id="admin-user-id"
+            type="text"
+            placeholder="User UUID"
+        >
+
+        <button
+            class="success"
+            onclick="addAdmin()"
+        >
+            Add Administrator
+        </button>
+
+        <div
+            id="admin-status"
+            class="status"
+        ></div>
+
+    </div>
+
+</div>
+
+
+<!-- ========================= -->
+<!-- ACTIVE BANS -->
+<!-- ========================= -->
+
+<div class="card">
+
+    <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:10px;
+    ">
+
+        <h2>🚫 Active Bans</h2>
+
+        <button
+            class="dark"
+            onclick="loadBans()"
+        >
+            🔄 Refresh
+        </button>
+
+    </div>
+
+    <div id="ban-list">
+
+        <p class="loading">
+            Loading bans...
         </p>
 
-        <a href="/">
-            Return to ShrekBook
-        </a>
+    </div>
 
-    </section>
+</div>
 
 
-    <section
-        id="admin-page"
-        style="display:none;">
+<!-- ========================= -->
+<!-- ADMINS -->
+<!-- ========================= -->
 
-        <h1>
-            🛡️ ShrekBook Administration
-        </h1>
+<div class="card">
 
-        <p>
-            Manage bans and administrators.
+    <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:10px;
+    ">
+
+        <h2>🛡️ Administrators</h2>
+
+        <button
+            class="dark"
+            onclick="loadAdmins()"
+        >
+            🔄 Refresh
+        </button>
+
+    </div>
+
+    <div id="admin-list">
+
+        <p class="loading">
+            Loading administrators...
         </p>
 
+    </div>
 
-        <!-- ================================
-             BAN USER
-             ================================= -->
-
-        <section class="create-post">
-
-            <h2>
-                🚫 Ban an Email
-            </h2>
-
-            <input
-                id="ban-email"
-                type="email"
-                placeholder="Email address">
-
-            <input
-                id="ban-reason"
-                maxlength="500"
-                placeholder="Reason">
-
-            <button
-                onclick="banEmail()">
-
-                🚫 Ban Email
-
-            </button>
-
-            <p id="ban-status"></p>
-
-        </section>
+</div>
 
 
-        <!-- ================================
-             BAN LIST
-             ================================= -->
+<!-- ========================= -->
+<!-- KICKS -->
+<!-- ========================= -->
 
-        <section>
+<div class="card">
 
-            <h2>
-                🚫 Current Bans
-            </h2>
+    <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:10px;
+    ">
 
-            <div id="ban-list">
+        <h2>👢 Recent Kicks</h2>
 
-                Loading bans...
+        <button
+            class="dark"
+            onclick="loadKicks()"
+        >
+            🔄 Refresh
+        </button>
 
-            </div>
+    </div>
 
-        </section>
+    <div id="kick-list">
 
+        <p class="loading">
+            Loading kicks...
+        </p>
 
-        <!-- ================================
-             ADMIN LIST
-             ================================= -->
+    </div>
 
-        <section>
-
-            <h2>
-                🛡️ Administrators
-            </h2>
-
-            <div id="admin-list">
-
-                Loading administrators...
-
-            </div>
-
-        </section>
+</div>
 
 
-        <!-- ================================
-             ADD ADMIN
-             ================================= -->
+<!-- ========================= -->
+<!-- REVOKES -->
+<!-- ========================= -->
 
-        <section class="create-post">
+<div class="card">
 
-            <h2>
-                ➕ Add Administrator
-            </h2>
+    <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:10px;
+    ">
 
-            <input
-                id="admin-user-id"
-                placeholder="Supabase user UUID">
+        <h2>🔒 Revoked Users</h2>
 
-            <button
-                onclick="addAdmin()">
+        <button
+            class="dark"
+            onclick="loadRevokes()"
+        >
+            🔄 Refresh
+        </button>
 
-                🛡️ Add Administrator
+    </div>
 
-            </button>
+    <div id="revoke-list">
 
-            <p id="admin-status"></p>
+        <p class="loading">
+            Loading revokes...
+        </p>
 
-        </section>
+    </div>
 
-    </section>
+</div>
+```
 
-</main>
+</div>
+
+<script>
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function escapeHtml(value) {
+
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
 
 
-<script src="/admin.js"></script>
+async function getJson(url, options = {}) {
+
+    const response = await fetch(
+        url,
+        {
+            credentials: "include",
+            ...options
+        }
+    );
+
+    let data = {};
+
+    try {
+        data = await response.json();
+    } catch {
+        data = {};
+    }
+
+    return {
+        response,
+        data
+    };
+
+}
+
+
+/* =========================================================
+   ADMIN CHECK
+========================================================= */
+
+async function checkAdmin() {
+
+    try {
+
+        const {
+            response,
+            data
+        } = await getJson(
+            "/api/admin/me"
+        );
+
+        document
+            .getElementById("loading")
+            .classList.add("hidden");
+
+
+        if (
+            !response.ok ||
+            !data.isAdmin
+        ) {
+
+            document
+                .getElementById("not-admin")
+                .classList.remove("hidden");
+
+            return;
+
+        }
+
+
+        document
+            .getElementById("admin-page")
+            .classList.remove("hidden");
+
+
+        await Promise.all([
+            loadBans(),
+            loadAdmins(),
+            loadKicks(),
+            loadRevokes()
+        ]);
+
+    } catch (error) {
+
+        console.error(
+            "ADMIN CHECK ERROR:",
+            error
+        );
+
+        document
+            .getElementById("loading")
+            .innerHTML = `
+                <div class="card">
+                    <h2>❌ Error</h2>
+                    <p>
+                        Could not check administrator status.
+                    </p>
+                </div>
+            `;
+
+    }
+
+}
+
+
+/* =========================================================
+   BAN
+========================================================= */
+
+async function banUser() {
+
+    const email =
+        document
+            .getElementById("ban-email")
+            .value
+            .trim();
+
+    const reason =
+        document
+            .getElementById("ban-reason")
+            .value
+            .trim();
+
+    const status =
+        document.getElementById(
+            "ban-status"
+        );
+
+
+    if (!email) {
+
+        status.innerHTML =
+            `<span class="error">
+                ❌ Enter an email.
+            </span>`;
+
+        return;
+
+    }
+
+
+    status.textContent =
+        "Banning...";
+
+
+    try {
+
+        const {
+            response,
+            data
+        } = await getJson(
+            "/api/admin/bans",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+                    email,
+                    reason
+                })
+            }
+        );
+
+
+        if (!response.ok) {
+
+            status.innerHTML =
+                `<span class="error">
+                    ❌ ${escapeHtml(
+                        data.error ||
+                        "Ban failed."
+                    )}
+                </span>`;
+
+            return;
+
+        }
+
+
+        status.innerHTML =
+            `<span class="success-text">
+                ✅ User banned.
+            </span>`;
+
+
+        document
+            .getElementById("ban-email")
+            .value = "";
+
+        document
+            .getElementById("ban-reason")
+            .value = "";
+
+
+        await loadBans();
+
+    } catch (error) {
+
+        console.error(
+            "BAN ERROR:",
+            error
+        );
+
+        status.innerHTML =
+            `<span class="error">
+                ❌ Server error.
+            </span>`;
+
+    }
+
+}
+
+
+/* =========================================================
+   BANS
+========================================================= */
+
+async function loadBans() {
+
+    const container =
+        document.getElementById(
+            "ban-list"
+        );
+
+    container.innerHTML =
+        "<p>Loading bans...</p>";
+
+
+    try {
+
+        const {
+            response,
+            data
+        } = await getJson(
+            "/api/admin/bans"
+        );
+
+
+        if (!response.ok) {
+
+            container.innerHTML =
+                `<p class="error">
+                    ❌ ${escapeHtml(
+                        data.error ||
+                        "Could not load bans."
+                    )}
+                </p>`;
+
+            return;
+
+        }
+
+
+        const bans =
+            Array.isArray(data)
+                ? data
+                : Array.isArray(data.bans)
+                    ? data.bans
+                    : [];
+
+
+        const activeBans =
+            bans.filter(
+                ban =>
+                    ban.active === true ||
+                    ban.active === "true" ||
+                    ban.active === 1
+            );
+
+
+        if (!activeBans.length) {
+
+            container.innerHTML =
+                "<p>No active bans.</p>";
+
+            return;
+
+        }
+
+
+        container.innerHTML =
+            activeBans.map(
+                ban => {
+
+                    const date =
+                        ban.banned_at
+                            ? new Date(
+                                ban.banned_at
+                            ).toLocaleString()
+                            : "Unknown";
+
+
+                    return `
+                        <div class="item">
+
+                            <h3>
+                                🚫
+                                ${escapeHtml(
+                                    ban.email ||
+                                    ban.user_id ||
+                                    "Unknown user"
+                                )}
+                            </h3>
+
+                            <p>
+                                <strong>Reason:</strong>
+                                ${escapeHtml(
+                                    ban.reason ||
+                                    "No reason provided."
+                                )}
+                            </p>
+
+                            <p class="muted">
+                                Banned:
+                                ${escapeHtml(date)}
+                            </p>
+
+                            ${
+                                ban.user_id
+                                    ? `
+                                        <p>
+                                            User ID:
+                                            <code>
+                                                ${escapeHtml(
+                                                    ban.user_id
+                                                )}
+                                            </code>
+                                        </p>
+                                    `
+                                    : ""
+                            }
+
+                            <button
+                                class="success"
+                                onclick="unban('${escapeHtml(
+                                    ban.id
+                                )}')"
+                            >
+                                ✅ Unban
+                            </button>
+
+                        </div>
+                    `;
+
+                }
+            ).join("");
+
+
+    } catch (error) {
+
+        console.error(
+            "LOAD BANS ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            `<p class="error">
+                ❌ ${escapeHtml(
+                    error.message
+                )}
+            </p>`;
+
+    }
+
+}
+
+
+async function unban(banId) {
+
+    if (
+        !confirm(
+            "Unban this user?"
+        )
+    ) {
+        return;
+    }
+
+
+    const {
+        response,
+        data
+    } = await getJson(
+        `/api/admin/bans/${encodeURIComponent(
+            banId
+        )}/unban`,
+        {
+            method: "POST"
+        }
+    );
+
+
+    if (!response.ok) {
+
+        alert(
+            "❌ " +
+            (
+                data.error ||
+                "Unban failed."
+            )
+        );
+
+        return;
+
+    }
+
+
+    await loadBans();
+
+}
+
+
+/* =========================================================
+   ADMINS
+========================================================= */
+
+async function loadAdmins() {
+
+    const container =
+        document.getElementById(
+            "admin-list"
+        );
+
+    container.innerHTML =
+        "<p>Loading administrators...</p>";
+
+
+    try {
+
+        const {
+            response,
+            data
+        } = await getJson(
+            "/api/admin/admins"
+        );
+
+
+        if (!response.ok) {
+
+            container.innerHTML =
+                `<p class="error">
+                    ❌ ${escapeHtml(
+                        data.error ||
+                        "Could not load administrators."
+                    )}
+                </p>`;
+
+            return;
+
+        }
+
+
+        const admins =
+            Array.isArray(data)
+                ? data
+                : Array.isArray(data.admins)
+                    ? data.admins
+                    : [];
+
+
+        if (!admins.length) {
+
+            container.innerHTML =
+                "<p>No administrators.</p>";
+
+            return;
+
+        }
+
+
+        container.innerHTML =
+            admins.map(
+                admin => {
+
+                    const id =
+                        admin.user_id ||
+                        admin.id ||
+                        "";
+
+
+                    return `
+                        <div class="item">
+
+                            <h3>
+                                🛡️
+                                ${escapeHtml(
+                                    admin.display_name ||
+                                    admin.username ||
+                                    "Administrator"
+                                )}
+                            </h3>
+
+                            <p>
+                                Username:
+                                ${escapeHtml(
+                                    admin.username ||
+                                    "Unknown"
+                                )}
+                            </p>
+
+                            <p>
+                                ID:
+                                <code>
+                                    ${escapeHtml(id)}
+                                </code>
+                            </p>
+
+                            <button
+                                class="danger"
+                                onclick="removeAdmin('${escapeHtml(
+                                    id
+                                )}')"
+                            >
+                                Remove Admin
+                            </button>
+
+                        </div>
+                    `;
+
+                }
+            ).join("");
+
+
+    } catch (error) {
+
+        console.error(
+            "LOAD ADMINS ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            `<p class="error">
+                ❌ ${escapeHtml(
+                    error.message
+                )}
+            </p>`;
+
+    }
+
+}
+
+
+async function addAdmin() {
+
+    const userId =
+        document
+            .getElementById(
+                "admin-user-id"
+            )
+            .value
+            .trim();
+
+    const status =
+        document.getElementById(
+            "admin-status"
+        );
+
+
+    if (!userId) {
+
+        status.innerHTML =
+            `<span class="error">
+                ❌ Enter a user UUID.
+            </span>`;
+
+        return;
+
+    }
+
+
+    status.textContent =
+        "Adding administrator...";
+
+
+    const {
+        response,
+        data
+    } = await getJson(
+        "/api/admin/admins",
+        {
+            method: "POST",
+
+            headers: {
+                "Content-Type":
+                    "application/json"
+            },
+
+            body: JSON.stringify({
+                user_id: userId
+            })
+        }
+    );
+
+
+    if (!response.ok) {
+
+        status.innerHTML =
+            `<span class="error">
+                ❌ ${escapeHtml(
+                    data.error ||
+                    "Could not add administrator."
+                )}
+            </span>`;
+
+        return;
+
+    }
+
+
+    status.innerHTML =
+        `<span class="success-text">
+            ✅ Administrator added.
+        </span>`;
+
+
+    document
+        .getElementById(
+            "admin-user-id"
+        )
+        .value = "";
+
+
+    await loadAdmins();
+
+}
+
+
+async function removeAdmin(userId) {
+
+    if (
+        !confirm(
+            "Remove this administrator?"
+        )
+    ) {
+        return;
+    }
+
+
+    const {
+        response,
+        data
+    } = await getJson(
+        `/api/admin/admins/${encodeURIComponent(
+            userId
+        )}`,
+        {
+            method: "DELETE"
+        }
+    );
+
+
+    if (!response.ok) {
+
+        alert(
+            "❌ " +
+            (
+                data.error ||
+                "Could not remove administrator."
+            )
+        );
+
+        return;
+
+    }
+
+
+    await loadAdmins();
+
+}
+
+
+/* =========================================================
+   USER SEARCH
+========================================================= */
+
+async function searchUsers() {
+
+    const search =
+        document
+            .getElementById(
+                "user-search"
+            )
+            .value
+            .trim();
+
+    await loadUsers(search);
+
+}
+
+
+async function loadUsers(search = "") {
+
+    const container =
+        document.getElementById(
+            "user-list"
+        );
+
+    container.innerHTML =
+        "<p>Loading users...</p>";
+
+
+    try {
+
+        const url =
+            search
+                ? `/api/admin/users?search=${encodeURIComponent(
+                    search
+                )}`
+                : "/api/admin/users";
+
+
+        const {
+            response,
+            data
+        } = await getJson(url);
+
+
+        if (!response.ok) {
+
+            container.innerHTML =
+                `<p class="error">
+                    ❌ ${escapeHtml(
+                        data.error ||
+                        "Could not load users."
+                    )}
+                </p>`;
+
+            return;
+
+        }
+
+
+        const users =
+            Array.isArray(data)
+                ? data
+                : Array.isArray(data.users)
+                    ? data.users
+                    : [];
+
+
+        if (!users.length) {
+
+            container.innerHTML =
+                "<p>No users found.</p>";
+
+            return;
+
+        }
+
+
+        container.innerHTML =
+            users.map(
+                user => `
+
+                    <div class="item">
+
+                        <h3>
+                            👤
+                            ${escapeHtml(
+                                user.display_name ||
+                                user.username ||
+                                "Unknown"
+                            )}
+                        </h3>
+
+                        <p>
+                            @${escapeHtml(
+                                user.username ||
+                                "unknown"
+                            )}
+                        </p>
+
+                        <p>
+                            <code>
+                                ${escapeHtml(
+                                    user.id
+                                )}
+                            </code>
+                        </p>
+
+                        <div class="user-actions">
+
+                            <button
+                                class="warning"
+                                onclick="fillKick('${escapeHtml(
+                                    user.id
+                                )}')"
+                            >
+                                👢 Kick
+                            </button>
+
+                            <button
+                                class="danger"
+                                onclick="fillRevoke('${escapeHtml(
+                                    user.id
+                                )}')"
+                            >
+                                🔒 Revoke
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                `
+            ).join("");
+
+
+    } catch (error) {
+
+        console.error(
+            "USER SEARCH ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            `<p class="error">
+                ❌ ${escapeHtml(
+                    error.message
+                )}
+            </p>`;
+
+    }
+
+}
+
+
+/* =========================================================
+   FILL KICK / REVOKE
+========================================================= */
+
+function fillKick(userId) {
+
+    document
+        .getElementById(
+            "kick-user-id"
+        )
+        .value = userId;
+
+    window.scrollTo({
+        top:
+            document
+                .getElementById(
+                    "kick-user-id"
+                )
+                .getBoundingClientRect()
+                .top +
+            window.scrollY -
+            100,
+
+        behavior: "smooth"
+    });
+
+}
+
+
+function fillRevoke(userId) {
+
+    document
+        .getElementById(
+            "revoke-user-id"
+        )
+        .value = userId;
+
+    window.scrollTo({
+        top:
+            document
+                .getElementById(
+                    "revoke-user-id"
+                )
+                .getBoundingClientRect()
+                .top +
+            window.scrollY -
+            100,
+
+        behavior: "smooth"
+    });
+
+}
+
+
+/* =========================================================
+   KICK
+========================================================= */
+
+async function kickUser() {
+
+    const userId =
+        document
+            .getElementById(
+                "kick-user-id"
+            )
+            .value
+            .trim();
+
+    const reason =
+        document
+            .getElementById(
+                "kick-reason"
+            )
+            .value
+            .trim();
+
+    const status =
+        document.getElementById(
+            "kick-status"
+        );
+
+
+    if (!userId) {
+
+        status.innerHTML =
+            `<span class="error">
+                ❌ Enter a user UUID.
+            </span>`;
+
+        return;
+
+    }
+
+
+    status.textContent =
+        "Kicking...";
+
+
+    try {
+
+        const {
+            response,
+            data
+        } = await getJson(
+            "/api/admin/kicks",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+                    user_id: userId,
+                    reason
+                })
+            }
+        );
+
+
+        if (!response.ok) {
+
+            status.innerHTML =
+                `<span class="error">
+                    ❌ ${escapeHtml(
+                        data.error ||
+                        "Kick failed."
+                    )}
+                </span>`;
+
+            return;
+
+        }
+
+
+        status.innerHTML =
+            `<span class="success-text">
+                ✅ User kicked.
+            </span>`;
+
+
+        document
+            .getElementById(
+                "kick-user-id"
+            )
+            .value = "";
+
+        document
+            .getElementById(
+                "kick-reason"
+            )
+            .value = "";
+
+
+        await loadKicks();
+
+    } catch (error) {
+
+        console.error(
+            "KICK ERROR:",
+            error
+        );
+
+        status.innerHTML =
+            `<span class="error">
+                ❌ Server error.
+            </span>`;
+
+    }
+
+}
+
+
+/* =========================================================
+   KICKS
+========================================================= */
+
+async function loadKicks() {
+
+    const container =
+        document.getElementById(
+            "kick-list"
+        );
+
+    try {
+
+        const {
+            response,
+            data
+        } = await getJson(
+            "/api/admin/kicks"
+        );
+
+
+        if (!response.ok) {
+
+            container.innerHTML =
+                `<p class="error">
+                    ❌ ${escapeHtml(
+                        data.error ||
+                        "Could not load kicks."
+                    )}
+                </p>`;
+
+            return;
+
+        }
+
+
+        const kicks =
+            Array.isArray(data)
+                ? data
+                : Array.isArray(data.kicks)
+                    ? data.kicks
+                    : [];
+
+
+        if (!kicks.length) {
+
+            container.innerHTML =
+                "<p>No kicks recorded.</p>";
+
+            return;
+
+        }
+
+
+        container.innerHTML =
+            kicks.map(
+                kick => `
+
+                    <div class="item">
+
+                        <h3>
+                            👢
+                            ${escapeHtml(
+                                kick.email ||
+                                kick.user_id ||
+                                "Unknown user"
+                            )}
+                        </h3>
+
+                        <p>
+                            <strong>
+                                Reason:
+                            </strong>
+
+                            ${escapeHtml(
+                                kick.reason ||
+                                "No reason provided."
+                            )}
+                        </p>
+
+                        <p class="muted">
+                            ${escapeHtml(
+                                kick.kicked_at ||
+                                kick.created_at ||
+                                ""
+                            )}
+                        </p>
+
+                    </div>
+
+                `
+            ).join("");
+
+
+    } catch (error) {
+
+        console.error(
+            "LOAD KICKS ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            `<p class="error">
+                ❌ Could not load kicks.
+            </p>`;
+
+    }
+
+}
+
+
+/* =========================================================
+   REVOKE
+========================================================= */
+
+async function revokeUser() {
+
+    const userId =
+        document
+            .getElementById(
+                "revoke-user-id"
+            )
+            .value
+            .trim();
+
+    const reason =
+        document
+            .getElementById(
+                "revoke-reason"
+            )
+            .value
+            .trim();
+
+    const status =
+        document.getElementById(
+            "revoke-status"
+        );
+
+
+    if (!userId) {
+
+        status.innerHTML =
+            `<span class="error">
+                ❌ Enter a user UUID.
+            </span>`;
+
+        return;
+
+    }
+
+
+    status.textContent =
+        "Revoking...";
+
+
+    try {
+
+        const {
+            response,
+            data
+        } = await getJson(
+            "/api/admin/revokes",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+                    user_id: userId,
+                    reason
+                })
+            }
+        );
+
+
+        if (!response.ok) {
+
+            status.innerHTML =
+                `<span class="error">
+                    ❌ ${escapeHtml(
+                        data.error ||
+                        "Revoke failed."
+                    )}
+                </span>`;
+
+            return;
+
+        }
+
+
+        status.innerHTML =
+            `<span class="success-text">
+                ✅ User revoked.
+            </span>`;
+
+
+        document
+            .getElementById(
+                "revoke-user-id"
+            )
+            .value = "";
+
+        document
+            .getElementById(
+                "revoke-reason"
+            )
+            .value = "";
+
+
+        await loadRevokes();
+
+    } catch (error) {
+
+        console.error(
+            "REVOKE ERROR:",
+            error
+        );
+
+        status.innerHTML =
+            `<span class="error">
+                ❌ Server error.
+            </span>`;
+
+    }
+
+}
+
+
+/* =========================================================
+   REVOKES
+========================================================= */
+
+async function loadRevokes() {
+
+    const container =
+        document.getElementById(
+            "revoke-list"
+        );
+
+    try {
+
+        const {
+            response,
+            data
+        } = await getJson(
+            "/api/admin/revokes"
+        );
+
+
+        if (!response.ok) {
+
+            container.innerHTML =
+                `<p class="error">
+                    ❌ ${escapeHtml(
+                        data.error ||
+                        "Could not load revokes."
+                    )}
+                </p>`;
+
+            return;
+
+        }
+
+
+        const revokes =
+            Array.isArray(data)
+                ? data
+                : Array.isArray(data.revokes)
+                    ? data.revokes
+                    : [];
+
+
+        if (!revokes.length) {
+
+            container.innerHTML =
+                "<p>No revoked users.</p>";
+
+            return;
+
+        }
+
+
+        container.innerHTML =
+            revokes.map(
+                revoke => `
+
+                    <div class="item">
+
+                        <h3>
+                            🔒
+                            ${escapeHtml(
+                                revoke.email ||
+                                revoke.user_id ||
+                                "Unknown user"
+                            )}
+                        </h3>
+
+                        <p>
+                            <strong>
+                                Reason:
+                            </strong>
+
+                            ${escapeHtml(
+                                revoke.reason ||
+                                "No reason provided."
+                            )}
+                        </p>
+
+                        <p class="muted">
+                            ${escapeHtml(
+                                revoke.revoked_at ||
+                                revoke.created_at ||
+                                ""
+                            )}
+                        </p>
+
+                        <button
+                            class="success"
+                            onclick="unrevokeUser('${escapeHtml(
+                                revoke.user_id
+                            )}')"
+                        >
+                            🔓 Restore User
+                        </button>
+
+                    </div>
+
+                `
+            ).join("");
+
+
+    } catch (error) {
+
+        console.error(
+            "LOAD REVOKES ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            `<p class="error">
+                ❌ Could not load revokes.
+            </p>`;
+
+    }
+
+}
+
+
+async function unrevokeUser(userId) {
+
+    if (
+        !confirm(
+            "Restore this user?"
+        )
+    ) {
+        return;
+    }
+
+
+    const {
+        response,
+        data
+    } = await getJson(
+        `/api/admin/revokes/${encodeURIComponent(
+            userId
+        )}`,
+        {
+            method: "DELETE"
+        }
+    );
+
+
+    if (!response.ok) {
+
+        alert(
+            "❌ " +
+            (
+                data.error ||
+                "Could not restore user."
+            )
+        );
+
+        return;
+
+    }
+
+
+    await loadRevokes();
+
+}
+
+
+/* =========================================================
+   LOGOUT
+========================================================= */
+
+async function logout() {
+
+    try {
+
+        await fetch(
+            "/api/logout",
+            {
+                method: "POST",
+                credentials: "include"
+            }
+        );
+
+    } finally {
+
+        window.location.href = "/";
+
+    }
+
+}
+
+
+/* =========================================================
+   START
+========================================================= */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    checkAdmin
+);
+
+</script>
 
 </body>
-
 </html>
