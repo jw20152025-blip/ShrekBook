@@ -82,28 +82,46 @@ function showSignup() {
 // LOGIN
 // ==================================================
 
+
 async function login() {
 
-    const email =
-        document.getElementById("login-email")?.value.trim();
+    const emailInput =
+        document.getElementById("login-email");
 
-    const password =
-        document.getElementById("login-password")?.value;
+    const passwordInput =
+        document.getElementById("login-password");
 
     const status =
         document.getElementById("login-status");
 
+
+    const email =
+        emailInput
+            ? emailInput.value.trim()
+            : "";
+
+    const password =
+        passwordInput
+            ? passwordInput.value
+            : "";
+
+
     if (!email || !password) {
 
-        if (status)
+        if (status) {
             status.textContent =
                 "Please enter your email and password.";
+        }
 
         return;
     }
 
-    if (status)
-        status.textContent = "Logging in...";
+
+    if (status) {
+        status.textContent =
+            "Logging in...";
+    }
+
 
     try {
 
@@ -111,6 +129,7 @@ async function login() {
             "/api/login",
             {
                 method: "POST",
+
                 body: JSON.stringify({
                     email,
                     password
@@ -118,22 +137,67 @@ async function login() {
             }
         );
 
-        console.log("LOGIN SUCCESS:", data);
 
-        if (status)
-            status.textContent =
-                "Login successful! 🧌";
+        console.log(
+            "LOGIN SUCCESS:",
+            data
+        );
 
-        await loadCurrentUser();
+
+        // Get the newly-created session/user.
+
+        const me =
+            await api("/api/me");
+
+
+        console.log(
+            "USER AFTER LOGIN:",
+            me
+        );
+
+
+        if (
+            me.loggedIn &&
+            me.user
+        ) {
+
+            // Immediately switch to the app.
+
+            showLoggedIn(
+                me.user
+            );
+
+            if (status) {
+                status.textContent =
+                    "Login successful! 🧌";
+            }
+
+        } else {
+
+            throw new Error(
+                "Login succeeded, but the session was not found."
+            );
+
+        }
+
 
     } catch (error) {
 
-        console.error("LOGIN ERROR:", error);
+        console.error(
+            "LOGIN ERROR:",
+            error
+        );
 
-        if (status)
-            status.textContent = error.message;
+        if (status) {
+            status.textContent =
+                error.message;
+        }
+
     }
+
 }
+
+
 
 
 // ==================================================
