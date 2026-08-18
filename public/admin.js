@@ -29,21 +29,29 @@ async function checkAdmin() {
 
     try {
 
-        const response = await fetch(
-            "/api/admin/me",
-            {
-                credentials: "include"
-            }
-        );
+        const response =
+            await fetch(
+                "/api/admin/me",
+                {
+                    credentials: "include"
+                }
+            );
 
-        const data = await response.json();
+        const data =
+            await response.json();
 
-        document.getElementById(
-            "loading"
-        ).style.display = "none";
+        const loading =
+            document.getElementById("loading");
+
+        if (loading) {
+            loading.style.display = "none";
+        }
 
 
-        if (!response.ok || !data.isAdmin) {
+        if (
+            !response.ok ||
+            !data.isAdmin
+        ) {
 
             document.getElementById(
                 "not-admin"
@@ -97,8 +105,10 @@ async function loadBans() {
         return;
     }
 
+
     container.innerHTML =
         "<p>Loading bans...</p>";
+
 
     try {
 
@@ -110,8 +120,10 @@ async function loadBans() {
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -125,37 +137,50 @@ async function loadBans() {
 
         }
 
+
         /*
-         * Your server returns:
+         * Supports either:
          *
-         * res.json(bans || [])
+         * { bans: [...] }
          *
-         * Therefore the response itself
-         * is the array.
+         * or
+         *
+         * [...]
          */
 
-        const bans =
-            Array.isArray(data)
-                ? data
-                : Array.isArray(data.bans)
-                    ? data.bans
-                    : [];
+        let bans = [];
 
+        if (Array.isArray(data)) {
+
+            bans = data;
+
+        } else if (
+            data &&
+            Array.isArray(data.bans)
+        ) {
+
+            bans = data.bans;
+
+        }
+
+
+        /*
+         * Only display active bans.
+         */
 
         const activeBans =
-            bans.filter(ban => {
-
-                return (
+            bans.filter(
+                ban =>
                     ban.active === true ||
                     ban.active === "true" ||
                     ban.active === 1 ||
                     ban.active === "1"
-                );
-
-            });
+            );
 
 
-        if (activeBans.length === 0) {
+        if (
+            activeBans.length === 0
+        ) {
 
             container.innerHTML =
                 "<p>No active bans.</p>";
@@ -166,170 +191,199 @@ async function loadBans() {
 
 
         container.innerHTML =
-            activeBans.map(ban => {
+            activeBans.map(
+                ban => {
 
-                /*
-                 * IMPORTANT:
-                 *
-                 * Get the actual database ID.
-                 */
-
-                const banId =
-                    ban.id;
+                    const banId =
+                        ban.id;
 
 
-                console.log(
-                    "BAN FROM DATABASE:",
-                    ban
-                );
-
-                console.log(
-                    "BAN ID:",
-                    banId
-                );
+                    const email =
+                        ban.email ||
+                        "No email";
 
 
-                if (!banId) {
+                    const reason =
+                        ban.reason ||
+                        "No reason provided.";
 
-                    console.error(
-                        "❌ BAN HAS NO ID:",
-                        ban
-                    );
+
+                    const date =
+                        ban.banned_at
+                            ? new Date(
+                                ban.banned_at
+                            ).toLocaleString()
+                            : "Unknown";
+
+
+                    /*
+                     * If the backend somehow
+                     * doesn't return an ID,
+                     * don't create a broken button.
+                     */
+
+                    if (
+                        banId === undefined ||
+                        banId === null ||
+                        String(banId).trim() === ""
+                    ) {
+
+                        console.error(
+                            "BAN MISSING ID:",
+                            ban
+                        );
+
+
+                        return `
+
+                            <div
+                                class="post"
+                                style="
+                                    margin-bottom:15px;
+                                    padding:15px;
+                                "
+                            >
+
+                                <h3>
+                                    🚫
+                                    ${escapeHtml(
+                                        email
+                                    )}
+                                </h3>
+
+                                <p>
+                                    <strong>
+                                        Reason:
+                                    </strong>
+
+                                    ${escapeHtml(
+                                        reason
+                                    )}
+                                </p>
+
+                                <p>
+                                    ❌ This ban is missing
+                                    its database ID.
+                                </p>
+
+                            </div>
+
+                        `;
+
+                    }
+
+
+                    /*
+                     * JSON.stringify safely places
+                     * the ID inside onclick.
+                     */
+
+                    const safeBanId =
+                        JSON.stringify(
+                            String(banId)
+                        );
+
 
                     return `
 
-                        <div class="post">
+                        <div
+                            class="post"
+                            style="
+                                margin-bottom:15px;
+                                padding:15px;
+                            "
+                        >
 
                             <h3>
                                 🚫
                                 ${escapeHtml(
-                                    ban.email ||
-                                    "Unknown email"
+                                    email
                                 )}
                             </h3>
 
+
                             <p>
-                                ❌ This ban is missing
-                                its database ID.
+
+                                <strong>
+                                    Reason:
+                                </strong>
+
+                                ${escapeHtml(
+                                    reason
+                                )}
+
                             </p>
+
+
+                            <p>
+
+                                <strong>
+                                    Banned:
+                                </strong>
+
+                                ${escapeHtml(
+                                    date
+                                )}
+
+                            </p>
+
+
+                            ${
+                                ban.user_id
+                                    ? `
+
+                                        <p>
+
+                                            <strong>
+                                                User ID:
+                                            </strong>
+
+                                            <code>
+                                                ${escapeHtml(
+                                                    ban.user_id
+                                                )}
+                                            </code>
+
+                                        </p>
+
+                                    `
+                                    : ""
+                            }
+
+
+                            <p>
+
+                                <strong>
+                                    Ban ID:
+                                </strong>
+
+                                <code>
+                                    ${escapeHtml(
+                                        String(
+                                            banId
+                                        )
+                                    )}
+                                </code>
+
+                            </p>
+
+
+                            <button
+                                type="button"
+                                onclick="unbanEmail(${safeBanId})"
+                            >
+
+                                ✅ Unban
+
+                            </button>
+
 
                         </div>
 
                     `;
 
                 }
-
-
-                const email =
-                    ban.email ||
-                    "No email";
-
-                const reason =
-                    ban.reason ||
-                    "No reason provided.";
-
-                const date =
-                    ban.banned_at
-                        ? new Date(
-                            ban.banned_at
-                        ).toLocaleString()
-                        : "Unknown";
-
-
-                return `
-
-                    <div
-                        class="post"
-                        style="
-                            margin-bottom:15px;
-                            padding:15px;
-                        "
-                    >
-
-                        <h3>
-
-                            🚫
-                            ${escapeHtml(email)}
-
-                        </h3>
-
-
-                        <p>
-
-                            <strong>
-                                Reason:
-                            </strong>
-
-                            ${escapeHtml(reason)}
-
-                        </p>
-
-
-                        <p>
-
-                            <strong>
-                                Banned:
-                            </strong>
-
-                            ${escapeHtml(date)}
-
-                        </p>
-
-
-                        ${
-                            ban.user_id
-                                ? `
-
-                                    <p>
-
-                                        <strong>
-                                            User ID:
-                                        </strong>
-
-                                        <code>
-                                            ${escapeHtml(
-                                                ban.user_id
-                                            )}
-                                        </code>
-
-                                    </p>
-
-                                `
-                                : ""
-                        }
-
-
-                        <p>
-
-                            <strong>
-                                Ban ID:
-                            </strong>
-
-                            <code>
-                                ${escapeHtml(
-                                    banId
-                                )}
-                            </code>
-
-                        </p>
-
-
-                        <button
-                            type="button"
-                            onclick="unbanEmail(${JSON.stringify(
-                                String(banId)
-                            )})"
-                        >
-
-                            ✅ Unban
-
-                        </button>
-
-                    </div>
-
-                `;
-
-            }).join("");
+            ).join("");
 
 
     } catch (error) {
@@ -338,6 +392,7 @@ async function loadBans() {
             "LOAD BANS ERROR:",
             error
         );
+
 
         container.innerHTML =
             `<p>❌ ${escapeHtml(
@@ -349,28 +404,35 @@ async function loadBans() {
 
 }
 
+
 // ==================================================
 // BAN EMAIL
 // ==================================================
 
 async function banEmail() {
 
-    const email =
-        document
-            .getElementById("ban-email")
-            .value
-            .trim();
+    const emailInput =
+        document.getElementById(
+            "ban-email"
+        );
 
-    const reason =
-        document
-            .getElementById("ban-reason")
-            .value
-            .trim();
+    const reasonInput =
+        document.getElementById(
+            "ban-reason"
+        );
 
     const status =
         document.getElementById(
             "ban-status"
         );
+
+
+    const email =
+        emailInput.value.trim();
+
+
+    const reason =
+        reasonInput.value.trim();
 
 
     if (!email) {
@@ -389,29 +451,29 @@ async function banEmail() {
 
     try {
 
-        const response = await fetch(
-            "/api/admin/bans",
-            {
+        const response =
+            await fetch(
+                "/api/admin/bans",
+                {
 
-                method:
-                    "POST",
+                    method: "POST",
 
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-                credentials:
-                    "include",
+                    credentials:
+                        "include",
 
-                body:
-                    JSON.stringify({
-                        email,
-                        reason
-                    })
+                    body:
+                        JSON.stringify({
+                            email,
+                            reason
+                        })
 
-            }
-        );
+                }
+            );
 
 
         const data =
@@ -435,21 +497,13 @@ async function banEmail() {
             "✅ Email banned.";
 
 
-        document.getElementById(
-            "ban-email"
-        ).value = "";
+        emailInput.value = "";
 
+        reasonInput.value = "";
 
-        document.getElementById(
-            "ban-reason"
-        ).value = "";
-
-
-        /*
-         * Immediately reload the list.
-         */
 
         await loadBans();
+
 
     } catch (error) {
 
@@ -470,41 +524,112 @@ async function banEmail() {
 // UNBAN
 // ==================================================
 
-// ==================================================
-// UNBAN
-// ==================================================
-
 async function unbanEmail(banId) {
 
-    if (!confirm("Unban this user/email?")) {
+    console.log(
+        "UNBAN BUTTON CLICKED:",
+        banId
+    );
+
+
+    if (
+        banId === undefined ||
+        banId === null ||
+        String(banId).trim() === ""
+    ) {
+
+        alert(
+            "❌ Ban ID is missing."
+        );
+
         return;
+
     }
+
+
+    if (
+        String(banId) === "undefined"
+    ) {
+
+        alert(
+            "❌ Invalid ban ID."
+        );
+
+        return;
+
+    }
+
+
+    if (
+        !confirm(
+            "Unban this user/email?"
+        )
+    ) {
+
+        return;
+
+    }
+
 
     try {
 
-        const response = await fetch(
-            `/api/admin/bans/${encodeURIComponent(banId)}/unban`,
-            {
-                method: "POST",
-                credentials: "include"
-            }
+        const url =
+            `/api/admin/bans/${encodeURIComponent(
+                String(banId)
+            )}/unban`;
+
+
+        console.log(
+            "UNBAN URL:",
+            url
         );
 
-        const data = await response.json();
+
+        const response =
+            await fetch(
+                url,
+                {
+                    method: "POST",
+
+                    credentials:
+                        "include"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        console.log(
+            "UNBAN RESPONSE:",
+            response.status,
+            data
+        );
+
 
         if (!response.ok) {
 
             alert(
                 "❌ " +
-                (data.error || "Unban failed.")
+                (
+                    data.error ||
+                    "Unban failed."
+                )
             );
 
             return;
+
         }
 
-        alert("✅ Ban removed.");
+
+        alert(
+            "✅ Ban removed."
+        );
+
 
         await loadBans();
+
 
     } catch (error) {
 
@@ -520,11 +645,24 @@ async function unbanEmail(banId) {
     }
 
 }
+
+
 // ==================================================
 // LOAD ADMINS
 // ==================================================
 
 async function loadAdmins() {
+
+    const container =
+        document.getElementById(
+            "admin-list"
+        );
+
+
+    if (!container) {
+        return;
+    }
+
 
     try {
 
@@ -532,21 +670,15 @@ async function loadAdmins() {
             await fetch(
                 "/api/admin/admins",
                 {
-                    credentials: "include"
+                    credentials:
+                        "include"
                 }
             );
+
 
         const data =
             await response.json();
 
-        const container =
-            document.getElementById(
-                "admin-list"
-            );
-
-        if (!container) {
-            return;
-        }
 
         if (!response.ok) {
 
@@ -557,90 +689,139 @@ async function loadAdmins() {
                 )}</p>`;
 
             return;
+
         }
 
-        const admins =
-            data.admins || [];
 
-        if (admins.length === 0) {
+        const admins =
+            Array.isArray(data.admins)
+                ? data.admins
+                : [];
+
+
+        if (
+            admins.length === 0
+        ) {
 
             container.innerHTML =
                 "<p>No administrators.</p>";
 
             return;
+
         }
 
+
         container.innerHTML =
-            admins.map(admin => {
+            admins.map(
+                admin => {
 
-                const name =
-                    admin.display_name ||
-                    admin.username ||
-                    "Administrator";
+                    const name =
+                        admin.display_name ||
+                        admin.username ||
+                        "Administrator";
 
-                const userId =
-                    admin.id ||
-                    admin.user_id;
 
-                return `
+                    const userId =
+                        admin.id ||
+                        admin.user_id;
 
-                    <div
-                        class="post"
-                        style="
-                            margin-bottom:15px;
-                            padding:15px;
-                        "
-                    >
 
-                        <h3>
-                            🛡️ ${escapeHtml(name)}
-                        </h3>
+                    if (!userId) {
 
-                        <p>
-                            <small>
-                                ${escapeHtml(userId)}
-                            </small>
-                        </p>
+                        return "";
+
+                    }
+
+
+                    const safeUserId =
+                        JSON.stringify(
+                            String(userId)
+                        );
+
+
+                    const safeName =
+                        JSON.stringify(
+                            String(name)
+                        );
+
+
+                    return `
 
                         <div
+                            class="post"
                             style="
-                                display:flex;
-                                gap:10px;
-                                flex-wrap:wrap;
-                                margin-top:10px;
+                                margin-bottom:15px;
+                                padding:15px;
                             "
                         >
 
-                            <button
-                                type="button"
-                                onclick="
-                                    revokeAdmin(
-                                        '${escapeHtml(userId)}'
-                                    )
-                                "
-                            >
-                                🚫 Revoke Admin
-                            </button>
+                            <h3>
+                                🛡️
+                                ${escapeHtml(
+                                    name
+                                )}
+                            </h3>
 
-                            <button
-                                type="button"
-                                onclick="
-                                    kickUser(
-                                        '${escapeHtml(userId)}',
-                                        '${escapeHtml(name)}'
-                                    )
+
+                            <p>
+
+                                <small>
+                                    ${escapeHtml(
+                                        String(
+                                            userId
+                                        )
+                                    )}
+                                </small>
+
+                            </p>
+
+
+                            <div
+                                style="
+                                    display:flex;
+                                    gap:10px;
+                                    flex-wrap:wrap;
+                                    margin-top:10px;
                                 "
                             >
-                                👢 Kick
-                            </button>
+
+                                <button
+                                    type="button"
+                                    onclick="
+                                        revokeAdmin(
+                                            ${safeUserId}
+                                        )
+                                    "
+                                >
+
+                                    🚫 Revoke Admin
+
+                                </button>
+
+
+                                <button
+                                    type="button"
+                                    onclick="
+                                        kickUser(
+                                            ${safeUserId},
+                                            ${safeName}
+                                        )
+                                    "
+                                >
+
+                                    👢 Kick
+
+                                </button>
+
+                            </div>
 
                         </div>
 
-                    </div>
+                    `;
 
-                `;
+                }
+            ).join("");
 
-            }).join("");
 
     } catch (error) {
 
@@ -649,22 +830,30 @@ async function loadAdmins() {
             error
         );
 
+        container.innerHTML =
+            "<p>❌ Could not load administrators.</p>";
+
     }
 
 }
+
+
 // ==================================================
 // REVOKE ADMIN
 // ==================================================
 
 async function revokeAdmin(userId) {
 
-    if (!confirm(
-        "Revoke administrator access from this user?"
-    )) {
+    if (
+        !confirm(
+            "Revoke administrator access from this user?"
+        )
+    ) {
 
         return;
 
     }
+
 
     try {
 
@@ -682,8 +871,10 @@ async function revokeAdmin(userId) {
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -699,11 +890,14 @@ async function revokeAdmin(userId) {
 
         }
 
+
         alert(
             "✅ Administrator access revoked."
         );
 
+
         await loadAdmins();
+
 
     } catch (error) {
 
@@ -719,6 +913,8 @@ async function revokeAdmin(userId) {
     }
 
 }
+
+
 // ==================================================
 // KICK USER
 // ==================================================
@@ -728,13 +924,16 @@ async function kickUser(
     username
 ) {
 
-    if (!confirm(
-        `Kick ${username} from ShrekBook?`
-    )) {
+    if (
+        !confirm(
+            `Kick ${username} from ShrekBook?`
+        )
+    ) {
 
         return;
 
     }
+
 
     try {
 
@@ -752,8 +951,10 @@ async function kickUser(
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -769,9 +970,11 @@ async function kickUser(
 
         }
 
+
         alert(
             "👢 User kicked."
         );
+
 
     } catch (error) {
 
@@ -787,22 +990,28 @@ async function kickUser(
     }
 
 }
+
+
 // ==================================================
 // ADD ADMIN
 // ==================================================
 
 async function addAdmin() {
 
-    const userId =
-        document
-            .getElementById("admin-user-id")
-            .value
-            .trim();
+    const input =
+        document.getElementById(
+            "admin-user-id"
+        );
+
 
     const status =
         document.getElementById(
             "admin-status"
         );
+
+
+    const userId =
+        input.value.trim();
 
 
     if (!userId) {
@@ -870,12 +1079,11 @@ async function addAdmin() {
             "✅ Administrator added.";
 
 
-        document.getElementById(
-            "admin-user-id"
-        ).value = "";
+        input.value = "";
 
 
         await loadAdmins();
+
 
     } catch (error) {
 
@@ -903,20 +1111,14 @@ async function logout() {
         await fetch(
             "/api/logout",
             {
-
-                method:
-                    "POST",
-
-                credentials:
-                    "include"
-
+                method: "POST",
+                credentials: "include"
             }
         );
 
     } finally {
 
-        window.location.href =
-            "/";
+        window.location.href = "/";
 
     }
 
@@ -926,7 +1128,7 @@ async function logout() {
 // ==================================================
 // START
 // ==================================================
-
+s
 document.addEventListener(
     "DOMContentLoaded",
     () => {
