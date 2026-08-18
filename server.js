@@ -3860,73 +3860,78 @@ const ROLE_NAMES = {
 // GET ROLE
 // ============================================================
 
+
+
 async function getUserRole(userId) {
 
     if (!userId) {
-
         return "peasant";
-
     }
-
 
     // ========================================================
     // OWNER PROTECTION
     // ========================================================
 
-    // The owner is determined by the Render environment
-    // variable, NOT by the admins table.
+    // Render OWNER_USER_ID always has owner authority.
 
     if (
         process.env.OWNER_USER_ID &&
-        String(userId) ===
-            String(process.env.OWNER_USER_ID).trim()
+        String(userId).trim() ===
+        String(process.env.OWNER_USER_ID).trim()
     ) {
-
         return "owner";
-
     }
 
 
     // ========================================================
-    // CHECK PROFILES ROLE
+    // READ ROLE FROM admins TABLE
     // ========================================================
 
     try {
 
         const {
-
-            data: profile,
-
+            data: staff,
             error
-
         } = await supabase
 
-            .from("profiles")
+            .from("admins")
 
-            .select("role")
+            .select(`
+                user_id,
+                role
+            `)
 
             .eq(
-                "id",
+                "user_id",
                 userId
             )
 
             .maybeSingle();
 
 
-        if (
-            !error &&
-            profile &&
-            profile.role
-        ) {
+        if (error) {
+
+            console.error(
+                "STAFF ROLE CHECK ERROR:",
+                error
+            );
+
+            return "peasant";
+        }
+
+
+        if (staff) {
 
             const role =
-
                 String(
-                    profile.role
+                    staff.role ||
+                    ""
                 )
                 .trim()
                 .toLowerCase();
 
+
+            // Valid role stored in admins.role
 
             if (
                 Object.prototype.hasOwnProperty.call(
@@ -3939,46 +3944,10 @@ async function getUserRole(userId) {
 
             }
 
-        }
 
-    } catch (error) {
-
-        console.error(
-            "PROFILE ROLE CHECK ERROR:",
-            error
-        );
-
-    }
-
-
-    // ========================================================
-    // OLD ADMINS TABLE COMPATIBILITY
-    // ========================================================
-
-    // This allows your old administrators to continue working
-    // even if their profiles.role is not set yet.
-
-    try {
-
-        const {
-
-            data: admin
-
-        } = await supabase
-
-            .from("admins")
-
-            .select("user_id")
-
-            .eq(
-                "user_id",
-                userId
-            )
-
-            .maybeSingle();
-
-
-        if (admin) {
+            // Old admin row with no role.
+            // Treat it as administrator for backwards
+            // compatibility.
 
             return "administrator";
 
@@ -3987,7 +3956,7 @@ async function getUserRole(userId) {
     } catch (error) {
 
         console.error(
-            "OLD ADMIN TABLE CHECK ERROR:",
+            "GET USER ROLE ERROR:",
             error
         );
 
@@ -3995,11 +3964,10 @@ async function getUserRole(userId) {
 
 
     // ========================================================
-    // DEFAULT
+    // NORMAL USERS
     // ========================================================
 
     return "peasant";
-
 }
 
 
