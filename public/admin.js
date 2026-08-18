@@ -102,12 +102,13 @@ async function loadBans() {
 
     try {
 
-        const response = await fetch(
-            "/api/admin/bans",
-            {
-                credentials: "include"
-            }
-        );
+        const response =
+            await fetch(
+                "/api/admin/bans",
+                {
+                    credentials: "include"
+                }
+            );
 
         const data =
             await response.json();
@@ -124,34 +125,34 @@ async function loadBans() {
 
         }
 
-
         /*
-         * Backend returns:
+         * Your server returns:
          *
-         * {
-         *     bans: [...]
-         * }
+         * res.json(bans || [])
+         *
+         * Therefore the response itself
+         * is the array.
          */
 
         const bans =
-            Array.isArray(data.bans)
-                ? data.bans
-                : [];
+            Array.isArray(data)
+                ? data
+                : Array.isArray(data.bans)
+                    ? data.bans
+                    : [];
 
-
-        /*
-         * Only show active bans.
-         * This also protects us if the backend
-         * accidentally returns inactive bans.
-         */
 
         const activeBans =
-            bans.filter(
-                ban =>
+            bans.filter(ban => {
+
+                return (
                     ban.active === true ||
                     ban.active === "true" ||
-                    ban.active === 1
-            );
+                    ban.active === 1 ||
+                    ban.active === "1"
+                );
+
+            });
 
 
         if (activeBans.length === 0) {
@@ -166,6 +167,58 @@ async function loadBans() {
 
         container.innerHTML =
             activeBans.map(ban => {
+
+                /*
+                 * IMPORTANT:
+                 *
+                 * Get the actual database ID.
+                 */
+
+                const banId =
+                    ban.id;
+
+
+                console.log(
+                    "BAN FROM DATABASE:",
+                    ban
+                );
+
+                console.log(
+                    "BAN ID:",
+                    banId
+                );
+
+
+                if (!banId) {
+
+                    console.error(
+                        "❌ BAN HAS NO ID:",
+                        ban
+                    );
+
+                    return `
+
+                        <div class="post">
+
+                            <h3>
+                                🚫
+                                ${escapeHtml(
+                                    ban.email ||
+                                    "Unknown email"
+                                )}
+                            </h3>
+
+                            <p>
+                                ❌ This ban is missing
+                                its database ID.
+                            </p>
+
+                        </div>
+
+                    `;
+
+                }
+
 
                 const email =
                     ban.email ||
@@ -190,12 +243,16 @@ async function loadBans() {
                         style="
                             margin-bottom:15px;
                             padding:15px;
-                        ">
+                        "
+                    >
 
                         <h3>
+
                             🚫
                             ${escapeHtml(email)}
+
                         </h3>
+
 
                         <p>
 
@@ -207,6 +264,7 @@ async function loadBans() {
 
                         </p>
 
+
                         <p>
 
                             <strong>
@@ -217,10 +275,13 @@ async function loadBans() {
 
                         </p>
 
+
                         ${
                             ban.user_id
                                 ? `
+
                                     <p>
+
                                         <strong>
                                             User ID:
                                         </strong>
@@ -230,19 +291,35 @@ async function loadBans() {
                                                 ban.user_id
                                             )}
                                         </code>
+
                                     </p>
-                                  `
+
+                                `
                                 : ""
                         }
 
+
+                        <p>
+
+                            <strong>
+                                Ban ID:
+                            </strong>
+
+                            <code>
+                                ${escapeHtml(
+                                    banId
+                                )}
+                            </code>
+
+                        </p>
+
+
                         <button
-                            onclick="
-                                unbanEmail(
-                                    '${encodeURIComponent(
-                                        ban.id
-                                    )}'
-                                )
-                            ">
+                            type="button"
+                            onclick="unbanEmail(${JSON.stringify(
+                                String(banId)
+                            )})"
+                        >
 
                             ✅ Unban
 
@@ -253,6 +330,7 @@ async function loadBans() {
                 `;
 
             }).join("");
+
 
     } catch (error) {
 
@@ -270,7 +348,6 @@ async function loadBans() {
     }
 
 }
-
 
 // ==================================================
 // BAN EMAIL
