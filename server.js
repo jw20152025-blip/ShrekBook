@@ -1,7 +1,6 @@
 // ==================================================
 // SHREKBOOK SERVER
 // ==================================================
-console.log("SERVER: starting");
 
 require("dotenv").config();
 
@@ -10,42 +9,16 @@ const path = require("path");
 const session = require("express-session");
 const { createClient } = require("@supabase/supabase-js");
 
-console.log("SERVER: loading auth");
+// ==================================================
+// ROUTES
+// ==================================================
 
 const authRoutes = require("./routes/auth");
-
-console.log("SERVER: auth loaded");
-
-console.log("SERVER: loading admin");
-
 const adminRoutes = require("./routes/admin");
-
-console.log("SERVER: admin loaded");
-
-console.log("SERVER: loading posts");
-
 const postsRoutes = require("./routes/posts");
-
-console.log("SERVER: posts loaded");
-
-console.log("SERVER: loading users");
-
 const usersRoutes = require("./routes/users");
-
-console.log("SERVER: users loaded");
-
-console.log("SERVER: loading comments");
-
 const commentsRoutes = require("./routes/comments");
-
-console.log("SERVER: comments loaded");
-
-console.log("SERVER: loading reactions");
-
 const reactionsRoutes = require("./routes/reactions");
-
-console.log("SERVER: reactions loaded");
-
 
 // ==================================================
 // APP
@@ -53,23 +26,31 @@ console.log("SERVER: reactions loaded");
 
 const app = express();
 
-const PORT =
-    process.env.PORT || 3000;
-
+const PORT = process.env.PORT || 3000;
 
 // ==================================================
 // SUPABASE
 // ==================================================
 
-const supabase =
-    createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+if (!process.env.SUPABASE_URL) {
+    console.error("❌ SUPABASE_URL is missing.");
+}
 
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error(
+        "❌ SUPABASE_SERVICE_ROLE_KEY is missing."
+    );
+}
+
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+app.locals.supabase = supabase;
 
 // ==================================================
-// MIDDLEWARE
+// BODY PARSING
 // ==================================================
 
 app.use(
@@ -80,10 +61,14 @@ app.use(
 
 app.use(
     express.urlencoded({
-        extended: true
+        extended: true,
+        limit: "10mb"
     })
 );
 
+// ==================================================
+// SESSION
+// ==================================================
 
 app.use(
     session({
@@ -96,17 +81,22 @@ app.use(
         saveUninitialized: false,
 
         cookie: {
-            secure:
-                process.env.NODE_ENV ===
-                "production",
-
             httpOnly: true,
 
-            sameSite: "lax"
+            secure:
+                process.env.NODE_ENV === "production",
+
+            sameSite: "lax",
+
+            maxAge:
+                1000 *
+                60 *
+                60 *
+                24 *
+                30
         }
     })
 );
-app.use("/api", authRoutes);
 
 // ==================================================
 // STATIC FILES
@@ -121,192 +111,64 @@ app.use(
     )
 );
 
-
 // ==================================================
-// BASIC API
+// BASIC HEALTH CHECK
 // ==================================================
-
-app.get(
-    "/api/test",
-    (req, res) => {
-
-        res.json({
-            success: true,
-            message:
-                "ShrekBook API is working 🧌"
-        });
-
-    }
-);
-
 
 app.get(
     "/api/health",
     (req, res) => {
 
         res.json({
-            status: "ok"
+            success: true,
+            message: "ShrekBook backend is alive 🧌"
         });
 
     }
 );
 
-
 // ==================================================
-// AUTH HELPERS
-// ==================================================
-
-function requireLogin(
-    req,
-    res,
-    next
-) {
-
-    if (
-        !req.session ||
-        !req.session.user
-    ) {
-
-        return res.status(401).json({
-            error:
-                "You must be logged in."
-        });
-
-    }
-
-    next();
-
-}
-
-
-// ==================================================
-// ADMIN HELPER
+// API ROUTES
 // ==================================================
 
-async function requireAdmin(
-    req,
-    res,
-    next
-) {
-
-    try {
-
-        if (
-            !req.session ||
-            !req.session.user
-        ) {
-
-            return res.status(401).json({
-                error:
-                    "You must be logged in."
-            });
-
-        }
-
-
-        const userId =
-            req.session.user.id;
-
-
-        const {
-            data: admin,
-            error
-        } = await supabase
-            .from("admins")
-            .select("id, user_id")
-            .eq(
-                "user_id",
-                userId
-            )
-            .maybeSingle();
-
-
-        if (error) {
-
-            console.error(
-                "ADMIN CHECK ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    "Could not verify administrator status."
-            });
-
-        }
-
-
-        if (!admin) {
-
-            return res.status(403).json({
-                error:
-                    "Administrator access required."
-            });
-
-        }
-
-
-        req.admin = admin;
-
-        next();
-
-    } catch (error) {
-
-        console.error(
-            "REQUIRE ADMIN ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error:
-                "Server error."
-        });
-
-    }
-
-}
-
-
-// ==================================================
-// MAKE HELPERS AVAILABLE TO ROUTES
-// ==================================================
-
-app.locals.supabase =
-    supabase;
-
-app.locals.requireLogin =
-    requireLogin;
-
-app.locals.requireAdmin =
-    requireAdmin;
-
-
-
-
-
-
-// ==================================================
-// ROOT
-// ==================================================
-
-app.get(
-    "/",
-    (req, res) => {
-
-        res.sendFile(
-            path.join(
-                __dirname,
-                "public",
-                "index.html"
-            )
-        );
-
-    }
+// AUTH
+app.use(
+    "/api",
+    authRoutes
 );
 
+// ADMIN
+app.use(
+    "/api/admin",
+    adminRoutes
+);
+
+// POSTS
+app.use(
+    "/api",
+    postsRoutes
+);
+
+// USERS
+app.use(
+    "/api",
+    usersRoutes
+);
+
+// COMMENTS
+app.use(
+    "/api",
+    commentsRoutes
+);
+
+// REACTIONS
+app.use(
+    "/api",
+    reactionsRoutes
+);
 
 // ==================================================
-// 404 API
+// API 404
 // ==================================================
 
 app.use(
@@ -314,73 +176,41 @@ app.use(
     (req, res) => {
 
         res.status(404).json({
+
             error:
                 "API endpoint not found."
+
         });
 
     }
 );
-const authRoutes =
-    require("./routes/auth");
 
-const userRoutes =
-    require("./routes/users");
-
-const postRoutes =
-    require("./routes/posts");
-
-const reactionRoutes =
-    require("./routes/reactions");
-
-const chatRoutes =
-    require("./routes/chat");
-
-const uploadRoutes =
-    require("./routes/uploads");
-
-const systemRoutes =
-    require("./routes/system");
-
-const adminRoutes =
-    require("./routes/admin");
-app.use(
-    "/api",
-    authRoutes
-);
+// ==================================================
+// GENERAL ERROR HANDLER
+// ==================================================
 
 app.use(
-    "/api/users",
-    userRoutes
-);
+    (error, req, res, next) => {
 
-app.use(
-    "/api/posts",
-    postRoutes
-);
+        console.error(
+            "SERVER ERROR:",
+            error
+        );
 
-app.use(
-    "/api/reactions",
-    reactionRoutes
-);
+        if (res.headersSent) {
 
-app.use(
-    "/api/shrekchat",
-    chatRoutes
-);
+            return next(error);
 
-app.use(
-    "/api/uploads",
-    uploadRoutes
-);
+        }
 
-app.use(
-    "/api",
-    systemRoutes
-);
+        res.status(500).json({
 
-app.use(
-    "/api/admin",
-    adminRoutes
+            error:
+                "Internal server error."
+
+        });
+
+    }
 );
 
 // ==================================================
@@ -389,10 +219,23 @@ app.use(
 
 app.listen(
     PORT,
+    "0.0.0.0",
     () => {
 
         console.log(
-            `🧌 ShrekBook running on port ${PORT}`
+            "===================================="
+        );
+
+        console.log(
+            "🧌 SHREKBOOK BACKEND ONLINE"
+        );
+
+        console.log(
+            `🌐 Port: ${PORT}`
+        );
+
+        console.log(
+            "===================================="
         );
 
     }
