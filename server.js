@@ -341,7 +341,7 @@ app.get(
 
 
 // ==================================================
-// GET BANS
+// GET ACTIVE BANS
 // ==================================================
 
 app.get(
@@ -357,6 +357,7 @@ app.get(
             } = await supabase
                 .from("bans")
                 .select(`
+                    id,
                     user_id,
                     email,
                     reason,
@@ -378,7 +379,7 @@ app.get(
             if (error) {
 
                 console.error(
-                    "GET BANS ERROR:",
+                    "GET BANS SUPABASE ERROR:",
                     error
                 );
 
@@ -389,8 +390,45 @@ app.get(
 
             }
 
-            res.json({
-                bans: bans || []
+            /*
+             * IMPORTANT:
+             * Return an object containing "bans".
+             *
+             * The frontend expects:
+             *
+             * {
+             *     bans: [...]
+             * }
+             */
+
+            return res.json({
+
+                bans:
+                    (bans || []).map(ban => ({
+
+                        id:
+                            ban.id,
+
+                        user_id:
+                            ban.user_id,
+
+                        email:
+                            ban.email,
+
+                        reason:
+                            ban.reason,
+
+                        banned_at:
+                            ban.banned_at,
+
+                        banned_by:
+                            ban.banned_by,
+
+                        active:
+                            ban.active
+
+                    }))
+
             });
 
         } catch (error) {
@@ -400,7 +438,7 @@ app.get(
                 error
             );
 
-            res.status(500).json({
+            return res.status(500).json({
                 error:
                     "Server error."
             });
@@ -409,7 +447,6 @@ app.get(
 
     }
 );
-
 
 // ==================================================
 // BAN EMAIL / USER
@@ -4803,11 +4840,91 @@ app.post(
         try {
 
             const banId =
-                req.params.banId;
+                String(
+                    req.params.banId || ""
+                ).trim();
+
+
+            // Make sure an ID was actually provided
+
+            if (!banId || banId === "undefined") {
+
+                return res.status(400).json({
+                    error:
+                        "Invalid ban ID."
+                });
+
+            }
+
+
+            console.log(
+                "UNBAN REQUEST:",
+                banId
+            );
+
+
+            // Find the ban first
 
             const {
-                data,
-                error
+                data: existingBan,
+                error: findError
+            } = await supabase
+                .from("bans")
+                .select(`
+                    id,
+                    email,
+                    user_id,
+                    active
+                `)
+                .eq(
+                    "id",
+                    banId
+                )
+                .maybeSingle();
+
+
+            if (findError) {
+
+                console.error(
+                    "FIND BAN ERROR:",
+                    findError
+                );
+
+                return res.status(500).json({
+                    error:
+                        findError.message
+                });
+
+            }
+
+
+            if (!existingBan) {
+
+                return res.status(404).json({
+                    error:
+                        "Ban not found."
+                });
+
+            }
+
+
+            // Already inactive
+
+            if (!existingBan.active) {
+
+                return res.status(400).json({
+                    error:
+                        "This ban is already inactive."
+                });
+
+            }
+
+
+            // Disable the ban
+
+            const {
+                data: updatedBan,
+                error: updateError
             } = await supabase
                 .from("bans")
                 .update({
@@ -4817,28 +4934,40 @@ app.post(
                     "id",
                     banId
                 )
-                .select()
-                .maybeSingle();
+                .select(`
+                    id,
+                    user_id,
+                    email,
+                    reason,
+                    banned_at,
+                    banned_by,
+                    active
+                `)
+                .single();
 
-            if (error) {
+
+            if (updateError) {
+
+                console.error(
+                    "UPDATE BAN ERROR:",
+                    updateError
+                );
+
                 return res.status(500).json({
                     error:
-                        error.message
+                        updateError.message
                 });
+
             }
 
-            if (!data) {
-                return res.status(404).json({
-                    error:
-                        "Ban not found."
-                });
-            }
 
-            res.json({
+            return res.json({
 
-                success: true,
+                success:
+                    true,
 
-                ban:data
+                ban:
+                    updatedBan
 
             });
 
@@ -4849,7 +4978,7 @@ app.post(
                 error
             );
 
-            res.status(500).json({
+            return res.status(500).json({
                 error:
                     "Server error."
             });
