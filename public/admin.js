@@ -88,17 +88,11 @@ async function checkAdmin() {
 // LOAD ACTIVE BANS
 // ==================================================
 
+// ==================================================
+// LOAD BANS
+// ==================================================
+
 async function loadBans() {
-
-    const container =
-        document.getElementById("ban-list");
-
-    if (!container) {
-        return;
-    }
-
-    container.innerHTML =
-        "<p>Loading bans...</p>";
 
     try {
 
@@ -109,79 +103,52 @@ async function loadBans() {
             }
         );
 
-        const data =
-            await response.json();
+        const data = await response.json();
+
+        const container =
+            document.getElementById("ban-list");
+
+        if (!container) {
+            return;
+        }
 
         if (!response.ok) {
 
             container.innerHTML =
                 `<p>❌ ${escapeHtml(
-                    data.error ||
-                    "Could not load bans."
+                    data.error || "Could not load bans."
                 )}</p>`;
 
             return;
-
         }
-
-
-        /*
-         * Backend returns:
-         *
-         * {
-         *     bans: [...]
-         * }
-         */
 
         const bans =
-            Array.isArray(data.bans)
-                ? data.bans
-                : [];
+            data.bans || [];
 
-
-        /*
-         * Only show active bans.
-         * This also protects us if the backend
-         * accidentally returns inactive bans.
-         */
-
-        const activeBans =
-            bans.filter(
-                ban =>
-                    ban.active === true ||
-                    ban.active === "true" ||
-                    ban.active === 1
-            );
-
-
-        if (activeBans.length === 0) {
+        if (bans.length === 0) {
 
             container.innerHTML =
-                "<p>No active bans.</p>";
+                "<p>No active bans. 👍</p>";
 
             return;
-
         }
 
-
         container.innerHTML =
-            activeBans.map(ban => {
+            bans.map(ban => {
 
                 const email =
-                    ban.email ||
-                    "No email";
+                    ban.email || "No email";
 
                 const reason =
                     ban.reason ||
                     "No reason provided.";
 
-                const date =
+                const bannedAt =
                     ban.banned_at
                         ? new Date(
                             ban.banned_at
                         ).toLocaleString()
                         : "Unknown";
-
 
                 return `
 
@@ -190,62 +157,49 @@ async function loadBans() {
                         style="
                             margin-bottom:15px;
                             padding:15px;
-                        ">
+                        "
+                    >
 
                         <h3>
-                            🚫
-                            ${escapeHtml(email)}
+                            🚫 ${escapeHtml(email)}
                         </h3>
-
-                        <p>
-
-                            <strong>
-                                Reason:
-                            </strong>
-
-                            ${escapeHtml(reason)}
-
-                        </p>
-
-                        <p>
-
-                            <strong>
-                                Banned:
-                            </strong>
-
-                            ${escapeHtml(date)}
-
-                        </p>
 
                         ${
                             ban.user_id
                                 ? `
                                     <p>
-                                        <strong>
-                                            User ID:
-                                        </strong>
-
-                                        <code>
+                                        <strong>User ID:</strong><br>
+                                        <small>
                                             ${escapeHtml(
                                                 ban.user_id
                                             )}
-                                        </code>
+                                        </small>
                                     </p>
                                   `
                                 : ""
                         }
 
+                        <p>
+                            <strong>Reason:</strong>
+                            ${escapeHtml(reason)}
+                        </p>
+
+                        <p>
+                            <strong>Banned:</strong>
+                            ${escapeHtml(bannedAt)}
+                        </p>
+
                         <button
+                            type="button"
                             onclick="
                                 unbanEmail(
                                     '${encodeURIComponent(
-                                        ban.id
+                                        email
                                     )}'
                                 )
-                            ">
-
+                            "
+                        >
                             ✅ Unban
-
                         </button>
 
                     </div>
@@ -261,17 +215,19 @@ async function loadBans() {
             error
         );
 
-        container.innerHTML =
-            `<p>❌ ${escapeHtml(
-                error.message ||
-                "Could not load bans."
-            )}</p>`;
+        const container =
+            document.getElementById("ban-list");
+
+        if (container) {
+
+            container.innerHTML =
+                "<p>❌ Could not load bans.</p>";
+
+        }
 
     }
 
 }
-
-
 // ==================================================
 // BAN EMAIL
 // ==================================================
