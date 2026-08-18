@@ -4084,8 +4084,7 @@ app.post(
 
                 success: true,
 
-                ban:
-                    data
+                ban:data
 
             });
 

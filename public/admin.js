@@ -85,10 +85,20 @@ async function checkAdmin() {
 
 
 // ==================================================
-// LOAD BANS
+// LOAD ACTIVE BANS
 // ==================================================
 
 async function loadBans() {
+
+    const container =
+        document.getElementById("ban-list");
+
+    if (!container) {
+        return;
+    }
+
+    container.innerHTML =
+        "<p>Loading bans...</p>";
 
     try {
 
@@ -99,23 +109,52 @@ async function loadBans() {
             }
         );
 
-        const data = await response.json();
-
-        const container =
-            document.getElementById("ban-list");
-
+        const data =
+            await response.json();
 
         if (!response.ok) {
 
             container.innerHTML =
-                `<p>❌ ${escapeHtml(data.error)}</p>`;
+                `<p>❌ ${escapeHtml(
+                    data.error ||
+                    "Could not load bans."
+                )}</p>`;
 
             return;
 
         }
 
 
-        if (!data.bans || data.bans.length === 0) {
+        /*
+         * Backend returns:
+         *
+         * {
+         *     bans: [...]
+         * }
+         */
+
+        const bans =
+            Array.isArray(data.bans)
+                ? data.bans
+                : [];
+
+
+        /*
+         * Only show active bans.
+         * This also protects us if the backend
+         * accidentally returns inactive bans.
+         */
+
+        const activeBans =
+            bans.filter(
+                ban =>
+                    ban.active === true ||
+                    ban.active === "true" ||
+                    ban.active === 1
+            );
+
+
+        if (activeBans.length === 0) {
 
             container.innerHTML =
                 "<p>No active bans.</p>";
@@ -126,34 +165,94 @@ async function loadBans() {
 
 
         container.innerHTML =
-            data.bans.map(ban => `
+            activeBans.map(ban => {
 
-                <div class="post">
+                const email =
+                    ban.email ||
+                    "No email";
 
-                    <h3>
-                        🚫 ${escapeHtml(ban.email)}
-                    </h3>
+                const reason =
+                    ban.reason ||
+                    "No reason provided.";
 
-                    <p>
-                        <strong>Reason:</strong>
-                        ${escapeHtml(ban.reason || "No reason provided")}
-                    </p>
+                const date =
+                    ban.banned_at
+                        ? new Date(
+                            ban.banned_at
+                        ).toLocaleString()
+                        : "Unknown";
 
-                    <p>
-                        Banned:
-                        ${new Date(ban.created_at).toLocaleString()}
-                    </p>
 
-                    <button
-                        onclick="unbanEmail('${encodeURIComponent(ban.email)}')">
+                return `
 
-                        ✅ Unban
+                    <div
+                        class="post"
+                        style="
+                            margin-bottom:15px;
+                            padding:15px;
+                        ">
 
-                    </button>
+                        <h3>
+                            🚫
+                            ${escapeHtml(email)}
+                        </h3>
 
-                </div>
+                        <p>
 
-            `).join("");
+                            <strong>
+                                Reason:
+                            </strong>
+
+                            ${escapeHtml(reason)}
+
+                        </p>
+
+                        <p>
+
+                            <strong>
+                                Banned:
+                            </strong>
+
+                            ${escapeHtml(date)}
+
+                        </p>
+
+                        ${
+                            ban.user_id
+                                ? `
+                                    <p>
+                                        <strong>
+                                            User ID:
+                                        </strong>
+
+                                        <code>
+                                            ${escapeHtml(
+                                                ban.user_id
+                                            )}
+                                        </code>
+                                    </p>
+                                  `
+                                : ""
+                        }
+
+                        <button
+                            onclick="
+                                unbanEmail(
+                                    '${encodeURIComponent(
+                                        ban.id
+                                    )}'
+                                )
+                            ">
+
+                            ✅ Unban
+
+                        </button>
+
+                    </div>
+
+                `;
+
+            }).join("");
 
     } catch (error) {
 
@@ -161,6 +260,12 @@ async function loadBans() {
             "LOAD BANS ERROR:",
             error
         );
+
+        container.innerHTML =
+            `<p>❌ ${escapeHtml(
+                error.message ||
+                "Could not load bans."
+            )}</p>`;
 
     }
 
@@ -186,7 +291,9 @@ async function banEmail() {
             .trim();
 
     const status =
-        document.getElementById("ban-status");
+        document.getElementById(
+            "ban-status"
+        );
 
 
     if (!email) {
@@ -208,19 +315,24 @@ async function banEmail() {
         const response = await fetch(
             "/api/admin/bans",
             {
-                method: "POST",
+
+                method:
+                    "POST",
 
                 headers: {
                     "Content-Type":
                         "application/json"
                 },
 
-                credentials: "include",
+                credentials:
+                    "include",
 
-                body: JSON.stringify({
-                    email,
-                    reason
-                })
+                body:
+                    JSON.stringify({
+                        email,
+                        reason
+                    })
+
             }
         );
 
@@ -232,7 +344,10 @@ async function banEmail() {
         if (!response.ok) {
 
             status.textContent =
-                `❌ ${data.error}`;
+                `❌ ${
+                    data.error ||
+                    "Ban failed."
+                }`;
 
             return;
 
@@ -252,6 +367,10 @@ async function banEmail() {
             "ban-reason"
         ).value = "";
 
+
+        /*
+         * Immediately reload the list.
+         */
 
         await loadBans();
 
@@ -274,14 +393,18 @@ async function banEmail() {
 // UNBAN
 // ==================================================
 
-async function unbanEmail(encodedEmail) {
+async function unbanEmail(
+    encodedBanId
+) {
 
-    const email =
-        decodeURIComponent(encodedEmail);
+    const banId =
+        decodeURIComponent(
+            encodedBanId
+        );
 
 
     if (!confirm(
-        `Unban ${email}?`
+        "Unban this ban?"
     )) {
 
         return;
@@ -291,13 +414,21 @@ async function unbanEmail(encodedEmail) {
 
     try {
 
-        const response = await fetch(
-            `/api/admin/bans/${encodeURIComponent(email)}`,
-            {
-                method: "DELETE",
-                credentials: "include"
-            }
-        );
+        const response =
+            await fetch(
+                `/api/admin/bans/${encodeURIComponent(
+                    banId
+                )}/unban`,
+                {
+
+                    method:
+                        "POST",
+
+                    credentials:
+                        "include"
+
+                }
+            );
 
 
         const data =
@@ -308,13 +439,22 @@ async function unbanEmail(encodedEmail) {
 
             alert(
                 "❌ " +
-                (data.error || "Unban failed.")
+                (
+                    data.error ||
+                    "Unban failed."
+                )
             );
 
             return;
 
         }
 
+
+        /*
+         * Reload active bans.
+         * The unbanned row now has
+         * active = false, so it disappears.
+         */
 
         await loadBans();
 
@@ -363,7 +503,10 @@ async function loadAdmins() {
         if (!response.ok) {
 
             container.innerHTML =
-                `<p>❌ ${escapeHtml(data.error)}</p>`;
+                `<p>❌ ${escapeHtml(
+                    data.error ||
+                    "Could not load administrators."
+                )}</p>`;
 
             return;
 
@@ -389,18 +532,29 @@ async function loadAdmins() {
                 <div class="post">
 
                     <p>
+
                         🛡️
+
                         <strong>
+
                             ${escapeHtml(
                                 admin.display_name ||
                                 admin.username ||
                                 "Administrator"
                             )}
+
                         </strong>
+
                     </p>
 
                     <small>
-                        ${escapeHtml(admin.id)}
+
+                        ${escapeHtml(
+                            admin.id ||
+                            admin.user_id ||
+                            ""
+                        )}
+
                     </small>
 
                 </div>
@@ -453,23 +607,32 @@ async function addAdmin() {
 
     try {
 
-        const response = await fetch(
-            "/api/admin/admins",
-            {
-                method: "POST",
+        const response =
+            await fetch(
+                "/api/admin/admins",
+                {
 
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
+                    method:
+                        "POST",
 
-                credentials: "include",
+                    headers: {
 
-                body: JSON.stringify({
-                    user_id: userId
-                })
-            }
-        );
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    credentials:
+                        "include",
+
+                    body:
+                        JSON.stringify({
+                            user_id:
+                                userId
+                        })
+
+                }
+            );
 
 
         const data =
@@ -479,7 +642,10 @@ async function addAdmin() {
         if (!response.ok) {
 
             status.textContent =
-                `❌ ${data.error}`;
+                `❌ ${
+                    data.error ||
+                    "Could not add administrator."
+                }`;
 
             return;
 
@@ -523,14 +689,20 @@ async function logout() {
         await fetch(
             "/api/logout",
             {
-                method: "POST",
-                credentials: "include"
+
+                method:
+                    "POST",
+
+                credentials:
+                    "include"
+
             }
         );
 
     } finally {
 
-        window.location.href = "/";
+        window.location.href =
+            "/";
 
     }
 
@@ -541,4 +713,11 @@ async function logout() {
 // START
 // ==================================================
 
-checkAdmin();
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        checkAdmin();
+
+    }
+);
