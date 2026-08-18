@@ -79,6 +79,7 @@ function fileToBase64(file) {
 
 }
 
+
 async function giveReaction(type) {
 
     const userId =
@@ -104,38 +105,61 @@ async function giveReaction(type) {
             await response.json();
 
         if (!response.ok) {
+
             alert(
                 "❌ " +
                 data.error
             );
 
             return;
+
         }
 
         if (type === "gyatt") {
 
-            document.getElementById(
-                "gyatt-count"
-            ).textContent =
-                data.gyatt;
+            const element =
+                document.getElementById(
+                    "gyatt-count"
+                );
+
+            if (element) {
+
+                element.textContent =
+                    data.gyatt;
+
+            }
 
         }
 
         if (type === "cat") {
 
-            document.getElementById(
-                "cat-count"
-            ).textContent =
-                data.cat;
+            const element =
+                document.getElementById(
+                    "cat-count"
+                );
+
+            if (element) {
+
+                element.textContent =
+                    data.cat;
+
+            }
 
         }
 
         if (type === "ogred") {
 
-            document.getElementById(
-                "ogred-count"
-            ).textContent =
-                data.ogred;
+            const element =
+                document.getElementById(
+                    "ogred-count"
+                );
+
+            if (element) {
+
+                element.textContent =
+                    data.ogred;
+
+            }
 
         }
 
@@ -149,7 +173,9 @@ async function giveReaction(type) {
         alert(
             "❌ Could not react."
         );
+
     }
+
 }
 
 
@@ -609,6 +635,8 @@ function showApp() {
 
     loadPeople();
 
+    updateOnlineStatus();
+
 }
 
 
@@ -783,7 +811,6 @@ async function loadPosts() {
 
                         </div>
 
-
                         ${
                             post.content
                                 ? `
@@ -804,9 +831,7 @@ async function loadPosts() {
                                 : ""
                         }
 
-
                         ${imageHTML}
-
 
                         <button
                             onclick="
@@ -818,7 +843,6 @@ async function loadPosts() {
                             💬 Comments
 
                         </button>
-
 
                         <div
                             id="comments-${escapeHtml(post.id)}"
@@ -834,7 +858,6 @@ async function loadPosts() {
 
                             </div>
 
-
                             <div
                                 class="comment-form"
                                 style="
@@ -846,7 +869,6 @@ async function loadPosts() {
                                     placeholder="Write a comment..."
                                     maxlength="500">
 
-
                                 <input
                                     id="comment-image-${escapeHtml(post.id)}"
                                     type="file"
@@ -856,7 +878,6 @@ async function loadPosts() {
                                         image/webp,
                                         image/gif
                                     ">
-
 
                                 <button
                                     onclick="
@@ -868,7 +889,6 @@ async function loadPosts() {
                                     Send
 
                                 </button>
-
 
                                 <div
                                     id="comment-preview-${escapeHtml(post.id)}"
@@ -886,9 +906,7 @@ async function loadPosts() {
                                             border-radius:10px;
                                         ">
 
-
                                     <br>
-
 
                                     <button
                                         type="button"
@@ -1327,7 +1345,6 @@ async function loadComments(postId) {
 
                         </div>
 
-
                         ${
                             comment.content
                                 ? `
@@ -1341,7 +1358,6 @@ async function loadComments(postId) {
                                   `
                                 : ""
                         }
-
 
                         ${imageHTML}
 
@@ -1694,6 +1710,60 @@ document.addEventListener(
 
 
 /* ==================================================
+ONLINE STATUS
+================================================== */
+
+async function updateOnlineStatus() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/online",
+                {
+                    method:
+                        "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    }
+                }
+            );
+
+        if (!response.ok) {
+
+            /*
+             * Do not spam the console with
+             * errors every 30 seconds if the
+             * backend route isn't available.
+             */
+
+            if (response.status !== 404) {
+
+                console.warn(
+                    "Online status request failed:",
+                    response.status
+                );
+
+            }
+
+            return;
+
+        }
+
+    } catch (error) {
+
+        console.warn(
+            "Online heartbeat unavailable."
+        );
+
+    }
+
+}
+
+
+/* ==================================================
 START
 ================================================== */
 
@@ -1707,40 +1777,14 @@ document.addEventListener(
 );
 
 
-async function updateOnlineStatus() {
+/* ==================================================
+ONLINE HEARTBEAT
+================================================== */
 
-    try {
-
-        await fetch(
-            "/api/online",
-            {
-
-                method:
-                    "POST",
-
-                headers: {
-
-                    "Content-Type":
-                        "application/json"
-
-                }
-
-            }
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Online heartbeat failed:",
-            error
-        );
-
-    }
-
-}
-
-
-updateOnlineStatus();
+setTimeout(
+    updateOnlineStatus,
+    1000
+);
 
 setInterval(
     updateOnlineStatus,
