@@ -393,68 +393,39 @@ async function banEmail() {
 // UNBAN
 // ==================================================
 
-async function unbanEmail(
-    encodedBanId
-) {
+// ==================================================
+// UNBAN
+// ==================================================
 
-    const banId =
-        decodeURIComponent(
-            encodedBanId
-        );
+async function unbanEmail(banId) {
 
-
-    if (!confirm(
-        "Unban this ban?"
-    )) {
-
+    if (!confirm("Unban this user/email?")) {
         return;
-
     }
-
 
     try {
 
-        const response =
-            await fetch(
-                `/api/admin/bans/${encodeURIComponent(
-                    banId
-                )}/unban`,
-                {
+        const response = await fetch(
+            `/api/admin/bans/${encodeURIComponent(banId)}/unban`,
+            {
+                method: "POST",
+                credentials: "include"
+            }
+        );
 
-                    method:
-                        "POST",
-
-                    credentials:
-                        "include"
-
-                }
-            );
-
-
-        const data =
-            await response.json();
-
+        const data = await response.json();
 
         if (!response.ok) {
 
             alert(
                 "❌ " +
-                (
-                    data.error ||
-                    "Unban failed."
-                )
+                (data.error || "Unban failed.")
             );
 
             return;
-
         }
 
-
-        /*
-         * Reload active bans.
-         * The unbanned row now has
-         * active = false, so it disappears.
-         */
+        alert("✅ Ban removed.");
 
         await loadBans();
 
@@ -472,8 +443,6 @@ async function unbanEmail(
     }
 
 }
-
-
 // ==================================================
 // LOAD ADMINS
 // ==================================================
