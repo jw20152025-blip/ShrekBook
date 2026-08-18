@@ -1,4 +1,3 @@
-
 // ==================================================
 // SHREKBOOK STAFF PANEL
 // ==================================================
@@ -19,7 +18,6 @@ const ROLE_POWER = {
     administrator: 4,
     owner: 5
 };
-
 
 const ROLE_NAMES = {
     peasant: "👤 Peasant",
@@ -47,15 +45,38 @@ function escapeHtml(value) {
 
 
 // ==================================================
-// GET ROLE NAME
+// ROLE NAME
 // ==================================================
 
 function roleName(role) {
 
-    return (
-        ROLE_NAMES[role] ||
-        "👤 Peasant"
-    );
+    return ROLE_NAMES[role] || "👤 Peasant";
+
+}
+
+
+// ==================================================
+// SAFE JSON RESPONSE
+// ==================================================
+
+async function readJson(response) {
+
+    const text = await response.text();
+
+    try {
+
+        return text
+            ? JSON.parse(text)
+            : {};
+
+    } catch {
+
+        return {
+            error:
+                `Server returned ${response.status} instead of JSON.`
+        };
+
+    }
 
 }
 
@@ -77,7 +98,7 @@ async function checkStaff() {
             );
 
         const data =
-            await response.json();
+            await readJson(response);
 
         document
             .getElementById("loading")
@@ -86,7 +107,7 @@ async function checkStaff() {
 
         if (
             !response.ok ||
-            !data.isAdmin
+            !data.isStaff
         ) {
 
             document
@@ -99,12 +120,10 @@ async function checkStaff() {
 
 
         currentUser =
-            data.user ||
-            null;
+            data.user || null;
 
         currentUserRole =
-            data.role ||
-            "administrator";
+            data.role || "peasant";
 
 
         document
@@ -123,8 +142,9 @@ async function checkStaff() {
             loadRevokes()
         ]);
 
+    }
 
-    } catch (error) {
+    catch (error) {
 
         console.error(
             "STAFF CHECK ERROR:",
@@ -135,9 +155,7 @@ async function checkStaff() {
             .getElementById("loading")
             .innerHTML = `
                 <h2>❌ Error</h2>
-                <p>
-                    Could not check staff status.
-                </p>
+                <p>Could not check staff status.</p>
             `;
 
     }
@@ -146,7 +164,7 @@ async function checkStaff() {
 
 
 // ==================================================
-// WELCOME MESSAGE
+// WELCOME
 // ==================================================
 
 function updateWelcome() {
@@ -156,13 +174,8 @@ function updateWelcome() {
             "staff-welcome"
         );
 
-    const role =
-        roleName(
-            currentUserRole
-        );
-
     welcome.textContent =
-        `Welcome, ${role}. Use your powers wisely. 🏰`;
+        `Welcome, ${roleName(currentUserRole)}. Use your powers wisely. 🏰`;
 
 }
 
@@ -178,9 +191,7 @@ async function loadUsers(search = "") {
             "user-list"
         );
 
-    if (!container) {
-        return;
-    }
+    if (!container) return;
 
 
     container.innerHTML =
@@ -205,7 +216,7 @@ async function loadUsers(search = "") {
 
 
         const data =
-            await response.json();
+            await readJson(response);
 
 
         if (!response.ok) {
@@ -226,12 +237,10 @@ async function loadUsers(search = "") {
         const users =
             Array.isArray(data)
                 ? data
-                : Array.isArray(data.users)
-                    ? data.users
-                    : [];
+                : data.users || [];
 
 
-        if (users.length === 0) {
+        if (!users.length) {
 
             container.innerHTML =
                 "<p>No users found.</p>";
@@ -242,12 +251,13 @@ async function loadUsers(search = "") {
 
 
         container.innerHTML =
-            users.map(
-                renderUser
-            ).join("");
+            users
+                .map(renderUser)
+                .join("");
 
+    }
 
-    } catch (error) {
+    catch (error) {
 
         console.error(
             "LOAD USERS ERROR:",
@@ -255,9 +265,7 @@ async function loadUsers(search = "") {
         );
 
         container.innerHTML =
-            `<p class="error">
-                ❌ Could not load users.
-            </p>`;
+            "<p class='error'>❌ Could not load users.</p>";
 
     }
 
@@ -288,7 +296,7 @@ function renderUser(user) {
         "peasant";
 
 
-    const isOwner =
+    const protectedOwner =
         role === "owner";
 
 
@@ -297,21 +305,15 @@ function renderUser(user) {
         <div class="user-card">
 
             <h3>
-                ${escapeHtml(
-                    displayName
-                )}
+                ${escapeHtml(displayName)}
             </h3>
 
             <p class="muted">
-                @${escapeHtml(
-                    username
-                )}
+                @${escapeHtml(username)}
             </p>
 
             <span class="role-badge">
-                ${escapeHtml(
-                    roleName(role)
-                )}
+                ${escapeHtml(roleName(role))}
             </span>
 
             <p class="muted">
@@ -322,7 +324,7 @@ function renderUser(user) {
             <div class="actions">
 
                 ${
-                    isOwner
+                    protectedOwner
 
                     ?
 
@@ -340,15 +342,12 @@ function renderUser(user) {
                     `
                     <button
                         class="success"
-                        onclick='openRoleModal(
-                            ${JSON.stringify({
-                                id,
-                                username,
-                                display_name:
-                                    displayName,
-                                role
-                            })}
-                        )'
+                        onclick='openRoleModal(${JSON.stringify({
+                            id,
+                            username,
+                            display_name: displayName,
+                            role
+                        })})'
                     >
                         🔄 Change Role
                     </button>
@@ -365,7 +364,7 @@ function renderUser(user) {
 
 
 // ==================================================
-// SEARCH USERS
+// SEARCH
 // ==================================================
 
 async function searchUsers() {
@@ -375,56 +374,26 @@ async function searchUsers() {
             "user-search"
         );
 
-    const search =
-        input.value.trim();
-
-
     await loadUsers(
-        search
+        input.value.trim()
     );
 
 }
 
 
 // ==================================================
-// ENTER TO SEARCH
-// ==================================================
-
-document.addEventListener(
-    "keydown",
-    event => {
-
-        if (
-            event.key === "Enter" &&
-            document.activeElement?.id ===
-                "user-search"
-        ) {
-
-            searchUsers();
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// OPEN ROLE MODAL
+// ROLE MODAL
 // ==================================================
 
 function openRoleModal(user) {
 
-    if (!user || !user.id) {
-        return;
-    }
+    if (!user?.id) return;
 
 
-    if (
-        user.role === "owner"
-    ) {
+    if (user.role === "owner") {
 
         alert(
-            "👑 The owner cannot be modified."
+            "👑 The owner is protected."
         );
 
         return;
@@ -432,8 +401,7 @@ function openRoleModal(user) {
     }
 
 
-    selectedRoleUser =
-        user;
+    selectedRoleUser = user;
 
 
     document
@@ -443,7 +411,7 @@ function openRoleModal(user) {
         .textContent =
             user.display_name ||
             user.username ||
-            "Unknown User";
+            "Unknown";
 
 
     document
@@ -451,20 +419,15 @@ function openRoleModal(user) {
             "role-current"
         )
         .textContent =
-            roleName(
-                user.role
-            );
+            roleName(user.role);
 
 
-    const select =
-        document.getElementById(
+    document
+        .getElementById(
             "role-select"
-        );
-
-
-    select.value =
-        user.role ||
-        "peasant";
+        )
+        .value =
+            user.role || "peasant";
 
 
     updateRoleWarning();
@@ -474,36 +437,26 @@ function openRoleModal(user) {
         .getElementById(
             "role-modal"
         )
-        .classList.remove(
-            "hidden"
-        );
+        .classList.remove("hidden");
 
 }
 
 
-// ==================================================
-// CLOSE ROLE MODAL
-// ==================================================
-
 function closeRoleModal() {
 
-    selectedRoleUser =
-        null;
-
+    selectedRoleUser = null;
 
     document
         .getElementById(
             "role-modal"
         )
-        .classList.add(
-            "hidden"
-        );
+        .classList.add("hidden");
 
 }
 
 
 // ==================================================
-// ROLE CHANGE WARNING
+// ROLE WARNING
 // ==================================================
 
 function updateRoleWarning() {
@@ -519,16 +472,10 @@ function updateRoleWarning() {
         );
 
 
-    const newRole =
-        select.value;
-
-
-    if (
-        newRole === "owner"
-    ) {
+    if (select.value === "owner") {
 
         warning.textContent =
-            "⚠️ Owner is reserved for the site owner.";
+            "⚠️ Owner cannot be assigned through this panel.";
 
         return;
 
@@ -537,7 +484,7 @@ function updateRoleWarning() {
 
     if (
         selectedRoleUser &&
-        newRole === selectedRoleUser.role
+        select.value === selectedRoleUser.role
     ) {
 
         warning.textContent =
@@ -549,17 +496,9 @@ function updateRoleWarning() {
 
 
     warning.textContent =
-        `Change this user's role to ${roleName(newRole)}?`;
+        `Change this user to ${roleName(select.value)}?`;
 
 }
-
-
-document
-    .getElementById("role-select")
-    ?.addEventListener(
-        "change",
-        updateRoleWarning
-    );
 
 
 // ==================================================
@@ -568,25 +507,21 @@ document
 
 async function saveRole() {
 
-    if (
-        !selectedRoleUser
-    ) {
+    if (!selectedRoleUser) {
         return;
     }
 
 
-    const newRole =
+    const role =
         document.getElementById(
             "role-select"
         ).value;
 
 
-    if (
-        newRole === "owner"
-    ) {
+    if (role === "owner") {
 
         alert(
-            "👑 Owner cannot be assigned through this panel."
+            "👑 Owner cannot be assigned here."
         );
 
         return;
@@ -595,7 +530,7 @@ async function saveRole() {
 
 
     if (
-        newRole ===
+        role ===
         selectedRoleUser.role
     ) {
 
@@ -605,17 +540,14 @@ async function saveRole() {
     }
 
 
-    const confirmed =
-        confirm(
-            `Change ${
-                selectedRoleUser.display_name ||
-                selectedRoleUser.username
-            } to ${roleName(newRole)}?`
-        );
+    if (
+        !confirm(
+            `Change ${selectedRoleUser.display_name || selectedRoleUser.username} to ${roleName(role)}?`
+        )
+    ) {
 
-
-    if (!confirmed) {
         return;
+
     }
 
 
@@ -638,13 +570,9 @@ async function saveRole() {
 
                     body:
                         JSON.stringify({
-
                             user_id:
                                 selectedRoleUser.id,
-
-                            role:
-                                newRole
-
+                            role
                         })
 
                 }
@@ -652,7 +580,7 @@ async function saveRole() {
 
 
         const data =
-            await response.json();
+            await readJson(response);
 
 
         if (!response.ok) {
@@ -671,7 +599,7 @@ async function saveRole() {
 
 
         alert(
-            `✅ Role changed to ${roleName(newRole)}`
+            `✅ Role changed to ${roleName(role)}`
         );
 
 
@@ -687,8 +615,9 @@ async function saveRole() {
                 .trim()
         );
 
+    }
 
-    } catch (error) {
+    catch (error) {
 
         console.error(
             "CHANGE ROLE ERROR:",
@@ -696,7 +625,7 @@ async function saveRole() {
         );
 
         alert(
-            "❌ Server error while changing role."
+            "❌ Could not contact the server."
         );
 
     }
@@ -705,7 +634,7 @@ async function saveRole() {
 
 
 // ==================================================
-// LOAD BANS
+// BANS
 // ==================================================
 
 async function loadBans() {
@@ -728,7 +657,7 @@ async function loadBans() {
 
 
         const data =
-            await response.json();
+            await readJson(response);
 
 
         if (!response.ok) {
@@ -761,9 +690,7 @@ async function loadBans() {
             );
 
 
-        if (
-            active.length === 0
-        ) {
+        if (!active.length) {
 
             container.innerHTML =
                 "<p>No active bans.</p>";
@@ -783,40 +710,24 @@ async function loadBans() {
                             🚫
                             ${escapeHtml(
                                 ban.email ||
+                                ban.user_id ||
                                 "Unknown"
                             )}
                         </h3>
 
                         <p>
-                            <strong>
-                                Reason:
-                            </strong>
-
+                            Reason:
                             ${escapeHtml(
                                 ban.reason ||
                                 "No reason provided."
                             )}
                         </p>
 
-                        <p class="muted">
-                            ${escapeHtml(
-                                ban.banned_at
-                                    ? new Date(
-                                        ban.banned_at
-                                    ).toLocaleString()
-                                    : ""
-                            )}
-                        </p>
-
                         <button
                             class="success"
-                            onclick="unban(
-                                '${encodeURIComponent(
-                                    ban.id
-                                )}'
-                            )"
+                            onclick="unban('${encodeURIComponent(ban.id)}')"
                         >
-                            Unban
+                            ✅ Unban
                         </button>
 
                     </div>
@@ -824,8 +735,9 @@ async function loadBans() {
                 `
             ).join("");
 
+    }
 
-    } catch (error) {
+    catch (error) {
 
         console.error(
             "LOAD BANS ERROR:",
@@ -841,28 +753,22 @@ async function loadBans() {
 
 
 // ==================================================
-// BAN USER
+// BAN
 // ==================================================
 
 async function banEmail() {
 
     const email =
         document
-            .getElementById(
-                "ban-email"
-            )
+            .getElementById("ban-email")
             .value
             .trim();
-
 
     const reason =
         document
-            .getElementById(
-                "ban-reason"
-            )
+            .getElementById("ban-reason")
             .value
             .trim();
-
 
     const status =
         document.getElementById(
@@ -912,16 +818,13 @@ async function banEmail() {
 
 
         const data =
-            await response.json();
+            await readJson(response);
 
 
         if (!response.ok) {
 
             status.textContent =
-                `❌ ${
-                    data.error ||
-                    "Ban failed."
-                }`;
+                `❌ ${data.error || "Ban failed."}`;
 
             return;
 
@@ -931,25 +834,20 @@ async function banEmail() {
         status.textContent =
             "✅ User banned.";
 
-
         document
-            .getElementById(
-                "ban-email"
-            )
+            .getElementById("ban-email")
             .value = "";
 
-
         document
-            .getElementById(
-                "ban-reason"
-            )
+            .getElementById("ban-reason")
             .value = "";
 
 
         await loadBans();
 
+    }
 
-    } catch (error) {
+    catch (error) {
 
         console.error(
             "BAN ERROR:",
@@ -968,21 +866,13 @@ async function banEmail() {
 // UNBAN
 // ==================================================
 
-async function unban(
-    encodedId
-) {
+async function unban(encodedId) {
 
     const id =
-        decodeURIComponent(
-            encodedId
-        );
+        decodeURIComponent(encodedId);
 
 
-    if (
-        !confirm(
-            "Unban this user?"
-        )
-    ) {
+    if (!confirm("Unban this user?")) {
         return;
     }
 
@@ -993,18 +883,14 @@ async function unban(
             await fetch(
                 `/api/admin/bans/${encodeURIComponent(id)}/unban`,
                 {
-
                     method: "POST",
-
-                    credentials:
-                        "include"
-
+                    credentials: "include"
                 }
             );
 
 
         const data =
-            await response.json();
+            await readJson(response);
 
 
         if (!response.ok) {
@@ -1024,17 +910,16 @@ async function unban(
 
         await loadBans();
 
+    }
 
-    } catch (error) {
+    catch (error) {
 
         console.error(
             "UNBAN ERROR:",
             error
         );
 
-        alert(
-            "❌ Server error."
-        );
+        alert("❌ Server error.");
 
     }
 
@@ -1042,7 +927,7 @@ async function unban(
 
 
 // ==================================================
-// LOAD ADMINS
+// ADMINS
 // ==================================================
 
 async function loadAdmins() {
@@ -1065,7 +950,7 @@ async function loadAdmins() {
 
 
         const data =
-            await response.json();
+            await readJson(response);
 
 
         if (!response.ok) {
@@ -1084,13 +969,10 @@ async function loadAdmins() {
 
 
         const admins =
-            data.admins ||
-            [];
+            data.admins || [];
 
 
-        if (
-            admins.length === 0
-        ) {
+        if (!admins.length) {
 
             container.innerHTML =
                 "<p>No administrators.</p>";
@@ -1116,24 +998,22 @@ async function loadAdmins() {
                         </h3>
 
                         <p>
-                            Administrator
-                        </p>
-
-                        <small>
                             ${escapeHtml(
-                                admin.id ||
-                                admin.user_id ||
-                                ""
+                                roleName(
+                                    admin.role ||
+                                    "administrator"
+                                )
                             )}
-                        </small>
+                        </p>
 
                     </div>
 
                 `
             ).join("");
 
+    }
 
-    } catch (error) {
+    catch (error) {
 
         console.error(
             "LOAD ADMINS ERROR:",
@@ -1161,7 +1041,6 @@ async function addAdmin() {
             )
             .value
             .trim();
-
 
     const status =
         document.getElementById(
@@ -1202,8 +1081,7 @@ async function addAdmin() {
 
                     body:
                         JSON.stringify({
-                            user_id:
-                                userId
+                            user_id: userId
                         })
 
                 }
@@ -1211,16 +1089,13 @@ async function addAdmin() {
 
 
         const data =
-            await response.json();
+            await readJson(response);
 
 
         if (!response.ok) {
 
             status.textContent =
-                `❌ ${
-                    data.error ||
-                    "Could not add administrator."
-                }`;
+                `❌ ${data.error || "Could not add administrator."}`;
 
             return;
 
@@ -1229,7 +1104,6 @@ async function addAdmin() {
 
         status.textContent =
             "✅ Administrator added.";
-
 
         document
             .getElementById(
@@ -1240,8 +1114,9 @@ async function addAdmin() {
 
         await loadAdmins();
 
+    }
 
-    } catch (error) {
+    catch (error) {
 
         console.error(
             "ADD ADMIN ERROR:",
@@ -1257,7 +1132,7 @@ async function addAdmin() {
 
 
 // ==================================================
-// LOAD KICKS
+// KICKS
 // ==================================================
 
 async function loadKicks() {
@@ -1280,7 +1155,7 @@ async function loadKicks() {
 
 
         const data =
-            await response.json();
+            await readJson(response);
 
 
         if (!response.ok) {
@@ -1299,15 +1174,12 @@ async function loadKicks() {
 
 
         const kicks =
-            data.kicks ||
-            (Array.isArray(data)
+            Array.isArray(data)
                 ? data
-                : []);
+                : data.kicks || [];
 
 
-        if (
-            kicks.length === 0
-        ) {
+        if (!kicks.length) {
 
             container.innerHTML =
                 "<p>No kicks recorded.</p>";
@@ -1330,7 +1202,8 @@ async function loadKicks() {
                         <p>
                             User:
                             ${escapeHtml(
-                                kick.user_id
+                                kick.user_id ||
+                                "Unknown"
                             )}
                         </p>
 
@@ -1345,6 +1218,7 @@ async function loadKicks() {
                         <p class="muted">
                             ${escapeHtml(
                                 kick.kicked_at ||
+                                kick.created_at ||
                                 ""
                             )}
                         </p>
@@ -1354,8 +1228,9 @@ async function loadKicks() {
                 `
             ).join("");
 
+    }
 
-    } catch (error) {
+    catch (error) {
 
         console.error(
             "LOAD KICKS ERROR:",
@@ -1371,7 +1246,7 @@ async function loadKicks() {
 
 
 // ==================================================
-// LOAD REVOKES
+// REVOKES
 // ==================================================
 
 async function loadRevokes() {
@@ -1394,7 +1269,7 @@ async function loadRevokes() {
 
 
         const data =
-            await response.json();
+            await readJson(response);
 
 
         if (!response.ok) {
@@ -1413,15 +1288,12 @@ async function loadRevokes() {
 
 
         const revokes =
-            data.revokes ||
-            (Array.isArray(data)
+            Array.isArray(data)
                 ? data
-                : []);
+                : data.revokes || [];
 
 
-        if (
-            revokes.length === 0
-        ) {
+        if (!revokes.length) {
 
             container.innerHTML =
                 "<p>No staff revocations.</p>";
@@ -1444,7 +1316,8 @@ async function loadRevokes() {
                         <p>
                             User:
                             ${escapeHtml(
-                                revoke.user_id
+                                revoke.user_id ||
+                                "Unknown"
                             )}
                         </p>
 
@@ -1468,6 +1341,7 @@ async function loadRevokes() {
                         <p class="muted">
                             ${escapeHtml(
                                 revoke.revoked_at ||
+                                revoke.created_at ||
                                 ""
                             )}
                         </p>
@@ -1477,8 +1351,9 @@ async function loadRevokes() {
                 `
             ).join("");
 
+    }
 
-    } catch (error) {
+    catch (error) {
 
         console.error(
             "LOAD REVOKES ERROR:",
@@ -1504,19 +1379,16 @@ async function logout() {
         await fetch(
             "/api/logout",
             {
-
                 method: "POST",
-
-                credentials:
-                    "include"
-
+                credentials: "include"
             }
         );
 
-    } finally {
+    }
 
-        window.location.href =
-            "/";
+    finally {
+
+        window.location.href = "/";
 
     }
 
@@ -1524,38 +1396,63 @@ async function logout() {
 
 
 // ==================================================
-// CLOSE MODAL WHEN CLICKING BACKDROP
-// ==================================================
-
-document
-    .getElementById("role-modal")
-    ?.addEventListener(
-        "click",
-        event => {
-
-            if (
-                event.target.id ===
-                "role-modal"
-            ) {
-
-                closeRoleModal();
-
-            }
-
-        }
-    );
-
-
-// ==================================================
-// START
+// EVENTS
 // ==================================================
 
 document.addEventListener(
     "DOMContentLoaded",
     () => {
 
+        document
+            .getElementById(
+                "role-select"
+            )
+            ?.addEventListener(
+                "change",
+                updateRoleWarning
+            );
+
+
+        document
+            .getElementById(
+                "role-modal"
+            )
+            ?.addEventListener(
+                "click",
+                event => {
+
+                    if (
+                        event.target.id ===
+                        "role-modal"
+                    ) {
+
+                        closeRoleModal();
+
+                    }
+
+                }
+            );
+
+
+        document.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Enter" &&
+                    document.activeElement?.id ===
+                        "user-search"
+                ) {
+
+                    searchUsers();
+
+                }
+
+            }
+        );
+
+
         checkStaff();
 
     }
 );
-

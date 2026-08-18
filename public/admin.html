@@ -1,104 +1,44 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>ShrekBook Staff Panel</title>
 
     <style>
+
         * {
             box-sizing: border-box;
         }
 
         body {
             margin: 0;
-            font-family: Arial, Helvetica, sans-serif;
-            background: #f1f1f1;
+            padding: 30px;
+            background: #f4f4f4;
+            font-family: Arial, sans-serif;
             color: #222;
         }
 
-        header {
-            background: #222;
-            color: white;
-            padding: 20px;
+        .hidden {
+            display: none !important;
         }
 
-        header h1 {
-            margin: 0 0 8px 0;
-        }
-
-        main {
+        .container {
             max-width: 1100px;
-            margin: 25px auto;
-            padding: 0 15px;
+            margin: auto;
         }
 
         .card {
             background: white;
-            border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
+            border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0,0,0,.08);
-        }
-
-        .role-card {
-            border-left: 5px solid #555;
-            margin: 10px 0;
-            padding: 12px 15px;
-            background: #fafafa;
-        }
-
-        .role-card strong {
-            display: block;
-            margin-bottom: 4px;
-        }
-
-        input,
-        select,
-        textarea,
-        button {
-            font: inherit;
-        }
-
-        input,
-        select,
-        textarea {
-            width: 100%;
-            padding: 10px;
-            margin: 6px 0 12px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-        }
-
-        button {
-            border: 0;
-            border-radius: 6px;
-            padding: 10px 15px;
-            cursor: pointer;
-            background: #333;
-            color: white;
-        }
-
-        button:hover {
-            opacity: .85;
-        }
-
-        button.danger {
-            background: #c62828;
-        }
-
-        button.success {
-            background: #2e7d32;
-        }
-
-        button.warning {
-            background: #ef6c00;
-        }
-
-        button.secondary {
-            background: #666;
         }
 
         .user-card,
@@ -106,63 +46,96 @@
         .kick-card,
         .revoke-card,
         .admin-card {
+            background: #fafafa;
             border: 1px solid #ddd;
-            border-radius: 8px;
             padding: 15px;
-            margin-bottom: 12px;
-            background: #fff;
+            margin: 10px 0;
+            border-radius: 10px;
         }
 
-        .user-card h3,
-        .ban-card h3,
-        .kick-card h3,
-        .revoke-card h3,
-        .admin-card h3 {
-            margin-top: 0;
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px;
+            margin: 6px 0 12px;
+            border: 1px solid #bbb;
+            border-radius: 7px;
+            font-size: 15px;
         }
 
-        .muted {
-            color: #777;
-            font-size: 14px;
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        button {
+            border: 0;
+            border-radius: 7px;
+            padding: 10px 15px;
+            cursor: pointer;
+            margin: 4px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            opacity: .85;
+        }
+
+        .primary {
+            background: #333;
+            color: white;
+        }
+
+        .success {
+            background: #299447;
+            color: white;
+        }
+
+        .danger {
+            background: #c62828;
+            color: white;
+        }
+
+        .secondary {
+            background: #777;
+            color: white;
         }
 
         .role-badge {
             display: inline-block;
-            padding: 4px 9px;
-            border-radius: 20px;
+            padding: 5px 9px;
             background: #eee;
+            border-radius: 20px;
             font-size: 13px;
-            margin: 3px 0;
+            font-weight: bold;
+        }
+
+        .muted {
+            color: #777;
+        }
+
+        .error {
+            color: #c62828;
+            font-weight: bold;
+        }
+
+        .success-text {
+            color: #299447;
+            font-weight: bold;
         }
 
         .actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-top: 10px;
+            margin-top: 12px;
         }
-
-        .status {
-            margin: 10px 0;
-            min-height: 20px;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        /* =========================
-           MODAL
-        ========================= */
 
         #role-modal {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, .65);
+            background: rgba(0,0,0,.6);
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
             z-index: 9999;
         }
 
@@ -171,128 +144,150 @@
         }
 
         .modal-box {
-            width: 100%;
-            max-width: 500px;
             background: white;
-            border-radius: 12px;
+            width: min(500px, 90%);
             padding: 25px;
-            box-shadow: 0 10px 40px rgba(0,0,0,.3);
+            border-radius: 12px;
         }
 
-        .modal-box h2 {
+        .section-title {
             margin-top: 0;
         }
 
-        .modal-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-            margin-top: 15px;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 30px;
-        }
-
-        .error {
-            color: #c62828;
-        }
-
-        .success-text {
-            color: #2e7d32;
-        }
     </style>
 </head>
 
 <body>
 
-<header>
-    <h1>🏰 ShrekBook Staff Panel</h1>
-    <p id="staff-welcome">
-        Checking your staff rank...
-    </p>
-</header>
+<div class="container">
 
-<main>
+    <!-- ============================================ -->
+    <!-- LOADING -->
+    <!-- ============================================ -->
 
-    <!-- =========================
-         LOADING
-    ========================== -->
+    <div id="loading" class="card">
 
-    <div id="loading" class="card loading">
-        Loading staff panel...
+        <h2>
+            🔄 Loading staff panel...
+        </h2>
+
     </div>
 
-    <!-- =========================
-         NOT STAFF
-    ========================== -->
 
-    <div id="not-staff" class="card hidden">
-        <h2>🚫 Staff access required</h2>
-        <p>You do not have permission to access this page.</p>
+    <!-- ============================================ -->
+    <!-- NOT STAFF -->
+    <!-- ============================================ -->
+
+    <div
+        id="not-staff"
+        class="card hidden"
+    >
+
+        <h2>
+            🚫 Staff access required.
+        </h2>
+
+        <p>
+            You do not have permission to access
+            the ShrekBook staff panel.
+        </p>
+
+        <button
+            class="secondary"
+            onclick="location.href='/'"
+        >
+            Return Home
+        </button>
+
     </div>
 
-    <!-- =========================
-         STAFF PANEL
-    ========================== -->
 
-    <div id="staff-panel" class="hidden">
+    <!-- ============================================ -->
+    <!-- STAFF PANEL -->
+    <!-- ============================================ -->
 
-        <!-- =====================
-             HIERARCHY
-        ====================== -->
+    <div
+        id="staff-panel"
+        class="hidden"
+    >
 
-        <section class="card">
-            <h2>🏰 ShrekBook Hierarchy</h2>
+        <!-- ======================================== -->
+        <!-- WELCOME -->
+        <!-- ======================================== -->
 
-            <div class="role-card">
+        <div class="card">
+
+            <h1>
+                🏰 ShrekBook Staff Panel
+            </h1>
+
+            <h2 id="staff-welcome">
+                Welcome.
+            </h2>
+
+            <p>
+                Manage ShrekBook users and staff powers
+                from this panel.
+            </p>
+
+            <button
+                class="secondary"
+                onclick="logout()"
+            >
+                Logout
+            </button>
+
+        </div>
+
+
+        <!-- ======================================== -->
+        <!-- ROLE HIERARCHY -->
+        <!-- ======================================== -->
+
+        <div class="card">
+
+            <h2 class="section-title">
+                👑 Staff Hierarchy
+            </h2>
+
+            <p>
                 <strong>👑 Owner</strong>
-                <span>
-                    Full control over ShrekBook. The owner cannot be
-                    revoked, kicked, banned, or demoted by staff.
-                </span>
-            </div>
+                — Full control. Cannot be demoted,
+                revoked, banned, or modified by staff.
+            </p>
 
-            <div class="role-card">
+            <p>
                 <strong>🛡️ Administrator</strong>
-                <span>
-                    High-level staff. Can manage users and staff,
-                    including moderation actions according to their
-                    permissions.
-                </span>
-            </div>
+                — High-level administration.
+            </p>
 
-            <div class="role-card">
+            <p>
                 <strong>⚔️ Senior Moderator</strong>
-                <span>
-                    Experienced moderation staff with more authority
-                    than regular moderators.
-                </span>
-            </div>
+                — Senior moderation powers.
+            </p>
 
-            <div class="role-card">
+            <p>
                 <strong>🔨 Moderator</strong>
-                <span>
-                    Handles everyday moderation, including kicks and
-                    coordination of smaller moderation issues.
-                </span>
-            </div>
+                — Kicks and normal moderation.
+            </p>
 
-            <div class="role-card">
+            <p>
                 <strong>👤 Peasant</strong>
-                <span>
-                    Regular user with no staff powers.
-                </span>
-            </div>
-        </section>
+                — Normal user with no staff powers.
+            </p>
 
-        <!-- =====================
-             USER SEARCH
-        ====================== -->
+        </div>
 
-        <section class="card">
-            <h2>🔎 User Search</h2>
+
+        <!-- ======================================== -->
+        <!-- USER SEARCH -->
+        <!-- ======================================== -->
+
+        <div class="card">
+
+            <h2 class="section-title">
+                🔎 User Search
+            </h2>
 
             <input
                 id="user-search"
@@ -300,7 +295,10 @@
                 placeholder="Search username or display name..."
             >
 
-            <button onclick="searchUsers()">
+            <button
+                class="primary"
+                onclick="searchUsers()"
+            >
                 Search
             </button>
 
@@ -311,62 +309,59 @@
                 Show All
             </button>
 
-            <div
-                id="user-search-status"
-                class="status"
-            ></div>
+            <div id="user-list"></div>
 
-            <div id="user-list">
-                <p class="muted">
-                    Search for a user to manage their role.
-                </p>
-            </div>
-        </section>
+        </div>
 
-        <!-- =====================
-             BANS
-        ====================== -->
 
-        <section class="card">
-            <h2>🚫 Bans</h2>
+        <!-- ======================================== -->
+        <!-- BANS -->
+        <!-- ======================================== -->
+
+        <div class="card">
+
+            <h2 class="section-title">
+                🚫 Bans
+            </h2>
 
             <input
                 id="ban-email"
                 type="email"
-                placeholder="Email to ban"
+                placeholder="User email"
             >
 
             <textarea
                 id="ban-reason"
-                placeholder="Reason for ban..."
-                rows="3"
+                placeholder="Reason for ban"
             ></textarea>
 
             <button
                 class="danger"
                 onclick="banEmail()"
             >
-                Ban User
+                🚫 Ban User
             </button>
 
-            <div
-                id="ban-status"
-                class="status"
-            ></div>
+            <p id="ban-status"></p>
 
             <hr>
 
             <div id="ban-list">
                 Loading bans...
             </div>
-        </section>
 
-        <!-- =====================
-             ADMINS
-        ====================== -->
+        </div>
 
-        <section class="card">
-            <h2>🛡️ Administrators</h2>
+
+        <!-- ======================================== -->
+        <!-- ADMINS -->
+        <!-- ======================================== -->
+
+        <div class="card">
+
+            <h2 class="section-title">
+                🛡️ Administrators
+            </h2>
 
             <input
                 id="admin-user-id"
@@ -381,56 +376,65 @@
                 Add Administrator
             </button>
 
-            <div
-                id="admin-status"
-                class="status"
-            ></div>
+            <p id="admin-status"></p>
 
             <div id="admin-list">
                 Loading administrators...
             </div>
-        </section>
 
-        <!-- =====================
-             KICKS
-        ====================== -->
+        </div>
 
-        <section class="card">
-            <h2>👢 Kicks</h2>
+
+        <!-- ======================================== -->
+        <!-- KICKS -->
+        <!-- ======================================== -->
+
+        <div class="card">
+
+            <h2 class="section-title">
+                👢 Kicks
+            </h2>
+
+            <p class="muted">
+                Kick records from the moderation system.
+            </p>
 
             <div id="kick-list">
                 Loading kicks...
             </div>
-        </section>
 
-        <!-- =====================
-             REVOKES
-        ====================== -->
+        </div>
 
-        <section class="card">
-            <h2>🔒 Staff Revocations</h2>
+
+        <!-- ======================================== -->
+        <!-- REVOKES -->
+        <!-- ======================================== -->
+
+        <div class="card">
+
+            <h2 class="section-title">
+                🔒 Staff Revocations
+            </h2>
+
+            <p class="muted">
+                Revocation removes staff powers.
+                It does NOT delete or disable the account.
+            </p>
 
             <div id="revoke-list">
                 Loading revocations...
             </div>
-        </section>
 
-        <section class="card">
-            <button
-                class="secondary"
-                onclick="logout()"
-            >
-                Log Out
-            </button>
-        </section>
+        </div>
 
     </div>
-</main>
+
+</div>
 
 
-<!-- ==================================================
-     CHANGE ROLE MODAL
-================================================== -->
+<!-- ================================================ -->
+<!-- ROLE MODAL -->
+<!-- ================================================ -->
 
 <div
     id="role-modal"
@@ -439,28 +443,30 @@
 
     <div class="modal-box">
 
-        <h2>🔄 Change Role</h2>
+        <h2>
+            🔄 Change Role
+        </h2>
 
         <p>
-            Changing the role of:
-        </p>
-
-        <strong id="role-user-name">
-            Unknown User
-        </strong>
-
-        <p class="muted">
-            Current role:
-            <span id="role-current">
+            User:
+            <strong id="role-user-name">
                 Unknown
-            </span>
+            </strong>
         </p>
 
-        <label for="role-select">
+        <p>
+            Current role:
+            <strong id="role-current">
+                Unknown
+            </strong>
+        </p>
+
+        <label>
             New role
         </label>
 
         <select id="role-select">
+
             <option value="peasant">
                 👤 Peasant
             </option>
@@ -480,30 +486,27 @@
             <option value="owner">
                 👑 Owner
             </option>
+
         </select>
 
         <p
             id="role-warning"
-            class="status"
+            class="muted"
         ></p>
 
-        <div class="modal-actions">
+        <button
+            class="success"
+            onclick="saveRole()"
+        >
+            Save Role
+        </button>
 
-            <button
-                class="secondary"
-                onclick="closeRoleModal()"
-            >
-                Cancel
-            </button>
-
-            <button
-                class="success"
-                onclick="saveRole()"
-            >
-                Save Role
-            </button>
-
-        </div>
+        <button
+            class="secondary"
+            onclick="closeRoleModal()"
+        >
+            Cancel
+        </button>
 
     </div>
 
@@ -514,4 +517,3 @@
 
 </body>
 </html>
-
