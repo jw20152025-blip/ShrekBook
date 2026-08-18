@@ -511,19 +511,17 @@ async function loadAdmins() {
                 )}</p>`;
 
             return;
-
         }
 
         const admins =
             data.admins || [];
 
-        if (!admins.length) {
+        if (admins.length === 0) {
 
             container.innerHTML =
                 "<p>No administrators.</p>";
 
             return;
-
         }
 
         container.innerHTML =
@@ -534,9 +532,9 @@ async function loadAdmins() {
                     admin.username ||
                     "Administrator";
 
-                const isMe =
-                    admin.id ===
-                    window.currentUserId;
+                const userId =
+                    admin.id ||
+                    admin.user_id;
 
                 return `
 
@@ -548,69 +546,47 @@ async function loadAdmins() {
                         "
                     >
 
+                        <h3>
+                            🛡️ ${escapeHtml(name)}
+                        </h3>
+
                         <p>
-
-                            🛡️
-
-                            <strong>
-                                ${escapeHtml(name)}
-                            </strong>
-
+                            <small>
+                                ${escapeHtml(userId)}
+                            </small>
                         </p>
-
-                        <small>
-                            ${escapeHtml(admin.id)}
-                        </small>
 
                         <div
                             style="
                                 display:flex;
                                 gap:10px;
-                                margin-top:12px;
                                 flex-wrap:wrap;
+                                margin-top:10px;
                             "
                         >
 
-                            ${
-                                isMe
-                                    ? `
-                                        <span>
-                                            👑 You
-                                        </span>
-                                      `
-                                    : `
+                            <button
+                                type="button"
+                                onclick="
+                                    revokeAdmin(
+                                        '${escapeHtml(userId)}'
+                                    )
+                                "
+                            >
+                                🚫 Revoke Admin
+                            </button>
 
-                                        <button
-                                            type="button"
-                                            onclick="
-                                                revokeAdmin(
-                                                    '${escapeHtml(
-                                                        admin.id
-                                                    )}'
-                                                )
-                                            "
-                                        >
-                                            🚫 Revoke Admin
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            onclick="
-                                                kickUser(
-                                                    '${escapeHtml(
-                                                        admin.id
-                                                    )}',
-                                                    '${escapeHtml(
-                                                        name
-                                                    )}'
-                                                )
-                                            "
-                                        >
-                                            👢 Kick
-                                        </button>
-
-                                      `
-                            }
+                            <button
+                                type="button"
+                                onclick="
+                                    kickUser(
+                                        '${escapeHtml(userId)}',
+                                        '${escapeHtml(name)}'
+                                    )
+                                "
+                            >
+                                👢 Kick
+                            </button>
 
                         </div>
 
