@@ -6,7 +6,7 @@ let currentAdmin = false;
 
 
 // ==================================================
-// ESCAPE HTML
+// HELPERS
 // ==================================================
 
 function escapeHtml(value) {
@@ -22,6 +22,36 @@ function escapeHtml(value) {
 
 
 // ==================================================
+// API JSON HELPER
+// ==================================================
+
+async function getJson(response) {
+
+    const text = await response.text();
+
+    if (!text) {
+        return {};
+    }
+
+    try {
+        return JSON.parse(text);
+    } catch {
+
+        console.error(
+            "SERVER RETURNED NON-JSON:",
+            text
+        );
+
+        return {
+            error: text
+        };
+
+    }
+
+}
+
+
+// ==================================================
 // CHECK ADMIN
 // ==================================================
 
@@ -29,28 +59,25 @@ async function checkAdmin() {
 
     try {
 
-        const response =
-            await fetch(
-                "/api/admin/me",
-                {
-                    credentials: "include"
-                }
-            );
+        const response = await fetch(
+            "/api/admin/me",
+            {
+                credentials: "include"
+            }
+        );
 
         const data =
-            await response.json();
+            await getJson(response);
 
-        const loading =
-            document.getElementById("loading");
 
-        if (loading) {
-            loading.style.display = "none";
-        }
+        document.getElementById(
+            "loading"
+        ).style.display = "none";
 
 
         if (
             !response.ok ||
-            !data.isAdmin
+            data.isAdmin !== true
         ) {
 
             document.getElementById(
@@ -63,6 +90,7 @@ async function checkAdmin() {
 
 
         currentAdmin = true;
+
 
         document.getElementById(
             "admin-page"
@@ -84,7 +112,10 @@ async function checkAdmin() {
             "loading"
         ).innerHTML = `
             <h1>❌ Error</h1>
-            <p>Could not check administrator status.</p>
+
+            <p>
+                Could not check administrator status.
+            </p>
         `;
 
     }
@@ -93,13 +124,16 @@ async function checkAdmin() {
 
 
 // ==================================================
-// LOAD ACTIVE BANS
+// LOAD BANS
 // ==================================================
 
 async function loadBans() {
 
     const container =
-        document.getElementById("ban-list");
+        document.getElementById(
+            "ban-list"
+        );
+
 
     if (!container) {
         return;
@@ -122,7 +156,7 @@ async function loadBans() {
 
 
         const data =
-            await response.json();
+            await getJson(response);
 
 
         if (!response.ok) {
@@ -139,23 +173,23 @@ async function loadBans() {
 
 
         /*
-         * Supports either:
-         *
-         * { bans: [...] }
-         *
-         * or
+         * Supports BOTH:
          *
          * [...]
+         *
+         * and:
+         *
+         * { bans: [...] }
          */
 
         let bans = [];
+
 
         if (Array.isArray(data)) {
 
             bans = data;
 
         } else if (
-            data &&
             Array.isArray(data.bans)
         ) {
 
@@ -164,9 +198,11 @@ async function loadBans() {
         }
 
 
-        /*
-         * Only display active bans.
-         */
+        console.log(
+            "BANS RECEIVED:",
+            bans
+        );
+
 
         const activeBans =
             bans.filter(
@@ -194,8 +230,43 @@ async function loadBans() {
             activeBans.map(
                 ban => {
 
+                    /*
+                     * THIS MUST BE THE
+                     * SUPABASE bans.id
+                     */
+
                     const banId =
                         ban.id;
+
+
+                    if (
+                        banId === undefined ||
+                        banId === null ||
+                        banId === ""
+                    ) {
+
+                        return `
+
+                            <div class="post">
+
+                                <h3>
+                                    🚫
+                                    ${escapeHtml(
+                                        ban.email ||
+                                        "Unknown"
+                                    )}
+                                </h3>
+
+                                <p>
+                                    ❌ Ban is missing
+                                    its database ID.
+                                </p>
+
+                            </div>
+
+                        `;
+
+                    }
 
 
                     const email =
@@ -208,7 +279,7 @@ async function loadBans() {
                         "No reason provided.";
 
 
-                    const date =
+                    const bannedAt =
                         ban.banned_at
                             ? new Date(
                                 ban.banned_at
@@ -216,72 +287,9 @@ async function loadBans() {
                             : "Unknown";
 
 
-                    /*
-                     * If the backend somehow
-                     * doesn't return an ID,
-                     * don't create a broken button.
-                     */
-
-                    if (
-                        banId === undefined ||
-                        banId === null ||
-                        String(banId).trim() === ""
-                    ) {
-
-                        console.error(
-                            "BAN MISSING ID:",
-                            ban
-                        );
-
-
-                        return `
-
-                            <div
-                                class="post"
-                                style="
-                                    margin-bottom:15px;
-                                    padding:15px;
-                                "
-                            >
-
-                                <h3>
-                                    🚫
-                                    ${escapeHtml(
-                                        email
-                                    )}
-                                </h3>
-
-                                <p>
-                                    <strong>
-                                        Reason:
-                                    </strong>
-
-                                    ${escapeHtml(
-                                        reason
-                                    )}
-                                </p>
-
-                                <p>
-                                    ❌ This ban is missing
-                                    its database ID.
-                                </p>
-
-                            </div>
-
-                        `;
-
-                    }
-
-
-                    /*
-                     * JSON.stringify safely places
-                     * the ID inside onclick.
-                     */
-
-                    const safeBanId =
-                        JSON.stringify(
-                            String(banId)
-                        );
+                    const userId =
+                        ban.user_id ||
+                        null;
 
 
                     return `
@@ -322,14 +330,14 @@ async function loadBans() {
                                 </strong>
 
                                 ${escapeHtml(
-                                    date
+                                    bannedAt
                                 )}
 
                             </p>
 
 
                             ${
-                                ban.user_id
+                                userId
                                     ? `
 
                                         <p>
@@ -340,7 +348,7 @@ async function loadBans() {
 
                                             <code>
                                                 ${escapeHtml(
-                                                    ban.user_id
+                                                    userId
                                                 )}
                                             </code>
 
@@ -351,32 +359,16 @@ async function loadBans() {
                             }
 
 
-                            <p>
-
-                                <strong>
-                                    Ban ID:
-                                </strong>
-
-                                <code>
-                                    ${escapeHtml(
-                                        String(
-                                            banId
-                                        )
-                                    )}
-                                </code>
-
-                            </p>
-
-
                             <button
                                 type="button"
-                                onclick="unbanEmail(${safeBanId})"
+                                onclick="unbanEmail(${JSON.stringify(
+                                    String(banId)
+                                )})"
                             >
 
                                 ✅ Unban
 
                             </button>
-
 
                         </div>
 
@@ -416,10 +408,12 @@ async function banEmail() {
             "ban-email"
         );
 
+
     const reasonInput =
         document.getElementById(
             "ban-reason"
         );
+
 
     const status =
         document.getElementById(
@@ -477,7 +471,7 @@ async function banEmail() {
 
 
         const data =
-            await response.json();
+            await getJson(response);
 
 
         if (!response.ok) {
@@ -512,6 +506,7 @@ async function banEmail() {
             error
         );
 
+
         status.textContent =
             "❌ Server error.";
 
@@ -524,31 +519,14 @@ async function banEmail() {
 // UNBAN
 // ==================================================
 
-async function unbanEmail(banId) {
-
-    console.log(
-        "UNBAN BUTTON CLICKED:",
-        banId
-    );
-
+async function unbanEmail(
+    banId
+) {
 
     if (
         banId === undefined ||
         banId === null ||
-        String(banId).trim() === ""
-    ) {
-
-        alert(
-            "❌ Ban ID is missing."
-        );
-
-        return;
-
-    }
-
-
-    if (
-        String(banId) === "undefined"
+        banId === ""
     ) {
 
         alert(
@@ -571,41 +549,32 @@ async function unbanEmail(banId) {
     }
 
 
+    console.log(
+        "UNBANNING BAN ID:",
+        banId
+    );
+
+
     try {
-
-        const url =
-            `/api/admin/bans/${encodeURIComponent(
-                String(banId)
-            )}/unban`;
-
-
-        console.log(
-            "UNBAN URL:",
-            url
-        );
-
 
         const response =
             await fetch(
-                url,
+                `/api/admin/bans/${encodeURIComponent(
+                    banId
+                )}/unban`,
                 {
+
                     method: "POST",
 
                     credentials:
                         "include"
+
                 }
             );
 
 
         const data =
-            await response.json();
-
-
-        console.log(
-            "UNBAN RESPONSE:",
-            response.status,
-            data
-        );
+            await getJson(response);
 
 
         if (!response.ok) {
@@ -638,6 +607,7 @@ async function unbanEmail(banId) {
             error
         );
 
+
         alert(
             "❌ Server error."
         );
@@ -664,6 +634,10 @@ async function loadAdmins() {
     }
 
 
+    container.innerHTML =
+        "<p>Loading administrators...</p>";
+
+
     try {
 
         const response =
@@ -677,7 +651,7 @@ async function loadAdmins() {
 
 
         const data =
-            await response.json();
+            await getJson(response);
 
 
         if (!response.ok) {
@@ -693,10 +667,37 @@ async function loadAdmins() {
         }
 
 
-        const admins =
+        /*
+         * Supports BOTH:
+         *
+         * [...]
+         *
+         * and:
+         *
+         * { admins: [...] }
+         */
+
+        let admins = [];
+
+
+        if (Array.isArray(data)) {
+
+            admins = data;
+
+        } else if (
             Array.isArray(data.admins)
-                ? data.admins
-                : [];
+        ) {
+
+            admins =
+                data.admins;
+
+        }
+
+
+        console.log(
+            "ADMINS RECEIVED:",
+            admins
+        );
 
 
         if (
@@ -704,7 +705,7 @@ async function loadAdmins() {
         ) {
 
             container.innerHTML =
-                "<p>No administrators.</p>";
+                "<p>No administrators found.</p>";
 
             return;
 
@@ -715,34 +716,42 @@ async function loadAdmins() {
             admins.map(
                 admin => {
 
+                    const userId =
+                        admin.id ||
+                        admin.user_id ||
+                        admin.auth_id;
+
+
                     const name =
                         admin.display_name ||
                         admin.username ||
+                        admin.email ||
                         "Administrator";
-
-
-                    const userId =
-                        admin.id ||
-                        admin.user_id;
 
 
                     if (!userId) {
 
-                        return "";
+                        return `
+
+                            <div class="post">
+
+                                <h3>
+                                    🛡️
+                                    ${escapeHtml(
+                                        name
+                                    )}
+                                </h3>
+
+                                <p>
+                                    ❌ This administrator
+                                    has no user ID.
+                                </p>
+
+                            </div>
+
+                        `;
 
                     }
-
-
-                    const safeUserId =
-                        JSON.stringify(
-                            String(userId)
-                        );
-
-
-                    const safeName =
-                        JSON.stringify(
-                            String(name)
-                        );
 
 
                     return `
@@ -766,11 +775,11 @@ async function loadAdmins() {
                             <p>
 
                                 <small>
+
                                     ${escapeHtml(
-                                        String(
-                                            userId
-                                        )
+                                        userId
                                     )}
+
                                 </small>
 
                             </p>
@@ -787,11 +796,9 @@ async function loadAdmins() {
 
                                 <button
                                     type="button"
-                                    onclick="
-                                        revokeAdmin(
-                                            ${safeUserId}
-                                        )
-                                    "
+                                    onclick="revokeAdmin(${JSON.stringify(
+                                        String(userId)
+                                    )})"
                                 >
 
                                     🚫 Revoke Admin
@@ -801,12 +808,14 @@ async function loadAdmins() {
 
                                 <button
                                     type="button"
-                                    onclick="
-                                        kickUser(
-                                            ${safeUserId},
-                                            ${safeName}
-                                        )
-                                    "
+                                    onclick="kickUser(
+                                        ${JSON.stringify(
+                                            String(userId)
+                                        )},
+                                        ${JSON.stringify(
+                                            String(name)
+                                        )}
+                                    )"
                                 >
 
                                     👢 Kick
@@ -830,162 +839,12 @@ async function loadAdmins() {
             error
         );
 
+
         container.innerHTML =
-            "<p>❌ Could not load administrators.</p>";
-
-    }
-
-}
-
-
-// ==================================================
-// REVOKE ADMIN
-// ==================================================
-
-async function revokeAdmin(userId) {
-
-    if (
-        !confirm(
-            "Revoke administrator access from this user?"
-        )
-    ) {
-
-        return;
-
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/admin/admins/${encodeURIComponent(
-                    userId
-                )}`,
-                {
-                    method:
-                        "DELETE",
-
-                    credentials:
-                        "include"
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            alert(
-                "❌ " +
-                (
-                    data.error ||
-                    "Could not revoke administrator."
-                )
-            );
-
-            return;
-
-        }
-
-
-        alert(
-            "✅ Administrator access revoked."
-        );
-
-
-        await loadAdmins();
-
-
-    } catch (error) {
-
-        console.error(
-            "REVOKE ADMIN ERROR:",
-            error
-        );
-
-        alert(
-            "❌ Server error."
-        );
-
-    }
-
-}
-
-
-// ==================================================
-// KICK USER
-// ==================================================
-
-async function kickUser(
-    userId,
-    username
-) {
-
-    if (
-        !confirm(
-            `Kick ${username} from ShrekBook?`
-        )
-    ) {
-
-        return;
-
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/admin/kick/${encodeURIComponent(
-                    userId
-                )}`,
-                {
-                    method:
-                        "POST",
-
-                    credentials:
-                        "include"
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            alert(
-                "❌ " +
-                (
-                    data.error ||
-                    "Could not kick user."
-                )
-            );
-
-            return;
-
-        }
-
-
-        alert(
-            "👢 User kicked."
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "KICK ERROR:",
-            error
-        );
-
-        alert(
-            "❌ Server error."
-        );
+            `<p>❌ ${escapeHtml(
+                error.message ||
+                "Could not load administrators."
+            )}</p>`;
 
     }
 
@@ -1035,14 +894,11 @@ async function addAdmin() {
                 "/api/admin/admins",
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
 
                     credentials:
@@ -1059,7 +915,7 @@ async function addAdmin() {
 
 
         const data =
-            await response.json();
+            await getJson(response);
 
 
         if (!response.ok) {
@@ -1092,8 +948,193 @@ async function addAdmin() {
             error
         );
 
+
         status.textContent =
             "❌ Server error.";
+
+    }
+
+}
+
+
+// ==================================================
+// REVOKE ADMIN
+// ==================================================
+
+async function revokeAdmin(
+    userId
+) {
+
+    if (!userId) {
+
+        alert(
+            "❌ Missing user ID."
+        );
+
+        return;
+
+    }
+
+
+    if (
+        !confirm(
+            "Revoke administrator access from this user?"
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/admin/admins/${encodeURIComponent(
+                    userId
+                )}`,
+                {
+
+                    method:
+                        "DELETE",
+
+                    credentials:
+                        "include"
+
+                }
+            );
+
+
+        const data =
+            await getJson(response);
+
+
+        if (!response.ok) {
+
+            alert(
+                "❌ " +
+                (
+                    data.error ||
+                    "Could not revoke administrator."
+                )
+            );
+
+            return;
+
+        }
+
+
+        alert(
+            "✅ Administrator access revoked."
+        );
+
+
+        await loadAdmins();
+
+
+    } catch (error) {
+
+        console.error(
+            "REVOKE ADMIN ERROR:",
+            error
+        );
+
+
+        alert(
+            "❌ Server error."
+        );
+
+    }
+
+}
+
+
+// ==================================================
+// KICK USER
+// ==================================================
+
+async function kickUser(
+    userId,
+    username
+) {
+
+    if (!userId) {
+
+        alert(
+            "❌ Missing user ID."
+        );
+
+        return;
+
+    }
+
+
+    if (
+        !confirm(
+            `Kick ${username} from ShrekBook?`
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/admin/kick/${encodeURIComponent(
+                    userId
+                )}`,
+                {
+
+                    method:
+                        "POST",
+
+                    credentials:
+                        "include"
+
+                }
+            );
+
+
+        const data =
+            await getJson(response);
+
+
+        if (!response.ok) {
+
+            alert(
+                "❌ " +
+                (
+                    data.error ||
+                    "Could not kick user."
+                )
+            );
+
+            return;
+
+        }
+
+
+        alert(
+            "👢 User kicked."
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "KICK ERROR:",
+            error
+        );
+
+
+        alert(
+            "❌ Server error."
+        );
 
     }
 
@@ -1111,14 +1152,20 @@ async function logout() {
         await fetch(
             "/api/logout",
             {
-                method: "POST",
-                credentials: "include"
+
+                method:
+                    "POST",
+
+                credentials:
+                    "include"
+
             }
         );
 
     } finally {
 
-        window.location.href = "/";
+        window.location.href =
+            "/";
 
     }
 
