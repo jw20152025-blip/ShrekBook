@@ -3782,359 +3782,64 @@ app.post(
     }
 );
 
-// ============================================================
-// SHREKBOOK STAFF / ROLE SYSTEM
-// ============================================================
-//
-// IMPORTANT:
-// - profiles.role DOES NOT EXIST
-// - Staff roles are stored in admins.role
-// - profiles contains normal profile information
-// - admins contains:
-//      user_id
-//      role
-//      created_at
-//
-// Roles:
-//   peasant
-//   moderator
-//   senior_moderator
-//   administrator
-//   owner
-//
-// ============================================================
+// ==================================================
+// SHREKBOOK STAFF ROLE SYSTEM
+// Uses admins.role — NOT profiles.role
+// ==================================================
 
 
-// ============================================================
-// ROLE POWER
-// ============================================================
+// ==================================================
+// ROLE DEFINITIONS
+// ==================================================
 
-const ROLE_POWER = {
-    peasant: 1,
-    moderator: 2,
-    senior_moderator: 3,
-    administrator: 4,
-    owner: 5
-};
-
-
-// ============================================================
-// ROLE NAMES
-// ============================================================
-
-const ROLE_NAMES = {
-    peasant: "👤 Peasant",
-    moderator: "🔨 Moderator",
-    senior_moderator: "⚔️ Senior Moderator",
-    administrator: "🛡️ Administrator",
-    owner: "👑 Owner"
-};
+const STAFF_ROLES = [
+    "owner",
+    "administrator",
+    "senior_moderator",
+    "moderator"
+];
 
 
-// ============================================================
-// GET CURRENT USER
-// ============================================================
-
-function currentUser(req) {
-
-    return req.session?.user || null;
-
-}
-
-
-// ============================================================
-// GET STAFF RECORD
-// ============================================================
-
-async function getStaffRecord(userId) {
-
-    if (!userId) {
-        return null;
-    }
-
-    try {
-
-        const {
-            data,
-            error
-        } = await supabase
-            .from("admins")
-            .select(`
-                user_id,
-                role,
-                created_at
-            `)
-            .eq(
-                "user_id",
-                userId
-            )
-            .maybeSingle();
-
-        if (error) {
-
-            console.error(
-                "GET STAFF RECORD ERROR:",
-                error
-            );
-
-            return null;
-        }
-
-        return data || null;
-
-    } catch (error) {
-
-        console.error(
-            "GET STAFF RECORD EXCEPTION:",
-            error
-        );
-
-        return null;
-    }
-
-}
-
-
-// ============================================================
+// ==================================================
 // GET USER ROLE
-// ============================================================
+// ==================================================
 
 async function getUserRole(userId) {
 
-    const staff =
-        await getStaffRecord(userId);
-
-    if (!staff) {
-
+    if (!userId) {
         return "peasant";
-
     }
 
-    return (
-        staff.role ||
-        "administrator"
-    );
+    const {
+        data,
+        error
+    } = await supabase
+        .from("admins")
+        .select("user_id, role")
+        .eq("user_id", userId)
+        .maybeSingle();
 
-}
-
-
-// ============================================================
-// CHECK STAFF
-// ============================================================
-
-async function isStaff(userId) {
-
-    if (!userId) {
-        return false;
-    }
-
-    const staff =
-        await getStaffRecord(userId);
-
-    return !!staff;
-
-}
-
-
-// ============================================================
-// CHECK OWNER
-// ============================================================
-
-async function isOwner(userId) {
-
-    if (!userId) {
-        return false;
-    }
-
-    const staff =
-        await getStaffRecord(userId);
-
-    return (
-        staff?.role === "owner"
-    );
-
-}
-
-
-// ============================================================
-// REQUIRE LOGIN
-// ============================================================
-
-function requireLogin(req, res, next) {
-
-    if (!req.session?.user) {
-
-        return res.status(401).json({
-            error:
-                "You must be logged in."
-        });
-
-    }
-
-    next();
-
-}
-
-
-// ============================================================
-// REQUIRE STAFF
-// ============================================================
-
-async function requireStaff(req, res, next) {
-
-    if (!req.session?.user) {
-
-        return res.status(401).json({
-            error:
-                "You must be logged in."
-        });
-
-    }
-
-    try {
-
-        const staff =
-            await getStaffRecord(
-                req.session.user.id
-            );
-
-        if (!staff) {
-
-            return res.status(403).json({
-                error:
-                    "Staff access required."
-            });
-
-        }
-
-        req.staff =
-            staff;
-
-        req.userRole =
-            staff.role ||
-            "administrator";
-
-        next();
-
-    } catch (error) {
+    if (error) {
 
         console.error(
-            "REQUIRE STAFF ERROR:",
+            "GET USER ROLE ERROR:",
             error
         );
 
-        return res.status(500).json({
-            error:
-                "Could not verify staff permissions."
-        });
-
+        throw error;
     }
 
+    if (!data) {
+        return "peasant";
+    }
+
+    return data.role || "administrator";
 }
 
 
-// ============================================================
-// REQUIRE ADMINISTRATOR OR OWNER
-// ============================================================
-
-async function requireAdministrator(req, res, next) {
-
-    if (!req.session?.user) {
-
-        return res.status(401).json({
-            error:
-                "You must be logged in."
-        });
-
-    }
-
-    const staff =
-        await getStaffRecord(
-            req.session.user.id
-        );
-
-    if (!staff) {
-
-        return res.status(403).json({
-            error:
-                "Administrator access required."
-        });
-
-    }
-
-    const role =
-        staff.role ||
-        "administrator";
-
-    if (
-        role !== "administrator" &&
-        role !== "owner"
-    ) {
-
-        return res.status(403).json({
-            error:
-                "Administrator access required."
-        });
-
-    }
-
-    req.staff =
-        staff;
-
-    req.userRole =
-        role;
-
-    next();
-
-}
-
-
-// ============================================================
-// REQUIRE OWNER
-// ============================================================
-
-async function requireOwner(req, res, next) {
-
-    if (!req.session?.user) {
-
-        return res.status(401).json({
-            error:
-                "You must be logged in."
-        });
-
-    }
-
-    const staff =
-        await getStaffRecord(
-            req.session.user.id
-        );
-
-    if (
-        !staff ||
-        staff.role !== "owner"
-    ) {
-
-        return res.status(403).json({
-            error:
-                "Owner access required."
-        });
-
-    }
-
-    req.staff =
-        staff;
-
-    req.userRole =
-        "owner";
-
-    next();
-
-}
-
-
-// ============================================================
-// ADMIN / STAFF STATUS
-// ============================================================
+// ==================================================
+// GET CURRENT STAFF STATUS
+// ==================================================
 
 app.get(
     "/api/admin/me",
@@ -4143,51 +3848,34 @@ app.get(
 
         try {
 
-            const staff =
-                await getStaffRecord(
-                    req.session.user.id
-                );
-
-            if (!staff) {
-
-                return res.json({
-                    success: true,
-                    isAdmin: false,
-                    isStaff: false,
-                    role: "peasant",
-                    user: {
-                        id:
-                            req.session.user.id
-                    }
-                });
-
-            }
+            const userId =
+                req.session.user.id;
 
             const role =
-                staff.role ||
-                "administrator";
+                await getUserRole(
+                    userId
+                );
+
+            const isStaff =
+                STAFF_ROLES.includes(
+                    role
+                );
 
             res.json({
 
                 success: true,
 
                 isAdmin:
-                    role === "administrator" ||
-                    role === "owner",
+                    isStaff,
 
                 isStaff:
-                    true,
+                    isStaff,
 
-                role,
+                userId:
+                    userId,
 
-                roleName:
-                    ROLE_NAMES[role] ||
-                    ROLE_NAMES.peasant,
-
-                user: {
-                    id:
-                        req.session.user.id
-                }
+                role:
+                    role
 
             });
 
@@ -4200,7 +3888,7 @@ app.get(
 
             res.status(500).json({
                 error:
-                    "Could not check staff status."
+                    "Could not determine staff role."
             });
 
         }
@@ -4209,19 +3897,505 @@ app.get(
 );
 
 
-// ============================================================
-// GET STAFF / ADMINS
-// ============================================================
+// ==================================================
+// REQUIRE STAFF
+// ==================================================
+
+async function requireStaff(
+    req,
+    res,
+    next
+) {
+
+    try {
+
+        if (!req.session.user) {
+
+            return res.status(401).json({
+                error:
+                    "You must be logged in."
+            });
+
+        }
+
+        const role =
+            await getUserRole(
+                req.session.user.id
+            );
+
+        if (
+            !STAFF_ROLES.includes(
+                role
+            )
+        ) {
+
+            return res.status(403).json({
+                error:
+                    "Staff access required."
+            });
+
+        }
+
+        req.staffRole =
+            role;
+
+        next();
+
+    } catch (error) {
+
+        console.error(
+            "REQUIRE STAFF ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error:
+                "Could not verify staff permissions."
+        });
+
+    }
+
+}
+
+
+// ==================================================
+// REQUIRE OWNER
+// ==================================================
+
+async function requireOwner(
+    req,
+    res,
+    next
+) {
+
+    try {
+
+        if (!req.session.user) {
+
+            return res.status(401).json({
+                error:
+                    "You must be logged in."
+            });
+
+        }
+
+        const role =
+            await getUserRole(
+                req.session.user.id
+            );
+
+        if (
+            role !== "owner"
+        ) {
+
+            return res.status(403).json({
+                error:
+                    "Owner access required."
+            });
+
+        }
+
+        req.staffRole =
+            role;
+
+        next();
+
+    } catch (error) {
+
+        console.error(
+            "REQUIRE OWNER ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error:
+                "Could not verify owner permissions."
+        });
+
+    }
+
+}
+
+
+// ==================================================
+// CHANGE USER ROLE
+// ==================================================
+// Frontend endpoint:
+// POST /api/admin/role
+//
+// Body:
+// {
+//     "user_id": "...",
+//     "role": "moderator"
+// }
+//
+// IMPORTANT:
+// Roles are stored in admins.role.
+// profiles.role is NEVER accessed.
+// ==================================================
+
+app.post(
+    "/api/admin/role",
+    requireOwner,
+    async (req, res) => {
+
+        try {
+
+            const targetUserId =
+                String(
+                    req.body.user_id ||
+                    ""
+                ).trim();
+
+            const newRole =
+                String(
+                    req.body.role ||
+                    ""
+                ).trim().toLowerCase();
+
+
+            // ==========================================
+            // VALIDATION
+            // ==========================================
+
+            if (!targetUserId) {
+
+                return res.status(400).json({
+                    error:
+                        "User ID is required."
+                });
+
+            }
+
+
+            const allowedRoles = [
+                "owner",
+                "administrator",
+                "senior_moderator",
+                "moderator",
+                "peasant"
+            ];
+
+
+            if (
+                !allowedRoles.includes(
+                    newRole
+                )
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Invalid role."
+                });
+
+            }
+
+
+            const currentUserId =
+                req.session.user.id;
+
+
+            // ==========================================
+            // NEVER CHANGE YOUR OWN ROLE
+            // ==========================================
+
+            if (
+                targetUserId ===
+                currentUserId
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You cannot change your own role."
+                });
+
+            }
+
+
+            // ==========================================
+            // OWNER CANNOT BE ASSIGNED
+            // ==========================================
+
+            if (
+                newRole === "owner"
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "The Owner role cannot be assigned."
+                });
+
+            }
+
+
+            // ==========================================
+            // CHECK TARGET USER EXISTS
+            // ==========================================
+
+            const {
+                data: targetProfile,
+                error: profileError
+            } = await supabase
+                .from("profiles")
+                .select(`
+                    id,
+                    username,
+                    display_name,
+                    avatar
+                `)
+                .eq(
+                    "id",
+                    targetUserId
+                )
+                .maybeSingle();
+
+
+            if (profileError) {
+
+                return res.status(500).json({
+                    error:
+                        profileError.message
+                });
+
+            }
+
+
+            if (!targetProfile) {
+
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+
+            }
+
+
+            // ==========================================
+            // GET TARGET CURRENT ROLE
+            // ==========================================
+
+            const {
+                data: existingAdmin,
+                error: roleError
+            } = await supabase
+                .from("admins")
+                .select(`
+                    user_id,
+                    role
+                `)
+                .eq(
+                    "user_id",
+                    targetUserId
+                )
+                .maybeSingle();
+
+
+            if (roleError) {
+
+                return res.status(500).json({
+                    error:
+                        roleError.message
+                });
+
+            }
+
+
+            const oldRole =
+                existingAdmin?.role ||
+                "peasant";
+
+
+            // ==========================================
+            // OWNER PROTECTION
+            // ==========================================
+
+            if (
+                oldRole === "owner"
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "The Owner cannot be demoted or modified."
+                });
+
+            }
+
+
+            // ==========================================
+            // PEASANT
+            // ==========================================
+            // Peasants do not need an admins row.
+            // If changing someone to peasant,
+            // remove their staff row.
+            // ==========================================
+
+            if (
+                newRole === "peasant"
+            ) {
+
+                const {
+                    error: deleteError
+                } = await supabase
+                    .from("admins")
+                    .delete()
+                    .eq(
+                        "user_id",
+                        targetUserId
+                    );
+
+
+                if (deleteError) {
+
+                    return res.status(500).json({
+                        error:
+                            deleteError.message
+                    });
+
+                }
+
+
+                return res.json({
+
+                    success: true,
+
+                    message:
+                        "User is now a Peasant.",
+
+                    user: {
+
+                        id:
+                            targetProfile.id,
+
+                        username:
+                            targetProfile.username,
+
+                        display_name:
+                            targetProfile.display_name,
+
+                        role:
+                            "peasant"
+
+                    }
+
+                });
+
+            }
+
+
+            // ==========================================
+            // ADD / UPDATE STAFF ROLE
+            // ==========================================
+
+            const {
+                data: updatedAdmin,
+                error: upsertError
+            } = await supabase
+                .from("admins")
+                .upsert(
+
+                    {
+                        user_id:
+                            targetUserId,
+
+                        role:
+                            newRole
+
+                    },
+
+                    {
+                        onConflict:
+                            "user_id"
+                    }
+
+                )
+                .select(`
+                    user_id,
+                    role,
+                    created_at
+                `)
+                .single();
+
+
+            if (upsertError) {
+
+                console.error(
+                    "ROLE UPSERT ERROR:",
+                    upsertError
+                );
+
+                return res.status(500).json({
+                    error:
+                        upsertError.message
+                });
+
+            }
+
+
+            // ==========================================
+            // SUCCESS
+            // ==========================================
+
+            res.json({
+
+                success: true,
+
+                message:
+                    `Role changed from ${oldRole} to ${newRole}.`,
+
+                user: {
+
+                    id:
+                        targetProfile.id,
+
+                    username:
+                        targetProfile.username,
+
+                    display_name:
+                        targetProfile.display_name,
+
+                    role:
+                        updatedAdmin.role
+
+                }
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "CHANGE ROLE ERROR:",
+                error
+            );
+
+            res.status(500).json({
+
+                error:
+                    error.message ||
+                    "Server error while changing role."
+
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// GET STAFF USERS
+// ==================================================
+// Returns admins.role rather than profiles.role.
+// ==================================================
 
 app.get(
-    "/api/admin/admins",
+    "/api/admin/staff",
     requireStaff,
     async (req, res) => {
 
         try {
 
             const {
-                data: admins,
+                data: staff,
                 error
             } = await supabase
                 .from("admins")
@@ -4237,6 +4411,7 @@ app.get(
                     }
                 );
 
+
             if (error) {
 
                 return res.status(500).json({
@@ -4246,11 +4421,13 @@ app.get(
 
             }
 
+
             const result = [];
 
+
             for (
-                const staff of
-                admins || []
+                const member of
+                staff || []
             ) {
 
                 const {
@@ -4265,30 +4442,21 @@ app.get(
                     `)
                     .eq(
                         "id",
-                        staff.user_id
+                        member.user_id
                     )
                     .maybeSingle();
 
+
                 result.push({
 
-                    id:
-                        staff.user_id,
-
                     user_id:
-                        staff.user_id,
+                        member.user_id,
 
                     role:
-                        staff.role ||
-                        "administrator",
-
-                    role_name:
-                        ROLE_NAMES[
-                            staff.role
-                        ] ||
-                        ROLE_NAMES.administrator,
+                        member.role,
 
                     created_at:
-                        staff.created_at,
+                        member.created_at,
 
                     username:
                         profile?.username ||
@@ -4308,9 +4476,14 @@ app.get(
 
             }
 
+
             res.json({
-                admins:
+
+                success: true,
+
+                staff:
                     result
+
             });
 
         } catch (error) {
@@ -4322,7 +4495,7 @@ app.get(
 
             res.status(500).json({
                 error:
-                    "Server error."
+                    error.message
             });
 
         }
@@ -4330,713 +4503,6 @@ app.get(
     }
 );
 
-
-// ============================================================
-// ADD STAFF
-// ============================================================
-//
-// This creates/updates the role in admins.role.
-//
-// OWNER CANNOT BE CREATED THROUGH THIS ENDPOINT.
-// Your existing owner remains protected.
-//
-
-app.post(
-    "/api/admin/admins",
-    requireOwner,
-    async (req, res) => {
-
-        try {
-
-            const userId =
-                String(
-                    req.body.user_id ||
-                    ""
-                ).trim();
-
-            const role =
-                String(
-                    req.body.role ||
-                    "administrator"
-                ).trim().toLowerCase();
-
-            if (!userId) {
-
-                return res.status(400).json({
-                    error:
-                        "User ID is required."
-                });
-
-            }
-
-            if (
-                !Object.prototype.hasOwnProperty.call(
-                    ROLE_POWER,
-                    role
-                )
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Invalid role."
-                });
-
-            }
-
-            if (role === "owner") {
-
-                return res.status(403).json({
-                    error:
-                        "Owner cannot be assigned through the staff panel."
-                });
-
-            }
-
-            const {
-                data: authResult,
-                error: authError
-            } =
-                await supabase.auth.admin
-                    .getUserById(
-                        userId
-                    );
-
-            if (
-                authError ||
-                !authResult?.user
-            ) {
-
-                return res.status(404).json({
-                    error:
-                        "Supabase user not found."
-                });
-
-            }
-
-            const {
-                data,
-                error
-            } = await supabase
-                .from("admins")
-                .upsert(
-                    {
-                        user_id:
-                            userId,
-
-                        role:
-                            role
-                    },
-                    {
-                        onConflict:
-                            "user_id"
-                    }
-                )
-                .select()
-                .single();
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            res.status(201).json({
-
-                success: true,
-
-                admin:
-                    data
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "ADD STAFF ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    error.message ||
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-
-// ============================================================
-// CHANGE ROLE
-// ============================================================
-//
-// THIS IS THE ENDPOINT YOUR ADMIN.JS IS CURRENTLY CALLING:
-//
-// POST /api/admin/role
-//
-// Reads/writes admins.role.
-// NEVER touches profiles.role.
-//
-
-app.post(
-    "/api/admin/role",
-    requireOwner,
-    async (req, res) => {
-
-        try {
-
-            const userId =
-                String(
-                    req.body.user_id ||
-                    ""
-                ).trim();
-
-            const newRole =
-                String(
-                    req.body.role ||
-                    ""
-                ).trim().toLowerCase();
-
-            if (!userId) {
-
-                return res.status(400).json({
-                    error:
-                        "User ID is required."
-                });
-
-            }
-
-            if (!newRole) {
-
-                return res.status(400).json({
-                    error:
-                        "Role is required."
-                });
-
-            }
-
-            if (
-                !Object.prototype.hasOwnProperty.call(
-                    ROLE_POWER,
-                    newRole
-                )
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Invalid role."
-                });
-
-            }
-
-            // Owner cannot be assigned from panel.
-            if (
-                newRole === "owner"
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "Owner is permanently reserved."
-                });
-
-            }
-
-            // NEVER allow changing yourself.
-            if (
-                userId ===
-                req.session.user.id
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot change your own role."
-                });
-
-            }
-
-            // Find current staff record.
-            const {
-                data: existingStaff,
-                error: existingError
-            } = await supabase
-                .from("admins")
-                .select(`
-                    user_id,
-                    role
-                `)
-                .eq(
-                    "user_id",
-                    userId
-                )
-                .maybeSingle();
-
-            if (existingError) {
-
-                return res.status(500).json({
-                    error:
-                        existingError.message
-                });
-
-            }
-
-            // Find profile just for display/user existence.
-            // NOTE: NO role column here.
-            const {
-                data: profile,
-                error: profileError
-            } = await supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name
-                `)
-                .eq(
-                    "id",
-                    userId
-                )
-                .maybeSingle();
-
-            if (profileError) {
-
-                return res.status(500).json({
-                    error:
-                        profileError.message
-                });
-
-            }
-
-            if (!profile) {
-
-                return res.status(404).json({
-                    error:
-                        "User profile not found."
-                });
-
-            }
-
-            // Never modify the owner.
-            if (
-                existingStaff?.role ===
-                "owner"
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "The owner cannot be modified."
-                });
-
-            }
-
-            // Prevent lower staff from modifying
-            // someone equal/higher than themselves.
-            const actorPower =
-                ROLE_POWER[
-                    req.userRole
-                ] || 0;
-
-            const targetPower =
-                ROLE_POWER[
-                    existingStaff?.role ||
-                    "peasant"
-                ] || 1;
-
-            const newPower =
-                ROLE_POWER[
-                    newRole
-                ] || 0;
-
-            if (
-                req.userRole !== "owner" &&
-                targetPower >= actorPower
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot modify a user with equal or greater power."
-                });
-
-            }
-
-            if (
-                req.userRole !== "owner" &&
-                newPower >= actorPower
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot promote someone to your rank or higher."
-                });
-
-            }
-
-            // If peasant, remove staff record entirely.
-            if (
-                newRole === "peasant"
-            ) {
-
-                const {
-                    error
-                } = await supabase
-                    .from("admins")
-                    .delete()
-                    .eq(
-                        "user_id",
-                        userId
-                    );
-
-                if (error) {
-
-                    return res.status(500).json({
-                        error:
-                            error.message
-                    });
-
-                }
-
-                return res.json({
-
-                    success: true,
-
-                    user_id:
-                        userId,
-
-                    role:
-                        "peasant"
-
-                });
-
-            }
-
-            // Otherwise write the role to admins.role.
-            const {
-                data,
-                error
-            } = await supabase
-                .from("admins")
-                .upsert(
-                    {
-                        user_id:
-                            userId,
-
-                        role:
-                            newRole
-                    },
-                    {
-                        onConflict:
-                            "user_id"
-                    }
-                )
-                .select(`
-                    user_id,
-                    role,
-                    created_at
-                `)
-                .single();
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            res.json({
-
-                success: true,
-
-                user_id:
-                    userId,
-
-                role:
-                    data.role,
-
-                role_name:
-                    ROLE_NAMES[
-                        data.role
-                    ],
-
-                user: {
-
-                    id:
-                        profile.id,
-
-                    username:
-                        profile.username,
-
-                    display_name:
-                        profile.display_name
-
-                }
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "CHANGE ROLE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    error.message ||
-                    "Server error while changing role."
-            });
-
-        }
-
-    }
-);
-
-
-// ============================================================
-// REMOVE STAFF / REVOKE STAFF ROLE
-// ============================================================
-//
-// This DOES NOT delete their account.
-// It simply removes their admins row,
-// making them a peasant again.
-//
-
-app.delete(
-    "/api/admin/admins/:userId",
-    requireOwner,
-    async (req, res) => {
-
-        try {
-
-            const userId =
-                req.params.userId;
-
-            if (
-                userId ===
-                req.session.user.id
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot revoke yourself."
-                });
-
-            }
-
-            const {
-                data: target
-            } = await supabase
-                .from("admins")
-                .select(`
-                    user_id,
-                    role
-                `)
-                .eq(
-                    "user_id",
-                    userId
-                )
-                .maybeSingle();
-
-            if (!target) {
-
-                return res.status(404).json({
-                    error:
-                        "Staff member not found."
-                });
-
-            }
-
-            if (
-                target.role === "owner"
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "The owner cannot be revoked."
-                });
-
-            }
-
-            const {
-                error
-            } = await supabase
-                .from("admins")
-                .delete()
-                .eq(
-                    "user_id",
-                    userId
-                );
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            res.json({
-
-                success: true,
-
-                message:
-                    "Staff privileges revoked.",
-
-                user_id:
-                    userId
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "REVOKE STAFF ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    error.message ||
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-
-// ============================================================
-// ADMIN USER SEARCH
-// ============================================================
-//
-// IMPORTANT:
-// role comes from admins.role.
-// profiles.role is NEVER queried.
-//
-
-app.get(
-    "/api/admin/users",
-    requireStaff,
-    async (req, res) => {
-
-        try {
-
-            const search =
-                String(
-                    req.query.search ||
-                    ""
-                ).trim();
-
-            let query =
-                supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar,
-                        created_at
-                    `)
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
-                    )
-                    .limit(100);
-
-            if (search) {
-
-                query =
-                    query.or(
-                        `username.ilike.%${search}%,display_name.ilike.%${search}%`
-                    );
-
-            }
-
-            const {
-                data: profiles,
-                error
-            } = await query;
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            const users = [];
-
-            for (
-                const profile of
-                profiles || []
-            ) {
-
-                const staff =
-                    await getStaffRecord(
-                        profile.id
-                    );
-
-                const role =
-                    staff?.role ||
-                    "peasant";
-
-                users.push({
-
-                    id:
-                        profile.id,
-
-                    username:
-                        profile.username,
-
-                    display_name:
-                        profile.display_name,
-
-                    avatar:
-                        getAvatar(
-                            profile.avatar
-                        ),
-
-                    role,
-
-                    role_name:
-                        ROLE_NAMES[role] ||
-                        ROLE_NAMES.peasant
-
-                });
-
-            }
-
-            res.json({
-                users
-            });
-
-        } catch (error) {
-
-            console.error(
-                "ADMIN USER SEARCH ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
 
 // ==================================================
 // START
