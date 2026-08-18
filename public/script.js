@@ -79,11 +79,6 @@ function fileToBase64(file) {
 
 }
 
-
-/* ==================================================
-REACTIONS
-================================================== */
-
 async function giveReaction(type) {
 
     const userId =
@@ -109,55 +104,38 @@ async function giveReaction(type) {
             await response.json();
 
         if (!response.ok) {
-
             alert(
                 "❌ " +
-                (data.error || "Could not react.")
+                data.error
             );
 
             return;
-
         }
 
         if (type === "gyatt") {
 
-            const element =
-                document.getElementById(
-                    "gyatt-count"
-                );
-
-            if (element) {
-                element.textContent =
-                    data.gyatt;
-            }
+            document.getElementById(
+                "gyatt-count"
+            ).textContent =
+                data.gyatt;
 
         }
 
         if (type === "cat") {
 
-            const element =
-                document.getElementById(
-                    "cat-count"
-                );
-
-            if (element) {
-                element.textContent =
-                    data.cat;
-            }
+            document.getElementById(
+                "cat-count"
+            ).textContent =
+                data.cat;
 
         }
 
         if (type === "ogred") {
 
-            const element =
-                document.getElementById(
-                    "ogred-count"
-                );
-
-            if (element) {
-                element.textContent =
-                    data.ogred;
-            }
+            document.getElementById(
+                "ogred-count"
+            ).textContent =
+                data.ogred;
 
         }
 
@@ -171,9 +149,7 @@ async function giveReaction(type) {
         alert(
             "❌ Could not react."
         );
-
     }
-
 }
 
 
@@ -195,10 +171,7 @@ async function prepareImage(file) {
 
     }
 
-    if (
-        file.size >
-        5 * 1024 * 1024
-    ) {
+    if (file.size > 5 * 1024 * 1024) {
 
         throw new Error(
             "Image must be under 5MB."
@@ -211,8 +184,7 @@ async function prepareImage(file) {
 
     return {
 
-        data:
-            data,
+        data: data,
 
         type:
             file.type,
@@ -231,56 +203,32 @@ LOGIN
 
 async function login() {
 
-    const emailInput =
+    const email =
         document.getElementById(
             "login-email"
-        );
+        ).value.trim();
 
-    const passwordInput =
+    const password =
         document.getElementById(
             "login-password"
-        );
+        ).value;
 
     const status =
         document.getElementById(
             "login-status"
         );
 
-    if (!emailInput || !passwordInput) {
-
-        console.error(
-            "Login inputs not found."
-        );
-
-        return;
-
-    }
-
-    const email =
-        emailInput.value.trim();
-
-    const password =
-        passwordInput.value;
-
     if (!email || !password) {
 
-        if (status) {
-
-            status.textContent =
-                "❌ Enter your email and password.";
-
-        }
+        status.textContent =
+            "❌ Enter your email and password.";
 
         return;
 
     }
 
-    if (status) {
-
-        status.textContent =
-            "Logging in...";
-
-    }
+    status.textContent =
+        "Logging in...";
 
     try {
 
@@ -325,12 +273,8 @@ async function login() {
 
         }
 
-        if (status) {
-
-            status.textContent =
-                "✅ Logged in!";
-
-        }
+        status.textContent =
+            "✅ Logged in!";
 
         showApp();
 
@@ -341,13 +285,9 @@ async function login() {
             error
         );
 
-        if (status) {
-
-            status.textContent =
-                "❌ " +
-                error.message;
-
-        }
+        status.textContent =
+            "❌ " +
+            error.message;
 
     }
 
@@ -360,25 +300,25 @@ SIGNUP
 
 async function signup() {
 
-    const usernameInput =
+    const username =
         document.getElementById(
             "signup-username"
-        );
+        ).value.trim();
 
-    const displayNameInput =
+    const displayName =
         document.getElementById(
             "signup-display-name"
-        );
+        ).value.trim();
 
-    const emailInput =
+    const email =
         document.getElementById(
             "signup-email"
-        );
+        ).value.trim();
 
-    const passwordInput =
+    const password =
         document.getElementById(
             "signup-password"
-        );
+        ).value;
 
     const status =
         document.getElementById(
@@ -386,55 +326,20 @@ async function signup() {
         );
 
     if (
-        !usernameInput ||
-        !emailInput ||
-        !passwordInput
-    ) {
-
-        console.error(
-            "Signup inputs not found."
-        );
-
-        return;
-
-    }
-
-    const username =
-        usernameInput.value.trim();
-
-    const displayName =
-        displayNameInput?.value.trim() ||
-        "";
-
-    const email =
-        emailInput.value.trim();
-
-    const password =
-        passwordInput.value;
-
-    if (
         !username ||
         !email ||
         !password
     ) {
 
-        if (status) {
-
-            status.textContent =
-                "❌ Fill in all required fields.";
-
-        }
+        status.textContent =
+            "❌ Fill in all required fields.";
 
         return;
 
     }
 
-    if (status) {
-
-        status.textContent =
-            "Creating account...";
-
-    }
+    status.textContent =
+        "Creating account...";
 
     try {
 
@@ -486,12 +391,8 @@ async function signup() {
 
         }
 
-        if (status) {
-
-            status.textContent =
-                "✅ Account created!";
-
-        }
+        status.textContent =
+            "✅ Account created!";
 
         showLogin();
 
@@ -502,13 +403,9 @@ async function signup() {
             error
         );
 
-        if (status) {
-
-            status.textContent =
-                "❌ " +
-                error.message;
-
-        }
+        status.textContent =
+            "❌ " +
+            error.message;
 
     }
 
@@ -712,13 +609,6 @@ function showApp() {
 
     loadPeople();
 
-    /*
-     * Send an online heartbeat immediately
-     * after confirming that the user is logged in.
-     */
-
-    updateOnlineStatus();
-
 }
 
 
@@ -831,9 +721,6 @@ async function loadPosts() {
                                     border-radius:12px;
                                     object-fit:contain;
                                     display:block;
-                                "
-                                onerror="
-                                    this.style.display='none';
                                 ">
 
                         </div>
@@ -896,6 +783,7 @@ async function loadPosts() {
 
                         </div>
 
+
                         ${
                             post.content
                                 ? `
@@ -916,14 +804,14 @@ async function loadPosts() {
                                 : ""
                         }
 
+
                         ${imageHTML}
+
 
                         <button
                             onclick="
                                 toggleComments(
-                                    '${escapeHtml(
-                                        post.id
-                                    )}'
+                                    '${escapeHtml(post.id)}'
                                 )
                             ">
 
@@ -931,23 +819,21 @@ async function loadPosts() {
 
                         </button>
 
+
                         <div
-                            id="comments-${escapeHtml(
-                                post.id
-                            )}"
+                            id="comments-${escapeHtml(post.id)}"
                             class="comments"
                             style="
                                 display:none;
                             ">
 
                             <div
-                                id="comment-list-${escapeHtml(
-                                    post.id
-                                )}">
+                                id="comment-list-${escapeHtml(post.id)}">
 
                                 Loading...
 
                             </div>
+
 
                             <div
                                 class="comment-form"
@@ -956,16 +842,13 @@ async function loadPosts() {
                                 ">
 
                                 <input
-                                    id="comment-input-${escapeHtml(
-                                        post.id
-                                    )}"
+                                    id="comment-input-${escapeHtml(post.id)}"
                                     placeholder="Write a comment..."
                                     maxlength="500">
 
+
                                 <input
-                                    id="comment-image-${escapeHtml(
-                                        post.id
-                                    )}"
+                                    id="comment-image-${escapeHtml(post.id)}"
                                     type="file"
                                     accept="
                                         image/png,
@@ -974,12 +857,11 @@ async function loadPosts() {
                                         image/gif
                                     ">
 
+
                                 <button
                                     onclick="
                                         submitComment(
-                                            '${escapeHtml(
-                                                post.id
-                                            )}'
+                                            '${escapeHtml(post.id)}'
                                         )
                                     ">
 
@@ -987,19 +869,16 @@ async function loadPosts() {
 
                                 </button>
 
+
                                 <div
-                                    id="comment-preview-${escapeHtml(
-                                        post.id
-                                    )}"
+                                    id="comment-preview-${escapeHtml(post.id)}"
                                     style="
                                         display:none;
                                         margin-top:8px;
                                     ">
 
                                     <img
-                                        id="comment-preview-image-${escapeHtml(
-                                            post.id
-                                        )}"
+                                        id="comment-preview-image-${escapeHtml(post.id)}"
                                         alt="Comment image preview"
                                         style="
                                             max-width:200px;
@@ -1007,15 +886,15 @@ async function loadPosts() {
                                             border-radius:10px;
                                         ">
 
+
                                     <br>
+
 
                                     <button
                                         type="button"
                                         onclick="
                                             clearCommentImage(
-                                                '${escapeHtml(
-                                                    post.id
-                                                )}'
+                                                '${escapeHtml(post.id)}'
                                             )
                                         ">
 
@@ -1035,10 +914,6 @@ async function loadPosts() {
 
             }).join("");
 
-
-        /*
-         * Setup comment image previews
-         */
 
         posts.forEach(post => {
 
@@ -1070,10 +945,8 @@ async function loadPosts() {
 
                     if (!file) {
 
-                        if (preview) {
-                            preview.style.display =
-                                "none";
-                        }
+                        preview.style.display =
+                            "none";
 
                         return;
 
@@ -1118,19 +991,11 @@ async function loadPosts() {
                     reader.onload =
                         event => {
 
-                            if (previewImage) {
+                            previewImage.src =
+                                event.target.result;
 
-                                previewImage.src =
-                                    event.target.result;
-
-                            }
-
-                            if (preview) {
-
-                                preview.style.display =
-                                    "block";
-
-                            }
+                            preview.style.display =
+                                "block";
 
                         };
 
@@ -1191,23 +1056,15 @@ async function createPost() {
 
     if (!content && !file) {
 
-        if (status) {
-
-            status.textContent =
-                "❌ Write something or select an image.";
-
-        }
+        status.textContent =
+            "❌ Write something or select an image.";
 
         return;
 
     }
 
-    if (status) {
-
-        status.textContent =
-            "Posting...";
-
-    }
+    status.textContent =
+        "Posting...";
 
     try {
 
@@ -1255,12 +1112,8 @@ async function createPost() {
 
         }
 
-        if (input) {
-
-            input.value =
-                "";
-
-        }
+        input.value =
+            "";
 
         if (imageInput) {
 
@@ -1293,12 +1146,8 @@ async function createPost() {
 
         }
 
-        if (status) {
-
-            status.textContent =
-                "✅ Posted!";
-
-        }
+        status.textContent =
+            "✅ Posted!";
 
         loadPosts();
 
@@ -1309,13 +1158,9 @@ async function createPost() {
             error
         );
 
-        if (status) {
-
-            status.textContent =
-                "❌ " +
-                error.message;
-
-        }
+        status.textContent =
+            "❌ " +
+            error.message;
 
     }
 
@@ -1482,6 +1327,7 @@ async function loadComments(postId) {
 
                         </div>
 
+
                         ${
                             comment.content
                                 ? `
@@ -1495,6 +1341,7 @@ async function loadComments(postId) {
                                   `
                                 : ""
                         }
+
 
                         ${imageHTML}
 
@@ -1595,12 +1442,8 @@ async function submitComment(postId) {
 
         }
 
-        if (input) {
-
-            input.value =
-                "";
-
-        }
+        input.value =
+            "";
 
         if (imageInput) {
 
@@ -1851,57 +1694,6 @@ document.addEventListener(
 
 
 /* ==================================================
-ONLINE HEARTBEAT
-================================================== */
-
-async function updateOnlineStatus() {
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/heartbeat",
-                {
-                    method:
-                        "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    }
-                }
-            );
-
-        /*
-         * 401 simply means the user isn't logged in.
-         * Don't spam the console with it.
-         */
-
-        if (
-            !response.ok &&
-            response.status !== 401
-        ) {
-
-            console.error(
-                "Heartbeat failed:",
-                response.status
-            );
-
-        }
-
-    } catch (error) {
-
-        console.error(
-            "Heartbeat failed:",
-            error
-        );
-
-    }
-
-}
-
-
-/* ==================================================
 START
 ================================================== */
 
@@ -1915,9 +1707,40 @@ document.addEventListener(
 );
 
 
-/* ==================================================
-ONLINE HEARTBEAT TIMER
-================================================== */
+async function updateOnlineStatus() {
+
+    try {
+
+        await fetch(
+            "/api/online",
+            {
+
+                method:
+                    "POST",
+
+                headers: {
+
+                    "Content-Type":
+                        "application/json"
+
+                }
+
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Online heartbeat failed:",
+            error
+        );
+
+    }
+
+}
+
+
+updateOnlineStatus();
 
 setInterval(
     updateOnlineStatus,
