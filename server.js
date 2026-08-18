@@ -5,21 +5,12 @@ const path = require("path");
 const session = require("express-session");
 const { createClient } = require("@supabase/supabase-js");
 
-// ==================================================
-// ROUTES
-// ==================================================
-
 const authRoutes = require("./routes/auth");
 const adminRoutes = require("./routes/admin");
 const postsRoutes = require("./routes/posts");
 const usersRoutes = require("./routes/users");
 const commentsRoutes = require("./routes/comments");
 const reactionsRoutes = require("./routes/reactions");
-const shrekchatRoutes = require("./routes/shrekchat");
-
-// ==================================================
-// APP
-// ==================================================
 
 const app = express();
 
@@ -29,14 +20,6 @@ const PORT = process.env.PORT || 3000;
 // SUPABASE
 // ==================================================
 
-if (
-    !process.env.SUPABASE_URL ||
-    !process.env.SUPABASE_SERVICE_ROLE_KEY
-) {
-    console.error("Missing Supabase environment variables.");
-    process.exit(1);
-}
-
 const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -45,96 +28,69 @@ const supabase = createClient(
 app.locals.supabase = supabase;
 
 // ==================================================
-// ADMIN HELPER
+// ADMIN MIDDLEWARE
 // ==================================================
 
-app.locals.requireAdmin = async function (
-    req,
-    res,
-    callback
-) {
+app.locals.requireAdmin = async function (req, res, next) {
+
+    if (!req.session || !req.session.user) {
+        return res.status(401).json({
+            error: "You must be logged in."
+        });
+    }
 
     try {
 
-        if (
-            !req.session ||
-            !req.session.user
-        ) {
-
-            return res.status(401).json({
-                error: "You must be logged in."
-            });
-
-        }
-
-        const {
-            data: admin,
-            error
-        } = await supabase
+        const { data, error } = await supabase
             .from("admins")
             .select("id")
-            .eq(
-                "user_id",
-                req.session.user.id
-            )
+            .eq("user_id", req.session.user.id)
             .maybeSingle();
 
         if (error) {
-
-            console.error(
-                "ADMIN CHECK ERROR:",
-                error
-            );
+            console.error("ADMIN CHECK ERROR:", error);
 
             return res.status(500).json({
-                error:
-                    "Could not verify administrator status."
+                error: "Could not check administrator status."
             });
-
         }
 
-        if (!admin) {
-
+        if (!data) {
             return res.status(403).json({
-                error:
-                    "Administrator access required."
+                error: "Administrator access required."
             });
-
         }
 
-        return await callback();
+        return next();
 
     } catch (error) {
 
-        console.error(
-            "ADMIN CHECK ERROR:",
-            error
-        );
+        console.error("ADMIN CHECK ERROR:", error);
 
         return res.status(500).json({
-            error:
-                "Server error."
+            error: "Server error."
         });
 
     }
-
 };
 
 // ==================================================
 // MIDDLEWARE
 // ==================================================
 
-app.use(
-    express.json({
-        limit: "10mb"
-    })
-);
+app.use(express.json({
+    limit: "10mb"
+}));
 
-app.use(
-    express.urlencoded({
-        extended: true
-    })
-);
+app.use(express.urlencoded({
+    extended: true
+}));
+
+// ==================================================
+// SESSION
+// ==================================================
+
+app.set("trust proxy", 1);
 
 app.use(
     session({
@@ -146,23 +102,35 @@ app.use(
 
         saveUninitialized: false,
 
+        proxy: true,
+
         cookie: {
             httpOnly: true,
 
-            secure:
-                process.env.NODE_ENV === "production",
+            secure: true,
 
             sameSite: "lax",
 
-            maxAge:
-                1000 *
-                60 *
-                60 *
-                24 *
-                7
+            maxAge: 1000 * 60 * 60 * 24 * 30
         }
     })
 );
+
+// ==================================================
+// SUPABASE ACCESS FOR ROUTES
+// ==================================================
+//
+// Your route files currently use req.supabase,
+// so we provide it here.
+//
+
+app.use((req, res, next) => {
+
+    req.supabase = req.app.locals.supabase;
+
+    next();
+
+});
 
 // ==================================================
 // STATIC FILES
@@ -170,10 +138,7 @@ app.use(
 
 app.use(
     express.static(
-        path.join(
-            __dirname,
-            "public"
-        )
+        path.join(__dirname, "public")
     )
 );
 
@@ -211,11 +176,6 @@ app.use(
     reactionsRoutes
 );
 
-app.use(
-    "/api/chat",
-    shrekchatRoutes
-);
-
 // ==================================================
 // API 404
 // ==================================================
@@ -225,8 +185,7 @@ app.use(
     (req, res) => {
 
         res.status(404).json({
-            error:
-                "API endpoint not found."
+            error: "API endpoint not found."
         });
 
     }

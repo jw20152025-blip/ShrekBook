@@ -1,26 +1,22 @@
-
 // ==================================================
 // SHREKBOOK FRONTEND
 // public/script.js
 // ==================================================
 
-let currentUser = null;
+console.log("🧌 ShrekBook frontend loaded");
 
 
 // ==================================================
-// API HELPER
+// HELPERS
 // ==================================================
 
 async function api(url, options = {}) {
 
     const response = await fetch(url, {
-        credentials: "include",
+        credentials: "same-origin",
         ...options,
-
         headers: {
-            ...(options.body ? {
-                "Content-Type": "application/json"
-            } : {}),
+            "Content-Type": "application/json",
             ...(options.headers || {})
         }
     });
@@ -45,171 +41,87 @@ async function api(url, options = {}) {
 
 
 // ==================================================
-// LOGIN
+// AUTH UI
 // ==================================================
 
-async function login() {
+function showLogin() {
 
-    const email =
-        document
-            .getElementById("login-email")
-            .value
-            .trim();
+    const loginBox = document.getElementById("login-box");
+    const signupBox = document.getElementById("signup-box");
 
-    const password =
-        document
-            .getElementById("login-password")
-            .value;
-
-    const status =
-        document.getElementById("login-status");
-
-
-    if (!email || !password) {
-
-        status.textContent =
-            "Please enter your email and password.";
-
-        return;
-
+    if (loginBox) {
+        loginBox.style.display = "block";
     }
 
+    if (signupBox) {
+        signupBox.style.display = "none";
+    }
 
-    status.textContent =
-        "Logging in...";
-
-
-    try {
-
-        const data =
-            await api(
-                "/api/login",
-                {
-                    method: "POST",
-
-                    body: JSON.stringify({
-                        email,
-                        password
-                    })
-                }
-            );
+}
 
 
-        if (!data.success) {
+function showSignup() {
 
-            throw new Error(
-                data.error ||
-                "Login failed."
-            );
+    const loginBox = document.getElementById("login-box");
+    const signupBox = document.getElementById("signup-box");
 
-        }
+    if (loginBox) {
+        loginBox.style.display = "none";
+    }
 
-
-        status.textContent =
-            "Login successful!";
-
-
-        await loadCurrentUser();
-
-
-    } catch (error) {
-
-        console.error(
-            "LOGIN ERROR:",
-            error
-        );
-
-        status.textContent =
-            error.message ||
-            "Login failed.";
-
+    if (signupBox) {
+        signupBox.style.display = "block";
     }
 
 }
 
 
 // ==================================================
-// SIGNUP
+// LOGIN
 // ==================================================
 
-async function signup() {
+async function login() {
 
-    const username =
-        document
-            .getElementById("signup-username")
-            .value
-            .trim();
+    const emailInput =
+        document.getElementById("login-email");
 
-    const displayName =
-        document
-            .getElementById("signup-display-name")
-            .value
-            .trim();
-
-    const email =
-        document
-            .getElementById("signup-email")
-            .value
-            .trim();
-
-    const password =
-        document
-            .getElementById("signup-password")
-            .value;
+    const passwordInput =
+        document.getElementById("login-password");
 
     const status =
-        document.getElementById(
-            "signup-status"
-        );
+        document.getElementById("login-status");
 
 
-    if (
-        !username ||
-        !email ||
-        !password
-    ) {
+    const email =
+        emailInput
+            ? emailInput.value.trim()
+            : "";
 
-        status.textContent =
-            "Username, email, and password are required.";
+    const password =
+        passwordInput
+            ? passwordInput.value
+            : "";
+
+
+    if (!email || !password) {
+
+        if (status) {
+            status.textContent =
+                "Please enter your email and password.";
+        }
 
         return;
-
     }
 
 
-    status.textContent =
-        "Creating account...";
+    if (status) {
+        status.textContent = "Logging in...";
+    }
 
 
     try {
 
-        await api(
-            "/api/signup",
-            {
-                method: "POST",
-
-                body: JSON.stringify({
-
-                    username,
-
-                    display_name:
-                        displayName ||
-                        username,
-
-                    email,
-
-                    password
-
-                })
-            }
-        );
-
-
-        status.textContent =
-            "Account created! Logging in...";
-
-
-        await api(
+        const data = await api(
             "/api/login",
             {
                 method: "POST",
@@ -222,7 +134,157 @@ async function signup() {
         );
 
 
+        console.log(
+            "LOGIN SUCCESS:",
+            data
+        );
+
+
+        if (status) {
+            status.textContent =
+                "Login successful! 🧌";
+        }
+
+
+        // IMPORTANT:
+        // The server has now created the session.
+        // Reloading the page makes the browser
+        // load the logged-in state.
+
         await loadCurrentUser();
+
+
+    } catch (error) {
+
+        console.error(
+            "LOGIN ERROR:",
+            error
+        );
+
+        if (status) {
+            status.textContent =
+                error.message;
+        }
+
+    }
+
+}
+
+
+// ==================================================
+// SIGNUP
+// ==================================================
+
+async function signup() {
+
+    const usernameInput =
+        document.getElementById("signup-username");
+
+    const displayNameInput =
+        document.getElementById("signup-display-name");
+
+    const emailInput =
+        document.getElementById("signup-email");
+
+    const passwordInput =
+        document.getElementById("signup-password");
+
+    const status =
+        document.getElementById("signup-status");
+
+
+    const username =
+        usernameInput
+            ? usernameInput.value.trim()
+            : "";
+
+    const displayName =
+        displayNameInput
+            ? displayNameInput.value.trim()
+            : "";
+
+    const email =
+        emailInput
+            ? emailInput.value.trim()
+            : "";
+
+    const password =
+        passwordInput
+            ? passwordInput.value
+            : "";
+
+
+    if (
+        !username ||
+        !email ||
+        !password
+    ) {
+
+        if (status) {
+            status.textContent =
+                "Username, email, and password are required.";
+        }
+
+        return;
+    }
+
+
+    if (status) {
+        status.textContent =
+            "Creating account...";
+    }
+
+
+    try {
+
+        const data = await api(
+            "/api/signup",
+            {
+                method: "POST",
+
+                body: JSON.stringify({
+
+                    username,
+
+                    display_name:
+                        displayName,
+
+                    email,
+
+                    password
+
+                })
+            }
+        );
+
+
+        console.log(
+            "SIGNUP SUCCESS:",
+            data
+        );
+
+
+        if (status) {
+            status.textContent =
+                "Account created! You can now log in. 🧌";
+        }
+
+
+        // Switch back to login.
+
+        showLogin();
+
+
+        // Put email into login field.
+
+        const loginEmail =
+            document.getElementById(
+                "login-email"
+            );
+
+        if (loginEmail) {
+            loginEmail.value = email;
+        }
 
 
     } catch (error) {
@@ -232,67 +294,12 @@ async function signup() {
             error
         );
 
-        status.textContent =
-            error.message ||
-            "Could not create account.";
+        if (status) {
+            status.textContent =
+                error.message;
+        }
 
     }
-
-}
-
-
-// ==================================================
-// SHOW LOGIN
-// ==================================================
-
-function showLogin() {
-
-    const loginBox =
-        document.getElementById(
-            "login-box"
-        );
-
-    const signupBox =
-        document.getElementById(
-            "signup-box"
-        );
-
-
-    if (loginBox)
-        loginBox.style.display =
-            "block";
-
-    if (signupBox)
-        signupBox.style.display =
-            "none";
-
-}
-
-
-// ==================================================
-// SHOW SIGNUP
-// ==================================================
-
-function showSignup() {
-
-    const loginBox =
-        document.getElementById(
-            "login-box"
-        );
-
-    const signupBox =
-        document.getElementById(
-            "signup-box"
-        );
-
-
-    if (loginBox)
-        loginBox.style.display =
-            "none";
-
-    if (signupBox)
-        signupBox.style.display =
-            "block";
 
 }
 
@@ -312,6 +319,15 @@ async function logout() {
             }
         );
 
+
+        console.log(
+            "Logged out"
+        );
+
+
+        showLoggedOut();
+
+
     } catch (error) {
 
         console.error(
@@ -319,18 +335,17 @@ async function logout() {
             error
         );
 
+        alert(
+            error.message
+        );
+
     }
-
-
-    currentUser = null;
-
-    updateUI();
 
 }
 
 
 // ==================================================
-// LOAD CURRENT USER
+// CURRENT USER
 // ==================================================
 
 async function loadCurrentUser() {
@@ -343,36 +358,37 @@ async function loadCurrentUser() {
             );
 
 
+        console.log(
+            "CURRENT USER:",
+            data
+        );
+
+
         if (
+            data &&
             data.loggedIn &&
             data.user
         ) {
 
-            currentUser =
-                data.user;
+            showLoggedIn(
+                data.user
+            );
 
         } else {
 
-            currentUser =
-                null;
+            showLoggedOut();
 
         }
-
-
-        updateUI();
 
 
     } catch (error) {
 
         console.error(
-            "CURRENT USER ERROR:",
+            "LOAD USER ERROR:",
             error
         );
 
-        currentUser =
-            null;
-
-        updateUI();
+        showLoggedOut();
 
     }
 
@@ -380,10 +396,16 @@ async function loadCurrentUser() {
 
 
 // ==================================================
-// UPDATE UI
+// SHOW LOGGED IN
 // ==================================================
 
-function updateUI() {
+function showLoggedIn(user) {
+
+    console.log(
+        "Showing logged-in UI:",
+        user
+    );
+
 
     const authSection =
         document.getElementById(
@@ -400,78 +422,58 @@ function updateUI() {
             "logout-button"
         );
 
-
-    if (currentUser) {
-
-        if (authSection) {
-
-            authSection.style.display =
-                "none";
-
-        }
+    const adminButton =
+        document.getElementById(
+            "admin-button"
+        );
 
 
-        if (appSection) {
-
-            appSection.style.display =
-                "block";
-
-        }
+    if (authSection) {
+        authSection.style.display =
+            "none";
+    }
 
 
-        if (logoutButton) {
-
-            logoutButton.style.display =
-                "inline-block";
-
-        }
+    if (appSection) {
+        appSection.style.display =
+            "block";
+    }
 
 
-        loadPosts();
-
-        loadPeople();
-
-        checkAdmin();
-
-
-    } else {
-
-        if (authSection) {
-
-            authSection.style.display =
-                "block";
-
-        }
+    if (logoutButton) {
+        logoutButton.style.display =
+            "inline-block";
+    }
 
 
-        if (appSection) {
+    // Load the actual app.
 
-            appSection.style.display =
-                "none";
+    loadPosts();
 
-        }
+    loadPeople();
 
-
-        if (logoutButton) {
-
-            logoutButton.style.display =
-                "none";
-
-        }
+    checkAdmin();
 
 
-        const adminButton =
-            document.getElementById(
-                "admin-button"
+    // Update profile link.
+
+    const profileLink =
+        document.getElementById(
+            "profile-link"
+        );
+
+
+    if (
+        profileLink &&
+        user &&
+        user.id
+    ) {
+
+        profileLink.href =
+            "/profile.html?id=" +
+            encodeURIComponent(
+                user.id
             );
-
-
-        if (adminButton) {
-
-            adminButton.style.display =
-                "none";
-
-        }
 
     }
 
@@ -479,7 +481,60 @@ function updateUI() {
 
 
 // ==================================================
-// CHECK ADMIN
+// SHOW LOGGED OUT
+// ==================================================
+
+function showLoggedOut() {
+
+    const authSection =
+        document.getElementById(
+            "auth-section"
+        );
+
+    const appSection =
+        document.getElementById(
+            "app-section"
+        );
+
+    const logoutButton =
+        document.getElementById(
+            "logout-button"
+        );
+
+    const adminButton =
+        document.getElementById(
+            "admin-button"
+        );
+
+
+    if (authSection) {
+        authSection.style.display =
+            "block";
+    }
+
+
+    if (appSection) {
+        appSection.style.display =
+            "none";
+    }
+
+
+    if (logoutButton) {
+        logoutButton.style.display =
+            "none";
+    }
+
+
+    if (adminButton) {
+        adminButton.style.display =
+            "none";
+    }
+
+}
+
+
+// ==================================================
+// ADMIN CHECK
 // ==================================================
 
 async function checkAdmin() {
@@ -490,8 +545,9 @@ async function checkAdmin() {
         );
 
 
-    if (!adminButton)
+    if (!adminButton) {
         return;
+    }
 
 
     try {
@@ -502,11 +558,20 @@ async function checkAdmin() {
             );
 
 
-        adminButton.style.display =
+        if (
+            data &&
             data.isAdmin
-                ? "inline-block"
-                : "none";
+        ) {
 
+            adminButton.style.display =
+                "inline-block";
+
+        } else {
+
+            adminButton.style.display =
+                "none";
+
+        }
 
     } catch (error) {
 
@@ -524,91 +589,7 @@ async function checkAdmin() {
 
 
 // ==================================================
-// CREATE POST
-// ==================================================
-
-async function createPost() {
-
-    const contentElement =
-        document.getElementById(
-            "post-content"
-        );
-
-    const status =
-        document.getElementById(
-            "post-status"
-        );
-
-    const content =
-        contentElement
-            ? contentElement.value.trim()
-            : "";
-
-
-    if (!content) {
-
-        if (status)
-            status.textContent =
-                "Post cannot be empty.";
-
-        return;
-
-    }
-
-
-    if (status)
-        status.textContent =
-            "Posting...";
-
-
-    try {
-
-        await api(
-            "/api/posts",
-            {
-                method: "POST",
-
-                body: JSON.stringify({
-                    content
-                })
-            }
-        );
-
-
-        if (contentElement)
-            contentElement.value =
-                "";
-
-
-        if (status)
-            status.textContent =
-                "Posted!";
-
-
-        clearPostImage();
-
-        await loadPosts();
-
-
-    } catch (error) {
-
-        console.error(
-            "CREATE POST ERROR:",
-            error
-        );
-
-        if (status)
-            status.textContent =
-                error.message ||
-                "Could not create post.";
-
-    }
-
-}
-
-
-// ==================================================
-// LOAD POSTS
+// POSTS
 // ==================================================
 
 async function loadPosts() {
@@ -619,11 +600,12 @@ async function loadPosts() {
         );
 
 
-    if (!container)
+    if (!container) {
         return;
+    }
 
 
-    container.textContent =
+    container.innerHTML =
         "Loading posts...";
 
 
@@ -631,7 +613,7 @@ async function loadPosts() {
 
         const data =
             await api(
-                "/api"
+                "/api/"
             );
 
 
@@ -639,100 +621,76 @@ async function loadPosts() {
             data.posts || [];
 
 
-        if (!posts.length) {
+        if (posts.length === 0) {
 
-            container.textContent =
-                "No posts yet. Be the first! 🧌";
+            container.innerHTML =
+                "<p>No posts yet. Be the first! 🧌</p>";
 
             return;
-
         }
 
 
-        container.innerHTML =
-            "";
+        container.innerHTML = "";
 
 
         for (
             const post of posts
         ) {
 
-            const article =
+            const element =
                 document.createElement(
                     "article"
                 );
 
 
-            article.className =
+            element.className =
                 "post";
 
 
             const content =
-                document.createElement(
-                    "p"
+                escapeHTML(
+                    post.content || ""
                 );
 
 
-            content.textContent =
-                post.content || "";
-
-
-            article.appendChild(
-                content
-            );
+            let html = `
+                <div class="post-content">
+                    ${content}
+                </div>
+            `;
 
 
             if (post.image_url) {
 
-                const image =
-                    document.createElement(
-                        "img"
-                    );
-
-
-                image.src =
-                    post.image_url;
-
-                image.alt =
-                    "Post image";
-
-                image.style.maxWidth =
-                    "100%";
-
-                image.style.borderRadius =
-                    "12px";
-
-
-                article.appendChild(
-                    image
-                );
+                html += `
+                    <img
+                        src="${escapeAttribute(post.image_url)}"
+                        alt="Post image"
+                        style="
+                            max-width:100%;
+                            max-height:500px;
+                            border-radius:12px;
+                            margin-top:10px;
+                        "
+                    >
+                `;
 
             }
 
 
-            const date =
-                document.createElement(
-                    "small"
-                );
+            html += `
+                <small>
+                    ${formatDate(post.created_at)}
+                </small>
+            `;
 
 
-            if (post.created_at) {
-
-                date.textContent =
-                    new Date(
-                        post.created_at
-                    ).toLocaleString();
-
-            }
-
-
-            article.appendChild(
-                date
-            );
+            element.innerHTML =
+                html;
 
 
             container.appendChild(
-                article
+                element
             );
 
         }
@@ -745,8 +703,8 @@ async function loadPosts() {
             error
         );
 
-        container.textContent =
-            "Could not load posts.";
+        container.innerHTML =
+            `<p>Could not load posts: ${escapeHTML(error.message)}</p>`;
 
     }
 
@@ -754,7 +712,283 @@ async function loadPosts() {
 
 
 // ==================================================
-// LOAD PEOPLE
+// CREATE POST
+// ==================================================
+
+async function createPost() {
+
+    const contentInput =
+        document.getElementById(
+            "post-content"
+        );
+
+    const imageInput =
+        document.getElementById(
+            "post-image"
+        );
+
+    const status =
+        document.getElementById(
+            "post-status"
+        );
+
+
+    const content =
+        contentInput
+            ? contentInput.value.trim()
+            : "";
+
+
+    let imageUrl = "";
+
+
+    // ----------------------------------------------
+    // IMAGE
+    // ----------------------------------------------
+
+    if (
+        imageInput &&
+        imageInput.files &&
+        imageInput.files.length > 0
+    ) {
+
+        if (status) {
+            status.textContent =
+                "Uploading image...";
+        }
+
+
+        try {
+
+            imageUrl =
+                await uploadPostImage(
+                    imageInput.files[0]
+                );
+
+        } catch (error) {
+
+            console.error(
+                "IMAGE UPLOAD ERROR:",
+                error
+            );
+
+            if (status) {
+                status.textContent =
+                    error.message;
+            }
+
+            return;
+        }
+
+    }
+
+
+    if (
+        !content &&
+        !imageUrl
+    ) {
+
+        if (status) {
+            status.textContent =
+                "Post cannot be empty.";
+        }
+
+        return;
+    }
+
+
+    try {
+
+        if (status) {
+            status.textContent =
+                "Posting...";
+        }
+
+
+        await api(
+            "/api/",
+            {
+                method: "POST",
+
+                body: JSON.stringify({
+
+                    content,
+
+                    image_url:
+                        imageUrl
+
+                })
+            }
+        );
+
+
+        if (contentInput) {
+            contentInput.value = "";
+        }
+
+
+        clearPostImage();
+
+
+        if (status) {
+            status.textContent =
+                "Posted! 🧌";
+        }
+
+
+        await loadPosts();
+
+
+    } catch (error) {
+
+        console.error(
+            "CREATE POST ERROR:",
+            error
+        );
+
+        if (status) {
+            status.textContent =
+                error.message;
+        }
+
+    }
+
+}
+
+
+// ==================================================
+// IMAGE UPLOAD
+// ==================================================
+
+async function uploadPostImage(file) {
+
+    const allowedTypes = [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/gif"
+    ];
+
+
+    if (
+        !allowedTypes.includes(
+            file.type
+        )
+    ) {
+
+        throw new Error(
+            "Unsupported image type."
+        );
+
+    }
+
+
+    // 10 MB maximum.
+
+    if (
+        file.size >
+        10 * 1024 * 1024
+    ) {
+
+        throw new Error(
+            "Image must be smaller than 10 MB."
+        );
+
+    }
+
+
+    const formData =
+        new FormData();
+
+
+    formData.append(
+        "image",
+        file
+    );
+
+
+    const response =
+        await fetch(
+            "/api/profile/avatar",
+            {
+                method: "POST",
+                credentials: "same-origin",
+                body: formData
+            }
+        );
+
+
+    let data = {};
+
+    try {
+        data =
+            await response.json();
+    } catch {}
+
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            data.error ||
+            "Image upload failed."
+        );
+
+    }
+
+
+    return (
+        data.image_url ||
+        data.avatar_url ||
+        ""
+    );
+
+}
+
+
+// ==================================================
+// IMAGE PREVIEW
+// ==================================================
+
+function clearPostImage() {
+
+    const input =
+        document.getElementById(
+            "post-image"
+        );
+
+    const preview =
+        document.getElementById(
+            "post-image-preview"
+        );
+
+    const previewImage =
+        document.getElementById(
+            "post-preview-image"
+        );
+
+
+    if (input) {
+        input.value = "";
+    }
+
+
+    if (preview) {
+        preview.style.display =
+            "none";
+    }
+
+
+    if (previewImage) {
+        previewImage.src =
+            "";
+    }
+
+}
+
+
+// ==================================================
+// PEOPLE
 // ==================================================
 
 async function loadPeople() {
@@ -765,11 +999,12 @@ async function loadPeople() {
         );
 
 
-    if (!container)
+    if (!container) {
         return;
+    }
 
 
-    container.textContent =
+    container.innerHTML =
         "Loading people...";
 
 
@@ -785,93 +1020,109 @@ async function loadPeople() {
             data.users || [];
 
 
-        if (!users.length) {
+        if (
+            users.length === 0
+        ) {
 
-            container.textContent =
-                "No users found.";
+            container.innerHTML =
+                "<p>No users found.</p>";
 
             return;
-
         }
 
 
-        container.innerHTML =
-            "";
+        container.innerHTML = "";
 
 
         for (
             const user of users
         ) {
 
-            const person =
+            const element =
                 document.createElement(
                     "div"
                 );
 
 
-            person.className =
+            element.className =
                 "person";
 
 
             const name =
-                document.createElement(
-                    "strong"
+                escapeHTML(
+                    user.display_name ||
+                    user.username ||
+                    "Unknown user"
                 );
 
 
-            name.textContent =
-                user.display_name ||
-                user.username ||
-                "Unknown user";
-
-
-            person.appendChild(
-                name
-            );
-
-
-            if (user.username) {
-
-                const username =
-                    document.createElement(
-                        "span"
-                    );
-
-
-                username.textContent =
-                    ` @${user.username}`;
-
-
-                person.appendChild(
-                    username
+            const username =
+                escapeHTML(
+                    user.username ||
+                    ""
                 );
 
-            }
+
+            const avatar =
+                user.avatar_url
+                    ? `
+                        <img
+                            src="${escapeAttribute(user.avatar_url)}"
+                            alt="Avatar"
+                            style="
+                                width:60px;
+                                height:60px;
+                                object-fit:cover;
+                                border-radius:50%;
+                            "
+                        >
+                    `
+                    : "🧌";
 
 
-            if (user.id) {
+            element.innerHTML = `
 
-                person.style.cursor =
-                    "pointer";
+                ${avatar}
+
+                <div>
+
+                    <strong>
+                        ${name}
+                    </strong>
+
+                    <br>
+
+                    <small>
+                        @${username}
+                    </small>
+
+                </div>
+
+            `;
 
 
-                person.addEventListener(
-                    "click",
-                    () => {
+            element.style.cursor =
+                "pointer";
+
+
+            element.onclick =
+                function () {
+
+                    if (user.id) {
 
                         window.location.href =
-                            `/profile.html?id=${encodeURIComponent(
+                            "/profile.html?id=" +
+                            encodeURIComponent(
                                 user.id
-                            )}`;
+                            );
 
                     }
-                );
 
-            }
+                };
 
 
             container.appendChild(
-                person
+                element
             );
 
         }
@@ -884,8 +1135,8 @@ async function loadPeople() {
             error
         );
 
-        container.textContent =
-            "Could not load people.";
+        container.innerHTML =
+            `<p>Could not load people: ${escapeHTML(error.message)}</p>`;
 
     }
 
@@ -893,120 +1144,176 @@ async function loadPeople() {
 
 
 // ==================================================
-// IMAGE PICKER
+// POST IMAGE PREVIEW LISTENER
 // ==================================================
 
-function setupImagePicker() {
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
 
-    const input =
-        document.getElementById(
-            "post-image"
-        );
-
-
-    if (!input)
-        return;
+        const imageInput =
+            document.getElementById(
+                "post-image"
+            );
 
 
-    input.addEventListener(
-        "change",
-        () => {
+        if (imageInput) {
 
-            const file =
-                input.files &&
-                input.files[0];
+            imageInput.addEventListener(
+                "change",
+                () => {
 
-
-            if (!file) {
-
-                clearPostImage();
-
-                return;
-
-            }
+                    const file =
+                        imageInput.files?.[0];
 
 
-            const preview =
-                document.getElementById(
-                    "post-image-preview"
-                );
+                    const preview =
+                        document.getElementById(
+                            "post-image-preview"
+                        );
 
-            const image =
-                document.getElementById(
-                    "post-preview-image"
-                );
-
-
-            if (!preview || !image)
-                return;
+                    const previewImage =
+                        document.getElementById(
+                            "post-preview-image"
+                        );
 
 
-            image.src =
-                URL.createObjectURL(
-                    file
-                );
+                    if (
+                        !file ||
+                        !preview ||
+                        !previewImage
+                    ) {
+
+                        return;
+
+                    }
 
 
-            preview.style.display =
-                "block";
+                    const reader =
+                        new FileReader();
+
+
+                    reader.onload =
+                        event => {
+
+                            previewImage.src =
+                                event.target.result;
+
+                            preview.style.display =
+                                "block";
+
+                        };
+
+
+                    reader.readAsDataURL(
+                        file
+                    );
+
+                }
+            );
 
         }
+
+
+        // Load login state.
+
+        loadCurrentUser();
+
+    }
+);
+
+
+// ==================================================
+// SECURITY / DISPLAY HELPERS
+// ==================================================
+
+function escapeHTML(value) {
+
+    return String(
+        value ?? ""
+    )
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
+
+}
+
+
+function escapeAttribute(value) {
+
+    return escapeHTML(
+        value
     );
 
 }
 
 
-// ==================================================
-// CLEAR POST IMAGE
-// ==================================================
+function formatDate(date) {
 
-function clearPostImage() {
-
-    const input =
-        document.getElementById(
-            "post-image"
-        );
-
-    const preview =
-        document.getElementById(
-            "post-image-preview"
-        );
-
-    const image =
-        document.getElementById(
-            "post-preview-image"
-        );
+    if (!date) {
+        return "";
+    }
 
 
-    if (input)
-        input.value =
-            "";
+    try {
 
+        return new Date(
+            date
+        ).toLocaleString();
 
-    if (preview)
-        preview.style.display =
-            "none";
+    } catch {
 
+        return "";
 
-    if (image)
-        image.src =
-            "";
+    }
 
 }
 
 
 // ==================================================
-// STARTUP
+// MAKE FUNCTIONS AVAILABLE TO HTML onclick=""
 // ==================================================
 
-document.addEventListener(
-    "DOMContentLoaded",
-    async () => {
+window.login =
+    login;
 
-        setupImagePicker();
+window.signup =
+    signup;
 
-        await loadCurrentUser();
+window.logout =
+    logout;
 
-    }
-);
+window.showLogin =
+    showLogin;
 
+window.showSignup =
+    showSignup;
+
+window.createPost =
+    createPost;
+
+window.clearPostImage =
+    clearPostImage;
+
+window.loadPosts =
+    loadPosts;
+
+window.loadPeople =
+    loadPeople;
