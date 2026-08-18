@@ -1128,7 +1128,7 @@ async function logout() {
 // ==================================================
 // START
 // ==================================================
-s
+
 document.addEventListener(
     "DOMContentLoaded",
     () => {
