@@ -1,484 +1,69 @@
-/* ==================================================
-SHREKBOOK CLIENT SCRIPT
-================================================== */
+// ============================================================
+// SHREKBOOK FRONTEND
+// public/script.js
+// ============================================================
+
+console.log(
+    "🧌 ShrekBook frontend loaded"
+);
 
 
-/* ==================================================
-ESCAPE HTML
-================================================== */
+// ============================================================
+// API HELPER
+// ============================================================
 
-function escapeHtml(text) {
+async function api(
+    url,
+    options = {}
+) {
 
-    const div =
-        document.createElement("div");
+    const response =
+        await fetch(
+            url,
+            {
+                credentials:
+                    "same-origin",
 
-    div.textContent =
-        text ?? "";
+                ...options,
 
-    return div.innerHTML;
-}
+                headers: {
+                    "Content-Type":
+                        "application/json",
 
-
-/* ==================================================
-WARNING
-================================================== */
-
-function warn() {
-
-    const element =
-        document.getElementById(
-            "upload-avatar-button-warn"
+                    ...(options.headers || {})
+                }
+            }
         );
 
-    if (element) {
-
-        element.innerHTML =
-            "When changing your avatar, do not press the Save Profile button. Instead, press Upload Avatar.";
-
-    }
-
-}
-
-
-/* ==================================================
-FILE -> BASE64
-================================================== */
-
-function fileToBase64(file) {
-
-    return new Promise((resolve, reject) => {
-
-        const reader =
-            new FileReader();
-
-        reader.onload = () => {
-
-            const result =
-                reader.result;
-
-            const base64 =
-                result.split(",")[1];
-
-            resolve(base64);
-
-        };
-
-        reader.onerror = () => {
-
-            reject(
-                new Error(
-                    "Could not read image."
-                )
-            );
-
-        };
-
-        reader.readAsDataURL(file);
-
-    });
-
-}
-
-
-/* ==================================================
-REACTIONS
-================================================== */
-
-async function giveReaction(type) {
-
-    const userId =
-        new URLSearchParams(
-            window.location.search
-        ).get("id");
-
-    if (!userId) {
-        return;
-    }
+    let data = {};
 
     try {
 
-        const response =
-            await fetch(
-                `/api/users/${userId}/${type}`,
-                {
-                    method: "POST"
-                }
-            );
-
-        const data =
+        data =
             await response.json();
 
-        if (!response.ok) {
+    } catch {
 
-            alert(
-                "❌ " +
-                data.error
-            );
-
-            return;
-
-        }
-
-        if (type === "gyatt") {
-
-            const element =
-                document.getElementById(
-                    "gyatt-count"
-                );
-
-            if (element) {
-
-                element.textContent =
-                    data.gyatt;
-
-            }
-
-        }
-
-        if (type === "cat") {
-
-            const element =
-                document.getElementById(
-                    "cat-count"
-                );
-
-            if (element) {
-
-                element.textContent =
-                    data.cat;
-
-            }
-
-        }
-
-        if (type === "ogred") {
-
-            const element =
-                document.getElementById(
-                    "ogred-count"
-                );
-
-            if (element) {
-
-                element.textContent =
-                    data.ogred;
-
-            }
-
-        }
-
-    } catch (error) {
-
-        console.error(
-            "REACTION ERROR:",
-            error
-        );
-
-        alert(
-            "❌ Could not react."
-        );
+        data = {};
 
     }
 
-}
-
-
-/* ==================================================
-MAKE IMAGE OBJECT
-================================================== */
-
-async function prepareImage(file) {
-
-    if (!file) {
-        return null;
-    }
-
-    if (!file.type.startsWith("image/")) {
+    if (!response.ok) {
 
         throw new Error(
-            "Selected file is not an image."
+            data.error ||
+            `Request failed (${response.status})`
         );
 
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-
-        throw new Error(
-            "Image must be under 5MB."
-        );
-
-    }
-
-    const data =
-        await fileToBase64(file);
-
-    return {
-
-        data: data,
-
-        type:
-            file.type,
-
-        name:
-            file.name
-
-    };
-
+    return data;
 }
 
 
-/* ==================================================
-LOGIN
-================================================== */
-
-async function login() {
-
-    const email =
-        document.getElementById(
-            "login-email"
-        ).value.trim();
-
-    const password =
-        document.getElementById(
-            "login-password"
-        ).value;
-
-    const status =
-        document.getElementById(
-            "login-status"
-        );
-
-    if (!email || !password) {
-
-        status.textContent =
-            "❌ Enter your email and password.";
-
-        return;
-
-    }
-
-    status.textContent =
-        "Logging in...";
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/login",
-                {
-
-                    method:
-                        "POST",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json"
-
-                    },
-
-                    body:
-                        JSON.stringify({
-
-                            email:
-                                email,
-
-                            password:
-                                password
-
-                        })
-
-                }
-            );
-
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Login failed."
-            );
-
-        }
-
-        status.textContent =
-            "✅ Logged in!";
-
-        /*
-         * Refresh session data after login
-         * so admin status is detected.
-         */
-
-        await checkLogin();
-
-    } catch (error) {
-
-        console.error(
-            "LOGIN ERROR:",
-            error
-        );
-
-        status.textContent =
-            "❌ " +
-            error.message;
-
-    }
-
-}
-
-
-/* ==================================================
-SIGNUP
-================================================== */
-
-async function signup() {
-
-    const username =
-        document.getElementById(
-            "signup-username"
-        ).value.trim();
-
-    const displayName =
-        document.getElementById(
-            "signup-display-name"
-        ).value.trim();
-
-    const email =
-        document.getElementById(
-            "signup-email"
-        ).value.trim();
-
-    const password =
-        document.getElementById(
-            "signup-password"
-        ).value;
-
-    const status =
-        document.getElementById(
-            "signup-status"
-        );
-
-    if (
-        !username ||
-        !email ||
-        !password
-    ) {
-
-        status.textContent =
-            "❌ Fill in all required fields.";
-
-        return;
-
-    }
-
-    status.textContent =
-        "Creating account...";
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/signup",
-                {
-
-                    method:
-                        "POST",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json"
-
-                    },
-
-                    body:
-                        JSON.stringify({
-
-                            username:
-                                username,
-
-                            display_name:
-                                displayName ||
-                                username,
-
-                            email:
-                                email,
-
-                            password:
-                                password
-
-                        })
-
-                }
-            );
-
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Signup failed."
-            );
-
-        }
-
-        status.textContent =
-            "✅ Account created!";
-
-        showLogin();
-
-    } catch (error) {
-
-        console.error(
-            "SIGNUP ERROR:",
-            error
-        );
-
-        status.textContent =
-            "❌ " +
-            error.message;
-
-    }
-
-}
-
-
-/* ==================================================
-AUTH UI
-================================================== */
-
-function showSignup() {
-
-    const loginBox =
-        document.getElementById(
-            "login-box"
-        );
-
-    const signupBox =
-        document.getElementById(
-            "signup-box"
-        );
-
-    if (loginBox) {
-
-        loginBox.style.display =
-            "none";
-
-    }
-
-    if (signupBox) {
-
-        signupBox.style.display =
-            "block";
-
-    }
-
-}
-
+// ============================================================
+// LOGIN / SIGNUP UI
+// ============================================================
 
 function showLogin() {
 
@@ -493,69 +78,72 @@ function showLogin() {
         );
 
     if (loginBox) {
-
         loginBox.style.display =
             "block";
-
     }
 
     if (signupBox) {
-
         signupBox.style.display =
             "none";
+    }
 
+}
+
+function showSignup() {
+
+    const loginBox =
+        document.getElementById(
+            "login-box"
+        );
+
+    const signupBox =
+        document.getElementById(
+            "signup-box"
+        );
+
+    if (loginBox) {
+        loginBox.style.display =
+            "none";
+    }
+
+    if (signupBox) {
+        signupBox.style.display =
+            "block";
     }
 
 }
 
 
-/* ==================================================
-ADMIN NAVIGATION
-================================================== */
+// ============================================================
+// LOGIN
+// ============================================================
 
-function setupAdminNav(user) {
+async function login() {
 
-    if (!user) {
-        return;
-    }
-
-
-
-    const isAdmin =
-        user.is_admin === true ||
-        user.is_admin === 1 ||
-        user.is_admin === "true" ||
-
-        user.admin === true ||
-        user.admin === 1 ||
-        user.admin === "true" ||
-
-        user.isAdmin === true ||
-        user.isAdmin === 1 ||
-
-        user.role === "admin";
-
-    /*
-     * Look for an admin navigation element
-     * that already exists in the HTML.
-     */
-
-    let adminNav =
+    const email =
         document.getElementById(
-            "admin-nav"
+            "login-email"
+        )?.value.trim();
+
+    const password =
+        document.getElementById(
+            "login-password"
+        )?.value || "";
+
+    const status =
+        document.getElementById(
+            "login-status"
         );
 
-    /*
-     * If the user isn't an admin,
-     * hide the existing admin navigation.
-     */
+    if (
+        !email ||
+        !password
+    ) {
 
-    if (!isAdmin) {
+        if (status) {
 
-        if (adminNav) {
-
-            adminNav.style.display =
-                "none";
+            status.textContent =
+                "Please enter your email and password.";
 
         }
 
@@ -563,182 +151,309 @@ function setupAdminNav(user) {
 
     }
 
-    /*
-     * If the HTML already contains the
-     * admin navigation, just show it.
-     */
+    if (status) {
 
-    if (adminNav) {
-
-        adminNav.style.display =
-            "flex";
-
-        return;
+        status.textContent =
+            "Logging in...";
 
     }
 
-    /*
-     * Create the admin navbar automatically.
-     */
+    try {
 
-    adminNav =
-        document.createElement(
-            "nav"
+        const data =
+            await api(
+                "/api/login",
+                {
+                    method:
+                        "POST",
+
+                    body:
+                        JSON.stringify({
+                            email,
+                            password
+                        })
+                }
+            );
+
+        console.log(
+            "LOGIN SUCCESS:",
+            data
         );
 
-    adminNav.id =
-        "admin-nav";
+        // The server explicitly saves the session
+        // before returning this response.
 
-    adminNav.style.cssText = `
-        display:flex;
-        align-items:center;
-        gap:12px;
-        padding:10px 15px;
-        margin-bottom:15px;
-        background:#222;
-        border:1px solid #444;
-        border-radius:10px;
-        box-sizing:border-box;
-        width:100%;
-    `;
+        if (
+            !data.loggedIn ||
+            !data.user
+        ) {
 
-    adminNav.innerHTML = `
+            throw new Error(
+                "Login succeeded, but the session was not returned."
+            );
 
-        <strong
-            style="
-                color:#ffcc00;
-                white-space:nowrap;
-            ">
+        }
 
-            🛡️ Admin
+        // Verify the actual session.
 
-        </strong>
+        const me =
+            await api(
+                "/api/me"
+            );
 
-        <a
-            href="/admin.html"
-            style="
-                color:inherit;
-                text-decoration:none;
-                font-weight:bold;
-            ">
+        if (
+            !me.loggedIn ||
+            !me.user
+        ) {
 
-            Admin Panel
+            throw new Error(
+                "Login succeeded, but the session was not found."
+            );
 
-        </a>
+        }
 
-        <span
-            style="
-                opacity:0.5;
-            ">
+        if (status) {
 
-            |
+            status.textContent =
+                "Login successful! 🧌";
 
-        </span>
+        }
 
-        <a
-            href="/"
-            style="
-                color:inherit;
-                text-decoration:none;
-            ">
-
-            Home
-
-        </a>
-
-    `;
-
-    /*
-     * Put navbar at the top of the app.
-     */
-
-    const app =
-        document.getElementById(
-            "app-section"
+        showLoggedIn(
+            me.user
         );
 
-    if (app) {
+    } catch (error) {
 
-        app.insertBefore(
-            adminNav,
-            app.firstChild
+        console.error(
+            "LOGIN ERROR:",
+            error
         );
 
-    } else {
+        if (status) {
 
-        document.body.prepend(
-            adminNav
-        );
+            status.textContent =
+                error.message;
+
+        }
 
     }
 
 }
 
 
-/* ==================================================
-SESSION CHECK
-================================================== */
+// ============================================================
+// SIGNUP
+// ============================================================
 
-async function checkLogin() {
+async function signup() {
+
+    const username =
+        document.getElementById(
+            "signup-username"
+        )?.value.trim();
+
+    const displayName =
+        document.getElementById(
+            "signup-display-name"
+        )?.value.trim();
+
+    const email =
+        document.getElementById(
+            "signup-email"
+        )?.value.trim();
+
+    const password =
+        document.getElementById(
+            "signup-password"
+        )?.value || "";
+
+    const status =
+        document.getElementById(
+            "signup-status"
+        );
+
+    if (
+        !username ||
+        !email ||
+        !password
+    ) {
+
+        if (status) {
+
+            status.textContent =
+                "Username, email, and password are required.";
+
+        }
+
+        return;
+
+    }
+
+    if (status) {
+
+        status.textContent =
+            "Creating account...";
+
+    }
 
     try {
 
-        const response =
-            await fetch(
-                "/api/me"
+        await api(
+            "/api/signup",
+            {
+                method:
+                    "POST",
+
+                body:
+                    JSON.stringify({
+
+                        username,
+
+                        display_name:
+                            displayName,
+
+                        email,
+
+                        password
+
+                    })
+            }
+        );
+
+        if (status) {
+
+            status.textContent =
+                "Account created! You can now log in. 🧌";
+
+        }
+
+        showLogin();
+
+        const loginEmail =
+            document.getElementById(
+                "login-email"
             );
 
-        const data =
-            await response.json();
+        if (loginEmail) {
 
-        if (
-            response.ok &&
-            data.loggedIn &&
-            data.user
-        ) {
-
-            /*
-             * Detect admin status.
-             */
-
-            setupAdminNav(
-                data.user
-            );
-
-            showApp();
-
-        } else {
-
-            showAuth();
+            loginEmail.value =
+                email;
 
         }
 
     } catch (error) {
 
         console.error(
-            "SESSION ERROR:",
+            "SIGNUP ERROR:",
             error
         );
 
-        showAuth();
+        if (status) {
+
+            status.textContent =
+                error.message;
+
+        }
 
     }
 
 }
 
 
-/* ==================================================
-SHOW AUTH
-================================================== */
+// ============================================================
+// LOGOUT
+// ============================================================
 
-function showAuth() {
+async function logout() {
 
-    const auth =
+    try {
+
+        await api(
+            "/api/logout",
+            {
+                method:
+                    "POST"
+            }
+        );
+
+        showLoggedOut();
+
+    } catch (error) {
+
+        console.error(
+            "LOGOUT ERROR:",
+            error
+        );
+
+        alert(
+            error.message
+        );
+
+    }
+
+}
+
+
+// ============================================================
+// CURRENT USER
+// ============================================================
+
+async function loadCurrentUser() {
+
+    try {
+
+        const data =
+            await api(
+                "/api/me"
+            );
+
+        console.log(
+            "CURRENT USER:",
+            data
+        );
+
+        if (
+            data.loggedIn &&
+            data.user
+        ) {
+
+            showLoggedIn(
+                data.user
+            );
+
+        } else {
+
+            showLoggedOut();
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "LOAD USER ERROR:",
+            error
+        );
+
+        showLoggedOut();
+
+    }
+
+}
+
+
+// ============================================================
+// LOGGED IN UI
+// ============================================================
+
+function showLoggedIn(user) {
+
+    const authSection =
         document.getElementById(
             "auth-section"
         );
 
-    const app =
+    const appSection =
         document.getElementById(
             "app-section"
         );
@@ -748,21 +463,108 @@ function showAuth() {
             "logout-button"
         );
 
-    const adminNav =
+    const adminButton =
         document.getElementById(
-            "admin-nav"
+            "admin-button"
         );
 
-    if (auth) {
+    if (authSection) {
 
-        auth.style.display =
+        authSection.style.display =
+            "none";
+
+    }
+
+    if (appSection) {
+
+        appSection.style.display =
             "block";
 
     }
 
-    if (app) {
+    if (logoutButton) {
 
-        app.style.display =
+        logoutButton.style.display =
+            "inline-block";
+
+    }
+
+    if (
+        adminButton &&
+        user &&
+        (
+            user.is_admin ||
+            user.role === "admin"
+        )
+    ) {
+
+        adminButton.style.display =
+            "inline-block";
+
+    }
+
+    const profileLink =
+        document.getElementById(
+            "profile-link"
+        );
+
+    if (
+        profileLink &&
+        user?.id
+    ) {
+
+        profileLink.href =
+            "/profile.html?id=" +
+            encodeURIComponent(
+                user.id
+            );
+
+    }
+
+    loadPosts();
+    loadPeople();
+
+    checkAdmin();
+
+}
+
+
+// ============================================================
+// LOGGED OUT UI
+// ============================================================
+
+function showLoggedOut() {
+
+    const authSection =
+        document.getElementById(
+            "auth-section"
+        );
+
+    const appSection =
+        document.getElementById(
+            "app-section"
+        );
+
+    const logoutButton =
+        document.getElementById(
+            "logout-button"
+        );
+
+    const adminButton =
+        document.getElementById(
+            "admin-button"
+        );
+
+    if (authSection) {
+
+        authSection.style.display =
+            "block";
+
+    }
+
+    if (appSection) {
+
+        appSection.style.display =
             "none";
 
     }
@@ -774,17 +576,19 @@ function showAuth() {
 
     }
 
-    if (adminNav) {
+    if (adminButton) {
 
-        adminNav.style.display =
+        adminButton.style.display =
             "none";
 
     }
 
 }
-/* ==================================================
-ADMIN BUTTON
-================================================== */
+
+
+// ============================================================
+// ADMIN CHECK
+// ============================================================
 
 async function checkAdmin() {
 
@@ -797,41 +601,19 @@ async function checkAdmin() {
         return;
     }
 
-    // Keep hidden until confirmed
-    adminButton.style.display =
-        "none";
-
     try {
 
-        const response =
-            await fetch(
-                "/api/admin/check"
+        const data =
+            await api(
+                "/api/admin/me"
             );
 
-        const data =
-            await response.json();
+        adminButton.style.display =
+            data.isAdmin
+                ? "inline-block"
+                : "none";
 
-        if (
-            response.ok &&
-            data.isAdmin === true
-        ) {
-
-            adminButton.style.display =
-                "inline-block";
-
-        } else {
-
-            adminButton.style.display =
-                "none";
-
-        }
-
-    } catch (error) {
-
-        console.error(
-            "ADMIN BUTTON ERROR:",
-            error
-        );
+    } catch {
 
         adminButton.style.display =
             "none";
@@ -840,92 +622,10 @@ async function checkAdmin() {
 
 }
 
-/* ==================================================
-SHOW APP
-================================================== */
 
-function showApp() {
-
-    const auth =
-        document.getElementById(
-            "auth-section"
-        );
-
-    const app =
-        document.getElementById(
-            "app-section"
-        );
-
-    const logoutButton =
-        document.getElementById(
-            "logout-button"
-        );
-
-    if (auth) {
-
-        auth.style.display =
-            "none";
-
-    }
-
-    if (app) {
-
-        app.style.display =
-            "block";
-
-    }
-
-    if (logoutButton) {
-
-        logoutButton.style.display =
-            "inline-block";
-
-    }
-
-    loadPosts();
-
-    loadPeople();
-
-    updateOnlineStatus();
-
-    checkAdmin();
-
-}
-
-
-/* ==================================================
-LOGOUT
-================================================== */
-
-async function logout() {
-
-    try {
-
-        await fetch(
-            "/api/logout",
-            {
-                method:
-                    "POST"
-            }
-        );
-
-    } catch (error) {
-
-        console.error(
-            "LOGOUT ERROR:",
-            error
-        );
-
-    }
-
-    showAuth();
-
-}
-
-
-/* ==================================================
-LOAD POSTS
-================================================== */
+// ============================================================
+// POSTS
+// ============================================================
 
 async function loadPosts() {
 
@@ -938,26 +638,22 @@ async function loadPosts() {
         return;
     }
 
+    container.innerHTML =
+        "Loading posts...";
+
     try {
 
-        const response =
-            await fetch(
-                "/api/posts"
+        const data =
+            await api(
+                "/api/"
             );
 
         const posts =
-            await response.json();
+            data.posts || [];
 
-        if (!response.ok) {
-
-            throw new Error(
-                posts.error ||
-                "Could not load posts."
-            );
-
-        }
-
-        if (!posts.length) {
+        if (
+            posts.length === 0
+        ) {
 
             container.innerHTML =
                 "<p>No posts yet. Be the first! 🧌</p>";
@@ -967,290 +663,886 @@ async function loadPosts() {
         }
 
         container.innerHTML =
-            posts.map(post => {
+            "";
 
-                const avatar =
-                    post.avatar ||
-                    "/default-avatar.png";
+        for (
+            const post
+            of posts
+        ) {
 
-                const displayName =
-                    post.display_name ||
-                    post.username ||
-                    "User";
+            const article =
+                document.createElement(
+                    "article"
+                );
 
-                let imageHTML =
-                    "";
+            article.className =
+                "post";
 
-                if (post.image_url) {
+            let html = "";
 
-                    imageHTML = `
+            if (post.content) {
 
-                        <div
-                            class="post-image-container"
-                            style="
-                                margin-top:12px;
-                            ">
+                html += `
 
-                            <img
-                                src="${escapeHtml(
-                                    post.image_url
-                                )}"
-                                alt="Post image"
-                                style="
-                                    max-width:100%;
-                                    max-height:600px;
-                                    border-radius:12px;
-                                    object-fit:contain;
-                                    display:block;
-                                ">
+                    <div class="post-content">
 
-                        </div>
-
-                    `;
-
-                }
-
-                return `
-
-                    <article
-                        class="post">
-
-                        <div
-                            class="post-header"
-                            style="
-                                display:flex;
-                                align-items:center;
-                                gap:10px;
-                            ">
-
-                            <img
-                                src="${escapeHtml(
-                                    avatar
-                                )}"
-                                alt="Avatar"
-                                style="
-                                    width:45px;
-                                    height:45px;
-                                    border-radius:50%;
-                                    object-fit:cover;
-                                "
-                                onerror="
-                                    this.src='/default-avatar.png';
-                                ">
-
-                            <a
-                                href="/profile.html?id=${encodeURIComponent(
-                                    post.user_id
-                                )}"
-                                style="
-                                    text-decoration:none;
-                                    color:inherit;
-                                ">
-
-                                <strong>
-                                    ${escapeHtml(
-                                        displayName
-                                    )}
-                                </strong>
-
-                                <div>
-                                    @${escapeHtml(
-                                        post.username ||
-                                        "user"
-                                    )}
-                                </div>
-
-                            </a>
-
-                        </div>
-
-                        ${
+                        ${escapeHTML(
                             post.content
-                                ? `
+                        )}
 
-                                    <div
-                                        class="post-content"
-                                        style="
-                                            margin-top:10px;
-                                        ">
-
-                                        ${escapeHtml(
-                                            post.content
-                                        )}
-
-                                    </div>
-
-                                  `
-                                : ""
-                        }
-
-                        ${imageHTML}
-
-                        <button
-                            onclick="
-                                toggleComments(
-                                    '${escapeHtml(post.id)}'
-                                )
-                            ">
-
-                            💬 Comments
-
-                        </button>
-
-                        <div
-                            id="comments-${escapeHtml(post.id)}"
-                            class="comments"
-                            style="
-                                display:none;
-                            ">
-
-                            <div
-                                id="comment-list-${escapeHtml(post.id)}">
-
-                                Loading...
-
-                            </div>
-
-                            <div
-                                class="comment-form"
-                                style="
-                                    margin-top:10px;
-                                ">
-
-                                <input
-                                    id="comment-input-${escapeHtml(post.id)}"
-                                    placeholder="Write a comment..."
-                                    maxlength="500">
-
-                                <input
-                                    id="comment-image-${escapeHtml(post.id)}"
-                                    type="file"
-                                    accept="
-                                        image/png,
-                                        image/jpeg,
-                                        image/webp,
-                                        image/gif
-                                    ">
-
-                                <button
-                                    onclick="
-                                        submitComment(
-                                            '${escapeHtml(post.id)}'
-                                        )
-                                    ">
-
-                                    Send
-
-                                </button>
-
-                                <div
-                                    id="comment-preview-${escapeHtml(post.id)}"
-                                    style="
-                                        display:none;
-                                        margin-top:8px;
-                                    ">
-
-                                    <img
-                                        id="comment-preview-image-${escapeHtml(post.id)}"
-                                        alt="Comment image preview"
-                                        style="
-                                            max-width:200px;
-                                            max-height:200px;
-                                            border-radius:10px;
-                                        ">
-
-                                    <br>
-
-                                    <button
-                                        type="button"
-                                        onclick="
-                                            clearCommentImage(
-                                                '${escapeHtml(post.id)}'
-                                            )
-                                        ">
-
-                                        ❌ Remove image
-
-                                    </button>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </article>
+                    </div>
 
                 `;
 
-            }).join("");
-
-
-        posts.forEach(post => {
-
-            const input =
-                document.getElementById(
-                    `comment-image-${post.id}`
-                );
-
-            const preview =
-                document.getElementById(
-                    `comment-preview-${post.id}`
-                );
-
-            const previewImage =
-                document.getElementById(
-                    `comment-preview-image-${post.id}`
-                );
-
-            if (!input) {
-                return;
             }
 
-            input.addEventListener(
+            if (post.image_url) {
+
+                html += `
+
+                    <img
+                        src="${escapeAttribute(post.image_url)}"
+                        alt="Post image"
+                        style="
+                            max-width:100%;
+                            max-height:500px;
+                            border-radius:12px;
+                            margin-top:10px;
+                        "
+                    >
+
+                `;
+
+            }
+
+            html += `
+
+                <small>
+
+                    ${formatDate(
+                        post.created_at
+                    )}
+
+                </small>
+
+                <div
+                    class="post-actions"
+                    style="margin-top:10px;">
+
+                    <button
+                        onclick="reactToPost('${escapeAttribute(post.id)}','like')">
+
+                        👍 Like
+
+                    </button>
+
+                    <button
+                        onclick="reactToPost('${escapeAttribute(post.id)}','love')">
+
+                        ❤️ Love
+
+                    </button>
+
+                    <button
+                        onclick="reactToPost('${escapeAttribute(post.id)}','laugh')">
+
+                        😂 Laugh
+
+                    </button>
+
+                    <button
+                        onclick="reactToPost('${escapeAttribute(post.id)}','angry')">
+
+                        😡 Angry
+
+                    </button>
+
+                    <button
+                        onclick="reactToPost('${escapeAttribute(post.id)}','sad')">
+
+                        😢 Sad
+
+                    </button>
+
+                    <button
+                        onclick="reactToPost('${escapeAttribute(post.id)}','gyatt')">
+
+                        🍑 Gyatt
+
+                    </button>
+
+                </div>
+
+                <div
+                    id="reactions-${escapeAttribute(post.id)}">
+
+                    Loading reactions...
+
+                </div>
+
+                <div
+                    style="margin-top:10px;">
+
+                    <input
+                        id="comment-${escapeAttribute(post.id)}"
+                        placeholder="Write a comment..."
+                        maxlength="2000">
+
+                    <button
+                        onclick="addComment('${escapeAttribute(post.id)}')">
+
+                        💬 Comment
+
+                    </button>
+
+                </div>
+
+                <div
+                    id="comments-${escapeAttribute(post.id)}">
+
+                    Loading comments...
+
+                </div>
+
+            `;
+
+            article.innerHTML =
+                html;
+
+            container.appendChild(
+                article
+            );
+
+            loadReactions(
+                post.id
+            );
+
+            loadComments(
+                post.id
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "LOAD POSTS ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            `<p>Could not load posts: ${escapeHTML(error.message)}</p>`;
+
+    }
+
+}
+
+
+// ============================================================
+// CREATE POST
+// ============================================================
+
+async function createPost() {
+
+    const contentInput =
+        document.getElementById(
+            "post-content"
+        );
+
+    const imageInput =
+        document.getElementById(
+            "post-image"
+        );
+
+    const status =
+        document.getElementById(
+            "post-status"
+        );
+
+    const content =
+        contentInput?.value.trim() ||
+        "";
+
+    let imageUrl =
+        "";
+
+    if (
+        imageInput?.files?.length
+    ) {
+
+        if (status) {
+
+            status.textContent =
+                "Uploading image...";
+
+        }
+
+        try {
+
+            imageUrl =
+                await uploadPostImage(
+                    imageInput.files[0]
+                );
+
+        } catch (error) {
+
+            if (status) {
+
+                status.textContent =
+                    error.message;
+
+            }
+
+            return;
+
+        }
+
+    }
+
+    if (
+        !content &&
+        !imageUrl
+    ) {
+
+        if (status) {
+
+            status.textContent =
+                "Post cannot be empty.";
+
+        }
+
+        return;
+
+    }
+
+    try {
+
+        if (status) {
+
+            status.textContent =
+                "Posting...";
+
+        }
+
+        await api(
+            "/api/",
+            {
+                method:
+                    "POST",
+
+                body:
+                    JSON.stringify({
+
+                        content,
+
+                        image_url:
+                            imageUrl
+
+                    })
+            }
+        );
+
+        if (contentInput) {
+
+            contentInput.value =
+                "";
+
+        }
+
+        clearPostImage();
+
+        if (status) {
+
+            status.textContent =
+                "Posted! 🧌";
+
+        }
+
+        await loadPosts();
+
+    } catch (error) {
+
+        console.error(
+            "CREATE POST ERROR:",
+            error
+        );
+
+        if (status) {
+
+            status.textContent =
+                error.message;
+
+        }
+
+    }
+
+}
+
+
+// ============================================================
+// IMAGE UPLOAD
+// ============================================================
+
+async function uploadPostImage(file) {
+
+    const allowed = [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/gif"
+    ];
+
+    if (
+        !allowed.includes(
+            file.type
+        )
+    ) {
+
+        throw new Error(
+            "Unsupported image type."
+        );
+
+    }
+
+    if (
+        file.size >
+        10 * 1024 * 1024
+    ) {
+
+        throw new Error(
+            "Image must be smaller than 10 MB."
+        );
+
+    }
+
+    const base64 =
+        await fileToDataURL(
+            file
+        );
+
+    const data =
+        await api(
+            "/api/profile/avatar",
+            {
+                method:
+                    "POST",
+
+                body:
+                    JSON.stringify({
+                        image:
+                            base64
+                    })
+            }
+        );
+
+    return (
+        data.image_url ||
+        data.avatar_url ||
+        ""
+    );
+
+}
+
+function fileToDataURL(file) {
+
+    return new Promise(
+        (resolve, reject) => {
+
+            const reader =
+                new FileReader();
+
+            reader.onload =
+                () =>
+                    resolve(
+                        reader.result
+                    );
+
+            reader.onerror =
+                reject;
+
+            reader.readAsDataURL(
+                file
+            );
+
+        }
+    );
+
+}
+
+
+// ============================================================
+// IMAGE PREVIEW
+// ============================================================
+
+function clearPostImage() {
+
+    const input =
+        document.getElementById(
+            "post-image"
+        );
+
+    const preview =
+        document.getElementById(
+            "post-image-preview"
+        );
+
+    const previewImage =
+        document.getElementById(
+            "post-preview-image"
+        );
+
+    if (input) {
+
+        input.value =
+            "";
+
+    }
+
+    if (preview) {
+
+        preview.style.display =
+            "none";
+
+    }
+
+    if (previewImage) {
+
+        previewImage.src =
+            "";
+
+    }
+
+}
+
+
+// ============================================================
+// PEOPLE
+// ============================================================
+
+async function loadPeople() {
+
+    const container =
+        document.getElementById(
+            "people"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    container.innerHTML =
+        "Loading people...";
+
+    try {
+
+        const data =
+            await api(
+                "/api/users"
+            );
+
+        const users =
+            data.users || [];
+
+        if (
+            users.length === 0
+        ) {
+
+            container.innerHTML =
+                "<p>No users found.</p>";
+
+            return;
+
+        }
+
+        container.innerHTML =
+            "";
+
+        for (
+            const user
+            of users
+        ) {
+
+            const person =
+                document.createElement(
+                    "div"
+                );
+
+            person.className =
+                "person";
+
+            const name =
+                escapeHTML(
+                    user.display_name ||
+                    user.username ||
+                    "Unknown user"
+                );
+
+            const username =
+                escapeHTML(
+                    user.username ||
+                    ""
+                );
+
+            const avatar =
+                user.avatar_url
+                    ? `
+                        <img
+                            src="${escapeAttribute(user.avatar_url)}"
+                            alt="Avatar"
+                            style="
+                                width:60px;
+                                height:60px;
+                                object-fit:cover;
+                                border-radius:50%;
+                            "
+                        >
+                    `
+                    : "🧌";
+
+            person.innerHTML = `
+
+                ${avatar}
+
+                <div>
+
+                    <strong>
+                        ${name}
+                    </strong>
+
+                    <br>
+
+                    <small>
+                        @${username}
+                    </small>
+
+                </div>
+
+            `;
+
+            person.style.cursor =
+                "pointer";
+
+            person.onclick =
+                () => {
+
+                    if (user.id) {
+
+                        window.location.href =
+                            "/profile.html?id=" +
+                            encodeURIComponent(
+                                user.id
+                            );
+
+                    }
+
+                };
+
+            container.appendChild(
+                person
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "LOAD PEOPLE ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            `<p>Could not load people: ${escapeHTML(error.message)}</p>`;
+
+    }
+
+}
+
+
+// ============================================================
+// COMMENTS
+// ============================================================
+
+async function loadComments(postId) {
+
+    const container =
+        document.getElementById(
+            `comments-${postId}`
+        );
+
+    if (!container) {
+        return;
+    }
+
+    try {
+
+        const data =
+            await api(
+                `/api/posts/${encodeURIComponent(postId)}/comments`
+            );
+
+        const comments =
+            data.comments || [];
+
+        if (
+            comments.length === 0
+        ) {
+
+            container.innerHTML =
+                "<small>No comments yet.</small>";
+
+            return;
+
+        }
+
+        container.innerHTML =
+            "";
+
+        for (
+            const comment
+            of comments
+        ) {
+
+            const div =
+                document.createElement(
+                    "div"
+                );
+
+            div.style.marginTop =
+                "8px";
+
+            div.style.padding =
+                "8px";
+
+            div.style.borderRadius =
+                "8px";
+
+            div.style.background =
+                "rgba(0,0,0,0.05)";
+
+            div.innerHTML = `
+
+                <div>
+
+                    ${escapeHTML(
+                        comment.content
+                    )}
+
+                </div>
+
+                <small>
+
+                    ${formatDate(
+                        comment.created_at
+                    )}
+
+                </small>
+
+            `;
+
+            container.appendChild(
+                div
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "LOAD COMMENTS ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            `<small>Could not load comments: ${escapeHTML(error.message)}</small>`;
+
+    }
+
+}
+
+
+// ============================================================
+// ADD COMMENT
+// ============================================================
+
+async function addComment(postId) {
+
+    const input =
+        document.getElementById(
+            `comment-${postId}`
+        );
+
+    const content =
+        input?.value.trim() ||
+        "";
+
+    if (!content) {
+
+        return;
+
+    }
+
+    try {
+
+        await api(
+            `/api/posts/${encodeURIComponent(postId)}/comments`,
+            {
+                method:
+                    "POST",
+
+                body:
+                    JSON.stringify({
+                        content
+                    })
+            }
+        );
+
+        input.value =
+            "";
+
+        await loadComments(
+            postId
+        );
+
+    } catch (error) {
+
+        alert(
+            error.message
+        );
+
+    }
+
+}
+
+
+// ============================================================
+// REACTIONS
+// ============================================================
+
+async function loadReactions(postId) {
+
+    const container =
+        document.getElementById(
+            `reactions-${postId}`
+        );
+
+    if (!container) {
+        return;
+    }
+
+    try {
+
+        const data =
+            await api(
+                `/api/posts/${encodeURIComponent(postId)}/reactions`
+            );
+
+        const counts =
+            data.counts || {};
+
+        container.innerHTML = `
+
+            👍 ${counts.like || 0}
+
+            ❤️ ${counts.love || 0}
+
+            😂 ${counts.laugh || 0}
+
+            😡 ${counts.angry || 0}
+
+            😢 ${counts.sad || 0}
+
+            🍑 ${counts.gyatt || 0}
+
+        `;
+
+    } catch (error) {
+
+        console.error(
+            "LOAD REACTIONS ERROR:",
+            error
+        );
+
+        container.textContent =
+            "Could not load reactions.";
+
+    }
+
+}
+
+
+async function reactToPost(
+    postId,
+    reaction
+) {
+
+    try {
+
+        await api(
+            `/api/posts/${encodeURIComponent(postId)}/reactions`,
+            {
+                method:
+                    "POST",
+
+                body:
+                    JSON.stringify({
+                        reaction_type:
+                            reaction
+                    })
+            }
+        );
+
+        await loadReactions(
+            postId
+        );
+
+    } catch (error) {
+
+        alert(
+            error.message
+        );
+
+    }
+
+}
+
+
+// ============================================================
+// DOM READY
+// ============================================================
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        const imageInput =
+            document.getElementById(
+                "post-image"
+            );
+
+        if (imageInput) {
+
+            imageInput.addEventListener(
                 "change",
                 () => {
 
                     const file =
-                        input.files[0];
+                        imageInput.files?.[0];
 
-                    if (!file) {
-
-                        preview.style.display =
-                            "none";
-
-                        return;
-
-                    }
-
-                    if (
-                        !file.type.startsWith(
-                            "image/"
-                        )
-                    ) {
-
-                        alert(
-                            "❌ Please choose an image."
+                    const preview =
+                        document.getElementById(
+                            "post-image-preview"
                         );
 
-                        input.value =
-                            "";
-
-                        return;
-
-                    }
-
-                    if (
-                        file.size >
-                        5 * 1024 * 1024
-                    ) {
-
-                        alert(
-                            "❌ Image must be under 5MB."
+                    const previewImage =
+                        document.getElementById(
+                            "post-preview-image"
                         );
 
-                        input.value =
-                            "";
+                    if (
+                        !file ||
+                        !preview ||
+                        !previewImage
+                    ) {
 
                         return;
 
@@ -1277,820 +1569,117 @@ async function loadPosts() {
                 }
             );
 
-        });
+        }
 
-    } catch (error) {
-
-        console.error(
-            "POST ERROR:",
-            error
-        );
-
-        container.innerHTML =
-            `<p>❌ ${escapeHtml(
-                error.message
-            )}</p>`;
+        loadCurrentUser();
 
     }
+);
+
+
+// ============================================================
+// SECURITY / DISPLAY HELPERS
+// ============================================================
+
+function escapeHTML(value) {
+
+    return String(
+        value ?? ""
+    )
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
 
 }
 
+function escapeAttribute(value) {
 
-/* ==================================================
-CREATE POST
-================================================== */
-
-async function createPost() {
-
-    const input =
-        document.getElementById(
-            "post-content"
-        );
-
-    const imageInput =
-        document.getElementById(
-            "post-image"
-        );
-
-    const status =
-        document.getElementById(
-            "post-status"
-        );
-
-    const content =
-        input?.value.trim() ||
-        "";
-
-    const file =
-        imageInput?.files?.[0] ||
-        null;
-
-    if (!content && !file) {
-
-        status.textContent =
-            "❌ Write something or select an image.";
-
-        return;
-
-    }
-
-    status.textContent =
-        "Posting...";
-
-    try {
-
-        const image =
-            await prepareImage(file);
-
-        const response =
-            await fetch(
-                "/api/posts",
-                {
-
-                    method:
-                        "POST",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json"
-
-                    },
-
-                    body:
-                        JSON.stringify({
-
-                            content:
-                                content,
-
-                            image:
-                                image
-
-                        })
-
-                }
-            );
-
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Could not create post."
-            );
-
-        }
-
-        input.value =
-            "";
-
-        if (imageInput) {
-
-            imageInput.value =
-                "";
-
-        }
-
-        const preview =
-            document.getElementById(
-                "post-image-preview"
-            );
-
-        const previewImage =
-            document.getElementById(
-                "post-preview-image"
-            );
-
-        if (preview) {
-
-            preview.style.display =
-                "none";
-
-        }
-
-        if (previewImage) {
-
-            previewImage.src =
-                "";
-
-        }
-
-        status.textContent =
-            "✅ Posted!";
-
-        loadPosts();
-
-    } catch (error) {
-
-        console.error(
-            "CREATE POST ERROR:",
-            error
-        );
-
-        status.textContent =
-            "❌ " +
-            error.message;
-
-    }
+    return escapeHTML(
+        value
+    );
 
 }
 
+function formatDate(date) {
 
-/* ==================================================
-TOGGLE COMMENTS
-================================================== */
-
-async function toggleComments(postId) {
-
-    const box =
-        document.getElementById(
-            `comments-${postId}`
-        );
-
-    if (!box) {
-        return;
+    if (!date) {
+        return "";
     }
+
+    const parsed =
+        new Date(date);
 
     if (
-        box.style.display ===
-        "none"
+        Number.isNaN(
+            parsed.getTime()
+        )
     ) {
 
-        box.style.display =
-            "block";
-
-        loadComments(
-            postId
-        );
-
-    } else {
-
-        box.style.display =
-            "none";
+        return "";
 
     }
+
+    return parsed.toLocaleString();
 
 }
 
 
-/* ==================================================
-LOAD COMMENTS
-================================================== */
+// ============================================================
+// GLOBAL FUNCTIONS FOR onclick=""
+// ============================================================
 
-async function loadComments(postId) {
+window.login =
+    login;
 
-    const list =
-        document.getElementById(
-            `comment-list-${postId}`
-        );
+window.signup =
+    signup;
 
-    if (!list) {
-        return;
-    }
+window.logout =
+    logout;
 
-    try {
+window.showLogin =
+    showLogin;
 
-        const response =
-            await fetch(
-                `/api/posts/${postId}/comments`
-            );
+window.showSignup =
+    showSignup;
 
-        const comments =
-            await response.json();
+window.createPost =
+    createPost;
 
-        if (!response.ok) {
+window.clearPostImage =
+    clearPostImage;
 
-            throw new Error(
-                comments.error ||
-                "Could not load comments."
-            );
+window.loadPosts =
+    loadPosts;
 
-        }
+window.loadPeople =
+    loadPeople;
 
-        if (!comments.length) {
+window.loadComments =
+    loadComments;
 
-            list.innerHTML =
-                "<p>No comments yet 😼</p>";
+window.addComment =
+    addComment;
 
-            return;
+window.loadReactions =
+    loadReactions;
 
-        }
-
-        list.innerHTML =
-            comments.map(comment => {
-
-                const avatar =
-                    comment.avatar ||
-                    "/default-avatar.png";
-
-                const displayName =
-                    comment.display_name ||
-                    comment.username ||
-                    "User";
-
-                let imageHTML =
-                    "";
-
-                if (comment.image_url) {
-
-                    imageHTML = `
-
-                        <img
-                            src="${escapeHtml(
-                                comment.image_url
-                            )}"
-                            alt="Comment image"
-                            style="
-                                max-width:300px;
-                                max-height:300px;
-                                border-radius:10px;
-                                margin-top:8px;
-                                display:block;
-                            "
-                            onerror="
-                                this.style.display='none';
-                            ">
-
-                    `;
-
-                }
-
-                return `
-
-                    <div
-                        class="comment"
-                        style="
-                            padding:10px;
-                            margin-bottom:10px;
-                        ">
-
-                        <div
-                            style="
-                                display:flex;
-                                align-items:center;
-                                gap:8px;
-                            ">
-
-                            <img
-                                src="${escapeHtml(
-                                    avatar
-                                )}"
-                                alt="Avatar"
-                                style="
-                                    width:35px;
-                                    height:35px;
-                                    border-radius:50%;
-                                    object-fit:cover;
-                                "
-                                onerror="
-                                    this.src='/default-avatar.png';
-                                ">
-
-                            <strong>
-
-                                ${escapeHtml(
-                                    displayName
-                                )}
-
-                            </strong>
-
-                        </div>
-
-                        ${
-                            comment.content
-                                ? `
-
-                                    <p>
-                                        ${escapeHtml(
-                                            comment.content
-                                        )}
-                                    </p>
-
-                                  `
-                                : ""
-                        }
-
-                        ${imageHTML}
-
-                    </div>
-
-                `;
-
-            }).join("");
-
-    } catch (error) {
-
-        console.error(
-            "COMMENTS ERROR:",
-            error
-        );
-
-        list.innerHTML =
-            `<p>❌ ${escapeHtml(
-                error.message
-            )}</p>`;
-
-    }
-
-}
-
-
-/* ==================================================
-SUBMIT COMMENT
-================================================== */
-
-async function submitComment(postId) {
-
-    const input =
-        document.getElementById(
-            `comment-input-${postId}`
-        );
-
-    const imageInput =
-        document.getElementById(
-            `comment-image-${postId}`
-        );
-
-    const content =
-        input?.value.trim() ||
-        "";
-
-    const file =
-        imageInput?.files?.[0] ||
-        null;
-
-    if (!content && !file) {
-        return;
-    }
-
-    try {
-
-        const image =
-            await prepareImage(file);
-
-        const response =
-            await fetch(
-                `/api/posts/${postId}/comments`,
-                {
-
-                    method:
-                        "POST",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json"
-
-                    },
-
-                    body:
-                        JSON.stringify({
-
-                            content:
-                                content,
-
-                            image:
-                                image
-
-                        })
-
-                }
-            );
-
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Could not comment."
-            );
-
-        }
-
-        input.value =
-            "";
-
-        if (imageInput) {
-
-            imageInput.value =
-                "";
-
-        }
-
-        clearCommentImage(
-            postId
-        );
-
-        loadComments(
-            postId
-        );
-
-    } catch (error) {
-
-        console.error(
-            "COMMENT ERROR:",
-            error
-        );
-
-        alert(
-            "❌ " +
-            error.message
-        );
-
-    }
-
-}
-
-
-/* ==================================================
-CLEAR COMMENT IMAGE
-================================================== */
-
-function clearCommentImage(postId) {
-
-    const input =
-        document.getElementById(
-            `comment-image-${postId}`
-        );
-
-    const preview =
-        document.getElementById(
-            `comment-preview-${postId}`
-        );
-
-    const previewImage =
-        document.getElementById(
-            `comment-preview-image-${postId}`
-        );
-
-    if (input) {
-
-        input.value =
-            "";
-
-    }
-
-    if (previewImage) {
-
-        previewImage.src =
-            "";
-
-    }
-
-    if (preview) {
-
-        preview.style.display =
-            "none";
-
-    }
-
-}
-
-
-/* ==================================================
-PEOPLE
-================================================== */
-
-async function loadPeople() {
-
-    const container =
-        document.getElementById(
-            "people"
-        );
-
-    if (!container) {
-        return;
-    }
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/users"
-            );
-
-        const users =
-            await response.json();
-
-        if (!response.ok) {
-
-            throw new Error(
-                users.error ||
-                "Could not load people."
-            );
-
-        }
-
-        if (!users.length) {
-
-            container.innerHTML =
-                "<p>No users yet. 🧌</p>";
-
-            return;
-
-        }
-
-        container.innerHTML =
-            users.map(user => {
-
-                const avatar =
-                    user.avatar ||
-                    "/default-avatar.png";
-
-                const displayName =
-                    user.display_name ||
-                    user.username ||
-                    "User";
-
-                /*
-                 * Online if last_seen is less
-                 * than 2 minutes old.
-                 */
-
-                const isOnline =
-                    user.last_seen &&
-                    (
-                        Date.now() -
-                        new Date(
-                            user.last_seen
-                        ).getTime()
-                    ) < 120000;
-
-                return `
-
-                    <a
-                        href="/profile.html?id=${encodeURIComponent(
-                            user.id
-                        )}"
-                        class="person"
-                        style="
-                            text-decoration:none;
-                            color:inherit;
-                            display:flex;
-                            align-items:center;
-                            gap:12px;
-                        ">
-
-                        <div
-                            style="
-                                position:relative;
-                                width:50px;
-                                height:50px;
-                                flex-shrink:0;
-                            ">
-
-                            <img
-                                class="avatar"
-                                src="${escapeHtml(
-                                    avatar
-                                )}"
-                                alt="Avatar"
-                                style="
-                                    width:50px;
-                                    height:50px;
-                                    border-radius:50%;
-                                    object-fit:cover;
-                                    display:block;
-                                "
-                                onerror="
-                                    this.src='/default-avatar.png';
-                                ">
-
-                            <span
-                                title="${
-                                    isOnline
-                                        ? "Online"
-                                        : "Offline"
-                                }"
-                                style="
-                                    position:absolute;
-                                    right:-2px;
-                                    bottom:-2px;
-                                    width:14px;
-                                    height:14px;
-                                    border-radius:50%;
-                                    background:${
-                                        isOnline
-                                            ? "#22c55e"
-                                            : "#888"
-                                    };
-                                    border:2px solid white;
-                                    box-sizing:border-box;
-                                ">
-                            </span>
-
-                        </div>
-
-                        <div>
-
-                            <strong>
-                                ${escapeHtml(
-                                    displayName
-                                )}
-                            </strong>
-
-                            <p>
-                                @${escapeHtml(
-                                    user.username
-                                )}
-                            </p>
-
-                        </div>
-
-                    </a>
-
-                `;
-
-            }).join("");
-
-    } catch (error) {
-
-        console.error(
-            "PEOPLE ERROR:",
-            error
-        );
-
-        container.innerHTML =
-            `<p>❌ ${escapeHtml(
-                error.message
-            )}</p>`;
-
-    }
-
-}
-
-
-/* ==================================================
-ENTER KEY FOR COMMENTS
-================================================== */
-
-document.addEventListener(
-    "keydown",
-    event => {
-
-        if (
-            event.key !== "Enter" ||
-            event.shiftKey
-        ) {
-
-            return;
-
-        }
-
-        const target =
-            event.target;
-
-        if (
-            target &&
-            target.id &&
-            target.id.startsWith(
-                "comment-input-"
-            )
-        ) {
-
-            event.preventDefault();
-
-            const postId =
-                target.id.replace(
-                    "comment-input-",
-                    ""
-                );
-
-            submitComment(
-                postId
-            );
-
-        }
-
-    }
-);
-
-
-/* ==================================================
-ONLINE STATUS
-================================================== */
-
-async function updateOnlineStatus() {
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/online",
-                {
-
-                    method:
-                        "POST",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json"
-
-                    }
-
-                }
-            );
-
-        if (!response.ok) {
-
-            /*
-             * Don't spam the console if the
-             * backend route doesn't exist.
-             */
-
-            if (response.status !== 404) {
-
-                console.warn(
-                    "Online status request failed:",
-                    response.status
-                );
-
-            }
-
-            return;
-
-        }
-
-    } catch (error) {
-
-        console.warn(
-            "Online heartbeat unavailable."
-        );
-
-    }
-
-}
-
-
-/* ==================================================
-START
-================================================== */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-
-        checkLogin();
-
-    }
-);
-
-
-/* ==================================================
-ONLINE HEARTBEAT
-================================================== */
-
-setTimeout(
-    updateOnlineStatus,
-    1000
-);
-
-setInterval(
-    updateOnlineStatus,
-    30000
-);
+window.reactToPost =
+    reactToPost;

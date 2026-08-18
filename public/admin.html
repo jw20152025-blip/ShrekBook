@@ -3,17 +3,17 @@
 
 <head>
 
-    <meta charset="UTF-8">
+<meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0">
 
-    <title>ShrekBook Admin 🧌</title>
+<title>ShrekBook Admin 🛡️</title>
 
-    <link
-        rel="stylesheet"
-        href="/styles.css">
+<link
+    rel="stylesheet"
+    href="/styles.css">
 
 </head>
 
@@ -45,6 +45,10 @@
                 💬 ShrekChat
             </a>
 
+            <a href="/admin.html">
+                🛡️ Admin
+            </a>
+
             <button
                 onclick="logout()">
 
@@ -61,148 +65,628 @@
 
 <main class="container">
 
-    <section id="loading">
+    <section>
 
         <h1>
-            🛡️ Checking administrator access...
+            🛡️ ShrekBook Admin Panel
         </h1>
+
+        <p id="admin-status">
+            Checking admin access...
+        </p>
 
     </section>
 
 
     <section
-        id="not-admin"
+        id="admin-panel"
         style="display:none;">
 
-        <h1>
-            🚫 Access denied
-        </h1>
+        <h2>
+            👥 User Management
+        </h2>
 
-        <p>
-            You do not have administrator permissions.
-        </p>
+        <button
+            onclick="loadAdminUsers()">
 
-        <a href="/">
-            Return to ShrekBook
-        </a>
+            🔄 Refresh Users
 
-    </section>
+        </button>
 
+        <div
+            id="admin-users"
+            style="margin-top:20px;">
 
-    <section
-        id="admin-page"
-        style="display:none;">
+            Loading users...
 
-        <h1>
-            🛡️ ShrekBook Administration
-        </h1>
-
-        <p>
-            Manage bans and administrators.
-        </p>
-
-
-        <!-- ================================
-             BAN USER
-             ================================= -->
-
-        <section class="create-post">
-
-            <h2>
-                🚫 Ban an Email
-            </h2>
-
-            <input
-                id="ban-email"
-                type="email"
-                placeholder="Email address">
-
-            <input
-                id="ban-reason"
-                maxlength="500"
-                placeholder="Reason">
-
-            <button
-                onclick="banEmail()">
-
-                🚫 Ban Email
-
-            </button>
-
-            <p id="ban-status"></p>
-
-        </section>
-
-
-        <!-- ================================
-             BAN LIST
-             ================================= -->
-
-        <section>
-
-            <h2>
-                🚫 Current Bans
-            </h2>
-
-            <div id="ban-list">
-
-                Loading bans...
-
-            </div>
-
-        </section>
-
-
-        <!-- ================================
-             ADMIN LIST
-             ================================= -->
-
-        <section>
-
-            <h2>
-                🛡️ Administrators
-            </h2>
-
-            <div id="admin-list">
-
-                Loading administrators...
-
-            </div>
-
-        </section>
-
-
-        <!-- ================================
-             ADD ADMIN
-             ================================= -->
-
-        <section class="create-post">
-
-            <h2>
-                ➕ Add Administrator
-            </h2>
-
-            <input
-                id="admin-user-id"
-                placeholder="Supabase user UUID">
-
-            <button
-                onclick="addAdmin()">
-
-                🛡️ Add Administrator
-
-            </button>
-
-            <p id="admin-status"></p>
-
-        </section>
+        </div>
 
     </section>
 
 </main>
 
 
-<script src="/admin.js"></script>
+<script>
+
+console.log(
+    "🛡️ ShrekBook admin loaded"
+);
+
+
+// ========================================================
+// API
+// ========================================================
+
+async function api(
+    url,
+    options = {}
+) {
+
+    const response =
+        await fetch(
+            url,
+            {
+                credentials:
+                    "same-origin",
+
+                ...options,
+
+                headers: {
+                    "Content-Type":
+                        "application/json",
+
+                    ...(options.headers || {})
+                }
+            }
+        );
+
+    let data = {};
+
+    try {
+
+        data =
+            await response.json();
+
+    } catch {
+
+        data = {};
+
+    }
+
+    if (!response.ok) {
+
+        throw new Error(
+            data.error ||
+            `Request failed (${response.status})`
+        );
+
+    }
+
+    return data;
+}
+
+
+// ========================================================
+// INITIALIZE
+// ========================================================
+
+async function initializeAdmin() {
+
+    const status =
+        document.getElementById(
+            "admin-status"
+        );
+
+    try {
+
+        const data =
+            await api(
+                "/api/admin/me"
+            );
+
+        if (
+            !data.isAdmin
+        ) {
+
+            throw new Error(
+                "You are not an administrator."
+            );
+
+        }
+
+        status.textContent =
+            "🟢 Admin access confirmed.";
+
+        document.getElementById(
+            "admin-panel"
+        ).style.display =
+            "block";
+
+        await loadAdminUsers();
+
+    } catch (error) {
+
+        console.error(
+            "ADMIN INIT ERROR:",
+            error
+        );
+
+        status.textContent =
+            "❌ " +
+            error.message;
+
+    }
+
+}
+
+
+// ========================================================
+// LOAD USERS
+// ========================================================
+
+async function loadAdminUsers() {
+
+    const container =
+        document.getElementById(
+            "admin-users"
+        );
+
+    container.innerHTML =
+        "Loading users...";
+
+    try {
+
+        const data =
+            await api(
+                "/api/admin/users"
+            );
+
+        const users =
+            data.users || [];
+
+        if (
+            users.length === 0
+        ) {
+
+            container.innerHTML =
+                "<p>No users found.</p>";
+
+            return;
+
+        }
+
+        container.innerHTML =
+            "";
+
+        for (
+            const user
+            of users
+        ) {
+
+            const card =
+                document.createElement(
+                    "div"
+                );
+
+            card.style.border =
+                "1px solid #ccc";
+
+            card.style.padding =
+                "15px";
+
+            card.style.marginBottom =
+                "10px";
+
+            card.style.borderRadius =
+                "10px";
+
+            const name =
+                escapeHTML(
+                    user.display_name ||
+                    user.username ||
+                    "Unknown"
+                );
+
+            const username =
+                escapeHTML(
+                    user.username ||
+                    ""
+                );
+
+            let status =
+                "🟢 Active";
+
+            if (
+                user.is_revoked
+            ) {
+
+                status =
+                    "🚫 REVOKED";
+
+            } else if (
+                user.kick_until &&
+                new Date(
+                    user.kick_until
+                ) > new Date()
+            ) {
+
+                status =
+                    "👢 KICKED";
+
+            }
+
+            card.innerHTML = `
+
+                <strong>
+                    ${name}
+                </strong>
+
+                <br>
+
+                <small>
+                    @${username}
+                </small>
+
+                <br>
+
+                <small>
+                    ID: ${escapeHTML(user.id)}
+                </small>
+
+                <br><br>
+
+                <strong>
+                    Status:
+                </strong>
+
+                ${status}
+
+                <br><br>
+
+                <button
+                    onclick="kickUser('${escapeAttribute(user.id)}')">
+
+                    👢 Kick
+
+                </button>
+
+                <button
+                    onclick="revokeUser('${escapeAttribute(user.id)}')">
+
+                    🚫 Revoke
+
+                </button>
+
+                <button
+                    onclick="unrevokeUser('${escapeAttribute(user.id)}')">
+
+                    ♻️ Restore
+
+                </button>
+
+                <button
+                    onclick="deleteUser('${escapeAttribute(user.id)}')">
+
+                    🗑️ Delete
+
+                </button>
+
+            `;
+
+            container.appendChild(
+                card
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "LOAD ADMIN USERS ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            `<p>❌ ${escapeHTML(error.message)}</p>`;
+
+    }
+
+}
+
+
+// ========================================================
+// KICK
+// ========================================================
+
+async function kickUser(id) {
+
+    const input =
+        prompt(
+            "How many minutes should the user be kicked?",
+            "60"
+        );
+
+    if (
+        input === null
+    ) {
+        return;
+    }
+
+    const minutes =
+        Number(input);
+
+    if (
+        !Number.isFinite(minutes) ||
+        minutes <= 0
+    ) {
+
+        alert(
+            "Invalid number of minutes."
+        );
+
+        return;
+
+    }
+
+    if (
+        !confirm(
+            `Kick this user for ${minutes} minutes?`
+        )
+    ) {
+
+        return;
+
+    }
+
+    try {
+
+        await api(
+            `/api/admin/users/${encodeURIComponent(id)}/kick`,
+            {
+                method:
+                    "POST",
+
+                body:
+                    JSON.stringify({
+                        minutes
+                    })
+            }
+        );
+
+        alert(
+            "👢 User kicked."
+        );
+
+        await loadAdminUsers();
+
+    } catch (error) {
+
+        alert(
+            "❌ " +
+            error.message
+        );
+
+    }
+
+}
+
+
+// ========================================================
+// REVOKE
+// ========================================================
+
+async function revokeUser(id) {
+
+    if (
+        !confirm(
+            "REVOKE this account? This will prevent the user from logging in."
+        )
+    ) {
+
+        return;
+
+    }
+
+    try {
+
+        await api(
+            `/api/admin/users/${encodeURIComponent(id)}/revoke`,
+            {
+                method:
+                    "POST",
+
+                body:
+                    JSON.stringify({})
+            }
+        );
+
+        alert(
+            "🚫 User revoked."
+        );
+
+        await loadAdminUsers();
+
+    } catch (error) {
+
+        alert(
+            "❌ " +
+            error.message
+        );
+
+    }
+
+}
+
+
+// ========================================================
+// RESTORE
+// ========================================================
+
+async function unrevokeUser(id) {
+
+    if (
+        !confirm(
+            "Restore this account?"
+        )
+    ) {
+
+        return;
+
+    }
+
+    try {
+
+        await api(
+            `/api/admin/users/${encodeURIComponent(id)}/unrevoke`,
+            {
+                method:
+                    "POST",
+
+                body:
+                    JSON.stringify({})
+            }
+        );
+
+        alert(
+            "♻️ User restored."
+        );
+
+        await loadAdminUsers();
+
+    } catch (error) {
+
+        alert(
+            "❌ " +
+            error.message
+        );
+
+    }
+
+}
+
+
+// ========================================================
+// DELETE
+// ========================================================
+
+async function deleteUser(id) {
+
+    if (
+        !confirm(
+            "DELETE this user permanently? This cannot be undone."
+        )
+    ) {
+
+        return;
+
+    }
+
+    try {
+
+        await api(
+            `/api/admin/users/${encodeURIComponent(id)}`,
+            {
+                method:
+                    "DELETE"
+            }
+        );
+
+        alert(
+            "🗑️ User deleted."
+        );
+
+        await loadAdminUsers();
+
+    } catch (error) {
+
+        alert(
+            "❌ " +
+            error.message
+        );
+
+    }
+
+}
+
+
+// ========================================================
+// LOGOUT
+// ========================================================
+
+async function logout() {
+
+    try {
+
+        await api(
+            "/api/logout",
+            {
+                method:
+                    "POST"
+            }
+        );
+
+        window.location.href =
+            "/";
+
+    } catch (error) {
+
+        alert(
+            error.message
+        );
+
+    }
+
+}
+
+
+// ========================================================
+// SECURITY
+// ========================================================
+
+function escapeHTML(value) {
+
+    return String(
+        value ?? ""
+    )
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
+
+}
+
+function escapeAttribute(value) {
+
+    return escapeHTML(
+        value
+    );
+
+}
+
+
+// ========================================================
+// START
+// ========================================================
+
+initializeAdmin();
+
+</script>
 
 </body>
 
