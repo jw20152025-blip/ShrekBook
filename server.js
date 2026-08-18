@@ -1,8 +1,9 @@
+
 // ============================================================
 // SHREKBOOK - UNIFIED SERVER
-// Persistent Supabase sessions
-// Login / Signup / Posts / Comments / Reactions / ShrekChat
-// Admin / Kicks / Revokes / User deletion
+// Persistent PostgreSQL sessions
+// Login / Signup / Posts / Comments / Reactions / Gyatt
+// ShrekChat / Kicks / Revokes / Admin
 // ============================================================
 
 require("dotenv").config();
@@ -10,23 +11,14 @@ require("dotenv").config();
 const express = require("express");
 const path = require("path");
 const session = require("express-session");
+const connectPgSimple = require("connect-pg-simple");
+const { Pool } = require("pg");
 const crypto = require("crypto");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 
 const PORT = process.env.PORT || 3000;
-
-// ============================================================
-// SUPABASE
-// ============================================================
-
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
-app.locals.supabase = supabase;
 
 // ============================================================
 // APP SETTINGS
@@ -48,239 +40,92 @@ app.use(
 );
 
 // ============================================================
-// HELPERS
+// SUPABASE
 // ============================================================
 
-function db() {
-    return app.locals.supabase;
+if (!process.env.SUPABASE_URL) {
+    console.error("ERROR: SUPABASE_URL is missing.");
 }
 
-function cleanString(value) {
-    return String(value ?? "").trim();
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error(
+        "ERROR: SUPABASE_SERVICE_ROLE_KEY is missing."
+    );
 }
 
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+app.locals.supabase = supabase;
+
 // ============================================================
-// PERSISTENT SUPABASE SESSION STORE
+// POSTGRES SESSION DATABASE
 // ============================================================
 
-class SupabaseSessionStore extends session.Store {
-
-    constructor() {
-        super();
-
-        this.table =
-            "shrekbook_sessions";
-    }
-
-    async get(sid, callback) {
-
-        try {
-
-            const {
-                data,
-                error
-            } = await db()
-                .from(this.table)
-                .select("sess,expire")
-                .eq("sid", sid)
-                .maybeSingle();
-
-            if (error) {
-                return callback(error);
-            }
-
-            if (!data) {
-                return callback(null, null);
-            }
-
-            const expire =
-                new Date(data.expire).getTime();
-
-            if (
-                Number.isFinite(expire) &&
-                expire <= Date.now()
-            ) {
-
-                await db()
-                    .from(this.table)
-                    .delete()
-                    .eq("sid", sid);
-
-                return callback(null, null);
-            }
-
-            callback(
-                null,
-                data.sess
-            );
-
-        } catch (error) {
-
-            callback(error);
-
-        }
-    }
-
-    async set(sid, sess, callback) {
-
-        try {
-
-            let expire;
-
-            if (
-                sess &&
-                sess.cookie &&
-                sess.cookie.expires
-            ) {
-
-                expire =
-                    new Date(
-                        sess.cookie.expires
-                    ).toISOString();
-
-            } else {
-
-                expire =
-                    new Date(
-                        Date.now() +
-                        1000 * 60 * 60 * 24 * 30
-                    ).toISOString();
-
-            }
-
-            const {
-                error
-            } = await db()
-                .from(this.table)
-                .upsert(
-                    {
-                        sid,
-                        sess,
-                        expire
-                    },
-                    {
-                        onConflict: "sid"
-                    }
-                );
-
-            if (error) {
-                return callback(error);
-            }
-
-            callback(null);
-
-        } catch (error) {
-
-            callback(error);
-
-        }
-    }
-
-    async destroy(sid, callback) {
-
-        try {
-
-            const {
-                error
-            } = await db()
-                .from(this.table)
-                .delete()
-                .eq("sid", sid);
-
-            callback(error || null);
-
-        } catch (error) {
-
-            callback(error);
-
-        }
-    }
-
-    async touch(sid, sess, callback) {
-
-        try {
-
-            let expire;
-
-            if (
-                sess &&
-                sess.cookie &&
-                sess.cookie.expires
-            ) {
-
-                expire =
-                    new Date(
-                        sess.cookie.expires
-                    ).toISOString();
-
-            } else {
-
-                expire =
-                    new Date(
-                        Date.now() +
-                        1000 * 60 * 60 * 24 * 30
-                    ).toISOString();
-
-            }
-
-            const {
-                error
-            } = await db()
-                .from(this.table)
-                .update({
-                    expire
-                })
-                .eq("sid", sid);
-
-            callback(error || null);
-
-        } catch (error) {
-
-            callback(error);
-
-        }
-    }
-
-    async clear(callback) {
-
-        try {
-
-            const {
-                error
-            } = await db()
-                .from(this.table)
-                .delete()
-                .lt(
-                    "expire",
-                    new Date().toISOString()
-                );
-
-            callback(error || null);
-
-        } catch (error) {
-
-            callback(error);
-
-        }
-    }
+if (!process.env.DATABASE_URL) {
+    console.error(
+        "ERROR: DATABASE_URL is missing."
+    );
 }
 
-const sessionStore =
-    new SupabaseSessionStore();
+const pgPool = new Pool({
+    connectionString:
+        process.env.DATABASE_URL,
+
+    ssl:
+        process.env.NODE_ENV === "production"
+            ? {
+                rejectUnauthorized: false
+            }
+            : false
+});
+
+// Test PostgreSQL connection when server starts.
+
+pgPool
+    .query("SELECT 1")
+    .then(() => {
+        console.log(
+            "✅ PostgreSQL session database connected."
+        );
+    })
+    .catch(error => {
+        console.error(
+            "❌ PostgreSQL connection failed:",
+            error.message
+        );
+    });
 
 // ============================================================
-// EXPRESS SESSION
+// PERSISTENT SESSION STORE
 // ============================================================
+
+const PgSession = connectPgSimple(
+    session
+);
 
 app.use(
     session({
 
         store:
-            sessionStore,
+            new PgSession({
+
+                pool:
+                    pgPool,
+
+                tableName:
+                    "shrekbook_sessions",
+
+                createTableIfMissing:
+                    true
+
+            }),
 
         secret:
             process.env.SESSION_SECRET ||
-            "CHANGE_THIS_SESSION_SECRET",
+            "shrekbook-production-secret-change-this",
 
         resave:
             false,
@@ -307,7 +152,10 @@ app.use(
                 60 *
                 60 *
                 24 *
-                30
+                30,
+
+            path:
+                "/"
 
         }
 
@@ -328,8 +176,12 @@ app.use(
 );
 
 // ============================================================
-// USER HELPERS
+// HELPERS
 // ============================================================
+
+function db() {
+    return app.locals.supabase;
+}
 
 function currentUser(req) {
 
@@ -337,12 +189,39 @@ function currentUser(req) {
         req.session &&
         req.session.user
     ) {
-
         return req.session.user;
-
     }
 
     return null;
+}
+
+function requireLogin(
+    req,
+    res,
+    next
+) {
+
+    const user =
+        currentUser(req);
+
+    if (!user) {
+
+        return res.status(401).json({
+            error:
+                "You must be logged in."
+        });
+
+    }
+
+    next();
+}
+
+function cleanString(value) {
+
+    return String(
+        value ?? ""
+    ).trim();
+
 }
 
 function safeUser(profile) {
@@ -354,10 +233,12 @@ function safeUser(profile) {
     return {
 
         id:
-            profile.id || null,
+            profile.id ||
+            null,
 
         username:
-            profile.username || "",
+            profile.username ||
+            "",
 
         display_name:
             profile.display_name ||
@@ -385,6 +266,7 @@ function safeUser(profile) {
             null
 
     };
+
 }
 
 async function getProfile(userId) {
@@ -410,13 +292,15 @@ async function getProfile(userId) {
 
 function isAdminUser(user) {
 
-    return !!(
-        user &&
-        (
-            user.is_admin === true ||
-            user.role === "admin"
-        )
+    if (!user) {
+        return false;
+    }
+
+    return (
+        user.is_admin === true ||
+        user.role === "admin"
     );
+
 }
 
 function isKicked(user) {
@@ -425,9 +309,7 @@ function isKicked(user) {
         !user ||
         !user.kick_until
     ) {
-
         return false;
-
     }
 
     const timestamp =
@@ -438,171 +320,42 @@ function isKicked(user) {
     if (
         Number.isNaN(timestamp)
     ) {
-
         return false;
-
     }
 
     return timestamp > Date.now();
+
 }
 
-// ============================================================
-// REFRESH USER FROM DATABASE
-// ============================================================
-
-async function refreshSessionUser(req) {
-
-    const sessionUser =
-        currentUser(req);
-
-    if (!sessionUser) {
-        return null;
-    }
-
-    const profile =
-        await getProfile(
-            sessionUser.id
-        );
-
-    if (!profile) {
-
-        await new Promise(
-            resolve => {
-
-                req.session.destroy(
-                    () => resolve()
-                );
-
-            }
-        );
-
-        return null;
-    }
+function requireAdmin(
+    req,
+    res,
+    next
+) {
 
     const user =
-        safeUser(profile);
+        currentUser(req);
 
-    if (
-        user.is_revoked ||
-        isKicked(user)
-    ) {
+    if (!user) {
 
-        await new Promise(
-            resolve => {
-
-                req.session.destroy(
-                    () => resolve()
-                );
-
-            }
-        );
-
-        return null;
-    }
-
-    req.session.user =
-        user;
-
-    return user;
-}
-
-// ============================================================
-// AUTH MIDDLEWARE
-// ============================================================
-
-async function requireLogin(
-    req,
-    res,
-    next
-) {
-
-    try {
-
-        const user =
-            await refreshSessionUser(
-                req
-            );
-
-        if (!user) {
-
-            return res.status(401).json({
-                error:
-                    "You must be logged in."
-            });
-
-        }
-
-        req.currentUser =
-            user;
-
-        next();
-
-    } catch (error) {
-
-        console.error(
-            "AUTH CHECK ERROR:",
-            error
-        );
-
-        res.status(500).json({
+        return res.status(401).json({
             error:
-                "Authentication check failed."
+                "You must be logged in."
         });
 
     }
-}
 
-async function requireAdmin(
-    req,
-    res,
-    next
-) {
+    if (!isAdminUser(user)) {
 
-    try {
-
-        const user =
-            await refreshSessionUser(
-                req
-            );
-
-        if (!user) {
-
-            return res.status(401).json({
-                error:
-                    "You must be logged in."
-            });
-
-        }
-
-        if (
-            !isAdminUser(user)
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "Admin access required."
-            });
-
-        }
-
-        req.currentUser =
-            user;
-
-        next();
-
-    } catch (error) {
-
-        console.error(
-            "ADMIN AUTH ERROR:",
-            error
-        );
-
-        res.status(500).json({
+        return res.status(403).json({
             error:
-                "Admin authentication failed."
+                "Admin access required."
         });
 
     }
+
+    next();
+
 }
 
 // ============================================================
@@ -614,9 +367,13 @@ app.get(
     (req, res) => {
 
         res.json({
-            success: true,
+
+            success:
+                true,
+
             message:
                 "ShrekBook is alive 🧌"
+
         });
 
     }
@@ -627,9 +384,13 @@ app.get(
     (req, res) => {
 
         res.json({
-            success: true,
+
+            success:
+                true,
+
             message:
                 "Unified ShrekBook server works."
+
         });
 
     }
@@ -662,7 +423,8 @@ app.post(
 
             const password =
                 String(
-                    req.body.password || ""
+                    req.body.password ||
+                    ""
                 );
 
             if (
@@ -705,7 +467,9 @@ app.post(
                 error: existingError
             } = await db()
                 .from("profiles")
-                .select("id,username")
+                .select(
+                    "id,username"
+                )
                 .ilike(
                     "username",
                     username
@@ -839,7 +603,8 @@ app.post(
 
             const password =
                 String(
-                    req.body.password || ""
+                    req.body.password ||
+                    ""
                 );
 
             if (
@@ -869,11 +634,6 @@ app.post(
 
             if (error) {
 
-                console.error(
-                    "SUPABASE LOGIN ERROR:",
-                    error.message
-                );
-
                 return res.status(401).json({
                     error:
                         "Invalid email or password."
@@ -881,10 +641,7 @@ app.post(
 
             }
 
-            if (
-                !data ||
-                !data.user
-            ) {
+            if (!data.user) {
 
                 return res.status(401).json({
                     error:
@@ -932,50 +689,59 @@ app.post(
 
             }
 
+            // ====================================================
+            // IMPORTANT SESSION FIX
+            // ====================================================
+
             req.session.user =
                 user;
 
             req.session.userId =
-                user.id;
+                data.user.id;
 
             req.session.supabaseUserId =
                 data.user.id;
 
-            // Explicitly save before responding.
-            await new Promise(
-                (resolve, reject) => {
+            req.session.loginTime =
+                new Date().toISOString();
 
-                    req.session.save(
-                        error => {
+            req.session.save(
+                saveError => {
 
-                            if (error) {
-                                reject(error);
-                            } else {
-                                resolve();
-                            }
+                    if (saveError) {
 
-                        }
+                        console.error(
+                            "SESSION SAVE ERROR:",
+                            saveError
+                        );
+
+                        return res.status(500).json({
+                            error:
+                                "Login succeeded, but the session could not be saved."
+                        });
+
+                    }
+
+                    console.log(
+                        "✅ SESSION SAVED:",
+                        req.sessionID,
+                        user.username
                     );
+
+                    res.json({
+
+                        success:
+                            true,
+
+                        loggedIn:
+                            true,
+
+                        user
+
+                    });
 
                 }
             );
-
-            console.log(
-                "LOGIN SESSION SAVED:",
-                req.sessionID
-            );
-
-            res.json({
-
-                success:
-                    true,
-
-                loggedIn:
-                    true,
-
-                user
-
-            });
 
         } catch (error) {
 
@@ -986,6 +752,7 @@ app.post(
 
             res.status(500).json({
                 error:
+                    error.message ||
                     "Server error."
             });
 
@@ -1004,12 +771,18 @@ app.get(
 
         try {
 
-            const user =
-                await refreshSessionUser(
-                    req
-                );
+            const sessionUser =
+                currentUser(req);
 
-            if (!user) {
+            console.log(
+                "ME SESSION:",
+                req.sessionID,
+                sessionUser
+                    ? sessionUser.username
+                    : "NO USER"
+            );
+
+            if (!sessionUser) {
 
                 return res.json({
 
@@ -1023,14 +796,88 @@ app.get(
 
             }
 
-            res.json({
+            const profile =
+                await getProfile(
+                    sessionUser.id
+                );
 
-                loggedIn:
-                    true,
+            if (!profile) {
 
-                user
+                return req.session.destroy(
+                    () => {
 
-            });
+                        res.json({
+
+                            loggedIn:
+                                false,
+
+                            user:
+                                null
+
+                        });
+
+                    }
+                );
+
+            }
+
+            const user =
+                safeUser(profile);
+
+            if (
+                user.is_revoked ||
+                isKicked(user)
+            ) {
+
+                return req.session.destroy(
+                    () => {
+
+                        res.json({
+
+                            loggedIn:
+                                false,
+
+                            user:
+                                null
+
+                        });
+
+                    }
+                );
+
+            }
+
+            req.session.user =
+                user;
+
+            req.session.save(
+                saveError => {
+
+                    if (saveError) {
+
+                        console.error(
+                            "ME SESSION SAVE ERROR:",
+                            saveError
+                        );
+
+                        return res.status(500).json({
+                            error:
+                                "Could not save session."
+                        });
+
+                    }
+
+                    res.json({
+
+                        loggedIn:
+                            true,
+
+                        user
+
+                    });
+
+                }
+            );
 
         } catch (error) {
 
@@ -1041,7 +888,7 @@ app.get(
 
             res.status(500).json({
                 error:
-                    "Could not load current user."
+                    error.message
             });
 
         }
@@ -1077,14 +924,8 @@ app.post(
                 res.clearCookie(
                     "connect.sid",
                     {
-                        httpOnly:
-                            true,
-
-                        secure:
-                            process.env.NODE_ENV === "production",
-
-                        sameSite:
-                            "lax"
+                        path:
+                            "/"
                     }
                 );
 
@@ -1178,7 +1019,7 @@ app.get(
 
             const {
                 data: posts,
-                error
+                error: postsError
             } = await db()
                 .from("posts")
                 .select(`
@@ -1200,11 +1041,11 @@ app.get(
                     }
                 );
 
-            if (error) {
+            if (postsError) {
 
                 return res.status(500).json({
                     error:
-                        error.message
+                        postsError.message
                 });
 
             }
@@ -1237,7 +1078,7 @@ app.get(
 );
 
 // ============================================================
-// PROFILE UPDATE
+// UPDATE PROFILE
 // ============================================================
 
 app.put(
@@ -1246,8 +1087,6 @@ app.put(
     async (req, res) => {
 
         try {
-
-            const updates = {};
 
             const username =
                 cleanString(
@@ -1258,6 +1097,8 @@ app.put(
                 cleanString(
                     req.body.display_name
                 );
+
+            const updates = {};
 
             if (username) {
                 updates.username =
@@ -1288,7 +1129,7 @@ app.put(
                 .update(updates)
                 .eq(
                     "id",
-                    req.currentUser.id
+                    currentUser(req).id
                 )
                 .select("*")
                 .single();
@@ -1305,33 +1146,30 @@ app.put(
             req.session.user =
                 safeUser(data);
 
-            await new Promise(
-                (resolve, reject) => {
+            req.session.save(
+                saveError => {
 
-                    req.session.save(
-                        error => {
+                    if (saveError) {
 
-                            if (error) {
-                                reject(error);
-                            } else {
-                                resolve();
-                            }
+                        return res.status(500).json({
+                            error:
+                                "Profile updated but session could not be saved."
+                        });
 
-                        }
-                    );
+                    }
+
+                    res.json({
+
+                        success:
+                            true,
+
+                        user:
+                            safeUser(data)
+
+                    });
 
                 }
             );
-
-            res.json({
-
-                success:
-                    true,
-
-                user:
-                    safeUser(data)
-
-            });
 
         } catch (error) {
 
@@ -1363,7 +1201,8 @@ app.post(
 
             const image =
                 String(
-                    req.body.image || ""
+                    req.body.image ||
+                    ""
                 );
 
             if (!image) {
@@ -1394,9 +1233,12 @@ app.post(
                     ? "image/jpeg"
                     : match[1];
 
+            const base64 =
+                match[2];
+
             const buffer =
                 Buffer.from(
-                    match[2],
+                    base64,
                     "base64"
                 );
 
@@ -1422,7 +1264,7 @@ app.post(
                             : "jpg";
 
             const filename =
-                `avatars/${req.currentUser.id}-${crypto.randomUUID()}.${extension}`;
+                `avatars/${currentUser(req).id}-${crypto.randomUUID()}.${extension}`;
 
             const {
                 error: uploadError
@@ -1451,15 +1293,13 @@ app.post(
             }
 
             const {
-                data:
-                    publicData
-            } =
-                db()
-                    .storage
-                    .from("images")
-                    .getPublicUrl(
-                        filename
-                    );
+                data: publicData
+            } = db()
+                .storage
+                .from("images")
+                .getPublicUrl(
+                    filename
+                );
 
             const imageUrl =
                 publicData.publicUrl;
@@ -1470,12 +1310,14 @@ app.post(
             } = await db()
                 .from("profiles")
                 .update({
+
                     avatar_url:
                         imageUrl
+
                 })
                 .eq(
                     "id",
-                    req.currentUser.id
+                    currentUser(req).id
                 )
                 .select("*")
                 .single();
@@ -1484,7 +1326,7 @@ app.post(
 
                 return res.status(500).json({
                     error:
-                        "Image uploaded, but avatar_url could not be saved. Make sure profiles has an avatar_url column."
+                        "Image uploaded, but avatar_url could not be saved. Add an avatar_url column to profiles."
                 });
 
             }
@@ -1492,36 +1334,33 @@ app.post(
             req.session.user =
                 safeUser(data);
 
-            await new Promise(
-                (resolve, reject) => {
+            req.session.save(
+                saveError => {
 
-                    req.session.save(
-                        error => {
+                    if (saveError) {
 
-                            if (error) {
-                                reject(error);
-                            } else {
-                                resolve();
-                            }
+                        return res.status(500).json({
+                            error:
+                                "Avatar updated but session could not be saved."
+                        });
 
-                        }
-                    );
+                    }
+
+                    res.json({
+
+                        success:
+                            true,
+
+                        image_url:
+                            imageUrl,
+
+                        avatar_url:
+                            imageUrl
+
+                    });
 
                 }
             );
-
-            res.json({
-
-                success:
-                    true,
-
-                image_url:
-                    imageUrl,
-
-                avatar_url:
-                    imageUrl
-
-            });
 
         } catch (error) {
 
@@ -1655,13 +1494,15 @@ app.post(
                 .insert({
 
                     user_id:
-                        req.currentUser.id,
+                        currentUser(req).id,
 
                     content:
-                        content || null,
+                        content ||
+                        null,
 
                     image_url:
-                        imageUrl || null
+                        imageUrl ||
+                        null
 
                 })
                 .select()
@@ -1817,7 +1658,7 @@ app.post(
                         req.params.postId,
 
                     user_id:
-                        req.currentUser.id,
+                        currentUser(req).id,
 
                     content
 
@@ -1906,7 +1747,7 @@ app.delete(
 
             if (
                 comment.user_id !==
-                req.currentUser.id
+                currentUser(req).id
             ) {
 
                 return res.status(403).json({
@@ -1999,12 +1840,13 @@ app.get(
                 of data || []
             ) {
 
-                const type =
-                    reaction.reaction_type;
-
-                counts[type] =
+                counts[
+                    reaction.reaction_type
+                ] =
                     (
-                        counts[type] ||
+                        counts[
+                            reaction.reaction_type
+                        ] ||
                         0
                     ) + 1;
 
@@ -2100,6 +1942,9 @@ app.post(
 
             }
 
+            const userId =
+                currentUser(req).id;
+
             const {
                 data: existing,
                 error: findError
@@ -2114,7 +1959,7 @@ app.post(
                 )
                 .eq(
                     "user_id",
-                    req.currentUser.id
+                    userId
                 )
                 .maybeSingle();
 
@@ -2128,6 +1973,31 @@ app.post(
             }
 
             if (existing) {
+
+                if (
+                    existing.reaction_type ===
+                    reactionType
+                ) {
+
+                    await db()
+                        .from("reactions")
+                        .delete()
+                        .eq(
+                            "id",
+                            existing.id
+                        );
+
+                    return res.json({
+
+                        success:
+                            true,
+
+                        removed:
+                            true
+
+                    });
+
+                }
 
                 const {
                     data,
@@ -2179,7 +2049,7 @@ app.post(
                         req.params.postId,
 
                     user_id:
-                        req.currentUser.id,
+                        userId,
 
                     reaction_type:
                         reactionType
@@ -2246,7 +2116,7 @@ app.delete(
                 )
                 .eq(
                     "user_id",
-                    req.currentUser.id
+                    currentUser(req).id
                 );
 
             if (error) {
@@ -2294,9 +2164,7 @@ app.get(
                 data,
                 error
             } = await db()
-                .from(
-                    "shrekchat_messages"
-                )
+                .from("shrekchat_messages")
                 .select(`
                     id,
                     user_id,
@@ -2391,7 +2259,7 @@ app.post(
                 .insert({
 
                     user_id:
-                        req.currentUser.id,
+                        currentUser(req).id,
 
                     message
 
@@ -2436,7 +2304,7 @@ app.post(
 );
 
 // ============================================================
-// SHREKCHAT - DELETE
+// SHREKCHAT - DELETE OWN MESSAGE
 // ============================================================
 
 app.delete(
@@ -2482,7 +2350,7 @@ app.delete(
 
             if (
                 message.user_id !==
-                req.currentUser.id
+                currentUser(req).id
             ) {
 
                 return res.status(403).json({
@@ -2550,7 +2418,7 @@ app.get(
                 true,
 
             user:
-                req.currentUser
+                currentUser(req)
 
         });
 
@@ -2558,7 +2426,7 @@ app.get(
 );
 
 // ============================================================
-// ADMIN - USERS
+// ADMIN - GET USERS
 // ============================================================
 
 app.get(
@@ -2632,7 +2500,7 @@ app.post(
 
             if (
                 targetId ===
-                req.currentUser.id
+                currentUser(req).id
             ) {
 
                 return res.status(400).json({
@@ -2648,11 +2516,11 @@ app.post(
                 );
 
             if (
-                !Number.isFinite(minutes)
+                !Number.isFinite(
+                    minutes
+                )
             ) {
-
                 minutes = 60;
-
             }
 
             minutes =
@@ -2745,7 +2613,7 @@ app.post(
 
             if (
                 targetId ===
-                req.currentUser.id
+                currentUser(req).id
             ) {
 
                 return res.status(400).json({
@@ -2782,8 +2650,11 @@ app.post(
 
             }
 
-            // Disable Supabase authentication.
-            await db()
+            // Disable Supabase authentication too.
+
+            const {
+                error: authError
+            } = await db()
                 .auth
                 .admin
                 .updateUserById(
@@ -2794,17 +2665,14 @@ app.post(
                     }
                 );
 
-            // Remove persistent sessions.
-            await db()
-                .from(
-                    "shrekbook_sessions"
-                )
-                .delete()
-                .filter(
-                    "sess->>userId",
-                    "eq",
-                    targetId
+            if (authError) {
+
+                console.error(
+                    "AUTH REVOKE ERROR:",
+                    authError
                 );
+
+            }
 
             res.json({
 
@@ -2880,7 +2748,9 @@ app.post(
 
             }
 
-            await db()
+            const {
+                error: authError
+            } = await db()
                 .auth
                 .admin
                 .updateUserById(
@@ -2890,6 +2760,15 @@ app.post(
                             "none"
                     }
                 );
+
+            if (authError) {
+
+                console.error(
+                    "AUTH UNREVOKE ERROR:",
+                    authError
+                );
+
+            }
 
             res.json({
 
@@ -2937,7 +2816,7 @@ app.delete(
 
             if (
                 targetId ===
-                req.currentUser.id
+                currentUser(req).id
             ) {
 
                 return res.status(400).json({
@@ -2946,17 +2825,6 @@ app.delete(
                 });
 
             }
-
-            await db()
-                .from(
-                    "shrekbook_sessions"
-                )
-                .delete()
-                .filter(
-                    "sess->>userId",
-                    "eq",
-                    targetId
-                );
 
             const {
                 error
@@ -3015,10 +2883,8 @@ app.use(
     (req, res) => {
 
         res.status(404).json({
-
             error:
                 "API endpoint not found."
-
         });
 
     }
@@ -3026,19 +2892,14 @@ app.use(
 
 // ============================================================
 // FRONTEND FALLBACK
-// Express 5 compatible
+//
+// Express 5 does not use app.get("*") reliably.
+// Regex avoids the wildcard-route problem.
 // ============================================================
 
-app.use(
+app.get(
+    /.*/,
     (req, res) => {
-
-        if (
-            req.method !== "GET"
-        ) {
-
-            return res.status(404).end();
-
-        }
 
         res.sendFile(
             path.join(
@@ -3065,8 +2926,9 @@ app.listen(
         );
 
         console.log(
-            "💾 Persistent Supabase sessions enabled."
+            "💾 Persistent PostgreSQL sessions enabled."
         );
 
     }
 );
+
