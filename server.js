@@ -1,15 +1,50 @@
 // ==================================================
 // SHREKBOOK SERVER
 // ==================================================
+console.log("SERVER: starting");
 
 require("dotenv").config();
 
 const express = require("express");
 const path = require("path");
 const session = require("express-session");
+const { createClient } = require("@supabase/supabase-js");
 
-const { createClient } =
-    require("@supabase/supabase-js");
+console.log("SERVER: loading auth");
+
+const authRoutes = require("./routes/auth");
+
+console.log("SERVER: auth loaded");
+
+console.log("SERVER: loading admin");
+
+const adminRoutes = require("./routes/admin");
+
+console.log("SERVER: admin loaded");
+
+console.log("SERVER: loading posts");
+
+const postsRoutes = require("./routes/posts");
+
+console.log("SERVER: posts loaded");
+
+console.log("SERVER: loading users");
+
+const usersRoutes = require("./routes/users");
+
+console.log("SERVER: users loaded");
+
+console.log("SERVER: loading comments");
+
+const commentsRoutes = require("./routes/comments");
+
+console.log("SERVER: comments loaded");
+
+console.log("SERVER: loading reactions");
+
+const reactionsRoutes = require("./routes/reactions");
+
+console.log("SERVER: reactions loaded");
 
 
 // ==================================================
