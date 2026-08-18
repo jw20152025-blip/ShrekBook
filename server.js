@@ -214,26 +214,54 @@ async function requireAdmin(req, res, next) {
             });
         }
 
-        const admin =
-            await isAdmin(
-                req.session.user.id
-            );
+        const userId = req.session.user.id;
 
-        if (!admin) {
-            return res.status(403).json({
-                error: "Administrator access required."
-            });
+        // 👑 OWNER ALWAYS HAS STAFF ACCESS
+        if (
+            process.env.OWNER_ID &&
+            userId === process.env.OWNER_ID
+        ) {
+            return next();
         }
 
-        next();
+        // Check administrator table
+        const { data: admin, error: adminError } = await supabase
+            .from("admins")
+            .select("user_id")
+            .eq("user_id", userId)
+            .maybeSingle();
+
+        if (adminError) {
+            console.error("STAFF ADMIN CHECK ERROR:", adminError);
+        }
+
+        if (admin) {
+            return next();
+        }
+
+        // Check staff/moderator table
+        const { data: staff, error: staffError } = await supabase
+            .from("staff")
+            .select("user_id, role")
+            .eq("user_id", userId)
+            .maybeSingle();
+
+        if (staffError) {
+            console.error("STAFF CHECK ERROR:", staffError);
+        }
+
+        if (staff) {
+            return next();
+        }
+
+        return res.status(403).json({
+            error: "Staff access required."
+        });
 
     } catch (error) {
-        console.error(
-            "REQUIRE ADMIN ERROR:",
-            error
-        );
+        console.error("REQUIRE STAFF ERROR:", error);
 
-        res.status(500).json({
+        return res.status(500).json({
             error: "Server error."
         });
     }
