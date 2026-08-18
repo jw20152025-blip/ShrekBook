@@ -1,7 +1,3 @@
-// ==================================================
-// SHREKBOOK SERVER
-// ==================================================
-
 require("dotenv").config();
 
 const express = require("express");
@@ -19,6 +15,7 @@ const postsRoutes = require("./routes/posts");
 const usersRoutes = require("./routes/users");
 const commentsRoutes = require("./routes/comments");
 const reactionsRoutes = require("./routes/reactions");
+const shrekchatRoutes = require("./routes/shrekchat");
 
 // ==================================================
 // APP
@@ -32,14 +29,12 @@ const PORT = process.env.PORT || 3000;
 // SUPABASE
 // ==================================================
 
-if (!process.env.SUPABASE_URL) {
-    console.error("❌ SUPABASE_URL is missing.");
-}
-
-if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.error(
-        "❌ SUPABASE_SERVICE_ROLE_KEY is missing."
-    );
+if (
+    !process.env.SUPABASE_URL ||
+    !process.env.SUPABASE_SERVICE_ROLE_KEY
+) {
+    console.error("Missing Supabase environment variables.");
+    process.exit(1);
 }
 
 const supabase = createClient(
@@ -50,7 +45,83 @@ const supabase = createClient(
 app.locals.supabase = supabase;
 
 // ==================================================
-// BODY PARSING
+// ADMIN HELPER
+// ==================================================
+
+app.locals.requireAdmin = async function (
+    req,
+    res,
+    callback
+) {
+
+    try {
+
+        if (
+            !req.session ||
+            !req.session.user
+        ) {
+
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+
+        }
+
+        const {
+            data: admin,
+            error
+        } = await supabase
+            .from("admins")
+            .select("id")
+            .eq(
+                "user_id",
+                req.session.user.id
+            )
+            .maybeSingle();
+
+        if (error) {
+
+            console.error(
+                "ADMIN CHECK ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Could not verify administrator status."
+            });
+
+        }
+
+        if (!admin) {
+
+            return res.status(403).json({
+                error:
+                    "Administrator access required."
+            });
+
+        }
+
+        return await callback();
+
+    } catch (error) {
+
+        console.error(
+            "ADMIN CHECK ERROR:",
+            error
+        );
+
+        return res.status(500).json({
+            error:
+                "Server error."
+        });
+
+    }
+
+};
+
+// ==================================================
+// MIDDLEWARE
 // ==================================================
 
 app.use(
@@ -61,14 +132,9 @@ app.use(
 
 app.use(
     express.urlencoded({
-        extended: true,
-        limit: "10mb"
+        extended: true
     })
 );
-
-// ==================================================
-// SESSION
-// ==================================================
 
 app.use(
     session({
@@ -93,7 +159,7 @@ app.use(
                 60 *
                 60 *
                 24 *
-                30
+                7
         }
     })
 );
@@ -112,59 +178,42 @@ app.use(
 );
 
 // ==================================================
-// BASIC HEALTH CHECK
-// ==================================================
-
-app.get(
-    "/api/health",
-    (req, res) => {
-
-        res.json({
-            success: true,
-            message: "ShrekBook backend is alive 🧌"
-        });
-
-    }
-);
-
-// ==================================================
 // API ROUTES
 // ==================================================
 
-// AUTH
 app.use(
     "/api",
     authRoutes
 );
 
-// ADMIN
 app.use(
     "/api/admin",
     adminRoutes
 );
 
-// POSTS
 app.use(
     "/api",
     postsRoutes
 );
 
-// USERS
 app.use(
     "/api",
     usersRoutes
 );
 
-// COMMENTS
 app.use(
     "/api",
     commentsRoutes
 );
 
-// REACTIONS
 app.use(
     "/api",
     reactionsRoutes
+);
+
+app.use(
+    "/api/chat",
+    shrekchatRoutes
 );
 
 // ==================================================
@@ -176,38 +225,8 @@ app.use(
     (req, res) => {
 
         res.status(404).json({
-
             error:
                 "API endpoint not found."
-
-        });
-
-    }
-);
-
-// ==================================================
-// GENERAL ERROR HANDLER
-// ==================================================
-
-app.use(
-    (error, req, res, next) => {
-
-        console.error(
-            "SERVER ERROR:",
-            error
-        );
-
-        if (res.headersSent) {
-
-            return next(error);
-
-        }
-
-        res.status(500).json({
-
-            error:
-                "Internal server error."
-
         });
 
     }
@@ -223,19 +242,7 @@ app.listen(
     () => {
 
         console.log(
-            "===================================="
-        );
-
-        console.log(
-            "🧌 SHREKBOOK BACKEND ONLINE"
-        );
-
-        console.log(
-            `🌐 Port: ${PORT}`
-        );
-
-        console.log(
-            "===================================="
+            `🧌 ShrekBook running on port ${PORT}`
         );
 
     }

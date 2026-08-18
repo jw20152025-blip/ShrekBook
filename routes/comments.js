@@ -1,18 +1,17 @@
-// ==================================================
-// SHREKBOOK SHREKCHAT ROUTES
-// ==================================================
-
 const express = require("express");
 
 const router = express.Router();
 
+function db(req) {
+    return req.app.locals.supabase;
+}
 
 // ==================================================
-// GET SHREKCHAT MESSAGES
+// GET COMMENTS
 // ==================================================
 
 router.get(
-    "/messages",
+    "/posts/:postId/comments",
     async (req, res) => {
 
         try {
@@ -20,28 +19,27 @@ router.get(
             const {
                 data,
                 error
-            } = await req.supabase
-                .from("shrekchat_messages")
+            } = await db(req)
+                .from("comments")
                 .select(`
                     id,
+                    post_id,
                     user_id,
-                    message,
+                    content,
                     created_at
                 `)
+                .eq(
+                    "post_id",
+                    req.params.postId
+                )
                 .order(
                     "created_at",
                     {
                         ascending: true
                     }
-                )
-                .limit(100);
+                );
 
             if (error) {
-
-                console.error(
-                    "GET CHAT MESSAGES ERROR:",
-                    error
-                );
 
                 return res.status(500).json({
                     error:
@@ -51,14 +49,14 @@ router.get(
             }
 
             res.json({
-                messages:
+                comments:
                     data || []
             });
 
         } catch (error) {
 
             console.error(
-                "CHAT GET ERROR:",
+                "GET COMMENTS ERROR:",
                 error
             );
 
@@ -72,13 +70,12 @@ router.get(
     }
 );
 
-
 // ==================================================
-// SEND SHREKCHAT MESSAGE
+// ADD COMMENT
 // ==================================================
 
 router.post(
-    "/messages",
+    "/posts/:postId/comments",
     async (req, res) => {
 
         try {
@@ -95,61 +92,36 @@ router.post(
 
             }
 
-            const message =
+            const content =
                 String(
-                    req.body.message || ""
+                    req.body.content || ""
                 ).trim();
 
-
-            if (!message) {
-
-                return res.status(400).json({
-                    error:
-                        "Message cannot be empty."
-                });
-
-            }
-
-
-            if (message.length > 1000) {
+            if (!content) {
 
                 return res.status(400).json({
                     error:
-                        "Message is too long."
+                        "Comment cannot be empty."
                 });
 
             }
-
 
             const {
                 data,
                 error
-            } = await req.supabase
-                .from("shrekchat_messages")
+            } = await db(req)
+                .from("comments")
                 .insert({
-
+                    post_id:
+                        req.params.postId,
                     user_id:
                         req.session.user.id,
-
-                    message:
-                        message
-
+                    content
                 })
-                .select(`
-                    id,
-                    user_id,
-                    message,
-                    created_at
-                `)
+                .select()
                 .single();
 
-
             if (error) {
-
-                console.error(
-                    "SEND CHAT MESSAGE ERROR:",
-                    error
-                );
 
                 return res.status(500).json({
                     error:
@@ -158,21 +130,15 @@ router.post(
 
             }
 
-
             res.status(201).json({
-
-                success:
-                    true,
-
-                message:
-                    data
-
+                success: true,
+                comment: data
             });
 
         } catch (error) {
 
             console.error(
-                "CHAT POST ERROR:",
+                "ADD COMMENT ERROR:",
                 error
             );
 
@@ -186,13 +152,12 @@ router.post(
     }
 );
 
-
 // ==================================================
-// DELETE CHAT MESSAGE
+// DELETE COMMENT
 // ==================================================
 
 router.delete(
-    "/messages/:id",
+    "/comments/:id",
     async (req, res) => {
 
         try {
@@ -209,22 +174,19 @@ router.delete(
 
             }
 
-            const messageId =
-                req.params.id;
-
-
             const {
-                data: message,
+                data: comment,
                 error: findError
-            } = await req.supabase
-                .from("shrekchat_messages")
-                .select("id,user_id")
+            } = await db(req)
+                .from("comments")
+                .select(
+                    "id,user_id"
+                )
                 .eq(
                     "id",
-                    messageId
+                    req.params.id
                 )
                 .maybeSingle();
-
 
             if (findError) {
 
@@ -235,41 +197,36 @@ router.delete(
 
             }
 
-
-            if (!message) {
+            if (!comment) {
 
                 return res.status(404).json({
                     error:
-                        "Message not found."
+                        "Comment not found."
                 });
 
             }
 
-
-            // Users can delete their own messages.
             if (
-                message.user_id !==
+                comment.user_id !==
                 req.session.user.id
             ) {
 
                 return res.status(403).json({
                     error:
-                        "You can only delete your own messages."
+                        "You can only delete your own comments."
                 });
 
             }
 
-
             const {
                 error
-            } = await req.supabase
-                .from("shrekchat_messages")
+            } = await db(req)
+                .from("comments")
                 .delete()
                 .eq(
                     "id",
-                    messageId
+                    req.params.id
                 );
-
 
             if (error) {
 
@@ -280,16 +237,14 @@ router.delete(
 
             }
 
-
             res.json({
-                success:
-                    true
+                success: true
             });
 
         } catch (error) {
 
             console.error(
-                "DELETE CHAT MESSAGE ERROR:",
+                "DELETE COMMENT ERROR:",
                 error
             );
 
@@ -302,6 +257,5 @@ router.delete(
 
     }
 );
-
 
 module.exports = router;

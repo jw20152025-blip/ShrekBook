@@ -1,18 +1,17 @@
-// ==================================================
-// SHREKBOOK REACTION ROUTES
-// ==================================================
-
 const express = require("express");
 
 const router = express.Router();
 
+function db(req) {
+    return req.app.locals.supabase;
+}
 
 // ==================================================
-// GET REACTIONS FOR POST
+// GET REACTION COUNTS
 // ==================================================
 
 router.get(
-    "/:postId",
+    "/posts/:postId/reactions",
     async (req, res) => {
 
         try {
@@ -20,19 +19,18 @@ router.get(
             const {
                 data,
                 error
-            } = await req.supabase
+            } = await db(req)
                 .from("reactions")
                 .select(`
                     id,
                     post_id,
                     user_id,
-                    reaction
+                    reaction_type
                 `)
                 .eq(
                     "post_id",
                     req.params.postId
                 );
-
 
             if (error) {
 
@@ -43,34 +41,44 @@ router.get(
 
             }
 
-
             const counts = {};
 
-
             for (
-                const item of data || []
+                const reaction
+                of data || []
             ) {
 
                 const type =
-                    item.reaction ||
-                    "gyatt";
+                    reaction.reaction_type;
 
                 counts[type] =
-                    (
-                        counts[type] ||
-                        0
-                    ) + 1;
+                    (counts[type] || 0) + 1;
+            }
+
+            let userReaction = null;
+
+            if (
+                req.session &&
+                req.session.user
+            ) {
+
+                const own =
+                    (data || []).find(
+                        reaction =>
+                            reaction.user_id ===
+                            req.session.user.id
+                    );
+
+                if (own) {
+                    userReaction =
+                        own.reaction_type;
+                }
 
             }
 
-
             res.json({
-
-                reactions:
-                    data || [],
-
-                counts
-
+                counts,
+                userReaction
             });
 
         } catch (error) {
@@ -90,13 +98,12 @@ router.get(
     }
 );
 
-
 // ==================================================
 // ADD / CHANGE REACTION
 // ==================================================
 
 router.post(
-    "/:postId",
+    "/posts/:postId/reactions",
     async (req, res) => {
 
         try {
@@ -113,82 +120,101 @@ router.post(
 
             }
 
-
-            const reaction =
+            const reactionType =
                 String(
+                    req.body.reaction_type ||
                     req.body.reaction ||
-                    "gyatt"
+                    ""
                 )
-                .trim();
+                .trim()
+                .toLowerCase();
 
+            const allowed = [
+                "like",
+                "love",
+                "laugh",
+                "angry",
+                "sad",
+                "gyatt"
+            ];
 
-            const userId =
-                req.session.user.id;
+            if (
+                !allowed.includes(
+                    reactionType
+                )
+            ) {
 
-            const postId =
-                req.params.postId;
+                return res.status(400).json({
+                    error:
+                        "Invalid reaction type."
+                });
 
+            }
 
             const {
                 data: existing
-            } = await req.supabase
+            } = await db(req)
                 .from("reactions")
-                .select("id")
+                .select("id,reaction_type")
                 .eq(
                     "post_id",
-                    postId
+                    req.params.postId
                 )
                 .eq(
                     "user_id",
-                    userId
+                    req.session.user.id
                 )
                 .maybeSingle();
 
-
-            let data;
-            let error;
-
-
             if (existing) {
 
-                ({
+                const {
                     data,
                     error
-                } = await req.supabase
+                } = await db(req)
                     .from("reactions")
                     .update({
-                        reaction
+                        reaction_type:
+                            reactionType
                     })
                     .eq(
                         "id",
                         existing.id
                     )
                     .select()
-                    .single());
+                    .single();
 
-            } else {
+                if (error) {
 
-                ({
-                    data,
-                    error
-                } = await req.supabase
-                    .from("reactions")
-                    .insert({
+                    return res.status(500).json({
+                        error:
+                            error.message
+                    });
 
-                        post_id:
-                            postId,
+                }
 
-                        user_id:
-                            userId,
-
-                        reaction
-
-                    })
-                    .select()
-                    .single());
+                return res.json({
+                    success: true,
+                    reaction: data
+                });
 
             }
 
+            const {
+                data,
+                error
+            } = await db(req)
+                .from("reactions")
+                .insert({
+                    post_id:
+                        req.params.postId,
+                    user_id:
+                        req.session.user.id,
+                    reaction_type:
+                        reactionType
+                })
+                .select()
+                .single();
 
             if (error) {
 
@@ -199,15 +225,9 @@ router.post(
 
             }
 
-
-            res.json({
-
-                success:
-                    true,
-
-                reaction:
-                    data
-
+            res.status(201).json({
+                success: true,
+                reaction: data
             });
 
         } catch (error) {
@@ -227,13 +247,12 @@ router.post(
     }
 );
 
-
 // ==================================================
 // REMOVE REACTION
 // ==================================================
 
 router.delete(
-    "/:postId",
+    "/posts/:postId/reactions",
     async (req, res) => {
 
         try {
@@ -250,10 +269,9 @@ router.delete(
 
             }
 
-
             const {
                 error
-            } = await req.supabase
+            } = await db(req)
                 .from("reactions")
                 .delete()
                 .eq(
@@ -265,7 +283,6 @@ router.delete(
                     req.session.user.id
                 );
 
-
             if (error) {
 
                 return res.status(500).json({
@@ -275,10 +292,8 @@ router.delete(
 
             }
 
-
             res.json({
-                success:
-                    true
+                success: true
             });
 
         } catch (error) {
@@ -297,6 +312,5 @@ router.delete(
 
     }
 );
-
 
 module.exports = router;

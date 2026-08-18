@@ -1,18 +1,17 @@
-// ==================================================
-// SHREKBOOK USER / PROFILE ROUTES
-// ==================================================
-
 const express = require("express");
 
 const router = express.Router();
 
+function db(req) {
+    return req.app.locals.supabase;
+}
 
 // ==================================================
-// GET ALL USERS
+// GET USERS
 // ==================================================
 
 router.get(
-    "/",
+    "/users",
     async (req, res) => {
 
         try {
@@ -20,13 +19,14 @@ router.get(
             const {
                 data,
                 error
-            } = await req.supabase
+            } = await db(req)
                 .from("profiles")
                 .select(`
                     id,
                     username,
                     display_name,
-                    avatar_url
+                    avatar_url,
+                    bio
                 `)
                 .order(
                     "username",
@@ -36,11 +36,6 @@ router.get(
                 );
 
             if (error) {
-
-                console.error(
-                    "GET USERS ERROR:",
-                    error
-                );
 
                 return res.status(500).json({
                     error:
@@ -57,7 +52,7 @@ router.get(
         } catch (error) {
 
             console.error(
-                "USERS ERROR:",
+                "GET USERS ERROR:",
                 error
             );
 
@@ -71,13 +66,12 @@ router.get(
     }
 );
 
-
 // ==================================================
-// GET USER BY ID
+// GET USER
 // ==================================================
 
 router.get(
-    "/:id",
+    "/users/:id",
     async (req, res) => {
 
         try {
@@ -85,11 +79,10 @@ router.get(
             const userId =
                 req.params.id;
 
-
             const {
                 data: profile,
                 error: profileError
-            } = await req.supabase
+            } = await db(req)
                 .from("profiles")
                 .select(`
                     id,
@@ -104,13 +97,7 @@ router.get(
                 )
                 .maybeSingle();
 
-
             if (profileError) {
-
-                console.error(
-                    "GET PROFILE ERROR:",
-                    profileError
-                );
 
                 return res.status(500).json({
                     error:
@@ -118,7 +105,6 @@ router.get(
                 });
 
             }
-
 
             if (!profile) {
 
@@ -129,12 +115,10 @@ router.get(
 
             }
 
-
-            // Get the user's posts.
             const {
                 data: posts,
                 error: postsError
-            } = await req.supabase
+            } = await db(req)
                 .from("posts")
                 .select(`
                     id,
@@ -154,13 +138,7 @@ router.get(
                     }
                 );
 
-
             if (postsError) {
-
-                console.error(
-                    "GET USER POSTS ERROR:",
-                    postsError
-                );
 
                 return res.status(500).json({
                     error:
@@ -169,15 +147,10 @@ router.get(
 
             }
 
-
             res.json({
-
-                user:
-                    profile,
-
+                user: profile,
                 posts:
                     posts || []
-
             });
 
         } catch (error) {
@@ -197,98 +170,12 @@ router.get(
     }
 );
 
-
-// ==================================================
-// GET CURRENT PROFILE
-// ==================================================
-
-router.get(
-    "/me/profile",
-    async (req, res) => {
-
-        try {
-
-            if (
-                !req.session ||
-                !req.session.user
-            ) {
-
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-
-            }
-
-
-            const {
-                data,
-                error
-            } = await req.supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar_url,
-                    bio
-                `)
-                .eq(
-                    "id",
-                    req.session.user.id
-                )
-                .maybeSingle();
-
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            if (!data) {
-
-                return res.status(404).json({
-                    error:
-                        "Profile not found."
-                });
-
-            }
-
-
-            res.json({
-                profile:
-                    data
-            });
-
-        } catch (error) {
-
-            console.error(
-                "GET MY PROFILE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-
 // ==================================================
 // UPDATE PROFILE
 // ==================================================
 
 router.put(
-    "/me/profile",
+    "/profile",
     async (req, res) => {
 
         try {
@@ -305,99 +192,64 @@ router.put(
 
             }
 
+            const username =
+                req.body.username !== undefined
+                    ? String(
+                        req.body.username
+                    ).trim()
+                    : undefined;
 
             const displayName =
-                String(
-                    req.body.display_name || ""
-                ).trim();
-
-            const username =
-                String(
-                    req.body.username || ""
-                ).trim();
+                req.body.display_name !== undefined
+                    ? String(
+                        req.body.display_name
+                    ).trim()
+                    : undefined;
 
             const bio =
-                String(
-                    req.body.bio || ""
-                ).trim();
+                req.body.bio !== undefined
+                    ? String(
+                        req.body.bio
+                    ).trim()
+                    : undefined;
 
-
-            if (
-                username &&
-                username.length > 30
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Username is too long."
-                });
-
-            }
-
+            const updates = {};
 
             if (
-                displayName &&
-                displayName.length > 50
+                username !== undefined
             ) {
-
-                return res.status(400).json({
-                    error:
-                        "Display name is too long."
-                });
-
+                updates.username =
+                    username;
             }
-
 
             if (
-                bio.length > 500
+                displayName !== undefined
             ) {
-
-                return res.status(400).json({
-                    error:
-                        "Bio is too long."
-                });
-
+                updates.display_name =
+                    displayName;
             }
 
-
-            const updates = {
-                display_name:
-                    displayName || null,
-
-                username:
-                    username || null,
-
-                bio:
-                    bio || null
-            };
-
+            if (
+                bio !== undefined
+            ) {
+                updates.bio =
+                    bio;
+            }
 
             const {
                 data,
                 error
-            } = await req.supabase
+            } = await db(req)
                 .from("profiles")
                 .update(updates)
                 .eq(
                     "id",
                     req.session.user.id
                 )
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar_url,
-                    bio
-                `)
+                .select()
                 .single();
 
-
             if (error) {
-
-                console.error(
-                    "UPDATE PROFILE ERROR:",
-                    error
-                );
 
                 return res.status(500).json({
                     error:
@@ -406,21 +258,15 @@ router.put(
 
             }
 
-
             res.json({
-
-                success:
-                    true,
-
-                profile:
-                    data
-
+                success: true,
+                user: data
             });
 
         } catch (error) {
 
             console.error(
-                "PROFILE UPDATE ERROR:",
+                "UPDATE PROFILE ERROR:",
                 error
             );
 
@@ -433,6 +279,5 @@ router.put(
 
     }
 );
-
 
 module.exports = router;
