@@ -976,23 +976,32 @@ app.get("/api/me", async (req, res) => {
 });
 app.get("/api/admin/check", async (req, res) => {
 
-    if (!req.session.userId) {
-        return res.json({
-            isAdmin: false
-        });
-    }
-
     try {
 
-        const { data, error } =
-            await supabase
-                .from("admins")
-                .select("user_id")
-                .eq(
-                    "user_id",
-                    req.session.userId
-                )
-                .maybeSingle();
+        // Make sure someone is logged in
+        if (!req.session.user) {
+
+            return res.json({
+                isAdmin: false
+            });
+
+        }
+
+        const userId =
+            req.session.user.id;
+
+        // Check admins table
+        const {
+            data,
+            error
+        } = await supabase
+            .from("admins")
+            .select("user_id")
+            .eq(
+                "user_id",
+                userId
+            )
+            .maybeSingle();
 
         if (error) {
 
@@ -1008,7 +1017,10 @@ app.get("/api/admin/check", async (req, res) => {
         }
 
         res.json({
-            isAdmin: !!data
+
+            isAdmin:
+                !!data
+
         });
 
     } catch (error) {
@@ -1019,7 +1031,9 @@ app.get("/api/admin/check", async (req, res) => {
         );
 
         res.status(500).json({
+
             isAdmin: false
+
         });
 
     }

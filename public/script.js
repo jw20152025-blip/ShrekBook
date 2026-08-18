@@ -786,10 +786,23 @@ function showAuth() {
 
 }
 /* ==================================================
-ADMIN CHECK
+ADMIN BUTTON
 ================================================== */
 
 async function checkAdmin() {
+
+    const adminButton =
+        document.getElementById(
+            "admin-button"
+        );
+
+    if (!adminButton) {
+        return;
+    }
+
+    // Keep hidden until confirmed
+    adminButton.style.display =
+        "none";
 
     try {
 
@@ -801,18 +814,9 @@ async function checkAdmin() {
         const data =
             await response.json();
 
-        const adminButton =
-            document.getElementById(
-                "admin-button"
-            );
-
-        if (!adminButton) {
-            return;
-        }
-
         if (
             response.ok &&
-            data.isAdmin
+            data.isAdmin === true
         ) {
 
             adminButton.style.display =
@@ -828,21 +832,12 @@ async function checkAdmin() {
     } catch (error) {
 
         console.error(
-            "ADMIN CHECK ERROR:",
+            "ADMIN BUTTON ERROR:",
             error
         );
 
-        const adminButton =
-            document.getElementById(
-                "admin-button"
-            );
-
-        if (adminButton) {
-
-            adminButton.style.display =
-                "none";
-
-        }
+        adminButton.style.display =
+            "none";
 
     }
 
