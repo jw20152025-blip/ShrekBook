@@ -1,7 +1,3 @@
-```js
-// ==================================================
-// SHREKBOOK SERVER
-// ==================================================
 
 require("dotenv").config();
 
@@ -9,11 +5,6 @@ const express = require("express");
 const path = require("path");
 const session = require("express-session");
 const { createClient } = require("@supabase/supabase-js");
-
-
-// ==================================================
-// ROUTES
-// ==================================================
 
 const authRoutes = require("./routes/auth");
 const adminRoutes = require("./routes/admin");
@@ -23,15 +14,9 @@ const commentsRoutes = require("./routes/comments");
 const reactionsRoutes = require("./routes/reactions");
 const shrekchatRoutes = require("./routes/shrekchat");
 
-
-// ==================================================
-// APP
-// ==================================================
-
 const app = express();
 
-const PORT =
-    process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
 
 // ==================================================
@@ -42,35 +27,29 @@ if (
     !process.env.SUPABASE_URL ||
     !process.env.SUPABASE_SERVICE_ROLE_KEY
 ) {
-
     console.error(
-        "❌ Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+        "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
     );
 
     process.exit(1);
-
 }
-
 
 const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-
-// Make Supabase available to routes.
-
 app.locals.supabase = supabase;
 
 
-// Also make it available as req.supabase.
-// Several route files use req.supabase.
+// ==================================================
+// SUPABASE ON REQUEST
+// ==================================================
 
 app.use(
     (req, res, next) => {
 
-        req.supabase =
-            supabase;
+        req.supabase = supabase;
 
         next();
 
@@ -87,7 +66,6 @@ app.use(
         limit: "10mb"
     })
 );
-
 
 app.use(
     express.urlencoded({
@@ -116,8 +94,7 @@ app.use(
             httpOnly: true,
 
             secure:
-                process.env.NODE_ENV ===
-                "production",
+                process.env.NODE_ENV === "production",
 
             sameSite: "lax",
 
@@ -135,7 +112,7 @@ app.use(
 
 
 // ==================================================
-// ADMIN HELPER
+// REQUIRE ADMIN
 // ==================================================
 
 async function requireAdmin(
@@ -152,10 +129,8 @@ async function requireAdmin(
         ) {
 
             return res.status(401).json({
-
                 error:
                     "You must be logged in."
-
             });
 
         }
@@ -166,7 +141,9 @@ async function requireAdmin(
             error
         } = await supabase
             .from("admins")
-            .select("id,user_id")
+            .select(
+                "id,user_id"
+            )
             .eq(
                 "user_id",
                 req.session.user.id
@@ -182,10 +159,8 @@ async function requireAdmin(
             );
 
             return res.status(500).json({
-
                 error:
                     "Could not check administrator status."
-
             });
 
         }
@@ -194,16 +169,14 @@ async function requireAdmin(
         if (!admin) {
 
             return res.status(403).json({
-
                 error:
                     "Administrator access required."
-
             });
 
         }
 
 
-        return next();
+        next();
 
     } catch (error) {
 
@@ -213,16 +186,13 @@ async function requireAdmin(
         );
 
         return res.status(500).json({
-
             error:
                 "Server error."
-
         });
 
     }
 
 }
-
 
 app.locals.requireAdmin =
     requireAdmin;
@@ -243,7 +213,7 @@ app.use(
 
 
 // ==================================================
-// API ROUTES
+// ROUTES
 // ==================================================
 
 // Authentication
@@ -253,7 +223,7 @@ app.use(
 );
 
 
-// Admin
+// Administration
 app.use(
     "/api/admin",
     adminRoutes
@@ -267,7 +237,7 @@ app.use(
 );
 
 
-// Users / profiles
+// Users
 app.use(
     "/api",
     usersRoutes
@@ -304,10 +274,8 @@ app.use(
     (req, res) => {
 
         res.status(404).json({
-
             error:
                 "API endpoint not found."
-
         });
 
     }
@@ -315,26 +283,12 @@ app.use(
 
 
 // ==================================================
-// FRONTEND FALLBACK
+// FRONTEND
 // ==================================================
 
 app.get(
-    "*",
+    "/",
     (req, res) => {
-
-        if (
-            req.path.startsWith("/api/")
-        ) {
-
-            return res.status(404).json({
-
-                error:
-                    "API endpoint not found."
-
-            });
-
-        }
-
 
         res.sendFile(
             path.join(
@@ -360,21 +314,13 @@ app.use(
             err
         );
 
-
-        if (
-            res.headersSent
-        ) {
-
+        if (res.headersSent) {
             return next(err);
-
         }
 
-
         res.status(500).json({
-
             error:
                 "Internal server error."
-
         });
 
     }
@@ -382,7 +328,7 @@ app.use(
 
 
 // ==================================================
-// START
+// START SERVER
 // ==================================================
 
 app.listen(
@@ -391,9 +337,10 @@ app.listen(
     () => {
 
         console.log(
-            `🧌 ShrekBook running on port ${PORT}`
+            "ShrekBook running on port " +
+            PORT
         );
 
     }
 );
-```
+
