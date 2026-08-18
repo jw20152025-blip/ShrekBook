@@ -1,225 +1,17 @@
+
 const express = require("express");
 
 const router = express.Router();
 
-function getSupabase(req) {
+
+// ==================================================
+// SUPABASE
+// ==================================================
+
+function db(req) {
     return req.app.locals.supabase;
 }
 
-function normalizeEmail(email) {
-    return String(email || "")
-        .trim()
-        .toLowerCase();
-}
-
-// ==================================================
-// SIGNUP
-// ==================================================
-
-router.post(
-    "/signup",
-    async (req, res) => {
-
-        try {
-
-            const supabase =
-                getSupabase(req);
-
-            const email =
-                normalizeEmail(
-                    req.body.email
-                );
-
-            const password =
-                String(
-                    req.body.password || ""
-                );
-
-            const username =
-                String(
-                    req.body.username || ""
-                ).trim();
-
-            const displayName =
-                String(
-                    req.body.display_name ||
-                    req.body.displayName ||
-                    username ||
-                    ""
-                ).trim();
-
-            if (
-                !email ||
-                !password ||
-                !username
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Email, password, and username are required."
-                });
-
-            }
-
-            if (password.length < 6) {
-
-                return res.status(400).json({
-                    error:
-                        "Password must be at least 6 characters."
-                });
-
-            }
-
-            // Check email ban
-            const {
-                data: bans,
-                error: banError
-            } = await supabase
-                .from("bans")
-                .select(
-                    "id,user_id,email,reason,active,banned_at"
-                )
-                .eq(
-                    "email",
-                    email
-                )
-                .eq(
-                    "active",
-                    true
-                )
-                .limit(1);
-
-            if (banError) {
-
-                console.error(
-                    "SIGNUP BAN CHECK ERROR:",
-                    banError
-                );
-
-            }
-
-            if (
-                bans &&
-                bans.length > 0
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "This email is banned.",
-                    banned:
-                        true,
-                    reason:
-                        bans[0].reason ||
-                        "No reason provided."
-                });
-
-            }
-
-            // Create Auth user
-            const {
-                data,
-                error
-            } =
-                await supabase.auth.admin.createUser({
-                    email,
-                    password,
-                    email_confirm: true
-                });
-
-            if (error) {
-
-                return res.status(400).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            if (
-                !data ||
-                !data.user
-            ) {
-
-                return res.status(500).json({
-                    error:
-                        "Could not create account."
-                });
-
-            }
-
-            const user =
-                data.user;
-
-            // Create profile
-            const {
-                error: profileError
-            } =
-                await supabase
-                    .from("profiles")
-                    .insert({
-                        id: user.id,
-                        username,
-                        display_name:
-                            displayName
-                    });
-
-            if (profileError) {
-
-                console.error(
-                    "PROFILE CREATE ERROR:",
-                    profileError
-                );
-
-                try {
-
-                    await supabase.auth.admin
-                        .deleteUser(
-                            user.id
-                        );
-
-                } catch (rollbackError) {
-
-                    console.error(
-                        "ROLLBACK ERROR:",
-                        rollbackError
-                    );
-
-                }
-
-                return res.status(500).json({
-                    error:
-                        profileError.message
-                });
-
-            }
-
-            res.status(201).json({
-                success: true,
-                user: {
-                    id: user.id,
-                    email: user.email,
-                    username,
-                    display_name:
-                        displayName
-                }
-            });
-
-        } catch (error) {
-
-            console.error(
-                "SIGNUP ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
 
 // ==================================================
 // LOGIN
@@ -231,23 +23,20 @@ router.post(
 
         try {
 
-            const supabase =
-                getSupabase(req);
-
             const email =
-                normalizeEmail(
-                    req.body.email
-                );
+                String(
+                    req.body.email || ""
+                )
+                .trim()
+                .toLowerCase();
 
             const password =
                 String(
                     req.body.password || ""
                 );
 
-            if (
-                !email ||
-                !password
-            ) {
+
+            if (!email || !password) {
 
                 return res.status(400).json({
                     error:
@@ -256,50 +45,28 @@ router.post(
 
             }
 
-            // Email ban
-            const {
-                data: emailBans
-            } = await supabase
-                .from("bans")
-                .select(
-                    "id,user_id,email,reason,active"
-                )
-                .eq(
-                    "email",
-                    email
-                )
-                .eq(
-                    "active",
-                    true
-                )
-                .limit(1);
 
-            if (
-                emailBans &&
-                emailBans.length > 0
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "This account is banned.",
-                    banned: true,
-                    reason:
-                        emailBans[0].reason ||
-                        "No reason provided."
-                });
-
-            }
+            // ------------------------------------------
+            // SUPABASE LOGIN
+            // ------------------------------------------
 
             const {
                 data,
                 error
-            } =
-                await supabase.auth.signInWithPassword({
+            } = await db(req)
+                .auth
+                .signInWithPassword({
                     email,
                     password
                 });
 
+
             if (error) {
+
+                console.error(
+                    "LOGIN SUPABASE ERROR:",
+                    error
+                );
 
                 return res.status(401).json({
                     error:
@@ -307,6 +74,7 @@ router.post(
                 });
 
             }
+
 
             if (
                 !data ||
@@ -320,55 +88,39 @@ router.post(
 
             }
 
-            // User-ID ban
-            const {
-                data: userBans
-            } = await supabase
-                .from("bans")
-                .select(
-                    "id,user_id,email,reason,active"
-                )
-                .eq(
-                    "user_id",
-                    data.user.id
-                )
-                .eq(
-                    "active",
-                    true
-                )
-                .limit(1);
 
-            if (
-                userBans &&
-                userBans.length > 0
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "This account is banned.",
-                    banned: true,
-                    reason:
-                        userBans[0].reason ||
-                        "No reason provided."
-                });
-
-            }
+            // ------------------------------------------
+            // SAVE USER IN EXPRESS SESSION
+            // ------------------------------------------
 
             req.session.user = {
+
                 id:
                     data.user.id,
+
                 email:
-                    data.user.email
+                    data.user.email || email
+
             };
 
-            req.session.save(
-                error => {
 
-                    if (error) {
+            // ------------------------------------------
+            // FORCE SESSION SAVE
+            // ------------------------------------------
+            //
+            // This is important on Render.
+            // It makes sure the session cookie is
+            // established before the response finishes.
+            //
+
+            req.session.save(
+                (saveError) => {
+
+                    if (saveError) {
 
                         console.error(
                             "SESSION SAVE ERROR:",
-                            error
+                            saveError
                         );
 
                         return res.status(500).json({
@@ -378,10 +130,29 @@ router.post(
 
                     }
 
-                    res.json({
-                        success: true,
-                        user:
-                            req.session.user
+
+                    console.log(
+                        "LOGIN SESSION CREATED:",
+                        req.session.user
+                    );
+
+
+                    return res.json({
+
+                        success:
+                            true,
+
+                        user: {
+
+                            id:
+                                data.user.id,
+
+                            email:
+                                data.user.email ||
+                                email
+
+                        }
+
                     });
 
                 }
@@ -394,7 +165,7 @@ router.post(
                 error
             );
 
-            res.status(500).json({
+            return res.status(500).json({
                 error:
                     "Server error."
             });
@@ -404,39 +175,211 @@ router.post(
     }
 );
 
+
 // ==================================================
-// LOGOUT
+// SIGNUP
 // ==================================================
 
 router.post(
-    "/logout",
-    (req, res) => {
+    "/signup",
+    async (req, res) => {
 
-        req.session.destroy(
-            error => {
+        try {
 
-                if (error) {
+            const username =
+                String(
+                    req.body.username || ""
+                )
+                .trim();
 
-                    return res.status(500).json({
-                        error:
-                            "Could not log out."
-                    });
+            const displayName =
+                String(
+                    req.body.display_name || ""
+                )
+                .trim();
 
-                }
+            const email =
+                String(
+                    req.body.email || ""
+                )
+                .trim()
+                .toLowerCase();
 
-                res.clearCookie(
-                    "connect.sid"
+            const password =
+                String(
+                    req.body.password || ""
                 );
 
-                res.json({
-                    success: true
+
+            if (
+                !username ||
+                !email ||
+                !password
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Username, email, and password are required."
                 });
 
             }
-        );
+
+
+            if (password.length < 6) {
+
+                return res.status(400).json({
+                    error:
+                        "Password must be at least 6 characters."
+                });
+
+            }
+
+
+            // ------------------------------------------
+            // CREATE AUTH USER
+            // ------------------------------------------
+
+            const {
+                data: authData,
+                error: authError
+            } = await db(req)
+                .auth
+                .admin
+                .createUser({
+
+                    email,
+
+                    password,
+
+                    email_confirm:
+                        true
+
+                });
+
+
+            if (authError) {
+
+                console.error(
+                    "SIGNUP AUTH ERROR:",
+                    authError
+                );
+
+                return res.status(400).json({
+                    error:
+                        authError.message
+                });
+
+            }
+
+
+            if (
+                !authData ||
+                !authData.user
+            ) {
+
+                return res.status(500).json({
+                    error:
+                        "Could not create account."
+                });
+
+            }
+
+
+            // ------------------------------------------
+            // CREATE PROFILE
+            // ------------------------------------------
+
+            const {
+                error: profileError
+            } = await db(req)
+                .from("profiles")
+                .insert({
+
+                    id:
+                        authData.user.id,
+
+                    username:
+                        username,
+
+                    display_name:
+                        displayName ||
+                        username
+
+                });
+
+
+            if (profileError) {
+
+                console.error(
+                    "SIGNUP PROFILE ERROR:",
+                    profileError
+                );
+
+
+                // Try to clean up the Auth user
+                // if profile creation failed.
+
+                try {
+
+                    await db(req)
+                        .auth
+                        .admin
+                        .deleteUser(
+                            authData.user.id
+                        );
+
+                } catch (cleanupError) {
+
+                    console.error(
+                        "SIGNUP CLEANUP ERROR:",
+                        cleanupError
+                    );
+
+                }
+
+
+                return res.status(400).json({
+                    error:
+                        profileError.message
+                });
+
+            }
+
+
+            return res.status(201).json({
+
+                success:
+                    true,
+
+                user: {
+
+                    id:
+                        authData.user.id,
+
+                    email:
+                        authData.user.email
+
+                }
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "SIGNUP ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
 
     }
 );
+
 
 // ==================================================
 // CURRENT USER
@@ -454,38 +397,49 @@ router.get(
             ) {
 
                 return res.json({
-                    loggedIn: false,
-                    user: null
+
+                    loggedIn:
+                        false,
+
+                    user:
+                        null
+
                 });
 
             }
 
-            const supabase =
-                getSupabase(req);
 
             const userId =
                 req.session.user.id;
 
+
+            // ------------------------------------------
+            // GET PROFILE
+            // ------------------------------------------
+
             const {
                 data: profile,
                 error
-            } =
-                await supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar,
-                        bio
-                    `)
-                    .eq(
-                        "id",
-                        userId
-                    )
-                    .maybeSingle();
+            } = await db(req)
+                .from("profiles")
+                .select(`
+                    id,
+                    username,
+                    display_name
+                `)
+                .eq(
+                    "id",
+                    userId
+                )
+                .maybeSingle();
+
 
             if (error) {
+
+                console.error(
+                    "GET CURRENT PROFILE ERROR:",
+                    error
+                );
 
                 return res.status(500).json({
                     error:
@@ -494,14 +448,30 @@ router.get(
 
             }
 
-            res.json({
-                loggedIn: true,
+
+            return res.json({
+
+                loggedIn:
+                    true,
+
                 user: {
-                    id: userId,
+
+                    id:
+                        userId,
+
                     email:
                         req.session.user.email,
-                    ...(profile || {})
+
+                    username:
+                        profile?.username ||
+                        null,
+
+                    display_name:
+                        profile?.display_name ||
+                        null
+
                 }
+
             });
 
         } catch (error) {
@@ -511,7 +481,7 @@ router.get(
                 error
             );
 
-            res.status(500).json({
+            return res.status(500).json({
                 error:
                     "Server error."
             });
@@ -521,4 +491,67 @@ router.get(
     }
 );
 
+
+// ==================================================
+// LOGOUT
+// ==================================================
+
+router.post(
+    "/logout",
+    async (req, res) => {
+
+        try {
+
+            req.session.destroy(
+                (error) => {
+
+                    if (error) {
+
+                        console.error(
+                            "LOGOUT SESSION ERROR:",
+                            error
+                        );
+
+                        return res.status(500).json({
+                            error:
+                                "Could not log out."
+                        });
+
+                    }
+
+
+                    res.clearCookie(
+                        "connect.sid"
+                    );
+
+
+                    return res.json({
+
+                        success:
+                            true
+
+                    });
+
+                }
+            );
+
+        } catch (error) {
+
+            console.error(
+                "LOGOUT ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
+
+
 module.exports = router;
+
