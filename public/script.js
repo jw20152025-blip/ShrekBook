@@ -80,6 +80,10 @@ function fileToBase64(file) {
 }
 
 
+/* ==================================================
+REACTIONS
+================================================== */
+
 async function giveReaction(type) {
 
     const userId =
@@ -302,7 +306,12 @@ async function login() {
         status.textContent =
             "✅ Logged in!";
 
-        showApp();
+        /*
+         * Refresh session data after login
+         * so admin status is detected.
+         */
+
+        await checkLogin();
 
     } catch (error) {
 
@@ -501,6 +510,175 @@ function showLogin() {
 
 
 /* ==================================================
+ADMIN NAVIGATION
+================================================== */
+
+function setupAdminNav(user) {
+
+    if (!user) {
+        return;
+    }
+
+    /*
+     * Detect admin using several possible
+     * backend field names.
+     */
+
+    const isAdmin =
+        user.is_admin === true ||
+        user.is_admin === 1 ||
+        user.is_admin === "true" ||
+
+        user.admin === true ||
+        user.admin === 1 ||
+        user.admin === "true" ||
+
+        user.isAdmin === true ||
+        user.isAdmin === 1 ||
+
+        user.role === "admin";
+
+    /*
+     * Look for an admin navigation element
+     * that already exists in the HTML.
+     */
+
+    let adminNav =
+        document.getElementById(
+            "admin-nav"
+        );
+
+    /*
+     * If the user isn't an admin,
+     * hide the existing admin navigation.
+     */
+
+    if (!isAdmin) {
+
+        if (adminNav) {
+
+            adminNav.style.display =
+                "none";
+
+        }
+
+        return;
+
+    }
+
+    /*
+     * If the HTML already contains the
+     * admin navigation, just show it.
+     */
+
+    if (adminNav) {
+
+        adminNav.style.display =
+            "flex";
+
+        return;
+
+    }
+
+    /*
+     * Create the admin navbar automatically.
+     */
+
+    adminNav =
+        document.createElement(
+            "nav"
+        );
+
+    adminNav.id =
+        "admin-nav";
+
+    adminNav.style.cssText = `
+        display:flex;
+        align-items:center;
+        gap:12px;
+        padding:10px 15px;
+        margin-bottom:15px;
+        background:#222;
+        border:1px solid #444;
+        border-radius:10px;
+        box-sizing:border-box;
+        width:100%;
+    `;
+
+    adminNav.innerHTML = `
+
+        <strong
+            style="
+                color:#ffcc00;
+                white-space:nowrap;
+            ">
+
+            🛡️ Admin
+
+        </strong>
+
+        <a
+            href="/admin.html"
+            style="
+                color:inherit;
+                text-decoration:none;
+                font-weight:bold;
+            ">
+
+            Admin Panel
+
+        </a>
+
+        <span
+            style="
+                opacity:0.5;
+            ">
+
+            |
+
+        </span>
+
+        <a
+            href="/"
+            style="
+                color:inherit;
+                text-decoration:none;
+            ">
+
+            Home
+
+        </a>
+
+    `;
+
+    /*
+     * Put navbar at the top of the app.
+     */
+
+    const app =
+        document.getElementById(
+            "app-section"
+        );
+
+    if (app) {
+
+        app.insertBefore(
+            adminNav,
+            app.firstChild
+        );
+
+    } else {
+
+        document.body.prepend(
+            adminNav
+        );
+
+    }
+
+}
+
+
+/* ==================================================
 SESSION CHECK
 ================================================== */
 
@@ -521,6 +699,14 @@ async function checkLogin() {
             data.loggedIn &&
             data.user
         ) {
+
+            /*
+             * Detect admin status.
+             */
+
+            setupAdminNav(
+                data.user
+            );
 
             showApp();
 
@@ -565,6 +751,11 @@ function showAuth() {
             "logout-button"
         );
 
+    const adminNav =
+        document.getElementById(
+            "admin-nav"
+        );
+
     if (auth) {
 
         auth.style.display =
@@ -582,6 +773,13 @@ function showAuth() {
     if (logoutButton) {
 
         logoutButton.style.display =
+            "none";
+
+    }
+
+    if (adminNav) {
+
+        adminNav.style.display =
             "none";
 
     }
@@ -1594,9 +1792,8 @@ async function loadPeople() {
                     "User";
 
                 /*
-                 * User is considered online if
-                 * their last_seen timestamp is
-                 * less than 2 minutes old.
+                 * Online if last_seen is less
+                 * than 2 minutes old.
                  */
 
                 const isOnline =
@@ -1711,6 +1908,7 @@ async function loadPeople() {
 
 }
 
+
 /* ==================================================
 ENTER KEY FOR COMMENTS
 ================================================== */
@@ -1769,22 +1967,25 @@ async function updateOnlineStatus() {
             await fetch(
                 "/api/online",
                 {
+
                     method:
                         "POST",
 
                     headers: {
+
                         "Content-Type":
                             "application/json"
+
                     }
+
                 }
             );
 
         if (!response.ok) {
 
             /*
-             * Do not spam the console with
-             * errors every 30 seconds if the
-             * backend route isn't available.
+             * Don't spam the console if the
+             * backend route doesn't exist.
              */
 
             if (response.status !== 404) {
