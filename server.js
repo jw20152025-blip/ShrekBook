@@ -738,7 +738,38 @@ app.post("/api/login", async (req, res) => {
     }
 
 });
+const normalizedEmail =
+    email.toLowerCase();
 
+try {
+
+    const banned =
+        await isEmailBanned(
+            normalizedEmail
+        );
+
+    if (banned) {
+
+        return res.status(403).json({
+            error:
+                "This email address is banned from ShrekBook."
+        });
+
+    }
+
+} catch (error) {
+
+    console.error(
+        "LOGIN BAN CHECK ERROR:",
+        error
+    );
+
+    return res.status(500).json({
+        error:
+            "Could not verify account eligibility."
+    });
+
+}
 // ==================================================
 // LOGOUT
 // ==================================================
@@ -855,7 +886,57 @@ app.get("/api/me", async (req, res) => {
     }
 
 });
+app.get("/api/admin/check", async (req, res) => {
 
+    if (!req.session.userId) {
+        return res.json({
+            isAdmin: false
+        });
+    }
+
+    try {
+
+        const { data, error } =
+            await supabase
+                .from("admins")
+                .select("user_id")
+                .eq(
+                    "user_id",
+                    req.session.userId
+                )
+                .maybeSingle();
+
+        if (error) {
+
+            console.error(
+                "ADMIN CHECK ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                isAdmin: false
+            });
+
+        }
+
+        res.json({
+            isAdmin: !!data
+        });
+
+    } catch (error) {
+
+        console.error(
+            "ADMIN CHECK ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            isAdmin: false
+        });
+
+    }
+
+});
 // ==================================================
 // USERS
 // ==================================================
