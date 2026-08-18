@@ -246,17 +246,8 @@ app.locals.requireAdmin =
     requireAdmin;
 
 
-// ==================================================
-// ROUTES
-// ==================================================
 
-const adminRoutes =
-    require("./routes/adminRoutes");
 
-app.use(
-    "/api/admin",
-    adminRoutes
-);
 
 
 // ==================================================
