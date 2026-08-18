@@ -1593,6 +1593,21 @@ async function loadPeople() {
                     user.username ||
                     "User";
 
+                /*
+                 * User is considered online if
+                 * their last_seen timestamp is
+                 * less than 2 minutes old.
+                 */
+
+                const isOnline =
+                    user.last_seen &&
+                    (
+                        Date.now() -
+                        new Date(
+                            user.last_seen
+                        ).getTime()
+                    ) < 120000;
+
                 return `
 
                     <a
@@ -1608,21 +1623,55 @@ async function loadPeople() {
                             gap:12px;
                         ">
 
-                        <img
-                            class="avatar"
-                            src="${escapeHtml(
-                                avatar
-                            )}"
-                            alt="Avatar"
+                        <div
                             style="
+                                position:relative;
                                 width:50px;
                                 height:50px;
-                                border-radius:50%;
-                                object-fit:cover;
-                            "
-                            onerror="
-                                this.src='/default-avatar.png';
+                                flex-shrink:0;
                             ">
+
+                            <img
+                                class="avatar"
+                                src="${escapeHtml(
+                                    avatar
+                                )}"
+                                alt="Avatar"
+                                style="
+                                    width:50px;
+                                    height:50px;
+                                    border-radius:50%;
+                                    object-fit:cover;
+                                    display:block;
+                                "
+                                onerror="
+                                    this.src='/default-avatar.png';
+                                ">
+
+                            <span
+                                title="${
+                                    isOnline
+                                        ? "Online"
+                                        : "Offline"
+                                }"
+                                style="
+                                    position:absolute;
+                                    right:-2px;
+                                    bottom:-2px;
+                                    width:14px;
+                                    height:14px;
+                                    border-radius:50%;
+                                    background:${
+                                        isOnline
+                                            ? "#22c55e"
+                                            : "#888"
+                                    };
+                                    border:2px solid white;
+                                    box-sizing:border-box;
+                                ">
+                            </span>
+
+                        </div>
 
                         <div>
 
@@ -1661,7 +1710,6 @@ async function loadPeople() {
     }
 
 }
-
 
 /* ==================================================
 ENTER KEY FOR COMMENTS
