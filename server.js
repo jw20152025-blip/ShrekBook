@@ -800,7 +800,199 @@ app.post(
 
     }
 );
+// ==================================================
+// REVOKE ADMINISTRATOR
+// ==================================================
 
+app.delete(
+    "/api/admin/admins/:userId",
+    requireAdmin,
+    async (req, res) => {
+
+        try {
+
+            const userId =
+                String(
+                    req.params.userId || ""
+                ).trim();
+
+            if (!userId) {
+
+                return res.status(400).json({
+                    error:
+                        "User ID is required."
+                });
+
+            }
+
+            // Don't allow an admin to revoke themselves
+            if (
+                userId ===
+                req.session.user.id
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "You cannot revoke your own administrator access."
+                });
+
+            }
+
+            const {
+                data,
+                error
+            } = await supabase
+                .from("admins")
+                .delete()
+                .eq(
+                    "user_id",
+                    userId
+                )
+                .select();
+
+            if (error) {
+
+                console.error(
+                    "REVOKE ADMIN ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+            if (
+                !data ||
+                data.length === 0
+            ) {
+
+                return res.status(404).json({
+                    error:
+                        "Administrator not found."
+                });
+
+            }
+
+            res.json({
+
+                success: true,
+
+                message:
+                    "Administrator access revoked."
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "REVOKE ADMIN ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// KICK USER
+// ==================================================
+
+app.post(
+    "/api/admin/kick/:userId",
+    requireAdmin,
+    async (req, res) => {
+
+        try {
+
+            const userId =
+                String(
+                    req.params.userId || ""
+                ).trim();
+
+            if (!userId) {
+
+                return res.status(400).json({
+                    error:
+                        "User ID is required."
+                });
+
+            }
+
+            // Don't allow kicking yourself
+            if (
+                userId ===
+                req.session.user.id
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "You cannot kick yourself."
+                });
+
+            }
+
+            /*
+             * Sign the user out from all Supabase
+             * sessions.
+             */
+            const {
+                error
+            } =
+                await supabase.auth.admin
+                    .signOut(
+                        userId,
+                        "global"
+                    );
+
+            if (error) {
+
+                console.error(
+                    "KICK USER ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+            res.json({
+
+                success: true,
+
+                message:
+                    "User kicked."
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "KICK ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
 // ==================================================
 // BAN CHECK FOR API REQUESTS
 // ==================================================
@@ -5209,14 +5401,7 @@ app.get(
                 error
             } = await supabase
                 .from("admins")
-                .select("user_id, created_at")
-                .order(
-                    "created_at",
-                    {
-                        ascending: true
-                    }
-                );
-
+                .select("user_id");
 
             if (error) {
 
@@ -5227,59 +5412,48 @@ app.get(
 
             }
 
+            const results = [];
 
-            const result = [];
-
-
-            for (
-                const admin of
-                admins || []
-            ) {
+            for (const admin of admins || []) {
 
                 const {
                     data: profile
                 } = await supabase
                     .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar
-                    `)
+                    .select(
+                        "id, username, display_name, avatar"
+                    )
                     .eq(
                         "id",
                         admin.user_id
                     )
                     .maybeSingle();
 
+                if (profile) {
 
-                result.push({
-                    id:
-                        admin.user_id,
+                    results.push(profile);
 
-                    created_at:
-                        admin.created_at,
+                } else {
 
-                    username:
-                        profile?.username ||
-                        "Unknown",
+                    results.push({
 
-                    display_name:
-                        profile?.display_name ||
-                        profile?.username ||
-                        "Unknown",
+                        id:
+                            admin.user_id,
 
-                    avatar:
-                        getAvatar(
-                            profile?.avatar
-                        )
-                });
+                        username:
+                            "Unknown",
+
+                        display_name:
+                            "Administrator"
+
+                    });
+
+                }
 
             }
 
-
             res.json({
-                admins: result
+                admins: results
             });
 
         } catch (error) {
