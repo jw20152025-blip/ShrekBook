@@ -1,6 +1,8 @@
 // ============================================================
 // SHREKBOOK - UNIFIED SERVER
-// Everything lives in this one file.
+// Persistent Supabase sessions
+// Login / Signup / Posts / Comments / Reactions / ShrekChat
+// Admin / Kicks / Revokes / User deletion
 // ============================================================
 
 require("dotenv").config();
@@ -16,15 +18,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ============================================================
-// APP SETTINGS
-// ============================================================
-
-app.set("trust proxy", 1);
-
-app.use(express.json({ limit: "15mb" }));
-app.use(express.urlencoded({ extended: true, limit: "15mb" }));
-
-// ============================================================
 // SUPABASE
 // ============================================================
 
@@ -36,36 +29,22 @@ const supabase = createClient(
 app.locals.supabase = supabase;
 
 // ============================================================
-// SESSION
+// APP SETTINGS
 // ============================================================
 
+app.set("trust proxy", 1);
+
 app.use(
-    session({
-        secret:
-            process.env.SESSION_SECRET ||
-            "shrekbook-production-secret-change-this",
-
-        resave: false,
-
-        saveUninitialized: false,
-
-        cookie: {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            maxAge: 1000 * 60 * 60 * 24 * 30
-        }
+    express.json({
+        limit: "15mb"
     })
 );
 
-// ============================================================
-// STATIC FILES
-// ============================================================
-
 app.use(
-    express.static(
-        path.join(__dirname, "public")
-    )
+    express.urlencoded({
+        extended: true,
+        limit: "15mb"
+    })
 );
 
 // ============================================================
@@ -76,34 +55,294 @@ function db() {
     return app.locals.supabase;
 }
 
-function currentUser(req) {
-    return (
-        req.session &&
-        req.session.user
-            ? req.session.user
-            : null
-    );
+function cleanString(value) {
+    return String(value ?? "").trim();
 }
 
-function requireLogin(req, res, next) {
+// ============================================================
+// PERSISTENT SUPABASE SESSION STORE
+// ============================================================
 
-    if (!currentUser(req)) {
+class SupabaseSessionStore extends session.Store {
 
-        return res.status(401).json({
-            error: "You must be logged in."
-        });
+    constructor() {
+        super();
+
+        this.table =
+            "shrekbook_sessions";
+    }
+
+    async get(sid, callback) {
+
+        try {
+
+            const {
+                data,
+                error
+            } = await db()
+                .from(this.table)
+                .select("sess,expire")
+                .eq("sid", sid)
+                .maybeSingle();
+
+            if (error) {
+                return callback(error);
+            }
+
+            if (!data) {
+                return callback(null, null);
+            }
+
+            const expire =
+                new Date(data.expire).getTime();
+
+            if (
+                Number.isFinite(expire) &&
+                expire <= Date.now()
+            ) {
+
+                await db()
+                    .from(this.table)
+                    .delete()
+                    .eq("sid", sid);
+
+                return callback(null, null);
+            }
+
+            callback(
+                null,
+                data.sess
+            );
+
+        } catch (error) {
+
+            callback(error);
+
+        }
+    }
+
+    async set(sid, sess, callback) {
+
+        try {
+
+            let expire;
+
+            if (
+                sess &&
+                sess.cookie &&
+                sess.cookie.expires
+            ) {
+
+                expire =
+                    new Date(
+                        sess.cookie.expires
+                    ).toISOString();
+
+            } else {
+
+                expire =
+                    new Date(
+                        Date.now() +
+                        1000 * 60 * 60 * 24 * 30
+                    ).toISOString();
+
+            }
+
+            const {
+                error
+            } = await db()
+                .from(this.table)
+                .upsert(
+                    {
+                        sid,
+                        sess,
+                        expire
+                    },
+                    {
+                        onConflict: "sid"
+                    }
+                );
+
+            if (error) {
+                return callback(error);
+            }
+
+            callback(null);
+
+        } catch (error) {
+
+            callback(error);
+
+        }
+    }
+
+    async destroy(sid, callback) {
+
+        try {
+
+            const {
+                error
+            } = await db()
+                .from(this.table)
+                .delete()
+                .eq("sid", sid);
+
+            callback(error || null);
+
+        } catch (error) {
+
+            callback(error);
+
+        }
+    }
+
+    async touch(sid, sess, callback) {
+
+        try {
+
+            let expire;
+
+            if (
+                sess &&
+                sess.cookie &&
+                sess.cookie.expires
+            ) {
+
+                expire =
+                    new Date(
+                        sess.cookie.expires
+                    ).toISOString();
+
+            } else {
+
+                expire =
+                    new Date(
+                        Date.now() +
+                        1000 * 60 * 60 * 24 * 30
+                    ).toISOString();
+
+            }
+
+            const {
+                error
+            } = await db()
+                .from(this.table)
+                .update({
+                    expire
+                })
+                .eq("sid", sid);
+
+            callback(error || null);
+
+        } catch (error) {
+
+            callback(error);
+
+        }
+    }
+
+    async clear(callback) {
+
+        try {
+
+            const {
+                error
+            } = await db()
+                .from(this.table)
+                .delete()
+                .lt(
+                    "expire",
+                    new Date().toISOString()
+                );
+
+            callback(error || null);
+
+        } catch (error) {
+
+            callback(error);
+
+        }
+    }
+}
+
+const sessionStore =
+    new SupabaseSessionStore();
+
+// ============================================================
+// EXPRESS SESSION
+// ============================================================
+
+app.use(
+    session({
+
+        store:
+            sessionStore,
+
+        secret:
+            process.env.SESSION_SECRET ||
+            "CHANGE_THIS_SESSION_SECRET",
+
+        resave:
+            false,
+
+        saveUninitialized:
+            false,
+
+        rolling:
+            true,
+
+        cookie: {
+
+            httpOnly:
+                true,
+
+            secure:
+                process.env.NODE_ENV === "production",
+
+            sameSite:
+                "lax",
+
+            maxAge:
+                1000 *
+                60 *
+                60 *
+                24 *
+                30
+
+        }
+
+    })
+);
+
+// ============================================================
+// STATIC FILES
+// ============================================================
+
+app.use(
+    express.static(
+        path.join(
+            __dirname,
+            "public"
+        )
+    )
+);
+
+// ============================================================
+// USER HELPERS
+// ============================================================
+
+function currentUser(req) {
+
+    if (
+        req.session &&
+        req.session.user
+    ) {
+
+        return req.session.user;
 
     }
 
-    next();
-}
-
-function cleanString(value) {
-
-    return String(
-        value ?? ""
-    ).trim();
-
+    return null;
 }
 
 function safeUser(profile) {
@@ -113,20 +352,17 @@ function safeUser(profile) {
     }
 
     return {
-        id: profile.id || null,
+
+        id:
+            profile.id || null,
 
         username:
-            profile.username ||
-            "",
+            profile.username || "",
 
         display_name:
             profile.display_name ||
             profile.username ||
             "",
-
-        // Some older ShrekBook databases don't have
-        // avatar_url. This prevents the whole request
-        // from breaking.
 
         avatar_url:
             profile.avatar_url ||
@@ -147,6 +383,7 @@ function safeUser(profile) {
         kick_until:
             profile.kick_until ||
             null
+
     };
 }
 
@@ -158,7 +395,10 @@ async function getProfile(userId) {
     } = await db()
         .from("profiles")
         .select("*")
-        .eq("id", userId)
+        .eq(
+            "id",
+            userId
+        )
         .maybeSingle();
 
     if (error) {
@@ -168,80 +408,201 @@ async function getProfile(userId) {
     return data;
 }
 
-async function getUserForSession(userId) {
-
-    const profile =
-        await getProfile(userId);
-
-    if (!profile) {
-        return null;
-    }
-
-    return safeUser(profile);
-}
-
 function isAdminUser(user) {
 
-    if (!user) {
-        return false;
-    }
-
-    return (
-        user.is_admin === true ||
-        user.role === "admin"
+    return !!(
+        user &&
+        (
+            user.is_admin === true ||
+            user.role === "admin"
+        )
     );
 }
 
 function isKicked(user) {
 
-    if (!user || !user.kick_until) {
+    if (
+        !user ||
+        !user.kick_until
+    ) {
+
         return false;
+
     }
 
-    const time =
+    const timestamp =
         new Date(
             user.kick_until
         ).getTime();
 
     if (
-        Number.isNaN(time)
+        Number.isNaN(timestamp)
     ) {
+
         return false;
+
     }
 
-    return time > Date.now();
+    return timestamp > Date.now();
 }
 
-function requireAdmin(req, res, next) {
+// ============================================================
+// REFRESH USER FROM DATABASE
+// ============================================================
 
-    const user =
+async function refreshSessionUser(req) {
+
+    const sessionUser =
         currentUser(req);
 
-    if (!user) {
-
-        return res.status(401).json({
-            error: "You must be logged in."
-        });
-
+    if (!sessionUser) {
+        return null;
     }
 
-    if (!isAdminUser(user)) {
+    const profile =
+        await getProfile(
+            sessionUser.id
+        );
 
-        return res.status(403).json({
-            error: "Admin access required."
-        });
+    if (!profile) {
 
+        await new Promise(
+            resolve => {
+
+                req.session.destroy(
+                    () => resolve()
+                );
+
+            }
+        );
+
+        return null;
     }
 
-    next();
+    const user =
+        safeUser(profile);
+
+    if (
+        user.is_revoked ||
+        isKicked(user)
+    ) {
+
+        await new Promise(
+            resolve => {
+
+                req.session.destroy(
+                    () => resolve()
+                );
+
+            }
+        );
+
+        return null;
+    }
+
+    req.session.user =
+        user;
+
+    return user;
 }
 
-function escapeLike(value) {
+// ============================================================
+// AUTH MIDDLEWARE
+// ============================================================
 
-    return String(value)
-        .replaceAll("%", "")
-        .replaceAll("_", "");
+async function requireLogin(
+    req,
+    res,
+    next
+) {
 
+    try {
+
+        const user =
+            await refreshSessionUser(
+                req
+            );
+
+        if (!user) {
+
+            return res.status(401).json({
+                error:
+                    "You must be logged in."
+            });
+
+        }
+
+        req.currentUser =
+            user;
+
+        next();
+
+    } catch (error) {
+
+        console.error(
+            "AUTH CHECK ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error:
+                "Authentication check failed."
+        });
+
+    }
+}
+
+async function requireAdmin(
+    req,
+    res,
+    next
+) {
+
+    try {
+
+        const user =
+            await refreshSessionUser(
+                req
+            );
+
+        if (!user) {
+
+            return res.status(401).json({
+                error:
+                    "You must be logged in."
+            });
+
+        }
+
+        if (
+            !isAdminUser(user)
+        ) {
+
+            return res.status(403).json({
+                error:
+                    "Admin access required."
+            });
+
+        }
+
+        req.currentUser =
+            user;
+
+        next();
+
+    } catch (error) {
+
+        console.error(
+            "ADMIN AUTH ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error:
+                "Admin authentication failed."
+        });
+
+    }
 }
 
 // ============================================================
@@ -254,7 +615,8 @@ app.get(
 
         res.json({
             success: true,
-            message: "ShrekBook is alive 🧌"
+            message:
+                "ShrekBook is alive 🧌"
         });
 
     }
@@ -266,14 +628,15 @@ app.get(
 
         res.json({
             success: true,
-            message: "Unified ShrekBook server works."
+            message:
+                "Unified ShrekBook server works."
         });
 
     }
 );
 
 // ============================================================
-// AUTH - SIGNUP
+// SIGNUP
 // ============================================================
 
 app.post(
@@ -315,7 +678,9 @@ app.post(
 
             }
 
-            if (username.length > 30) {
+            if (
+                username.length > 30
+            ) {
 
                 return res.status(400).json({
                     error:
@@ -324,7 +689,9 @@ app.post(
 
             }
 
-            if (password.length < 6) {
+            if (
+                password.length < 6
+            ) {
 
                 return res.status(400).json({
                     error:
@@ -334,7 +701,8 @@ app.post(
             }
 
             const {
-                data: existing
+                data: existing,
+                error: existingError
             } = await db()
                 .from("profiles")
                 .select("id,username")
@@ -343,6 +711,15 @@ app.post(
                     username
                 )
                 .maybeSingle();
+
+            if (existingError) {
+
+                return res.status(500).json({
+                    error:
+                        existingError.message
+                });
+
+            }
 
             if (existing) {
 
@@ -356,15 +733,19 @@ app.post(
             const {
                 data: authData,
                 error: authError
-            } = await db().auth.admin.createUser({
+            } = await db()
+                .auth
+                .admin
+                .createUser({
 
-                email,
+                    email,
 
-                password,
+                    password,
 
-                email_confirm: true
+                    email_confirm:
+                        true
 
-            });
+                });
 
             if (authError) {
 
@@ -400,9 +781,6 @@ app.post(
 
             if (profileError) {
 
-                // Clean up the auth user if profile
-                // creation failed.
-
                 await db()
                     .auth
                     .admin
@@ -419,7 +797,8 @@ app.post(
 
             res.status(201).json({
 
-                success: true,
+                success:
+                    true,
 
                 user:
                     safeUser(profile)
@@ -444,7 +823,7 @@ app.post(
 );
 
 // ============================================================
-// AUTH - LOGIN
+// LOGIN
 // ============================================================
 
 app.post(
@@ -490,6 +869,11 @@ app.post(
 
             if (error) {
 
+                console.error(
+                    "SUPABASE LOGIN ERROR:",
+                    error.message
+                );
+
                 return res.status(401).json({
                     error:
                         "Invalid email or password."
@@ -497,7 +881,10 @@ app.post(
 
             }
 
-            if (!data.user) {
+            if (
+                !data ||
+                !data.user
+            ) {
 
                 return res.status(401).json({
                     error:
@@ -523,7 +910,9 @@ app.post(
             const user =
                 safeUser(profile);
 
-            if (user.is_revoked) {
+            if (
+                user.is_revoked
+            ) {
 
                 return res.status(403).json({
                     error:
@@ -532,7 +921,9 @@ app.post(
 
             }
 
-            if (isKicked(user)) {
+            if (
+                isKicked(user)
+            ) {
 
                 return res.status(403).json({
                     error:
@@ -541,45 +932,50 @@ app.post(
 
             }
 
-            // IMPORTANT:
-            // Store the logged-in user in the SAME
-            // Express session that the rest of the
-            // application reads.
-
-            req.session.user = user;
+            req.session.user =
+                user;
 
             req.session.userId =
+                user.id;
+
+            req.session.supabaseUserId =
                 data.user.id;
 
-            req.session.save(
-                error => {
+            // Explicitly save before responding.
+            await new Promise(
+                (resolve, reject) => {
 
-                    if (error) {
+                    req.session.save(
+                        error => {
 
-                        console.error(
-                            "SESSION SAVE ERROR:",
-                            error
-                        );
+                            if (error) {
+                                reject(error);
+                            } else {
+                                resolve();
+                            }
 
-                        return res.status(500).json({
-                            error:
-                                "Login succeeded, but the session could not be saved."
-                        });
-
-                    }
-
-                    res.json({
-
-                        success: true,
-
-                        loggedIn: true,
-
-                        user
-
-                    });
+                        }
+                    );
 
                 }
             );
+
+            console.log(
+                "LOGIN SESSION SAVED:",
+                req.sessionID
+            );
+
+            res.json({
+
+                success:
+                    true,
+
+                loggedIn:
+                    true,
+
+                user
+
+            });
 
         } catch (error) {
 
@@ -608,61 +1004,29 @@ app.get(
 
         try {
 
-            const sessionUser =
-                currentUser(req);
-
-            if (!sessionUser) {
-
-                return res.json({
-                    loggedIn: false,
-                    user: null
-                });
-
-            }
-
-            const profile =
-                await getProfile(
-                    sessionUser.id
-                );
-
-            if (!profile) {
-
-                req.session.destroy(
-                    () => {}
-                );
-
-                return res.json({
-                    loggedIn: false,
-                    user: null
-                });
-
-            }
-
             const user =
-                safeUser(profile);
-
-            if (
-                user.is_revoked ||
-                isKicked(user)
-            ) {
-
-                req.session.destroy(
-                    () => {}
+                await refreshSessionUser(
+                    req
                 );
 
+            if (!user) {
+
                 return res.json({
-                    loggedIn: false,
-                    user: null
+
+                    loggedIn:
+                        false,
+
+                    user:
+                        null
+
                 });
 
             }
-
-            req.session.user =
-                user;
 
             res.json({
 
-                loggedIn: true,
+                loggedIn:
+                    true,
 
                 user
 
@@ -677,7 +1041,7 @@ app.get(
 
             res.status(500).json({
                 error:
-                    error.message
+                    "Could not load current user."
             });
 
         }
@@ -711,11 +1075,22 @@ app.post(
                 }
 
                 res.clearCookie(
-                    "connect.sid"
+                    "connect.sid",
+                    {
+                        httpOnly:
+                            true,
+
+                        secure:
+                            process.env.NODE_ENV === "production",
+
+                        sameSite:
+                            "lax"
+                    }
                 );
 
                 res.json({
-                    success: true
+                    success:
+                        true
                 });
 
             }
@@ -751,13 +1126,13 @@ app.get(
 
             }
 
-            const users =
-                (data || [])
-                    .map(safeUser)
-                    .filter(Boolean);
-
             res.json({
-                users
+
+                users:
+                    (data || [])
+                        .map(safeUser)
+                        .filter(Boolean)
+
             });
 
         } catch (error) {
@@ -803,7 +1178,7 @@ app.get(
 
             const {
                 data: posts,
-                error: postsError
+                error
             } = await db()
                 .from("posts")
                 .select(`
@@ -820,15 +1195,16 @@ app.get(
                 .order(
                     "created_at",
                     {
-                        ascending: false
+                        ascending:
+                            false
                     }
                 );
 
-            if (postsError) {
+            if (error) {
 
                 return res.status(500).json({
                     error:
-                        postsError.message
+                        error.message
                 });
 
             }
@@ -861,7 +1237,7 @@ app.get(
 );
 
 // ============================================================
-// UPDATE PROFILE
+// PROFILE UPDATE
 // ============================================================
 
 app.put(
@@ -870,6 +1246,8 @@ app.put(
     async (req, res) => {
 
         try {
+
+            const updates = {};
 
             const username =
                 cleanString(
@@ -880,8 +1258,6 @@ app.put(
                 cleanString(
                     req.body.display_name
                 );
-
-            const updates = {};
 
             if (username) {
                 updates.username =
@@ -912,7 +1288,7 @@ app.put(
                 .update(updates)
                 .eq(
                     "id",
-                    currentUser(req).id
+                    req.currentUser.id
                 )
                 .select("*")
                 .single();
@@ -929,9 +1305,28 @@ app.put(
             req.session.user =
                 safeUser(data);
 
+            await new Promise(
+                (resolve, reject) => {
+
+                    req.session.save(
+                        error => {
+
+                            if (error) {
+                                reject(error);
+                            } else {
+                                resolve();
+                            }
+
+                        }
+                    );
+
+                }
+            );
+
             res.json({
 
-                success: true,
+                success:
+                    true,
 
                 user:
                     safeUser(data)
@@ -957,9 +1352,6 @@ app.put(
 
 // ============================================================
 // AVATAR UPLOAD
-//
-// No multer required.
-// Browser sends the image as base64 JSON.
 // ============================================================
 
 app.post(
@@ -1002,12 +1394,9 @@ app.post(
                     ? "image/jpeg"
                     : match[1];
 
-            const base64 =
-                match[2];
-
             const buffer =
                 Buffer.from(
-                    base64,
+                    match[2],
                     "base64"
                 );
 
@@ -1033,7 +1422,7 @@ app.post(
                             : "jpg";
 
             const filename =
-                `avatars/${currentUser(req).id}-${crypto.randomUUID()}.${extension}`;
+                `avatars/${req.currentUser.id}-${crypto.randomUUID()}.${extension}`;
 
             const {
                 error: uploadError
@@ -1047,7 +1436,8 @@ app.post(
                         contentType:
                             mimeType,
 
-                        upsert: true
+                        upsert:
+                            true
                     }
                 );
 
@@ -1061,20 +1451,18 @@ app.post(
             }
 
             const {
-                data: publicData
-            } = db()
-                .storage
-                .from("images")
-                .getPublicUrl(
-                    filename
-                );
+                data:
+                    publicData
+            } =
+                db()
+                    .storage
+                    .from("images")
+                    .getPublicUrl(
+                        filename
+                    );
 
             const imageUrl =
                 publicData.publicUrl;
-
-            // Only update avatar_url if the column exists.
-            // If your old profiles table doesn't have it,
-            // the upload still succeeds.
 
             const {
                 data,
@@ -1087,7 +1475,7 @@ app.post(
                 })
                 .eq(
                     "id",
-                    currentUser(req).id
+                    req.currentUser.id
                 )
                 .select("*")
                 .single();
@@ -1096,7 +1484,7 @@ app.post(
 
                 return res.status(500).json({
                     error:
-                        "Image uploaded, but avatar_url could not be saved. Add an avatar_url column to profiles."
+                        "Image uploaded, but avatar_url could not be saved. Make sure profiles has an avatar_url column."
                 });
 
             }
@@ -1104,9 +1492,28 @@ app.post(
             req.session.user =
                 safeUser(data);
 
+            await new Promise(
+                (resolve, reject) => {
+
+                    req.session.save(
+                        error => {
+
+                            if (error) {
+                                reject(error);
+                            } else {
+                                resolve();
+                            }
+
+                        }
+                    );
+
+                }
+            );
+
             res.json({
 
-                success: true,
+                success:
+                    true,
 
                 image_url:
                     imageUrl,
@@ -1158,7 +1565,8 @@ app.get(
                 .order(
                     "created_at",
                     {
-                        ascending: false
+                        ascending:
+                            false
                     }
                 );
 
@@ -1172,8 +1580,10 @@ app.get(
             }
 
             res.json({
+
                 posts:
                     data || []
+
             });
 
         } catch (error) {
@@ -1245,7 +1655,7 @@ app.post(
                 .insert({
 
                     user_id:
-                        currentUser(req).id,
+                        req.currentUser.id,
 
                     content:
                         content || null,
@@ -1268,7 +1678,8 @@ app.post(
 
             res.status(201).json({
 
-                success: true,
+                success:
+                    true,
 
                 post:
                     data
@@ -1321,7 +1732,8 @@ app.get(
                 .order(
                     "created_at",
                     {
-                        ascending: true
+                        ascending:
+                            true
                     }
                 );
 
@@ -1335,8 +1747,10 @@ app.get(
             }
 
             res.json({
+
                 comments:
                     data || []
+
             });
 
         } catch (error) {
@@ -1403,7 +1817,7 @@ app.post(
                         req.params.postId,
 
                     user_id:
-                        currentUser(req).id,
+                        req.currentUser.id,
 
                     content
 
@@ -1422,7 +1836,8 @@ app.post(
 
             res.status(201).json({
 
-                success: true,
+                success:
+                    true,
 
                 comment:
                     data
@@ -1491,7 +1906,7 @@ app.delete(
 
             if (
                 comment.user_id !==
-                currentUser(req).id
+                req.currentUser.id
             ) {
 
                 return res.status(403).json({
@@ -1521,7 +1936,8 @@ app.delete(
             }
 
             res.json({
-                success: true
+                success:
+                    true
             });
 
         } catch (error) {
@@ -1583,18 +1999,19 @@ app.get(
                 of data || []
             ) {
 
-                counts[
-                    reaction.reaction_type
-                ] =
+                const type =
+                    reaction.reaction_type;
+
+                counts[type] =
                     (
-                        counts[
-                            reaction.reaction_type
-                        ] || 0
+                        counts[type] ||
+                        0
                     ) + 1;
 
             }
 
-            let userReaction = null;
+            let userReaction =
+                null;
 
             const user =
                 currentUser(req);
@@ -1660,12 +2077,14 @@ app.post(
                 ).toLowerCase();
 
             const allowed = [
+
                 "like",
                 "love",
                 "laugh",
                 "angry",
                 "sad",
                 "gyatt"
+
             ];
 
             if (
@@ -1681,9 +2100,6 @@ app.post(
 
             }
 
-            const userId =
-                currentUser(req).id;
-
             const {
                 data: existing,
                 error: findError
@@ -1698,7 +2114,7 @@ app.post(
                 )
                 .eq(
                     "user_id",
-                    userId
+                    req.currentUser.id
                 )
                 .maybeSingle();
 
@@ -1742,7 +2158,8 @@ app.post(
 
                 return res.json({
 
-                    success: true,
+                    success:
+                        true,
 
                     reaction:
                         data
@@ -1762,7 +2179,7 @@ app.post(
                         req.params.postId,
 
                     user_id:
-                        userId,
+                        req.currentUser.id,
 
                     reaction_type:
                         reactionType
@@ -1782,7 +2199,8 @@ app.post(
 
             res.status(201).json({
 
-                success: true,
+                success:
+                    true,
 
                 reaction:
                     data
@@ -1828,7 +2246,7 @@ app.delete(
                 )
                 .eq(
                     "user_id",
-                    currentUser(req).id
+                    req.currentUser.id
                 );
 
             if (error) {
@@ -1841,7 +2259,8 @@ app.delete(
             }
 
             res.json({
-                success: true
+                success:
+                    true
             });
 
         } catch (error) {
@@ -1875,7 +2294,9 @@ app.get(
                 data,
                 error
             } = await db()
-                .from("shrekchat_messages")
+                .from(
+                    "shrekchat_messages"
+                )
                 .select(`
                     id,
                     user_id,
@@ -1885,7 +2306,8 @@ app.get(
                 .order(
                     "created_at",
                     {
-                        ascending: true
+                        ascending:
+                            true
                     }
                 )
                 .limit(100);
@@ -1900,8 +2322,10 @@ app.get(
             }
 
             res.json({
+
                 messages:
                     data || []
+
             });
 
         } catch (error) {
@@ -1961,11 +2385,13 @@ app.post(
                 data,
                 error
             } = await db()
-                .from("shrekchat_messages")
+                .from(
+                    "shrekchat_messages"
+                )
                 .insert({
 
                     user_id:
-                        currentUser(req).id,
+                        req.currentUser.id,
 
                     message
 
@@ -1984,7 +2410,8 @@ app.post(
 
             res.status(201).json({
 
-                success: true,
+                success:
+                    true,
 
                 message:
                     data
@@ -2009,7 +2436,7 @@ app.post(
 );
 
 // ============================================================
-// SHREKCHAT - DELETE OWN MESSAGE
+// SHREKCHAT - DELETE
 // ============================================================
 
 app.delete(
@@ -2023,7 +2450,9 @@ app.delete(
                 data: message,
                 error: findError
             } = await db()
-                .from("shrekchat_messages")
+                .from(
+                    "shrekchat_messages"
+                )
                 .select(
                     "id,user_id"
                 )
@@ -2053,7 +2482,7 @@ app.delete(
 
             if (
                 message.user_id !==
-                currentUser(req).id
+                req.currentUser.id
             ) {
 
                 return res.status(403).json({
@@ -2066,7 +2495,9 @@ app.delete(
             const {
                 error
             } = await db()
-                .from("shrekchat_messages")
+                .from(
+                    "shrekchat_messages"
+                )
                 .delete()
                 .eq(
                     "id",
@@ -2083,7 +2514,8 @@ app.delete(
             }
 
             res.json({
-                success: true
+                success:
+                    true
             });
 
         } catch (error) {
@@ -2113,15 +2545,20 @@ app.get(
     (req, res) => {
 
         res.json({
-            isAdmin: true,
-            user: currentUser(req)
+
+            isAdmin:
+                true,
+
+            user:
+                req.currentUser
+
         });
 
     }
 );
 
 // ============================================================
-// ADMIN - GET USERS
+// ADMIN - USERS
 // ============================================================
 
 app.get(
@@ -2140,7 +2577,8 @@ app.get(
                 .order(
                     "username",
                     {
-                        ascending: true
+                        ascending:
+                            true
                     }
                 );
 
@@ -2180,8 +2618,6 @@ app.get(
 
 // ============================================================
 // ADMIN - KICK
-//
-// `minutes` controls how long the kick lasts.
 // ============================================================
 
 app.post(
@@ -2196,7 +2632,7 @@ app.post(
 
             if (
                 targetId ===
-                currentUser(req).id
+                req.currentUser.id
             ) {
 
                 return res.status(400).json({
@@ -2214,7 +2650,9 @@ app.post(
             if (
                 !Number.isFinite(minutes)
             ) {
+
                 minutes = 60;
+
             }
 
             minutes =
@@ -2229,7 +2667,9 @@ app.post(
             const kickUntil =
                 new Date(
                     Date.now() +
-                    minutes * 60 * 1000
+                    minutes *
+                    60 *
+                    1000
                 ).toISOString();
 
             const {
@@ -2259,14 +2699,10 @@ app.post(
 
             }
 
-            // Destroy target's current session is
-            // not possible through the default
-            // MemoryStore reliably, so /api/me
-            // also checks kick_until on every request.
-
             res.json({
 
-                success: true,
+                success:
+                    true,
 
                 message:
                     `User kicked for ${minutes} minutes.`,
@@ -2309,7 +2745,7 @@ app.post(
 
             if (
                 targetId ===
-                currentUser(req).id
+                req.currentUser.id
             ) {
 
                 return res.status(400).json({
@@ -2346,8 +2782,7 @@ app.post(
 
             }
 
-            // Also disable the Supabase auth account.
-
+            // Disable Supabase authentication.
             await db()
                 .auth
                 .admin
@@ -2359,9 +2794,22 @@ app.post(
                     }
                 );
 
+            // Remove persistent sessions.
+            await db()
+                .from(
+                    "shrekbook_sessions"
+                )
+                .delete()
+                .filter(
+                    "sess->>userId",
+                    "eq",
+                    targetId
+                );
+
             res.json({
 
-                success: true,
+                success:
+                    true,
 
                 message:
                     "User revoked.",
@@ -2445,7 +2893,8 @@ app.post(
 
             res.json({
 
-                success: true,
+                success:
+                    true,
 
                 message:
                     "User restored.",
@@ -2488,7 +2937,7 @@ app.delete(
 
             if (
                 targetId ===
-                currentUser(req).id
+                req.currentUser.id
             ) {
 
                 return res.status(400).json({
@@ -2497,6 +2946,17 @@ app.delete(
                 });
 
             }
+
+            await db()
+                .from(
+                    "shrekbook_sessions"
+                )
+                .delete()
+                .filter(
+                    "sess->>userId",
+                    "eq",
+                    targetId
+                );
 
             const {
                 error
@@ -2525,7 +2985,8 @@ app.delete(
                 );
 
             res.json({
-                success: true
+                success:
+                    true
             });
 
         } catch (error) {
@@ -2554,8 +3015,10 @@ app.use(
     (req, res) => {
 
         res.status(404).json({
+
             error:
                 "API endpoint not found."
+
         });
 
     }
@@ -2563,11 +3026,19 @@ app.use(
 
 // ============================================================
 // FRONTEND FALLBACK
+// Express 5 compatible
 // ============================================================
 
-app.get(
-    "*",
+app.use(
     (req, res) => {
+
+        if (
+            req.method !== "GET"
+        ) {
+
+            return res.status(404).end();
+
+        }
 
         res.sendFile(
             path.join(
@@ -2591,6 +3062,10 @@ app.listen(
 
         console.log(
             `🧌 ShrekBook running on port ${PORT}`
+        );
+
+        console.log(
+            "💾 Persistent Supabase sessions enabled."
         );
 
     }
