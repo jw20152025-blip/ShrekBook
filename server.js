@@ -5174,7 +5174,91 @@ app.post(
     }
 );
 
+// ==================================================
+// ONLINE / OFFLINE PRESENCE
+// ==================================================
 
+const onlineUsers = new Map();
+
+// Mark current user online
+app.post("/api/online", requireLogin, async (req, res) => {
+
+    try {
+
+        const userId = req.session.user.id;
+
+        onlineUsers.set(userId, Date.now());
+
+        res.json({
+            success: true,
+            online: true
+        });
+
+    } catch (error) {
+
+        console.error(
+            "ONLINE POST ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Could not update online status."
+        });
+
+    }
+
+});
+
+
+// Get online status
+app.get("/api/online", async (req, res) => {
+
+    try {
+
+        const now = Date.now();
+
+        const users = {};
+
+        for (
+            const [userId, lastSeen]
+            of onlineUsers.entries()
+        ) {
+
+            // Consider someone offline
+            // after 60 seconds.
+            if (
+                now - lastSeen <= 60000
+            ) {
+
+                users[userId] = true;
+
+            } else {
+
+                onlineUsers.delete(userId);
+
+            }
+
+        }
+
+        res.json({
+            success: true,
+            users
+        });
+
+    } catch (error) {
+
+        console.error(
+            "ONLINE GET ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Could not get online users."
+        });
+
+    }
+
+});
 // ============================================================
 // KICK USER
 // ============================================================
