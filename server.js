@@ -978,8 +978,50 @@ app.get("/api/admin/check", async (req, res) => {
 
     try {
 
-        // Make sure someone is logged in
         if (!req.session.user) {
+            return res.status(401).json({
+                isAdmin: false,
+                error: "Not logged in."
+            });
+        }
+
+        const userId =
+            req.session.user.id;
+
+        console.log(
+            "ADMIN CHECK USER ID:",
+            userId
+        );
+
+        const {
+            data,
+            error
+        } = await supabase
+            .from("admins")
+            .select("user_id")
+            .eq("user_id", userId)
+            .maybeSingle();
+
+        if (error) {
+
+            console.error(
+                "ADMIN TABLE ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                isAdmin: false,
+                error: error.message
+            });
+
+        }
+
+        if (!data) {
+
+            console.log(
+                "NOT AN ADMIN:",
+                userId
+            );
 
             return res.json({
                 isAdmin: false
@@ -987,40 +1029,13 @@ app.get("/api/admin/check", async (req, res) => {
 
         }
 
-        const userId =
-            req.session.user.id;
+        console.log(
+            "ADMIN CONFIRMED:",
+            userId
+        );
 
-        // Check admins table
-        const {
-            data,
-            error
-        } = await supabase
-            .from("admins")
-            .select("user_id")
-            .eq(
-                "user_id",
-                userId
-            )
-            .maybeSingle();
-
-        if (error) {
-
-            console.error(
-                "ADMIN CHECK ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                isAdmin: false
-            });
-
-        }
-
-        res.json({
-
-            isAdmin:
-                !!data
-
+        return res.json({
+            isAdmin: true
         });
 
     } catch (error) {
@@ -1030,10 +1045,9 @@ app.get("/api/admin/check", async (req, res) => {
             error
         );
 
-        res.status(500).json({
-
-            isAdmin: false
-
+        return res.status(500).json({
+            isAdmin: false,
+            error: "Could not check administrator status."
         });
 
     }

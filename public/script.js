@@ -519,10 +519,7 @@ function setupAdminNav(user) {
         return;
     }
 
-    /*
-     * Detect admin using several possible
-     * backend field names.
-     */
+
 
     const isAdmin =
         user.is_admin === true ||
