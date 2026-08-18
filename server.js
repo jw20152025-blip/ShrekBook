@@ -534,85 +534,139 @@ app.post("/api/login", async (req, res) => {
             );
 
         if (!email || !password) {
+
             return res.status(400).json({
                 error:
                     "Email and password are required."
             });
+
         }
 
-        // Check email ban BEFORE login
+
+        // ==========================================
+        // CHECK EMAIL BAN BEFORE LOGIN
+        // ==========================================
+
         const emailBan =
             await getActiveBanByEmail(
                 email
             );
 
         if (emailBan) {
+
             return res.status(403).json({
+
                 error:
                     "This email address is banned from ShrekBook.",
+
                 reason:
                     emailBan.reason ||
                     "No reason provided."
+
             });
+
         }
+
+
+        // ==========================================
+        // SUPABASE AUTH LOGIN
+        // ==========================================
 
         const {
             data: authData,
             error: authError
-        } = await supabase.auth.signInWithPassword({
-            email,
-            password
-        });
+        } =
+            await supabase.auth.signInWithPassword({
+
+                email,
+                password
+
+            });
+
 
         if (authError) {
+
             return res.status(401).json({
+
                 error:
                     authError.message
+
             });
+
         }
+
 
         const authUser =
             authData.user;
 
-        // Check user ID ban too
+
+        // ==========================================
+        // CHECK USER ID BAN
+        // ==========================================
+
         const userBan =
             await getActiveBanByUserId(
                 authUser.id
             );
 
+
         if (userBan) {
 
             return res.status(403).json({
+
                 error:
                     "Your account has been banned.",
+
                 reason:
                     userBan.reason ||
                     "No reason provided."
+
             });
 
         }
+
+
+        // ==========================================
+        // LOAD PROFILE
+        // ==========================================
 
         let {
             data: profile,
             error: profileError
-        } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", authUser.id)
-            .maybeSingle();
+        } =
+            await supabase
+                .from("profiles")
+                .select("*")
+                .eq(
+                    "id",
+                    authUser.id
+                )
+                .maybeSingle();
+
 
         if (profileError) {
+
             return res.status(500).json({
+
                 error:
                     profileError.message
+
             });
+
         }
 
-        // Create missing profile automatically
+
+        // ==========================================
+        // CREATE MISSING PROFILE
+        // ==========================================
+
         if (!profile) {
 
             let username =
-                (authUser.email || "user")
+                (
+                    authUser.email ||
+                    "user"
+                )
                     .split("@")[0]
                     .toLowerCase()
                     .replace(
@@ -621,64 +675,103 @@ app.post("/api/login", async (req, res) => {
                     )
                     .slice(0, 20);
 
+
             if (!username) {
-                username = "user";
+
+                username =
+                    "user";
+
             }
+
 
             const original =
                 username;
 
-            let number = 1;
+
+            let number =
+                1;
+
 
             while (true) {
 
                 const {
                     data: taken
-                } = await supabase
-                    .from("profiles")
-                    .select("id")
-                    .eq(
-                        "username",
-                        username
-                    )
-                    .maybeSingle();
+                } =
+                    await supabase
+                        .from("profiles")
+                        .select("id")
+                        .eq(
+                            "username",
+                            username
+                        )
+                        .maybeSingle();
+
 
                 if (!taken) {
+
                     break;
+
                 }
+
 
                 username =
                     `${original}${number}`;
 
+
                 number++;
+
             }
+
 
             const {
                 data: created,
                 error: createError
-            } = await supabase
-                .from("profiles")
-                .insert({
-                    id:
-                        authUser.id,
-                    username,
-                    display_name:
-                        username,
-                    avatar: null,
-                    bio: ""
-                })
-                .select()
-                .single();
+            } =
+                await supabase
+                    .from("profiles")
+                    .insert({
+
+                        id:
+                            authUser.id,
+
+                        username:
+                            username,
+
+                        display_name:
+                            username,
+
+                        avatar:
+                            null,
+
+                        bio:
+                            ""
+
+                    })
+                    .select()
+                    .single();
+
 
             if (createError) {
+
                 return res.status(500).json({
+
                     error:
                         createError.message
+
                 });
+
             }
 
-            profile = created;
+
+            profile =
+                created;
+
         }
+
+
+        // ==========================================
+        // CREATE LOGIN SESSION
+        // ==========================================
 
         req.session.user = {
 
@@ -696,33 +789,56 @@ app.post("/api/login", async (req, res) => {
 
         };
 
-        req.session.save(error => {
 
-            if (error) {
+        // ==========================================
+        // SAVE SESSION
+        // ==========================================
 
-                return res.status(500).json({
-                    error:
-                        "Could not save login session."
+        req.session.save(
+            error => {
+
+                if (error) {
+
+                    console.error(
+                        "SESSION SAVE ERROR:",
+                        error
+                    );
+
+                    return res.status(500).json({
+
+                        error:
+                            "Could not save login session."
+
+                    });
+
+                }
+
+
+                // ==================================
+                // LOGIN SUCCESS
+                // ==================================
+
+                res.json({
+
+                    success:
+                        true,
+
+                    user: {
+
+                        ...profile,
+
+                        avatar:
+                            getAvatar(
+                                profile.avatar
+                            )
+
+                    }
+
                 });
 
             }
+        );
 
-            res.json({
-
-                success: true,
-
-                user: {
-                    ...profile,
-
-                    avatar:
-                        getAvatar(
-                            profile.avatar
-                        )
-                }
-
-            });
-
-        });
 
     } catch (error) {
 
@@ -731,45 +847,17 @@ app.post("/api/login", async (req, res) => {
             error
         );
 
+
         res.status(500).json({
-            error: "Server error."
+
+            error:
+                "Server error."
+
         });
 
     }
 
 });
-const normalizedEmail =
-    email.toLowerCase();
-
-try {
-
-    const banned =
-        await isEmailBanned(
-            normalizedEmail
-        );
-
-    if (banned) {
-
-        return res.status(403).json({
-            error:
-                "This email address is banned from ShrekBook."
-        });
-
-    }
-
-} catch (error) {
-
-    console.error(
-        "LOGIN BAN CHECK ERROR:",
-        error
-    );
-
-    return res.status(500).json({
-        error:
-            "Could not verify account eligibility."
-    });
-
-}
 // ==================================================
 // LOGOUT
 // ==================================================
