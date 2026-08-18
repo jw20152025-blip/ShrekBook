@@ -367,7 +367,275 @@ async function getReactionCounts(userId) {
 
     return counts;
 }
+// ==================================================
+// CHANGE USER ROLE
+// ==================================================
 
+app.post(
+    "/api/admin/users/:userId/role",
+    requireAdmin,
+    async (req, res) => {
+
+        try {
+
+            const targetUserId =
+                String(
+                    req.params.userId || ""
+                ).trim();
+
+            const newRole =
+                String(
+                    req.body.role || ""
+                ).trim().toLowerCase();
+
+
+            const allowedRoles = [
+                "owner",
+                "administrator",
+                "senior_moderator",
+                "moderator",
+                "peasant"
+            ];
+
+
+            if (!targetUserId) {
+
+                return res.status(400).json({
+                    error: "User ID is required."
+                });
+
+            }
+
+
+            if (!allowedRoles.includes(newRole)) {
+
+                return res.status(400).json({
+                    error: "Invalid role."
+                });
+
+            }
+
+
+            const currentUserId =
+                req.session.user.id;
+
+
+            // ==========================================
+            // OWNER PROTECTION
+            // ==========================================
+
+            if (
+                targetUserId === currentUserId
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You cannot change your own role."
+                });
+
+            }
+
+
+            // ==========================================
+            // GET TARGET PROFILE
+            // ==========================================
+
+            const {
+                data: target,
+                error: targetError
+            } = await supabase
+                .from("profiles")
+                .select(
+                    "id, username, display_name, role"
+                )
+                .eq(
+                    "id",
+                    targetUserId
+                )
+                .maybeSingle();
+
+
+            if (targetError) {
+
+                return res.status(500).json({
+                    error:
+                        targetError.message
+                });
+
+            }
+
+
+            if (!target) {
+
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+
+            }
+
+
+            // ==========================================
+            // OWNER CANNOT BE TOUCHED
+            // ==========================================
+
+            if (
+                target.role === "owner"
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "The Owner cannot be demoted or modified."
+                });
+
+            }
+
+
+            // ==========================================
+            // ONLY OWNER CAN CREATE/REMOVE ADMINS
+            // ==========================================
+
+            const currentProfile =
+                await supabase
+                    .from("profiles")
+                    .select("role")
+                    .eq(
+                        "id",
+                        currentUserId
+                    )
+                    .maybeSingle();
+
+
+            const currentRole =
+                currentProfile.data?.role;
+
+
+            if (
+                newRole === "owner"
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "The Owner role cannot be assigned."
+                });
+
+            }
+
+
+            if (
+                newRole === "administrator" &&
+                currentRole !== "owner"
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "Only the Owner can promote users to Administrator."
+                });
+
+            }
+
+
+            // ==========================================
+            // UPDATE ROLE
+            // ==========================================
+
+            const {
+                data: updated,
+                error: updateError
+            } = await supabase
+                .from("profiles")
+                .update({
+                    role: newRole
+                })
+                .eq(
+                    "id",
+                    targetUserId
+                )
+                .select(
+                    "id, username, display_name, role"
+                )
+                .single();
+
+
+            if (updateError) {
+
+                console.error(
+                    "ROLE UPDATE ERROR:",
+                    updateError
+                );
+
+                return res.status(500).json({
+                    error:
+                        updateError.message
+                });
+
+            }
+
+
+            // ==========================================
+            // KEEP ADMINS TABLE IN SYNC
+            // ==========================================
+
+            if (
+                newRole === "administrator"
+            ) {
+
+                await supabase
+                    .from("admins")
+                    .upsert(
+                        {
+                            user_id:
+                                targetUserId
+                        },
+                        {
+                            onConflict:
+                                "user_id"
+                        }
+                    );
+
+            } else {
+
+                await supabase
+                    .from("admins")
+                    .delete()
+                    .eq(
+                        "user_id",
+                        targetUserId
+                    );
+
+            }
+
+
+            res.json({
+
+                success: true,
+
+                message:
+                    `Role changed to ${newRole}.`,
+
+                user:
+                    updated
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "CHANGE ROLE ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message ||
+                    "Server error while changing role."
+            });
+
+        }
+
+    }
+);
 // ==================================================
 // TEST
 // ==================================================
