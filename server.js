@@ -8,69 +8,129 @@ const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 
-const PORT = process.env.PORT || 3000;
+const PORT =
+    process.env.PORT || 3000;
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_URL =
+    process.env.SUPABASE_URL;
+
 const SUPABASE_SERVICE_ROLE_KEY =
     process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const SESSION_SECRET = process.env.SESSION_SECRET;
+const SESSION_SECRET =
+    process.env.SESSION_SECRET;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    console.error("❌ Missing Supabase environment variables.");
+
+// ==================================================
+// ENVIRONMENT CHECK
+// ==================================================
+
+if (
+    !SUPABASE_URL ||
+    !SUPABASE_SERVICE_ROLE_KEY
+) {
+    console.error(
+        "❌ Missing Supabase environment variables."
+    );
+
     process.exit(1);
 }
 
 if (!SESSION_SECRET) {
-    console.error("❌ Missing SESSION_SECRET.");
+    console.error(
+        "❌ Missing SESSION_SECRET."
+    );
+
     process.exit(1);
 }
 
-const supabase = createClient(
-    SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY
-);
 
-const DEFAULT_AVATAR = "/default-avatar.png";
+// ==================================================
+// SUPABASE
+// ==================================================
+
+const supabase =
+    createClient(
+        SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY
+    );
+
+const DEFAULT_AVATAR =
+    "/default-avatar.png";
+
 
 // ==================================================
 // EXPRESS
 // ==================================================
 
-app.set("trust proxy", 1);
+app.set(
+    "trust proxy",
+    1
+);
 
-app.use(express.json({
-    limit: "10mb"
-}));
+app.use(
+    express.json({
+        limit: "10mb"
+    })
+);
 
-app.use(express.urlencoded({
-    extended: true
-}));
+app.use(
+    express.urlencoded({
+        extended: true
+    })
+);
 
-app.use(session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
+app.use(
+    session({
+        secret:
+            SESSION_SECRET,
 
-    cookie: {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 1000 * 60 * 60 * 24 * 30
-    }
-}));
+        resave:
+            false,
 
-app.use(express.static(
-    path.join(__dirname, "public")
-));
+        saveUninitialized:
+            false,
+
+        cookie: {
+            httpOnly:
+                true,
+
+            secure:
+                process.env.NODE_ENV ===
+                "production",
+
+            sameSite:
+                "lax",
+
+            maxAge:
+                1000 *
+                60 *
+                60 *
+                24 *
+                30
+        }
+    })
+);
+
+app.use(
+    express.static(
+        path.join(
+            __dirname,
+            "public"
+        )
+    )
+);
+
 
 // ==================================================
 // HELPERS
 // ==================================================
 
 function getAvatar(avatar) {
+
     if (
-        typeof avatar === "string" &&
+        typeof avatar ===
+            "string" &&
         avatar.trim() !== ""
     ) {
         return avatar;
@@ -79,29 +139,52 @@ function getAvatar(avatar) {
     return DEFAULT_AVATAR;
 }
 
+
 function normalizeEmail(email) {
-    return String(email || "")
+
+    return String(
+        email || ""
+    )
         .trim()
         .toLowerCase();
 }
+
 
 // ==================================================
 // LOGIN MIDDLEWARE
 // ==================================================
 
-function requireLogin(req, res, next) {
+function requireLogin(
+    req,
+    res,
+    next
+) {
 
     if (!req.session.user) {
+
         return res.status(401).json({
-            error: "You must be logged in."
+            error:
+                "You must be logged in."
         });
     }
 
     next();
 }
 
+
 // ==================================================
 // STAFF ROLE SYSTEM
+//
+// IMPORTANT:
+//
+// roles are stored ONLY in:
+//
+//     admins.role
+//
+// profiles.role does NOT exist.
+//
+// owner is determined by OWNER_ID.
+// everyone without an admins row is peasant.
 // ==================================================
 
 const STAFF_ROLES = [
@@ -111,22 +194,47 @@ const STAFF_ROLES = [
     "moderator"
 ];
 
-async function getUserRole(userId) {
+
+async function getUserRole(
+    userId
+) {
 
     if (!userId) {
         return "peasant";
     }
 
+
+    // OWNER_ID is the permanent owner.
+
+    if (
+        process.env.OWNER_ID &&
+        userId ===
+            process.env.OWNER_ID
+    ) {
+
+        return "owner";
+    }
+
+
     const {
         data,
         error
-    } = await supabase
-        .from("admins")
-        .select("user_id, role")
-        .eq("user_id", userId)
-        .maybeSingle();
+    } =
+        await supabase
+            .from("admins")
+            .select(`
+                user_id,
+                role
+            `)
+            .eq(
+                "user_id",
+                userId
+            )
+            .maybeSingle();
+
 
     if (error) {
+
         console.error(
             "GET USER ROLE ERROR:",
             error
@@ -135,246 +243,41 @@ async function getUserRole(userId) {
         throw error;
     }
 
+
     if (!data) {
         return "peasant";
     }
 
-    return data.role || "administrator";
+
+    return (
+        data.role ||
+        "peasant"
+    );
 }
 
+
 // ==================================================
-// ADMIN / BAN HELPERS
+// ADMIN CHECK
 // ==================================================
 
-async function isAdmin(userId) {
+async function isAdmin(
+    userId
+) {
 
     if (!userId) {
         return false;
     }
 
-    const {
-        data,
-        error
-    } = await supabase
-        .from("admins")
-        .select("user_id")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-    if (error) {
-        console.error(
-            "ADMIN CHECK ERROR:",
-            error
+    const role =
+        await getUserRole(
+            userId
         );
 
-        return false;
-    }
-
-    return !!data;
+    return STAFF_ROLES.includes(
+        role
+    );
 }
 
-async function getActiveBanByUserId(userId) {
-
-    if (!userId) {
-        return null;
-    }
-
-    const {
-        data,
-        error
-    } = await supabase
-        .from("bans")
-        .select(`
-            id,
-            user_id,
-            email,
-            reason,
-            banned_at,
-            banned_by,
-            active
-        `)
-        .eq("user_id", userId)
-        .eq("active", true)
-        .order("banned_at", {
-            ascending: false
-        })
-        .limit(1)
-        .maybeSingle();
-
-    if (error) {
-        console.error(
-            "BAN USER CHECK ERROR:",
-            error
-        );
-
-        return null;
-    }
-
-    return data;
-}
-
-async function getActiveBanByEmail(email) {
-
-    const normalized =
-        normalizeEmail(email);
-
-    if (!normalized) {
-        return null;
-    }
-
-    const {
-        data,
-        error
-    } = await supabase
-        .from("bans")
-        .select(`
-            id,
-            user_id,
-            email,
-            reason,
-            banned_at,
-            banned_by,
-            active
-        `)
-        .eq("email", normalized)
-        .eq("active", true)
-        .order("banned_at", {
-            ascending: false
-        })
-        .limit(1)
-        .maybeSingle();
-
-    if (error) {
-        console.error(
-            "BAN EMAIL CHECK ERROR:",
-            error
-        );
-
-        return null;
-    }
-
-    return data;
-}
-
-async function getActiveBan(userId, email) {
-
-    const userBan =
-        await getActiveBanByUserId(userId);
-
-    if (userBan) {
-        return userBan;
-    }
-
-    return await getActiveBanByEmail(email);
-}
-
-// ==================================================
-// KICK HELPERS
-// ==================================================
-
-async function getActiveKickByUserId(userId) {
-
-    if (!userId) {
-        return null;
-    }
-
-    const {
-        data,
-        error
-    } = await supabase
-        .from("kicks")
-        .select(`
-            id,
-            user_id,
-            reason,
-            kicked_at,
-            kicked_by,
-            active
-        `)
-        .eq("user_id", userId)
-        .eq("active", true)
-        .order("kicked_at", {
-            ascending: false
-        })
-        .limit(1)
-        .maybeSingle();
-
-    if (error) {
-
-        // If the table does not exist yet,
-        // do not destroy the entire website.
-        if (
-            error.code === "42P01" ||
-            error.message?.toLowerCase().includes(
-                "relation"
-            )
-        ) {
-            return null;
-        }
-
-        console.error(
-            "KICK CHECK ERROR:",
-            error
-        );
-
-        return null;
-    }
-
-    return data;
-}
-
-// ==================================================
-// STAFF REVOCATION HELPERS
-// ==================================================
-
-async function getActiveRevocationByUserId(userId) {
-
-    if (!userId) {
-        return null;
-    }
-
-    const {
-        data,
-        error
-    } = await supabase
-        .from("staff_revocations")
-        .select(`
-            id,
-            user_id,
-            reason,
-            revoked_at,
-            revoked_by,
-            active
-        `)
-        .eq("user_id", userId)
-        .eq("active", true)
-        .order("revoked_at", {
-            ascending: false
-        })
-        .limit(1)
-        .maybeSingle();
-
-    if (error) {
-
-        if (
-            error.code === "42P01" ||
-            error.message?.toLowerCase().includes(
-                "relation"
-            )
-        ) {
-            return null;
-        }
-
-        console.error(
-            "REVOCATION CHECK ERROR:",
-            error
-        );
-
-        return null;
-    }
-
-    return data;
-}
 
 // ==================================================
 // REQUIRE STAFF
@@ -389,27 +292,35 @@ async function requireStaff(
     try {
 
         if (!req.session.user) {
+
             return res.status(401).json({
                 error:
                     "You must be logged in."
             });
         }
 
+
         const role =
             await getUserRole(
                 req.session.user.id
             );
 
+
         if (
-            !STAFF_ROLES.includes(role)
+            !STAFF_ROLES.includes(
+                role
+            )
         ) {
+
             return res.status(403).json({
                 error:
                     "Staff access required."
             });
         }
 
-        req.staffRole = role;
+
+        req.staffRole =
+            role;
 
         next();
 
@@ -427,6 +338,7 @@ async function requireStaff(
     }
 }
 
+
 // ==================================================
 // REQUIRE ADMIN
 // ==================================================
@@ -440,39 +352,35 @@ async function requireAdmin(
     try {
 
         if (!req.session.user) {
+
             return res.status(401).json({
                 error:
                     "You must be logged in."
             });
         }
 
-        const userId =
-            req.session.user.id;
-
-        // OWNER ALWAYS HAS STAFF ACCESS
-        if (
-            process.env.OWNER_ID &&
-            userId === process.env.OWNER_ID
-        ) {
-            req.staffRole = "owner";
-            return next();
-        }
 
         const role =
             await getUserRole(
-                userId
+                req.session.user.id
             );
 
+
         if (
-            !STAFF_ROLES.includes(role)
+            !STAFF_ROLES.includes(
+                role
+            )
         ) {
+
             return res.status(403).json({
                 error:
                     "Staff access required."
             });
         }
 
-        req.staffRole = role;
+
+        req.staffRole =
+            role;
 
         next();
 
@@ -490,6 +398,7 @@ async function requireAdmin(
     }
 }
 
+
 // ==================================================
 // REQUIRE OWNER
 // ==================================================
@@ -503,38 +412,34 @@ async function requireOwner(
     try {
 
         if (!req.session.user) {
+
             return res.status(401).json({
                 error:
                     "You must be logged in."
             });
         }
 
-        const userId =
-            req.session.user.id;
-
-        if (
-            process.env.OWNER_ID &&
-            userId === process.env.OWNER_ID
-        ) {
-            req.staffRole = "owner";
-            return next();
-        }
 
         const role =
             await getUserRole(
-                userId
+                req.session.user.id
             );
 
+
         if (
-            role !== "owner"
+            role !==
+            "owner"
         ) {
+
             return res.status(403).json({
                 error:
                     "Owner access required."
             });
         }
 
-        req.staffRole = role;
+
+        req.staffRole =
+            "owner";
 
         next();
 
@@ -552,13 +457,329 @@ async function requireOwner(
     }
 }
 
+
 // ==================================================
-// GLOBAL BAN CHECK
+// BAN HELPERS
+// ==================================================
+
+async function getActiveBanByUserId(
+    userId
+) {
+
+    if (!userId) {
+        return null;
+    }
+
+
+    const {
+        data,
+        error
+    } =
+        await supabase
+            .from("bans")
+            .select(`
+                id,
+                user_id,
+                email,
+                reason,
+                banned_at,
+                banned_by,
+                active
+            `)
+            .eq(
+                "user_id",
+                userId
+            )
+            .eq(
+                "active",
+                true
+            )
+            .order(
+                "banned_at",
+                {
+                    ascending:
+                        false
+                }
+            )
+            .limit(1)
+            .maybeSingle();
+
+
+    if (error) {
+
+        console.error(
+            "BAN USER CHECK ERROR:",
+            error
+        );
+
+        return null;
+    }
+
+
+    return data;
+}
+
+
+async function getActiveBanByEmail(
+    email
+) {
+
+    const normalized =
+        normalizeEmail(
+            email
+        );
+
+
+    if (!normalized) {
+        return null;
+    }
+
+
+    const {
+        data,
+        error
+    } =
+        await supabase
+            .from("bans")
+            .select(`
+                id,
+                user_id,
+                email,
+                reason,
+                banned_at,
+                banned_by,
+                active
+            `)
+            .eq(
+                "email",
+                normalized
+            )
+            .eq(
+                "active",
+                true
+            )
+            .order(
+                "banned_at",
+                {
+                    ascending:
+                        false
+                }
+            )
+            .limit(1)
+            .maybeSingle();
+
+
+    if (error) {
+
+        console.error(
+            "BAN EMAIL CHECK ERROR:",
+            error
+        );
+
+        return null;
+    }
+
+
+    return data;
+}
+
+
+async function getActiveBan(
+    userId,
+    email
+) {
+
+    const userBan =
+        await getActiveBanByUserId(
+            userId
+        );
+
+
+    if (userBan) {
+        return userBan;
+    }
+
+
+    return await getActiveBanByEmail(
+        email
+    );
+}
+
+
+// ==================================================
+// KICK HELPERS
+// ==================================================
+
+async function getActiveKickByUserId(
+    userId
+) {
+
+    if (!userId) {
+        return null;
+    }
+
+
+    const {
+        data,
+        error
+    } =
+        await supabase
+            .from("kicks")
+            .select(`
+                id,
+                user_id,
+                reason,
+                kicked_at,
+                kicked_by,
+                active
+            `)
+            .eq(
+                "user_id",
+                userId
+            )
+            .eq(
+                "active",
+                true
+            )
+            .order(
+                "kicked_at",
+                {
+                    ascending:
+                        false
+                }
+            )
+            .limit(1)
+            .maybeSingle();
+
+
+    if (error) {
+
+        if (
+            error.code ===
+                "42P01" ||
+            error.message
+                ?.toLowerCase()
+                .includes(
+                    "relation"
+                ) ||
+            error.message
+                ?.toLowerCase()
+                .includes(
+                    "schema cache"
+                )
+        ) {
+
+            return null;
+        }
+
+
+        console.error(
+            "KICK CHECK ERROR:",
+            error
+        );
+
+        return null;
+    }
+
+
+    return data;
+}
+
+
+// ==================================================
+// STAFF REVOCATION HELPER
+// ==================================================
+
+async function getActiveRevocationByUserId(
+    userId
+) {
+
+    if (!userId) {
+        return null;
+    }
+
+
+    const {
+        data,
+        error
+    } =
+        await supabase
+            .from(
+                "staff_revocations"
+            )
+            .select(`
+                id,
+                user_id,
+                previous_role,
+                reason,
+                revoked_at,
+                revoked_by,
+                active
+            `)
+            .eq(
+                "user_id",
+                userId
+            )
+            .eq(
+                "active",
+                true
+            )
+            .order(
+                "revoked_at",
+                {
+                    ascending:
+                        false
+                }
+            )
+            .limit(1)
+            .maybeSingle();
+
+
+    if (error) {
+
+        if (
+            error.code ===
+                "42P01" ||
+            error.message
+                ?.toLowerCase()
+                .includes(
+                    "relation"
+                ) ||
+            error.message
+                ?.toLowerCase()
+                .includes(
+                    "schema cache"
+                )
+        ) {
+
+            return null;
+        }
+
+
+        console.error(
+            "REVOCATION CHECK ERROR:",
+            error
+        );
+
+        return null;
+    }
+
+
+    return data;
+}
+
+
+// ==================================================
+// GLOBAL BAN/KICK CHECK
 // ==================================================
 
 app.use(
     "/api",
-    async (req, res, next) => {
+    async (
+        req,
+        res,
+        next
+    ) => {
 
         const publicRoutes = [
             "/login",
@@ -567,45 +788,105 @@ app.use(
             "/test"
         ];
 
+
         if (
             publicRoutes.includes(
                 req.path
             )
         ) {
+
             return next();
         }
 
-        if (!req.session.user) {
+
+        if (
+            !req.session.user
+        ) {
+
             return next();
         }
+
 
         try {
 
+            const userId =
+                req.session.user.id;
+
+            const email =
+                req.session.user.email;
+
+
             const ban =
                 await getActiveBan(
-                    req.session.user.id,
-                    req.session.user.email
+                    userId,
+                    email
                 );
+
 
             if (ban) {
 
-                req.session.destroy(() => {});
+                req.session.destroy(
+                    () => {}
+                );
+
 
                 return res.status(403).json({
                     error:
                         "Your account has been banned.",
+
                     reason:
                         ban.reason ||
                         "No reason provided."
                 });
             }
 
+
+            const kick =
+                await getActiveKickByUserId(
+                    userId
+                );
+
+
+            if (kick) {
+
+                req.session.destroy(
+                    () => {}
+                );
+
+
+                // Automatically deactivate
+                // the kick after removing
+                // the user's session.
+
+                await supabase
+                    .from("kicks")
+                    .update({
+                        active:
+                            false
+                    })
+                    .eq(
+                        "id",
+                        kick.id
+                    );
+
+
+                return res.status(403).json({
+                    error:
+                        "You have been kicked from ShrekBook.",
+
+                    reason:
+                        kick.reason ||
+                        "No reason provided."
+                });
+            }
+
+
             next();
 
         } catch (error) {
 
             console.error(
-                "GLOBAL BAN CHECK ERROR:",
+                "GLOBAL MODERATION CHECK ERROR:",
                 error
             );
 
@@ -614,11 +895,14 @@ app.use(
     }
 );
 
+
 // ==================================================
 // REACTION COUNTS
 // ==================================================
 
-async function getReactionCounts(userId) {
+async function getReactionCounts(
+    userId
+) {
 
     const counts = {
         gyatt: 0,
@@ -626,50 +910,61 @@ async function getReactionCounts(userId) {
         ogred: 0
     };
 
+
     const {
         data: reactions,
         error
-    } = await supabase
-        .from("reactions")
-        .select("type")
-        .eq(
-            "to_user_id",
-            userId
-        );
+    } =
+        await supabase
+            .from("reactions")
+            .select("type")
+            .eq(
+                "to_user_id",
+                userId
+            );
+
 
     if (error) {
         throw error;
     }
 
+
     for (
         const reaction of
-        reactions || []
+            reactions || []
     ) {
 
         if (
             reaction.type ===
             "gyatt"
         ) {
+
             counts.gyatt++;
         }
+
 
         if (
             reaction.type ===
             "cat"
         ) {
+
             counts.cat++;
         }
+
 
         if (
             reaction.type ===
             "ogred"
         ) {
+
             counts.ogred++;
         }
     }
 
+
     return counts;
 }
+
 
 // ==================================================
 // TEST
@@ -677,29 +972,43 @@ async function getReactionCounts(userId) {
 
 app.get(
     "/api/test",
-    (req, res) => {
+    (
+        req,
+        res
+    ) => {
 
         res.json({
-            success: true,
+            success:
+                true,
+
             message:
                 "ShrekBook server is alive 🧌"
         });
-
     }
 );
+
+
+// ==================================================
+// HEALTH
+// ==================================================
 
 app.get(
     "/api/health",
-    (req, res) => {
+    (
+        req,
+        res
+    ) => {
 
         res.json({
-            ok: true,
+            ok:
+                true,
+
             loggedIn:
                 !!req.session.user
         });
-
     }
 );
+
 
 // ==================================================
 // SIGNUP
@@ -707,7 +1016,10 @@ app.get(
 
 app.post(
     "/api/signup",
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -717,16 +1029,19 @@ app.post(
                     ""
                 ).trim();
 
+
             const display_name =
                 String(
                     req.body.display_name ||
                     username
                 ).trim();
 
+
             const email =
                 normalizeEmail(
                     req.body.email
                 );
+
 
             const password =
                 String(
@@ -734,98 +1049,127 @@ app.post(
                     ""
                 );
 
+
             if (
                 !username ||
                 !email ||
                 !password
             ) {
+
                 return res.status(400).json({
                     error:
                         "Username, email, and password are required."
                 });
             }
 
+
             const emailBan =
                 await getActiveBanByEmail(
                     email
                 );
 
+
             if (emailBan) {
+
                 return res.status(403).json({
                     error:
                         "This email address is banned from ShrekBook."
                 });
             }
 
+
             const {
                 data: existing,
                 error: usernameError
-            } = await supabase
-                .from("profiles")
-                .select("id")
-                .eq(
-                    "username",
-                    username
-                )
-                .maybeSingle();
+            } =
+                await supabase
+                    .from("profiles")
+                    .select("id")
+                    .eq(
+                        "username",
+                        username
+                    )
+                    .maybeSingle();
+
 
             if (usernameError) {
+
                 return res.status(500).json({
                     error:
                         usernameError.message
                 });
             }
 
+
             if (existing) {
+
                 return res.status(400).json({
                     error:
                         "That username is already taken."
                 });
             }
 
+
             const {
                 data: authData,
                 error: authError
             } =
-                await supabase.auth.admin.createUser({
-                    email,
-                    password,
-                    email_confirm: true
-                });
+                await supabase.auth.admin
+                    .createUser({
+                        email,
+                        password,
+                        email_confirm:
+                            true
+                    });
+
 
             if (authError) {
+
                 return res.status(400).json({
                     error:
                         authError.message
                 });
             }
 
+
             const userId =
                 authData.user.id;
+
+
+            // IMPORTANT:
+            // DO NOT put role here.
+            //
+            // New users are peasants because
+            // they don't have an admins row.
 
             const {
                 data: profile,
                 error: profileError
-
-                } = await supabase
+            } =
+                await supabase
                     .from("profiles")
                     .insert({
-                        id: userId,
+                        id:
+                            userId,
+
                         username,
+
                         display_name:
                             display_name ||
                             username,
-                        avatar: null,
-                        bio: "",
-                        last_seen:
-                            new Date().toISOString(),
 
-                        // Normal users start as peasants.
-                        role: "peasant"
+                        avatar:
+                            null,
+
+                        bio:
+                            "",
+
+                        last_seen:
+                            new Date()
+                                .toISOString()
                     })
                     .select()
                     .single();
-
 
 
             if (profileError) {
@@ -835,25 +1179,31 @@ app.post(
                         userId
                     );
 
+
                 return res.status(500).json({
                     error:
                         profileError.message
                 });
             }
 
+
             res.status(201).json({
 
-                success: true,
+                success:
+                    true,
 
                 user: {
+
                     ...profile,
+
+                    role:
+                        "peasant",
 
                     avatar:
                         getAvatar(
                             profile.avatar
                         )
                 }
-
             });
 
         } catch (error) {
@@ -871,13 +1221,17 @@ app.post(
     }
 );
 
+
 // ==================================================
 // LOGIN
 // ==================================================
 
 app.post(
     "/api/login",
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -886,70 +1240,87 @@ app.post(
                     req.body.email
                 );
 
+
             const password =
                 String(
                     req.body.password ||
                     ""
                 );
 
+
             if (
                 !email ||
                 !password
             ) {
+
                 return res.status(400).json({
                     error:
                         "Email and password are required."
                 });
             }
 
+
             const emailBan =
                 await getActiveBanByEmail(
                     email
                 );
 
+
             if (emailBan) {
+
                 return res.status(403).json({
                     error:
                         "This email address is banned from ShrekBook.",
+
                     reason:
                         emailBan.reason ||
                         "No reason provided."
                 });
             }
 
+
             const {
                 data: authData,
                 error: authError
             } =
-                await supabase.auth.signInWithPassword({
-                    email,
-                    password
-                });
+                await supabase.auth
+                    .signInWithPassword({
+                        email,
+                        password
+                    });
+
 
             if (authError) {
+
                 return res.status(401).json({
                     error:
                         authError.message
                 });
             }
 
+
             const authUser =
                 authData.user;
+
 
             const userBan =
                 await getActiveBanByUserId(
                     authUser.id
                 );
 
+
             if (userBan) {
+
                 return res.status(403).json({
                     error:
                         "Your account has been banned.",
+
                     reason:
                         userBan.reason ||
                         "No reason provided."
                 });
             }
+
 
             let {
                 data: profile,
@@ -964,12 +1335,15 @@ app.post(
                     )
                     .maybeSingle();
 
+
             if (profileError) {
+
                 return res.status(500).json({
                     error:
                         profileError.message
                 });
             }
+
 
             if (!profile) {
 
@@ -984,16 +1358,23 @@ app.post(
                             /[^a-z0-9_]/g,
                             ""
                         )
-                        .slice(0, 20);
+                        .slice(
+                            0,
+                            20
+                        );
+
 
                 if (!username) {
-                    username = "user";
+                    username =
+                        "user";
                 }
+
 
                 const original =
                     username;
 
                 let number = 1;
+
 
                 while (true) {
 
@@ -1009,15 +1390,18 @@ app.post(
                             )
                             .maybeSingle();
 
+
                     if (!taken) {
                         break;
                     }
+
 
                     username =
                         `${original}${number}`;
 
                     number++;
                 }
+
 
                 const {
                     data: created,
@@ -1043,15 +1427,20 @@ app.post(
                         .select()
                         .single();
 
+
                 if (createError) {
+
                     return res.status(500).json({
                         error:
                             createError.message
                     });
                 }
 
-                profile = created;
+
+                profile =
+                    created;
             }
+
 
             req.session.user = {
 
@@ -1066,8 +1455,8 @@ app.post(
 
                 email:
                     email
-
             };
+
 
             req.session.save(
                 error => {
@@ -1085,6 +1474,7 @@ app.post(
                         });
                     }
 
+
                     res.json({
 
                         success:
@@ -1098,11 +1488,8 @@ app.post(
                                 getAvatar(
                                     profile.avatar
                                 )
-
                         }
-
                     });
-
                 }
             );
 
@@ -1121,35 +1508,44 @@ app.post(
     }
 );
 
+
 // ==================================================
 // LOGOUT
 // ==================================================
 
 app.post(
     "/api/logout",
-    (req, res) => {
+    (
+        req,
+        res
+    ) => {
 
         req.session.destroy(
             error => {
 
                 if (error) {
+
                     return res.status(500).json({
                         error:
                             "Logout failed."
                     });
                 }
 
+
                 res.clearCookie(
                     "connect.sid"
                 );
 
+
                 res.json({
-                    success: true
+                    success:
+                        true
                 });
             }
         );
     }
 );
+
 
 // ==================================================
 // CURRENT USER
@@ -1157,57 +1553,78 @@ app.post(
 
 app.get(
     "/api/me",
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
-            if (!req.session.user) {
+            if (
+                !req.session.user
+            ) {
+
                 return res.json({
-                    loggedIn: false
+                    loggedIn:
+                        false
                 });
             }
+
 
             const {
                 data,
                 error
-            } = await supabase
-                .from("profiles")
-                .select("*")
-                .eq(
-                    "id",
-                    req.session.user.id
-                )
-                .single();
+            } =
+                await supabase
+                    .from("profiles")
+                    .select("*")
+                    .eq(
+                        "id",
+                        req.session.user.id
+                    )
+                    .single();
 
-            if (error || !data) {
+
+            if (
+                error ||
+                !data
+            ) {
+
                 return res.json({
-                    loggedIn: false
+                    loggedIn:
+                        false
                 });
             }
+
 
             const reactions =
                 await getReactionCounts(
                     data.id
                 );
 
+
             const role =
                 await getUserRole(
                     data.id
                 );
 
+
+            const staff =
+                STAFF_ROLES.includes(
+                    role
+                );
+
+
             res.json({
 
-                loggedIn: true,
+                loggedIn:
+                    true,
 
                 isAdmin:
-                    STAFF_ROLES.includes(
-                        role
-                    ),
+                    staff,
 
                 isStaff:
-                    STAFF_ROLES.includes(
-                        role
-                    ),
+                    staff,
 
                 role,
 
@@ -1228,9 +1645,7 @@ app.get(
 
                     ogred:
                         reactions.ogred
-
                 }
-
             });
 
         } catch (error) {
@@ -1248,36 +1663,50 @@ app.get(
     }
 );
 
+
 // ==================================================
 // ADMIN CHECK
 // ==================================================
 
 app.get(
     "/api/admin/check",
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
-            if (!req.session.user) {
+            if (
+                !req.session.user
+            ) {
+
                 return res.status(401).json({
-                    isAdmin: false,
-                    isStaff: false,
+                    isAdmin:
+                        false,
+
+                    isStaff:
+                        false,
+
                     error:
                         "Not logged in."
                 });
             }
+
 
             const role =
                 await getUserRole(
                     req.session.user.id
                 );
 
+
             const staff =
                 STAFF_ROLES.includes(
                     role
                 );
 
-            return res.json({
+
+            res.json({
 
                 isAdmin:
                     staff,
@@ -1286,7 +1715,6 @@ app.get(
                     staff,
 
                 role
-
             });
 
         } catch (error) {
@@ -1296,15 +1724,20 @@ app.get(
                 error
             );
 
-            return res.status(500).json({
-                isAdmin: false,
-                isStaff: false,
+            res.status(500).json({
+                isAdmin:
+                    false,
+
+                isStaff:
+                    false,
+
                 error:
                     "Could not check administrator status."
             });
         }
     }
 );
+
 
 // ==================================================
 // ADMIN ME
@@ -1313,43 +1746,49 @@ app.get(
 app.get(
     "/api/admin/me",
     requireLogin,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
             const userId =
                 req.session.user.id;
 
+
             const role =
                 await getUserRole(
                     userId
                 );
 
-            const isStaff =
+
+            const staff =
                 STAFF_ROLES.includes(
                     role
                 );
 
+
             res.json({
 
-                success: true,
+                success:
+                    true,
 
                 isAdmin:
-                    isStaff,
+                    staff,
 
                 isStaff:
-                    isStaff,
+                    staff,
 
                 userId,
 
                 role
-
             });
 
         } catch (error) {
 
             console.error(
-                "STAFF STATUS ERROR:",
+                "ADMIN ME ERROR:",
                 error
             );
 
@@ -1361,102 +1800,135 @@ app.get(
     }
 );
 
+
 // ==================================================
 // USERS
 // ==================================================
 
 app.get(
     "/api/users",
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
             const {
                 data: users,
                 error: usersError
-            } = await supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar,
-                    bio,
-                    created_at,
-                    last_seen
-                `)
-                .order(
-                    "created_at",
-                    {
-                        ascending: false
-                    }
-                );
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(`
+                        id,
+                        username,
+                        display_name,
+                        avatar,
+                        bio,
+                        created_at,
+                        last_seen
+                    `)
+                    .order(
+                        "created_at",
+                        {
+                            ascending:
+                                false
+                        }
+                    );
+
 
             if (usersError) {
+
                 return res.status(500).json({
                     error:
                         usersError.message
                 });
             }
 
+
             const {
                 data: reactions,
                 error: reactionsError
-            } = await supabase
-                .from("reactions")
-                .select(`
-                    to_user_id,
-                    type
-                `);
+            } =
+                await supabase
+                    .from("reactions")
+                    .select(`
+                        to_user_id,
+                        type
+                    `);
+
 
             if (reactionsError) {
+
                 return res.status(500).json({
                     error:
                         reactionsError.message
                 });
             }
 
-            const reactionCounts = {};
+
+            const reactionCounts =
+                {};
+
 
             for (
                 const reaction of
-                reactions || []
+                    reactions || []
             ) {
 
                 const userId =
                     reaction.to_user_id;
 
+
                 if (
                     !reactionCounts[userId]
                 ) {
+
                     reactionCounts[userId] = {
-                        gyatt: 0,
-                        cat: 0,
-                        ogred: 0
+
+                        gyatt:
+                            0,
+
+                        cat:
+                            0,
+
+                        ogred:
+                            0
                     };
                 }
+
 
                 if (
                     reaction.type ===
                     "gyatt"
                 ) {
-                    reactionCounts[userId].gyatt++;
+
+                    reactionCounts[userId]
+                        .gyatt++;
                 }
+
 
                 if (
                     reaction.type ===
                     "cat"
                 ) {
-                    reactionCounts[userId].cat++;
+
+                    reactionCounts[userId]
+                        .cat++;
                 }
+
 
                 if (
                     reaction.type ===
                     "ogred"
                 ) {
-                    reactionCounts[userId].ogred++;
+
+                    reactionCounts[userId]
+                        .ogred++;
                 }
             }
+
 
             const result =
                 (users || []).map(
@@ -1469,11 +1941,13 @@ app.get(
                                 ).getTime()
                                 : 0;
 
+
                         const online =
                             lastSeen > 0 &&
                             Date.now() -
                                 lastSeen <
                             60 * 1000;
+
 
                         return {
 
@@ -1507,7 +1981,10 @@ app.get(
                     }
                 );
 
-            res.json(result);
+
+            res.json(
+                result
+            );
 
         } catch (error) {
 
@@ -1524,93 +2001,112 @@ app.get(
     }
 );
 
+
 // ==================================================
 // ONE USER
 // ==================================================
 
 app.get(
     "/api/users/:id",
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
             const id =
                 req.params.id;
 
+
             if (!id) {
+
                 return res.status(400).json({
                     error:
                         "No profile ID was provided."
                 });
             }
 
+
             const {
                 data: profile,
                 error: profileError
-            } = await supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar,
-                    bio,
-                    created_at
-                `)
-                .eq(
-                    "id",
-                    id
-                )
-                .maybeSingle();
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(`
+                        id,
+                        username,
+                        display_name,
+                        avatar,
+                        bio,
+                        created_at
+                    `)
+                    .eq(
+                        "id",
+                        id
+                    )
+                    .maybeSingle();
+
 
             if (profileError) {
+
                 return res.status(500).json({
                     error:
                         profileError.message
                 });
             }
 
+
             if (!profile) {
+
                 return res.status(404).json({
                     error:
                         "User not found."
                 });
             }
 
+
             const {
                 data: posts,
                 error: postsError
-            } = await supabase
-                .from("posts")
-                .select(`
-                    id,
-                    user_id,
-                    content,
-                    image_url,
-                    created_at
-                `)
-                .eq(
-                    "user_id",
-                    id
-                )
-                .order(
-                    "created_at",
-                    {
-                        ascending: false
-                    }
-                );
+            } =
+                await supabase
+                    .from("posts")
+                    .select(`
+                        id,
+                        user_id,
+                        content,
+                        image_url,
+                        created_at
+                    `)
+                    .eq(
+                        "user_id",
+                        id
+                    )
+                    .order(
+                        "created_at",
+                        {
+                            ascending:
+                                false
+                        }
+                    );
+
 
             if (postsError) {
+
                 return res.status(500).json({
                     error:
                         postsError.message
                 });
             }
 
+
             const reactions =
                 await getReactionCounts(
                     id
                 );
+
 
             res.json({
 
@@ -1632,7 +2128,6 @@ app.get(
 
                 posts:
                     posts || []
-
             });
 
         } catch (error) {
@@ -1650,6 +2145,7 @@ app.get(
     }
 );
 
+
 // ==================================================
 // UPDATE PROFILE
 // ==================================================
@@ -1657,7 +2153,10 @@ app.get(
 app.put(
     "/api/profile",
     requireLogin,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -1667,85 +2166,102 @@ app.put(
                     ""
                 ).trim();
 
+
             const bio =
                 String(
                     req.body.bio ||
                     ""
                 ).trim();
 
+
             if (!display_name) {
+
                 return res.status(400).json({
                     error:
                         "Display name cannot be empty."
                 });
             }
 
+
             if (
                 display_name.length >
                 50
             ) {
+
                 return res.status(400).json({
                     error:
                         "Display name is too long."
                 });
             }
 
+
             if (
                 bio.length >
                 500
             ) {
+
                 return res.status(400).json({
                     error:
                         "Bio is too long."
                 });
             }
 
+
             const {
                 data,
                 error
-            } = await supabase
-                .from("profiles")
-                .update({
-                    display_name,
-                    bio
-                })
-                .eq(
-                    "id",
-                    req.session.user.id
-                )
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar,
-                    bio,
-                    created_at
-                `)
-                .single();
+            } =
+                await supabase
+                    .from("profiles")
+                    .update({
+                        display_name,
+                        bio
+                    })
+                    .eq(
+                        "id",
+                        req.session.user.id
+                    )
+                    .select(`
+                        id,
+                        username,
+                        display_name,
+                        avatar,
+                        bio,
+                        created_at
+                    `)
+                    .single();
+
 
             if (error) {
+
                 return res.status(500).json({
                     error:
                         error.message
                 });
             }
 
-            req.session.user.display_name =
+
+            req.session.user
+                .display_name =
                 data.display_name;
+
 
             req.session.save(
                 sessionError => {
 
                     if (sessionError) {
+
                         return res.status(500).json({
                             error:
                                 "Could not save profile session."
                         });
                     }
 
+
                     res.json({
 
-                        success: true,
+                        success:
+                            true,
 
                         user: {
 
@@ -1755,9 +2271,7 @@ app.put(
                                 getAvatar(
                                     data.avatar
                                 )
-
                         }
-
                     });
                 }
             );
@@ -1777,6 +2291,7 @@ app.put(
     }
 );
 
+
 // ==================================================
 // AVATAR UPLOAD
 // ==================================================
@@ -1784,7 +2299,10 @@ app.put(
 app.post(
     "/api/profile/avatar",
     requireLogin,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -1794,27 +2312,32 @@ app.post(
                 fileData
             } = req.body;
 
+
             if (
                 !fileName ||
                 !fileType ||
                 !fileData
             ) {
+
                 return res.status(400).json({
                     error:
                         "Missing image data."
                 });
             }
 
+
             if (
                 !fileType.startsWith(
                     "image/"
                 )
             ) {
+
                 return res.status(400).json({
                     error:
                         "File must be an image."
                 });
             }
+
 
             const buffer =
                 Buffer.from(
@@ -1822,21 +2345,25 @@ app.post(
                     "base64"
                 );
 
+
             if (
                 buffer.length >
                 5 * 1024 * 1024
             ) {
+
                 return res.status(400).json({
                     error:
                         "Image must be under 5MB."
                 });
             }
 
+
             const extension =
                 fileName
                     .split(".")
                     .pop()
                     .toLowerCase();
+
 
             const allowed = [
                 "png",
@@ -1846,19 +2373,23 @@ app.post(
                 "gif"
             ];
 
+
             if (
                 !allowed.includes(
                     extension
                 )
             ) {
+
                 return res.status(400).json({
                     error:
                         "Unsupported image type."
                 });
             }
 
+
             const filePath =
                 `${req.session.user.id}/${Date.now()}.${extension}`;
+
 
             const {
                 error: uploadError
@@ -1871,16 +2402,21 @@ app.post(
                         {
                             contentType:
                                 fileType,
-                            upsert: true
+
+                            upsert:
+                                true
                         }
                     );
 
+
             if (uploadError) {
+
                 return res.status(500).json({
                     error:
                         uploadError.message
                 });
             }
+
 
             const {
                 data: publicData
@@ -1891,8 +2427,10 @@ app.post(
                         filePath
                     );
 
+
             const avatarUrl =
                 publicData.publicUrl;
+
 
             const {
                 data: profile,
@@ -1911,16 +2449,20 @@ app.post(
                     .select()
                     .single();
 
+
             if (profileError) {
+
                 return res.status(500).json({
                     error:
                         profileError.message
                 });
             }
 
+
             res.json({
 
-                success: true,
+                success:
+                    true,
 
                 avatar:
                     avatarUrl,
@@ -1931,9 +2473,7 @@ app.post(
 
                     avatar:
                         avatarUrl
-
                 }
-
             });
 
         } catch (error) {
@@ -1951,6 +2491,7 @@ app.post(
     }
 );
 
+
 // ==================================================
 // IMAGE UPLOAD
 // ==================================================
@@ -1967,20 +2508,24 @@ async function uploadImage(
         !fileType ||
         !fileName
     ) {
+
         throw new Error(
             "Missing image data."
         );
     }
+
 
     if (
         !fileType.startsWith(
             "image/"
         )
     ) {
+
         throw new Error(
             "File must be an image."
         );
     }
+
 
     const buffer =
         Buffer.from(
@@ -1988,20 +2533,24 @@ async function uploadImage(
             "base64"
         );
 
+
     if (
         buffer.length >
         5 * 1024 * 1024
     ) {
+
         throw new Error(
             "Image must be under 5MB."
         );
     }
+
 
     const extension =
         fileName
             .split(".")
             .pop()
             .toLowerCase();
+
 
     const allowed = [
         "png",
@@ -2011,20 +2560,24 @@ async function uploadImage(
         "gif"
     ];
 
+
     if (
         !allowed.includes(
             extension
         )
     ) {
+
         throw new Error(
             "Unsupported image type."
         );
     }
 
+
     const filePath =
         `posts/${userId}/${Date.now()}-${Math.random()
             .toString(36)
             .slice(2)}.${extension}`;
+
 
     const {
         error: uploadError
@@ -2037,15 +2590,20 @@ async function uploadImage(
                 {
                     contentType:
                         fileType,
-                    upsert: false
+
+                    upsert:
+                        false
                 }
             );
 
+
     if (uploadError) {
+
         throw new Error(
             uploadError.message
         );
     }
+
 
     const {
         data: publicData
@@ -2056,8 +2614,10 @@ async function uploadImage(
                 filePath
             );
 
+
     return publicData.publicUrl;
 }
+
 
 // ==================================================
 // POSTS
@@ -2065,7 +2625,10 @@ async function uploadImage(
 
 app.get(
     "/api/posts",
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -2085,23 +2648,28 @@ app.get(
                     .order(
                         "created_at",
                         {
-                            ascending: false
+                            ascending:
+                                false
                         }
                     )
                     .limit(100);
 
+
             if (error) {
+
                 return res.status(500).json({
                     error:
                         error.message
                 });
             }
 
+
             const result = [];
+
 
             for (
                 const post of
-                posts || []
+                    posts || []
             ) {
 
                 const {
@@ -2119,6 +2687,7 @@ app.get(
                             post.user_id
                         )
                         .maybeSingle();
+
 
                 result.push({
 
@@ -2140,7 +2709,10 @@ app.get(
                 });
             }
 
-            res.json(result);
+
+            res.json(
+                result
+            );
 
         } catch (error) {
 
@@ -2157,10 +2729,14 @@ app.get(
     }
 );
 
+
 app.post(
     "/api/posts",
     requireLogin,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -2170,17 +2746,22 @@ app.post(
                     ""
                 ).trim();
 
+
             if (
                 content.length >
                 5000
             ) {
+
                 return res.status(400).json({
                     error:
                         "Post is too long."
                 });
             }
 
-            let imageUrl = null;
+
+            let imageUrl =
+                null;
+
 
             if (
                 req.body.image &&
@@ -2208,15 +2789,18 @@ app.post(
                 }
             }
 
+
             if (
                 !content &&
                 !imageUrl
             ) {
+
                 return res.status(400).json({
                     error:
                         "Post cannot be empty."
                 });
             }
+
 
             const {
                 data,
@@ -2227,21 +2811,28 @@ app.post(
                     .insert({
                         user_id:
                             req.session.user.id,
+
                         content,
+
                         image_url:
                             imageUrl
                     })
                     .select()
                     .single();
 
+
             if (error) {
+
                 return res.status(500).json({
                     error:
                         error.message
                 });
             }
 
-            res.status(201).json(data);
+
+            res.status(201).json(
+                data
+            );
 
         } catch (error) {
 
@@ -2258,13 +2849,17 @@ app.post(
     }
 );
 
+
 // ==================================================
 // COMMENTS
 // ==================================================
 
 app.get(
     "/api/posts/:postId/comments",
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -2289,22 +2884,27 @@ app.get(
                     .order(
                         "created_at",
                         {
-                            ascending: true
+                            ascending:
+                                true
                         }
                     );
 
+
             if (error) {
+
                 return res.status(500).json({
                     error:
                         error.message
                 });
             }
 
+
             const result = [];
+
 
             for (
                 const comment of
-                comments || []
+                    comments || []
             ) {
 
                 const {
@@ -2320,6 +2920,7 @@ app.get(
                             comment.user_id
                         )
                         .maybeSingle();
+
 
                 result.push({
 
@@ -2341,7 +2942,10 @@ app.get(
                 });
             }
 
-            res.json(result);
+
+            res.json(
+                result
+            );
 
         } catch (error) {
 
@@ -2358,10 +2962,14 @@ app.get(
     }
 );
 
+
 app.post(
     "/api/posts/:postId/comments",
     requireLogin,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -2371,17 +2979,22 @@ app.post(
                     ""
                 ).trim();
 
+
             if (
                 content.length >
                 500
             ) {
+
                 return res.status(400).json({
                     error:
                         "Comment is too long."
                 });
             }
 
-            let imageUrl = null;
+
+            let imageUrl =
+                null;
+
 
             if (
                 req.body.image &&
@@ -2409,15 +3022,18 @@ app.post(
                 }
             }
 
+
             if (
                 !content &&
                 !imageUrl
             ) {
+
                 return res.status(400).json({
                     error:
                         "Comment cannot be empty."
                 });
             }
+
 
             const {
                 data,
@@ -2440,14 +3056,19 @@ app.post(
                     .select()
                     .single();
 
+
             if (error) {
+
                 return res.status(500).json({
                     error:
                         error.message
                 });
             }
 
-            res.status(201).json(data);
+
+            res.status(201).json(
+                data
+            );
 
         } catch (error) {
 
@@ -2464,6 +3085,7 @@ app.post(
     }
 );
 
+
 // ==================================================
 // REACTIONS
 // ==================================================
@@ -2477,27 +3099,33 @@ async function addReaction(
     try {
 
         if (!req.session.user) {
+
             return res.status(401).json({
                 error:
                     "You must be logged in."
             });
         }
 
+
         const fromUserId =
             req.session.user.id;
 
+
         const toUserId =
             req.params.id;
+
 
         if (
             fromUserId ===
             toUserId
         ) {
+
             return res.status(400).json({
                 error:
                     "You cannot react to yourself."
             });
         }
+
 
         const {
             data: targetUser,
@@ -2512,19 +3140,24 @@ async function addReaction(
                 )
                 .maybeSingle();
 
+
         if (targetError) {
+
             return res.status(500).json({
                 error:
                     targetError.message
             });
         }
 
+
         if (!targetUser) {
+
             return res.status(404).json({
                 error:
                     "User not found."
             });
         }
+
 
         const {
             error: insertError
@@ -2541,6 +3174,7 @@ async function addReaction(
                     type
                 });
 
+
         if (insertError) {
 
             if (
@@ -2549,10 +3183,17 @@ async function addReaction(
             ) {
 
                 const names = {
-                    gyatt: "Gyatt",
-                    cat: "Cat",
-                    ogred: "Ogred"
+
+                    gyatt:
+                        "Gyatt",
+
+                    cat:
+                        "Cat",
+
+                    ogred:
+                        "Ogred"
                 };
+
 
                 return res.status(400).json({
                     error:
@@ -2560,11 +3201,13 @@ async function addReaction(
                 });
             }
 
+
             return res.status(500).json({
                 error:
                     insertError.message
             });
         }
+
 
         const {
             count,
@@ -2577,6 +3220,7 @@ async function addReaction(
                     {
                         count:
                             "exact",
+
                         head:
                             true
                     }
@@ -2590,20 +3234,23 @@ async function addReaction(
                     type
                 );
 
+
         if (countError) {
+
             return res.status(500).json({
                 error:
                     countError.message
             });
         }
 
+
         res.json({
 
-            success: true,
+            success:
+                true,
 
             [type]:
                 count || 0
-
         });
 
     } catch (error) {
@@ -2620,9 +3267,13 @@ async function addReaction(
     }
 }
 
+
 app.post(
     "/api/users/:id/gyatt",
-    (req, res) =>
+    (
+        req,
+        res
+    ) =>
         addReaction(
             req,
             res,
@@ -2630,9 +3281,13 @@ app.post(
         )
 );
 
+
 app.post(
     "/api/users/:id/cat",
-    (req, res) =>
+    (
+        req,
+        res
+    ) =>
         addReaction(
             req,
             res,
@@ -2640,15 +3295,20 @@ app.post(
         )
 );
 
+
 app.post(
     "/api/users/:id/ogred",
-    (req, res) =>
+    (
+        req,
+        res
+    ) =>
         addReaction(
             req,
             res,
             "ogred"
         )
 );
+
 
 // ==================================================
 // HEARTBEAT
@@ -2657,7 +3317,10 @@ app.post(
 app.post(
     "/api/heartbeat",
     requireLogin,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -2676,15 +3339,19 @@ app.post(
                         req.session.user.id
                     );
 
+
             if (error) {
+
                 return res.status(500).json({
                     error:
                         error.message
                 });
             }
 
+
             res.json({
-                success: true
+                success:
+                    true
             });
 
         } catch (error) {
@@ -2702,6 +3369,502 @@ app.post(
     }
 );
 
+
+// ==================================================
+// ADMIN USERS
+// ==================================================
+
+app.get(
+    "/api/admin/users",
+    requireStaff,
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            // Do NOT select profiles.role.
+            // Roles come from admins.
+
+            const {
+                data: users,
+                error
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(`
+                        id,
+                        username,
+                        display_name,
+                        avatar,
+                        created_at,
+                        last_seen
+                    `)
+                    .order(
+                        "created_at",
+                        {
+                            ascending:
+                                false
+                        }
+                    );
+
+
+            if (error) {
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+
+            const result = [];
+
+
+            for (
+                const user of
+                    users || []
+            ) {
+
+                const role =
+                    await getUserRole(
+                        user.id
+                    );
+
+
+                const ban =
+                    await getActiveBanByUserId(
+                        user.id
+                    );
+
+
+                const kick =
+                    await getActiveKickByUserId(
+                        user.id
+                    );
+
+
+                result.push({
+
+                    ...user,
+
+                    avatar:
+                        getAvatar(
+                            user.avatar
+                        ),
+
+                    role,
+
+                    banned:
+                        !!ban,
+
+                    kicked:
+                        !!kick
+                });
+            }
+
+
+            res.json(
+                result
+            );
+
+        } catch (error) {
+
+            console.error(
+                "ADMIN USERS ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message
+            });
+        }
+    }
+);
+
+
+// ==================================================
+// CHANGE USER ROLE
+// ==================================================
+
+app.post(
+    "/api/admin/role",
+    requireOwner,
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const targetUserId =
+                String(
+                    req.body.user_id ||
+                    ""
+                ).trim();
+
+
+            const newRole =
+                String(
+                    req.body.role ||
+                    ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            const allowedRoles = [
+                "administrator",
+                "senior_moderator",
+                "moderator",
+                "peasant"
+            ];
+
+
+            if (!targetUserId) {
+
+                return res.status(400).json({
+                    error:
+                        "User ID is required."
+                });
+            }
+
+
+            if (
+                !allowedRoles.includes(
+                    newRole
+                )
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Invalid role."
+                });
+            }
+
+
+            const currentUserId =
+                req.session.user.id;
+
+
+            if (
+                targetUserId ===
+                currentUserId
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You cannot change your own role."
+                });
+            }
+
+
+            if (
+                targetUserId ===
+                process.env.OWNER_ID
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "The Owner cannot be modified."
+                });
+            }
+
+
+            // ==================================================
+            // TARGET PROFILE
+            // ==================================================
+
+            const {
+                data: targetProfile,
+                error: profileError
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(`
+                        id,
+                        username,
+                        display_name,
+                        avatar
+                    `)
+                    .eq(
+                        "id",
+                        targetUserId
+                    )
+                    .maybeSingle();
+
+
+            if (profileError) {
+
+                return res.status(500).json({
+                    error:
+                        profileError.message
+                });
+            }
+
+
+            if (!targetProfile) {
+
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+            }
+
+
+            // ==================================================
+            // CURRENT ROLE
+            // ==================================================
+
+            const {
+                data: existingAdmin,
+                error: roleError
+            } =
+                await supabase
+                    .from("admins")
+                    .select(`
+                        user_id,
+                        role
+                    `)
+                    .eq(
+                        "user_id",
+                        targetUserId
+                    )
+                    .maybeSingle();
+
+
+            if (roleError) {
+
+                return res.status(500).json({
+                    error:
+                        roleError.message
+                });
+            }
+
+
+            const oldRole =
+                existingAdmin?.role ||
+                "peasant";
+
+
+            if (
+                oldRole ===
+                "owner"
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "The Owner cannot be modified."
+                });
+            }
+
+
+            // ==================================================
+            // PEASANT
+            // ==================================================
+
+            if (
+                newRole ===
+                "peasant"
+            ) {
+
+                if (
+                    existingAdmin
+                ) {
+
+                    const {
+                        error:
+                            deleteError
+                    } =
+                        await supabase
+                            .from("admins")
+                            .delete()
+                            .eq(
+                                "user_id",
+                                targetUserId
+                            );
+
+
+                    if (deleteError) {
+
+                        return res.status(500).json({
+                            error:
+                                deleteError.message
+                        });
+                    }
+                }
+
+
+                // Record revocation if the table
+                // exists. Missing table won't
+                // break the role change.
+
+                if (
+                    oldRole !==
+                    "peasant"
+                ) {
+
+                    const {
+                        error:
+                            revokeError
+                    } =
+                        await supabase
+                            .from(
+                                "staff_revocations"
+                            )
+                            .insert({
+                                user_id:
+                                    targetUserId,
+
+                                previous_role:
+                                    oldRole,
+
+                                reason:
+                                    "Staff role revoked.",
+
+                                revoked_by:
+                                    currentUserId,
+
+                                active:
+                                    true
+                            });
+
+
+                    if (
+                        revokeError &&
+                        !(
+                            revokeError.code ===
+                                "42P01" ||
+                            revokeError.message
+                                ?.toLowerCase()
+                                .includes(
+                                    "relation"
+                                ) ||
+                            revokeError.message
+                                ?.toLowerCase()
+                                .includes(
+                                    "schema cache"
+                                )
+                        )
+                    ) {
+
+                        console.error(
+                            "REVOCATION ERROR:",
+                            revokeError
+                        );
+                    }
+                }
+
+
+                return res.json({
+
+                    success:
+                        true,
+
+                    message:
+                        `Role changed from ${oldRole} to peasant.`,
+
+                    user: {
+
+                        id:
+                            targetProfile.id,
+
+                        username:
+                            targetProfile.username,
+
+                        display_name:
+                            targetProfile.display_name,
+
+                        role:
+                            "peasant"
+                    }
+                });
+            }
+
+
+            // ==================================================
+            // STAFF ROLE
+            // ==================================================
+
+            const {
+                data: updatedAdmin,
+                error: upsertError
+            } =
+                await supabase
+                    .from("admins")
+                    .upsert(
+                        {
+                            user_id:
+                                targetUserId,
+
+                            role:
+                                newRole
+                        },
+                        {
+                            onConflict:
+                                "user_id"
+                        }
+                    )
+                    .select(`
+                        user_id,
+                        role,
+                        created_at
+                    `)
+                    .single();
+
+
+            if (upsertError) {
+
+                return res.status(500).json({
+                    error:
+                        upsertError.message
+                });
+            }
+
+
+            res.json({
+
+                success:
+                    true,
+
+                message:
+                    `Role changed from ${oldRole} to ${newRole}.`,
+
+                user: {
+
+                    id:
+                        targetProfile.id,
+
+                    username:
+                        targetProfile.username,
+
+                    display_name:
+                        targetProfile.display_name,
+
+                    role:
+                        updatedAdmin.role
+                }
+            });
+
+        } catch (error) {
+
+            console.error(
+                "CHANGE ROLE ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message ||
+                    "Server error while changing role."
+            });
+        }
+    }
+);
+
+
 // ==================================================
 // ADMIN STAFF LIST
 // ==================================================
@@ -2709,7 +3872,10 @@ app.post(
 app.get(
     "/api/admin/staff",
     requireStaff,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -2727,22 +3893,27 @@ app.get(
                     .order(
                         "created_at",
                         {
-                            ascending: true
+                            ascending:
+                                true
                         }
                     );
 
+
             if (error) {
+
                 return res.status(500).json({
                     error:
                         error.message
                 });
             }
 
+
             const result = [];
+
 
             for (
                 const member of
-                staff || []
+                    staff || []
             ) {
 
                 const {
@@ -2761,6 +3932,7 @@ app.get(
                             member.user_id
                         )
                         .maybeSingle();
+
 
                 result.push({
 
@@ -2789,13 +3961,79 @@ app.get(
                 });
             }
 
+
+            // Add OWNER to staff list even though
+            // owner does not need an admins row.
+
+            if (
+                process.env.OWNER_ID
+            ) {
+
+                const alreadyListed =
+                    result.some(
+                        member =>
+                            member.user_id ===
+                            process.env.OWNER_ID
+                    );
+
+
+                if (!alreadyListed) {
+
+                    const {
+                        data: ownerProfile
+                    } =
+                        await supabase
+                            .from("profiles")
+                            .select(`
+                                id,
+                                username,
+                                display_name,
+                                avatar,
+                                created_at
+                            `)
+                            .eq(
+                                "id",
+                                process.env.OWNER_ID
+                            )
+                            .maybeSingle();
+
+
+                    if (ownerProfile) {
+
+                        result.unshift({
+
+                            user_id:
+                                ownerProfile.id,
+
+                            role:
+                                "owner",
+
+                            created_at:
+                                ownerProfile.created_at,
+
+                            username:
+                                ownerProfile.username,
+
+                            display_name:
+                                ownerProfile.display_name,
+
+                            avatar:
+                                getAvatar(
+                                    ownerProfile.avatar
+                                )
+                        });
+                    }
+                }
+            }
+
+
             res.json({
 
-                success: true,
+                success:
+                    true,
 
                 staff:
                     result
-
             });
 
         } catch (error) {
@@ -2813,409 +4051,6 @@ app.get(
     }
 );
 
-// ==================================================
-// CHANGE USER ROLE
-// ==================================================
-
-app.post(
-    "/api/admin/role",
-    requireOwner,
-    async (req, res) => {
-
-        try {
-
-            const targetUserId =
-                String(
-                    req.body.user_id ||
-                    ""
-                ).trim();
-
-            const newRole =
-                String(
-                    req.body.role ||
-                    ""
-                ).trim().toLowerCase();
-
-            const allowedRoles = [
-                "owner",
-                "administrator",
-                "senior_moderator",
-                "moderator",
-                "peasant"
-            ];
-
-            if (!targetUserId) {
-                return res.status(400).json({
-                    error:
-                        "User ID is required."
-                });
-            }
-
-            if (
-                !allowedRoles.includes(
-                    newRole
-                )
-            ) {
-                return res.status(400).json({
-                    error:
-                        "Invalid role."
-                });
-            }
-
-            const currentUserId =
-                req.session.user.id;
-
-            if (
-                targetUserId ===
-                currentUserId
-            ) {
-                return res.status(403).json({
-                    error:
-                        "You cannot change your own role."
-                });
-            }
-
-            if (
-                newRole ===
-                "owner"
-            ) {
-                return res.status(403).json({
-                    error:
-                        "The Owner role cannot be assigned."
-                });
-            }
-
-            const {
-                data: targetProfile,
-                error: profileError
-            } =
-                await supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar
-                    `)
-                    .eq(
-                        "id",
-                        targetUserId
-                    )
-                    .maybeSingle();
-
-            if (profileError) {
-                return res.status(500).json({
-                    error:
-                        profileError.message
-                });
-            }
-
-            if (!targetProfile) {
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-            }
-
-            const {
-                data: existingAdmin,
-                error: roleError
-            } =
-                await supabase
-                    .from("admins")
-                    .select(`
-                        user_id,
-                        role
-                    `)
-                    .eq(
-                        "user_id",
-                        targetUserId
-                    )
-                    .maybeSingle();
-
-            if (roleError) {
-                return res.status(500).json({
-                    error:
-                        roleError.message
-                });
-            }
-
-            const oldRole =
-                existingAdmin?.role ||
-                "peasant";
-
-            if (
-                oldRole ===
-                "owner"
-            ) {
-                return res.status(403).json({
-                    error:
-                        "The Owner cannot be demoted or modified."
-                });
-            }
-
-            if (
-                newRole ===
-                "peasant"
-            ) {
-
-                const {
-                    error: deleteError
-                } =
-                    await supabase
-                        .from("admins")
-                        .delete()
-                        .eq(
-                            "user_id",
-                            targetUserId
-                        );
-
-                if (deleteError) {
-                    return res.status(500).json({
-                        error:
-                            deleteError.message
-                    });
-                }
-
-                return res.json({
-
-                    success: true,
-
-                    message:
-                        "User is now a Peasant.",
-
-                    user: {
-
-                        id:
-                            targetProfile.id,
-
-                        username:
-                            targetProfile.username,
-
-                        display_name:
-                            targetProfile.display_name,
-
-                        role:
-                            "peasant"
-
-                    }
-
-                });
-            }
-
-            const {
-                data: updatedAdmin,
-                error: upsertError
-            } =
-                await supabase
-                    .from("admins")
-                    .upsert(
-                        {
-                            user_id:
-                                targetUserId,
-
-                            role:
-                                newRole
-                        },
-                        {
-                            onConflict:
-                                "user_id"
-                        }
-                    )
-                    .select(`
-                        user_id,
-                        role,
-                        created_at
-                    `)
-                    .single();
-
-            if (upsertError) {
-                return res.status(500).json({
-                    error:
-                        upsertError.message
-                });
-            }
-
-            res.json({
-
-                success: true,
-
-                message:
-                    `Role changed from ${oldRole} to ${newRole}.`,
-
-                user: {
-
-                    id:
-                        targetProfile.id,
-
-                    username:
-                        targetProfile.username,
-
-                    display_name:
-                        targetProfile.display_name,
-
-                    role:
-                        updatedAdmin.role
-
-                }
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "CHANGE ROLE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    error.message ||
-                    "Server error while changing role."
-            });
-        }
-    }
-);
-
-// ==================================================
-// MODERATION - USERS
-// ==================================================
-
-app.get(
-    "/api/admin/users",
-    requireStaff,
-    async (req, res) => {
-
-        try {
-
-            const {
-                data: users,
-                error
-            } =
-                await supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar,
-                        email,
-                        created_at,
-                        last_seen
-                    `)
-                    .order(
-                        "created_at",
-                        {
-                            ascending:
-                                false
-                        }
-                    );
-
-            if (error) {
-
-                // Some profiles tables don't have
-                // an email column.
-                if (
-                    error.message?.includes(
-                        "email"
-                    )
-                ) {
-
-                    const fallback =
-                        await supabase
-                            .from("profiles")
-                            .select(`
-                                id,
-                                username,
-                                display_name,
-                                avatar,
-                                created_at,
-                                last_seen
-                            `)
-                            .order(
-                                "created_at",
-                                {
-                                    ascending:
-                                        false
-                                }
-                            );
-
-                    if (fallback.error) {
-                        return res.status(500).json({
-                            error:
-                                fallback.error.message
-                        });
-                    }
-
-                    return res.json(
-                        fallback.data || []
-                    );
-                }
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            const result = [];
-
-            for (
-                const user of
-                users || []
-            ) {
-
-                const role =
-                    await getUserRole(
-                        user.id
-                    );
-
-                const ban =
-                    await getActiveBanByUserId(
-                        user.id
-                    );
-
-                const kick =
-                    await getActiveKickByUserId(
-                        user.id
-                    );
-
-                result.push({
-
-                    ...user,
-
-                    avatar:
-                        getAvatar(
-                            user.avatar
-                        ),
-
-                    role,
-
-                    banned:
-                        !!ban,
-
-                    kicked:
-                        !!kick
-
-                });
-            }
-
-            res.json(result);
-
-        } catch (error) {
-
-            console.error(
-                "ADMIN USERS ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    error.message
-            });
-        }
-    }
-);
 
 // ==================================================
 // BANS
@@ -3224,7 +4059,10 @@ app.get(
 app.get(
     "/api/admin/bans",
     requireStaff,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -3251,15 +4089,21 @@ app.get(
                         }
                     );
 
+
             if (error) {
+
                 return res.status(500).json({
                     error:
                         error.message
                 });
             }
 
+
             res.json({
-                success: true,
+
+                success:
+                    true,
+
                 bans:
                     data || []
             });
@@ -3279,6 +4123,7 @@ app.get(
     }
 );
 
+
 // ==================================================
 // BAN USER
 // ==================================================
@@ -3286,7 +4131,10 @@ app.get(
 app.post(
     "/api/admin/ban",
     requireStaff,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -3296,43 +4144,52 @@ app.post(
                     ""
                 ).trim();
 
+
             const reason =
                 String(
                     req.body.reason ||
                     ""
                 ).trim();
 
+
             if (!userId) {
+
                 return res.status(400).json({
                     error:
                         "User ID is required."
                 });
             }
 
+
             if (
                 userId ===
                 req.session.user.id
             ) {
+
                 return res.status(403).json({
                     error:
                         "You cannot ban yourself."
                 });
             }
 
+
             const targetRole =
                 await getUserRole(
                     userId
                 );
 
+
             if (
                 targetRole ===
                 "owner"
             ) {
+
                 return res.status(403).json({
                     error:
                         "The Owner cannot be banned."
                 });
             }
+
 
             const {
                 data: target,
@@ -3350,31 +4207,49 @@ app.post(
                     )
                     .maybeSingle();
 
+
             if (targetError) {
+
                 return res.status(500).json({
                     error:
                         targetError.message
                 });
             }
 
+
             if (!target) {
+
                 return res.status(404).json({
                     error:
                         "User not found."
                 });
             }
 
+
             const {
-                data: authUser
+                data: authData,
+                error: authError
             } =
-                await supabase.auth.admin.getUserById(
-                    userId
-                );
+                await supabase.auth.admin
+                    .getUserById(
+                        userId
+                    );
+
+
+            if (authError) {
+
+                return res.status(500).json({
+                    error:
+                        authError.message
+                });
+            }
+
 
             const email =
                 normalizeEmail(
-                    authUser?.user?.email
+                    authData?.user?.email
                 );
+
 
             const {
                 error
@@ -3386,7 +4261,8 @@ app.post(
                             userId,
 
                         email:
-                            email || null,
+                            email ||
+                            null,
 
                         reason:
                             reason ||
@@ -3403,15 +4279,21 @@ app.post(
                             true
                     });
 
+
             if (error) {
+
                 return res.status(500).json({
                     error:
                         error.message
                 });
             }
 
+
             res.json({
-                success: true,
+
+                success:
+                    true,
+
                 message:
                     "User banned successfully."
             });
@@ -3431,6 +4313,7 @@ app.post(
     }
 );
 
+
 // ==================================================
 // UNBAN USER
 // ==================================================
@@ -3438,7 +4321,10 @@ app.post(
 app.post(
     "/api/admin/unban",
     requireStaff,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -3448,12 +4334,15 @@ app.post(
                     ""
                 ).trim();
 
+
             if (!userId) {
+
                 return res.status(400).json({
                     error:
                         "User ID is required."
                 });
             }
+
 
             const {
                 error
@@ -3473,15 +4362,21 @@ app.post(
                         true
                     );
 
+
             if (error) {
+
                 return res.status(500).json({
                     error:
                         error.message
                 });
             }
 
+
             res.json({
-                success: true,
+
+                success:
+                    true,
+
                 message:
                     "User unbanned successfully."
             });
@@ -3501,15 +4396,18 @@ app.post(
     }
 );
 
+
 // ==================================================
 // KICKS
 // ==================================================
 
-// GET KICKS
 app.get(
     "/api/admin/kicks",
     requireStaff,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -3519,14 +4417,7 @@ app.get(
             } =
                 await supabase
                     .from("kicks")
-                    .select(`
-                        id,
-                        user_id,
-                        reason,
-                        kicked_at,
-                        kicked_by,
-                        active
-                    `)
+                    .select("*")
                     .order(
                         "kicked_at",
                         {
@@ -3535,12 +4426,27 @@ app.get(
                         }
                     );
 
+
             if (error) {
 
-                console.error(
-                    "GET KICKS ERROR:",
-                    error
-                );
+                if (
+                    error.code ===
+                        "42P01" ||
+                    error.message
+                        ?.toLowerCase()
+                        .includes(
+                            "relation"
+                        ) ||
+                    error.message
+                        ?.toLowerCase()
+                        .includes(
+                            "schema cache"
+                        )
+                ) {
+
+                    return res.json([]);
+                }
+
 
                 return res.status(500).json({
                     error:
@@ -3548,15 +4454,10 @@ app.get(
                 });
             }
 
-            res.json({
 
-                success:
-                    true,
-
-                kicks:
-                    data || []
-
-            });
+            res.json(
+                data || []
+            );
 
         } catch (error) {
 
@@ -3567,17 +4468,24 @@ app.get(
 
             res.status(500).json({
                 error:
-                    error.message
+                    "Server error."
             });
         }
     }
 );
 
-// CREATE KICK
+
+// ==================================================
+// KICK USER
+// ==================================================
+
 app.post(
     "/api/admin/kick",
     requireStaff,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -3587,43 +4495,52 @@ app.post(
                     ""
                 ).trim();
 
+
             const reason =
                 String(
                     req.body.reason ||
                     ""
                 ).trim();
 
+
             if (!userId) {
+
                 return res.status(400).json({
                     error:
                         "User ID is required."
                 });
             }
 
+
             if (
                 userId ===
                 req.session.user.id
             ) {
+
                 return res.status(403).json({
                     error:
                         "You cannot kick yourself."
                 });
             }
 
+
             const targetRole =
                 await getUserRole(
                     userId
                 );
 
+
             if (
                 targetRole ===
                 "owner"
             ) {
+
                 return res.status(403).json({
                     error:
                         "The Owner cannot be kicked."
                 });
             }
+
 
             const {
                 data: target,
@@ -3641,19 +4558,24 @@ app.post(
                     )
                     .maybeSingle();
 
+
             if (targetError) {
+
                 return res.status(500).json({
                     error:
                         targetError.message
                 });
             }
 
+
             if (!target) {
+
                 return res.status(404).json({
                     error:
                         "User not found."
                 });
             }
+
 
             const {
                 error
@@ -3661,7 +4583,6 @@ app.post(
                 await supabase
                     .from("kicks")
                     .insert({
-
                         user_id:
                             userId,
 
@@ -3678,21 +4599,39 @@ app.post(
 
                         active:
                             true
-
                     });
+
 
             if (error) {
 
-                console.error(
-                    "CREATE KICK ERROR:",
-                    error
-                );
+                if (
+                    error.code ===
+                        "42P01" ||
+                    error.message
+                        ?.toLowerCase()
+                        .includes(
+                            "relation"
+                        ) ||
+                    error.message
+                        ?.toLowerCase()
+                        .includes(
+                            "schema cache"
+                        )
+                ) {
+
+                    return res.status(500).json({
+                        error:
+                            "The kicks table does not exist in Supabase yet."
+                    });
+                }
+
 
                 return res.status(500).json({
                     error:
                         error.message
                 });
             }
+
 
             res.json({
 
@@ -3701,13 +4640,12 @@ app.post(
 
                 message:
                     "User kicked successfully."
-
             });
 
         } catch (error) {
 
             console.error(
-                "KICK ERROR:",
+                "KICK USER ERROR:",
                 error
             );
 
@@ -3719,26 +4657,36 @@ app.post(
     }
 );
 
-// CLEAR KICK
+
+// ==================================================
+// UNKICK USER
+// ==================================================
+
 app.post(
-    "/api/admin/kicks/:kickId/clear",
+    "/api/admin/unkick",
     requireStaff,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
-            const kickId =
+            const userId =
                 String(
-                    req.params.kickId ||
+                    req.body.user_id ||
                     ""
                 ).trim();
 
-            if (!kickId) {
+
+            if (!userId) {
+
                 return res.status(400).json({
                     error:
-                        "Kick ID is required."
+                        "User ID is required."
                 });
             }
+
 
             const {
                 error
@@ -3750,16 +4698,23 @@ app.post(
                             false
                     })
                     .eq(
-                        "id",
-                        kickId
+                        "user_id",
+                        userId
+                    )
+                    .eq(
+                        "active",
+                        true
                     );
 
+
             if (error) {
+
                 return res.status(500).json({
                     error:
                         error.message
                 });
             }
+
 
             res.json({
 
@@ -3767,14 +4722,13 @@ app.post(
                     true,
 
                 message:
-                    "Kick cleared."
-
+                    "Kick removed successfully."
             });
 
         } catch (error) {
 
             console.error(
-                "CLEAR KICK ERROR:",
+                "UNKICK ERROR:",
                 error
             );
 
@@ -3786,15 +4740,18 @@ app.post(
     }
 );
 
+
 // ==================================================
 // STAFF REVOCATIONS
 // ==================================================
 
-// GET STAFF REVOCATIONS
 app.get(
-    "/api/admin/revocations",
+    "/api/admin/revokes",
     requireStaff,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -3803,15 +4760,10 @@ app.get(
                 error
             } =
                 await supabase
-                    .from("staff_revocations")
-                    .select(`
-                        id,
-                        user_id,
-                        reason,
-                        revoked_at,
-                        revoked_by,
-                        active
-                    `)
+                    .from(
+                        "staff_revocations"
+                    )
+                    .select("*")
                     .order(
                         "revoked_at",
                         {
@@ -3820,1589 +4772,43 @@ app.get(
                         }
                     );
 
-            if (error) {
-
-                console.error(
-                    "GET REVOCATIONS ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            res.json({
-
-                success:
-                    true,
-
-                revocations:
-                    data || []
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "GET REVOCATIONS ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    error.message
-            });
-        }
-    }
-);
-
-// CREATE STAFF REVOCATION
-app.post(
-    "/api/admin/revoke-staff",
-    requireOwner,
-    async (req, res) => {
-
-        try {
-
-            const userId =
-                String(
-                    req.body.user_id ||
-                    ""
-                ).trim();
-
-            const reason =
-                String(
-                    req.body.reason ||
-                    ""
-                ).trim();
-
-            if (!userId) {
-                return res.status(400).json({
-                    error:
-                        "User ID is required."
-                });
-            }
-
-            if (
-                userId ===
-                req.session.user.id
-            ) {
-                return res.status(403).json({
-                    error:
-                        "You cannot revoke your own staff powers."
-                });
-            }
-
-            const targetRole =
-                await getUserRole(
-                    userId
-                );
-
-            if (
-                targetRole ===
-                "owner"
-            ) {
-                return res.status(403).json({
-                    error:
-                        "The Owner's staff powers cannot be revoked."
-                });
-            }
-
-            if (
-                targetRole ===
-                "peasant"
-            ) {
-                return res.status(400).json({
-                    error:
-                        "This user does not have staff powers."
-                });
-            }
-
-            const {
-                error: revokeError
-            } =
-                await supabase
-                    .from("staff_revocations")
-                    .insert({
-
-                        user_id:
-                            userId,
-
-                        reason:
-                            reason ||
-                            "No reason provided.",
-
-                        revoked_at:
-                            new Date()
-                                .toISOString(),
-
-                        revoked_by:
-                            req.session.user.id,
-
-                        active:
-                            true
-
-                    });
-
-            if (revokeError) {
-
-                console.error(
-                    "REVOCATION INSERT ERROR:",
-                    revokeError
-                );
-
-                return res.status(500).json({
-                    error:
-                        revokeError.message
-                });
-            }
-
-            // Remove staff permissions.
-            const {
-                error: roleDeleteError
-            } =
-                await supabase
-                    .from("admins")
-                    .delete()
-                    .eq(
-                        "user_id",
-                        userId
-                    );
-
-            if (roleDeleteError) {
-
-                console.error(
-                    "REVOCATION ROLE DELETE ERROR:",
-                    roleDeleteError
-                );
-
-                return res.status(500).json({
-                    error:
-                        roleDeleteError.message
-                });
-            }
-
-            res.json({
-
-                success:
-                    true,
-
-                message:
-                    "Staff powers revoked. The account remains active."
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "REVOKE STAFF ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    error.message
-            });
-        }
-    }
-);
-
-// ==================================================
-// CLEAR STAFF REVOCATION
-// ==================================================
-
-app.post(
-    "/api/admin/revocations/:revocationId/clear",
-    requireOwner,
-    async (req, res) => {
-
-        try {
-
-            const revocationId =
-                String(
-                    req.params.revocationId ||
-                    ""
-                ).trim();
-
-            if (!revocationId) {
-                return res.status(400).json({
-                    error:
-                        "Revocation ID is required."
-                });
-            }
-
-            const {
-                error
-            } =
-                await supabase
-                    .from("staff_revocations")
-                    .update({
-                        active:
-                            false
-                    })
-                    .eq(
-                        "id",
-                        revocationId
-                    );
 
             if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            res.json({
-
-                success:
-                    true,
-
-                message:
-                    "Staff revocation cleared."
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "CLEAR REVOCATION ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    error.message
-            });
-        }
-    }
-);
-
-// ==================================================
-// SHREKCHAT - ROOMS
-// ==================================================
-
-app.get(
-    "/api/chat/rooms",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const userId =
-                req.session.user.id;
-
-            const {
-                data: rooms,
-                error: roomError
-            } =
-                await supabase
-                    .from("chat_rooms")
-                    .select(`
-                        id,
-                        name,
-                        created_by,
-                        is_private,
-                        created_at
-                    `)
-                    .order(
-                        "created_at",
-                        {
-                            ascending:
-                                true
-                        }
-                    );
-
-            if (roomError) {
-                return res.status(500).json({
-                    error:
-                        roomError.message
-                });
-            }
-
-            const {
-                data: memberships,
-                error: memberError
-            } =
-                await supabase
-                    .from("chat_members")
-                    .select(
-                        "room_id"
-                    )
-                    .eq(
-                        "user_id",
-                        userId
-                    );
-
-            if (memberError) {
-                return res.status(500).json({
-                    error:
-                        memberError.message
-                });
-            }
-
-            const memberRooms =
-                new Set(
-                    (memberships || [])
-                        .map(
-                            member =>
-                                member.room_id
-                        )
-                );
-
-            const visibleRooms =
-                (rooms || [])
-                    .filter(
-                        room => {
-
-                            if (
-                                !room.is_private
-                            ) {
-                                return true;
-                            }
-
-                            return (
-                                room.created_by ===
-                                userId ||
-                                memberRooms.has(
-                                    room.id
-                                )
-                            );
-                        }
-                    );
-
-            res.json(
-                visibleRooms
-            );
-
-        } catch (error) {
-
-            console.error(
-                "GET ROOMS ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-        }
-    }
-);
-
-// ==================================================
-// CREATE ROOM
-// ==================================================
-
-app.post(
-    "/api/chat/rooms",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const name =
-                String(
-                    req.body.name ||
-                    ""
-                ).trim();
-
-            const isPrivate =
-                req.body.is_private ===
-                true;
-
-            if (!name) {
-                return res.status(400).json({
-                    error:
-                        "Room name cannot be empty."
-                });
-            }
-
-            if (
-                name.length >
-                50
-            ) {
-                return res.status(400).json({
-                    error:
-                        "Room name is too long."
-                });
-            }
-
-            const {
-                data: room,
-                error
-            } =
-                await supabase
-                    .from("chat_rooms")
-                    .insert({
-                        name,
-
-                        created_by:
-                            req.session.user.id,
-
-                        is_private:
-                            isPrivate
-                    })
-                    .select()
-                    .single();
-
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            const {
-                error: memberError
-            } =
-                await supabase
-                    .from("chat_members")
-                    .insert({
-                        room_id:
-                            room.id,
-
-                        user_id:
-                            req.session.user.id
-                    });
-
-            if (memberError) {
-
-                await supabase
-                    .from("chat_rooms")
-                    .delete()
-                    .eq(
-                        "id",
-                        room.id
-                    );
-
-                return res.status(500).json({
-                    error:
-                        memberError.message
-                });
-            }
-
-            res.status(201).json(
-                room
-            );
-
-        } catch (error) {
-
-            console.error(
-                "CREATE ROOM ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-        }
-    }
-);
-
-// ==================================================
-// JOIN ROOM
-// ==================================================
-
-app.post(
-    "/api/chat/rooms/:roomId/join",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const roomId =
-                req.params.roomId;
-
-            const userId =
-                req.session.user.id;
-
-            const {
-                data: room,
-                error
-            } =
-                await supabase
-                    .from("chat_rooms")
-                    .select(`
-                        id,
-                        created_by,
-                        is_private
-                    `)
-                    .eq(
-                        "id",
-                        roomId
-                    )
-                    .maybeSingle();
-
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            if (!room) {
-                return res.status(404).json({
-                    error:
-                        "Room not found."
-                });
-            }
-
-            if (
-                room.is_private
-            ) {
-
-                const {
-                    data: membership
-                } =
-                    await supabase
-                        .from("chat_members")
-                        .select(
-                            "room_id"
-                        )
-                        .eq(
-                            "room_id",
-                            roomId
-                        )
-                        .eq(
-                            "user_id",
-                            userId
-                        )
-                        .maybeSingle();
 
                 if (
-                    !membership &&
-                    room.created_by !==
-                    userId
+                    error.code ===
+                        "42P01" ||
+                    error.message
+                        ?.toLowerCase()
+                        .includes(
+                            "relation"
+                        ) ||
+                    error.message
+                        ?.toLowerCase()
+                        .includes(
+                            "schema cache"
+                        )
                 ) {
-                    return res.status(403).json({
-                        error:
-                            "🔒 You need an invitation to enter this room."
-                    });
-                }
-            }
 
-            const {
-                error: joinError
-            } =
-                await supabase
-                    .from("chat_members")
-                    .upsert(
-                        {
-                            room_id:
-                                roomId,
-
-                            user_id:
-                                userId
-                        },
-                        {
-                            onConflict:
-                                "room_id,user_id"
-                        }
-                    );
-
-            if (joinError) {
-                return res.status(500).json({
-                    error:
-                        joinError.message
-                });
-            }
-
-            res.json({
-                success: true
-            });
-
-        } catch (error) {
-
-            console.error(
-                "JOIN ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-        }
-    }
-);
-
-// ==================================================
-// LEAVE ROOM
-// ==================================================
-
-app.post(
-    "/api/chat/rooms/:roomId/leave",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const {
-                error
-            } =
-                await supabase
-                    .from("chat_members")
-                    .delete()
-                    .eq(
-                        "room_id",
-                        req.params.roomId
-                    )
-                    .eq(
-                        "user_id",
-                        req.session.user.id
-                    );
-
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            res.json({
-                success: true
-            });
-
-        } catch (error) {
-
-            console.error(
-                "LEAVE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-        }
-    }
-);
-
-// ==================================================
-// DELETE ROOM
-// ==================================================
-
-app.delete(
-    "/api/chat/rooms/:roomId",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const {
-                data: room
-            } =
-                await supabase
-                    .from("chat_rooms")
-                    .select(
-                        "created_by"
-                    )
-                    .eq(
-                        "id",
-                        req.params.roomId
-                    )
-                    .maybeSingle();
-
-            if (!room) {
-                return res.status(404).json({
-                    error:
-                        "Room not found."
-                });
-            }
-
-            if (
-                room.created_by !==
-                req.session.user.id
-            ) {
-                return res.status(403).json({
-                    error:
-                        "Only the room creator can delete it."
-                });
-            }
-
-            const {
-                error
-            } =
-                await supabase
-                    .from("chat_rooms")
-                    .delete()
-                    .eq(
-                        "id",
-                        req.params.roomId
-                    );
-
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            res.json({
-                success: true
-            });
-
-        } catch (error) {
-
-            console.error(
-                "DELETE ROOM ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-        }
-    }
-);
-
-// ==================================================
-// INVITABLE USERS
-// ==================================================
-
-app.get(
-    "/api/chat/rooms/:roomId/invite-users",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const roomId =
-                req.params.roomId;
-
-            const {
-                data: room
-            } =
-                await supabase
-                    .from("chat_rooms")
-                    .select(`
-                        created_by,
-                        is_private
-                    `)
-                    .eq(
-                        "id",
-                        roomId
-                    )
-                    .maybeSingle();
-
-            if (!room) {
-                return res.status(404).json({
-                    error:
-                        "Room not found."
-                });
-            }
-
-            if (
-                room.created_by !==
-                req.session.user.id
-            ) {
-                return res.status(403).json({
-                    error:
-                        "Only the creator can invite people."
-                });
-            }
-
-            const {
-                data: members
-            } =
-                await supabase
-                    .from("chat_members")
-                    .select(
-                        "user_id"
-                    )
-                    .eq(
-                        "room_id",
-                        roomId
-                    );
-
-            const memberIds =
-                new Set(
-                    (members || [])
-                        .map(
-                            member =>
-                                member.user_id
-                        )
-                );
-
-            const {
-                data: users,
-                error
-            } =
-                await supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar
-                    `)
-                    .order(
-                        "username",
-                        {
-                            ascending:
-                                true
-                        }
-                    );
-
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            const result =
-                (users || [])
-                    .filter(
-                        user =>
-                            !memberIds.has(
-                                user.id
-                            )
-                    )
-                    .map(
-                        user => ({
-
-                            ...user,
-
-                            avatar:
-                                getAvatar(
-                                    user.avatar
-                                )
-
-                        })
-                    );
-
-            res.json(result);
-
-        } catch (error) {
-
-            console.error(
-                "INVITE USERS ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-        }
-    }
-);
-
-// ==================================================
-// INVITE USER
-// ==================================================
-
-app.post(
-    "/api/chat/rooms/:roomId/invite",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const roomId =
-                req.params.roomId;
-
-            const invitedUserId =
-                req.body.user_id;
-
-            if (!invitedUserId) {
-                return res.status(400).json({
-                    error:
-                        "No user selected."
-                });
-            }
-
-            const {
-                data: room
-            } =
-                await supabase
-                    .from("chat_rooms")
-                    .select(`
-                        created_by,
-                        is_private
-                    `)
-                    .eq(
-                        "id",
-                        roomId
-                    )
-                    .maybeSingle();
-
-            if (!room) {
-                return res.status(404).json({
-                    error:
-                        "Room not found."
-                });
-            }
-
-            if (
-                room.created_by !==
-                req.session.user.id
-            ) {
-                return res.status(403).json({
-                    error:
-                        "Only the creator can invite people."
-                });
-            }
-
-            const {
-                data: user
-            } =
-                await supabase
-                    .from("profiles")
-                    .select("id")
-                    .eq(
-                        "id",
-                        invitedUserId
-                    )
-                    .maybeSingle();
-
-            if (!user) {
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-            }
-
-            const {
-                error
-            } =
-                await supabase
-                    .from("chat_members")
-                    .upsert(
-                        {
-                            room_id:
-                                roomId,
-
-                            user_id:
-                                invitedUserId
-                        },
-                        {
-                            onConflict:
-                                "room_id,user_id"
-                        }
-                    );
-
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            res.json({
-                success: true
-            });
-
-        } catch (error) {
-
-            console.error(
-                "INVITE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-        }
-    }
-);
-
-// ==================================================
-// GET MESSAGES
-// ==================================================
-
-app.get(
-    "/api/chat/rooms/:roomId/messages",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const roomId =
-                req.params.roomId;
-
-            const userId =
-                req.session.user.id;
-
-            const {
-                data: membership
-            } =
-                await supabase
-                    .from("chat_members")
-                    .select(
-                        "room_id"
-                    )
-                    .eq(
-                        "room_id",
-                        roomId
-                    )
-                    .eq(
-                        "user_id",
-                        userId
-                    )
-                    .maybeSingle();
-
-            if (!membership) {
-                return res.status(403).json({
-                    error:
-                        "You are not a member of this room."
-                });
-            }
-
-            const {
-                data: messages,
-                error
-            } =
-                await supabase
-                    .from("chat_messages")
-                    .select(`
-                        id,
-                        room_id,
-                        user_id,
-                        content,
-                        created_at
-                    `)
-                    .eq(
-                        "room_id",
-                        roomId
-                    )
-                    .order(
-                        "created_at",
-                        {
-                            ascending:
-                                true
-                        }
-                    )
-                    .limit(200);
-
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            const result = [];
-
-            for (
-                const message of
-                messages || []
-            ) {
-
-                const {
-                    data: profile
-                } =
-                    await supabase
-                        .from("profiles")
-                        .select(`
-                            id,
-                            username,
-                            display_name,
-                            avatar
-                        `)
-                        .eq(
-                            "id",
-                            message.user_id
-                        )
-                        .maybeSingle();
-
-                let reactions = {
-                    gyatt: 0,
-                    cat: 0,
-                    ogred: 0
-                };
-
-                try {
-
-                    reactions =
-                        await getReactionCounts(
-                            message.user_id
-                        );
-
-                } catch (reactionError) {
-
-                    console.error(
-                        "MESSAGE REACTION ERROR:",
-                        reactionError
-                    );
+                    return res.json([]);
                 }
 
-                result.push({
 
-                    ...message,
-
-                    username:
-                        profile?.username ||
-                        "User",
-
-                    display_name:
-                        profile?.display_name ||
-                        profile?.username ||
-                        "User",
-
-                    avatar:
-                        getAvatar(
-                            profile?.avatar
-                        ),
-
-                    cat:
-                        reactions.cat,
-
-                    gyatt:
-                        reactions.gyatt,
-
-                    ogred:
-                        reactions.ogred
-                });
-            }
-
-            res.json(result);
-
-        } catch (error) {
-
-            console.error(
-                "MESSAGES ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-        }
-    }
-);
-
-// ==================================================
-// SEND MESSAGE
-// ==================================================
-
-app.post(
-    "/api/chat/rooms/:roomId/messages",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const roomId =
-                req.params.roomId;
-
-            const userId =
-                req.session.user.id;
-
-            const {
-                data: membership
-            } =
-                await supabase
-                    .from("chat_members")
-                    .select(
-                        "room_id"
-                    )
-                    .eq(
-                        "room_id",
-                        roomId
-                    )
-                    .eq(
-                        "user_id",
-                        userId
-                    )
-                    .maybeSingle();
-
-            if (!membership) {
-                return res.status(403).json({
-                    error:
-                        "You are not a member of this room."
-                });
-            }
-
-            const content =
-                String(
-                    req.body.content ||
-                    ""
-                ).trim();
-
-            if (!content) {
-                return res.status(400).json({
-                    error:
-                        "Message cannot be empty."
-                });
-            }
-
-            if (
-                content.length >
-                1000
-            ) {
-                return res.status(400).json({
-                    error:
-                        "Message is too long."
-                });
-            }
-
-            const {
-                data,
-                error
-            } =
-                await supabase
-                    .from("chat_messages")
-                    .insert({
-                        room_id:
-                            roomId,
-
-                        user_id:
-                            userId,
-
-                        content
-                    })
-                    .select()
-                    .single();
-
-            if (error) {
                 return res.status(500).json({
                     error:
                         error.message
                 });
             }
-
-            res.status(201).json(data);
-
-        } catch (error) {
-
-            console.error(
-                "SEND MESSAGE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-        }
-    }
-);
-// ==================================================
-// SHREKBOOK STAFF API
-// Matches admin.js exactly
-// ==================================================
-
-// ==================================================
-// KICK USER
-// ==================================================
-
-app.post(
-    "/api/admin/kick",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const staffUserId =
-                req.session.user.id;
-
-            const {
-                user_id,
-                reason
-            } = req.body;
-
-            if (!user_id) {
-                return res.status(400).json({
-                    error: "User ID is required."
-                });
-            }
-
-            // Get the staff member's role
-            const {
-                data: staff,
-                error: staffError
-            } = await supabase
-                .from("profiles")
-                .select("id, role")
-                .eq("id", staffUserId)
-                .maybeSingle();
-
-            if (staffError) {
-                return res.status(500).json({
-                    error: staffError.message
-                });
-            }
-
-            const staffRole =
-                staff?.role || "peasant";
-
-            const allowedRoles = [
-                "moderator",
-                "senior_moderator",
-                "administrator",
-                "owner"
-            ];
-
-            if (!allowedRoles.includes(staffRole)) {
-                return res.status(403).json({
-                    error:
-                        "You do not have permission to kick users."
-                });
-            }
-
-            // Find target user
-            const {
-                data: target,
-                error: targetError
-            } = await supabase
-                .from("profiles")
-                .select("id, username, role")
-                .eq("id", user_id)
-                .maybeSingle();
-
-            if (targetError) {
-                return res.status(500).json({
-                    error: targetError.message
-                });
-            }
-
-            if (!target) {
-                return res.status(404).json({
-                    error: "User not found."
-                });
-            }
-
-            // Owner protection
-            if (target.role === "owner") {
-                return res.status(403).json({
-                    error:
-                        "The owner cannot be kicked."
-                });
-            }
-
-            // Don't allow staff to kick equal/higher staff
-            const power = {
-                peasant: 1,
-                moderator: 2,
-                senior_moderator: 3,
-                administrator: 4,
-                owner: 5
-            };
-
-            if (
-                (power[target.role] || 1) >=
-                (power[staffRole] || 1)
-            ) {
-                return res.status(403).json({
-                    error:
-                        "You cannot kick a user with equal or higher staff power."
-                });
-            }
-
-            // Record the kick
-            const {
-                data: kick,
-                error: kickError
-            } = await supabase
-                .from("staff_kicks")
-                .insert({
-                    user_id: target.id,
-                    moderator_id: staffUserId,
-                    reason:
-                        String(reason || "")
-                            .trim() ||
-                        "No reason provided."
-                })
-                .select()
-                .single();
-
-            if (kickError) {
-                console.error(
-                    "KICK INSERT ERROR:",
-                    kickError
-                );
-
-                return res.status(500).json({
-                    error:
-                        kickError.message
-                });
-            }
-
-            res.json({
-                success: true,
-                message: "User kicked.",
-                kick
-            });
-
-        } catch (error) {
-
-            console.error(
-                "KICK ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// STAFF CHECK
-// GET /api/admin/me
-// ==================================================
-
-app.get("/api/admin/me", requireLogin, async (req, res) => {
-
-    try {
-
-        const userId = req.session.user.id;
-
-        const { data: user, error } =
-            await supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar,
-                    role
-                `)
-                .eq("id", userId)
-                .maybeSingle();
-
-        if (error)
-            return res.status(500).json({
-                error: error.message
-            });
-
-        if (!user)
-            return res.status(404).json({
-                error: "User not found."
-            });
-
-        const role = user.role || "peasant";
-
-        const isStaff =
-            ["moderator", "senior_moderator", "administrator", "owner"]
-                .includes(role);
-
-        if (!isStaff) {
-            return res.status(403).json({
-                isStaff: false,
-                role,
-                user
-            });
-        }
-
-        res.json({
-            isStaff: true,
-            role,
-            user
-        });
-
-    } catch (error) {
-
-        console.error("ADMIN ME ERROR:", error);
-
-        res.status(500).json({
-            error: "Server error."
-        });
-
-    }
-
-});
-
-
-// ==================================================
-// GET USERS
-// GET /api/admin/users
-// ==================================================
-
-app.get(
-    "/api/admin/users",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const search =
-                String(
-                    req.query.search || ""
-                ).trim();
-
-
-            let query =
-                supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar
-                    `)
-                    .order(
-                        "username",
-                        {
-                            ascending: true
-                        }
-                    )
-                    .limit(200);
-
-
-            // ==========================================
-            // SEARCH
-            // ==========================================
-
-            if (search) {
-
-                query =
-                    query.or(
-                        `username.ilike.%${search}%,display_name.ilike.%${search}%`
-                    );
-
-            }
-
-
-            const {
-                data,
-                error
-            } = await query;
-
-
-            if (error) {
-
-                console.error(
-                    "USER SEARCH ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            // ==========================================
-            // GET ROLES FROM PROFILES
-            // ==========================================
-
-            const users =
-                data || [];
 
 
             res.json(
-                users
+                data || []
             );
 
         } catch (error) {
 
             console.error(
-                "ADMIN USERS ERROR:",
+                "GET REVOKES ERROR:",
                 error
             );
 
@@ -5410,8 +4816,8 @@ app.get(
                 error:
                     "Server error."
             });
-
         }
+
 
     }
 );
@@ -6323,349 +5729,21 @@ app.post(
 
         }
 
+
     }
 );
 
 
 // ==================================================
-// GET ADMINS
-// GET /api/admin/admins
-// ==================================================
-
-app.get("/api/admin/admins", requireLogin, async (req, res) => {
-
-    try {
-
-        const { data, error } =
-            await supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar,
-                    role
-                `)
-                .in("role", [
-                    "administrator",
-                    "owner"
-                ])
-                .order("username", {
-                    ascending: true
-                });
-
-        if (error)
-            return res.status(500).json({
-                error: error.message
-            });
-
-        res.json({
-            admins: data || []
-        });
-
-    } catch (error) {
-
-        console.error("GET ADMINS ERROR:", error);
-
-        res.status(500).json({
-            error: "Server error."
-        });
-
-    }
-
-});
-
-
-// ==================================================
-// ADD ADMIN
-// POST /api/admin/admins
-// ==================================================
-
-app.post("/api/admin/admins", requireLogin, async (req, res) => {
-
-    try {
-
-        const userId =
-            String(req.body.user_id || "")
-                .trim();
-
-        if (!userId)
-            return res.status(400).json({
-                error: "User ID is required."
-            });
-
-
-        const { data: target, error: findError } =
-            await supabase
-                .from("profiles")
-                .select("id, username, display_name, role")
-                .eq("id", userId)
-                .maybeSingle();
-
-        if (findError)
-            return res.status(500).json({
-                error: findError.message
-            });
-
-        if (!target)
-            return res.status(404).json({
-                error: "User not found."
-            });
-
-
-        if (target.role === "owner")
-            return res.status(400).json({
-                error: "User is already the owner."
-            });
-
-
-        const { data, error } =
-            await supabase
-                .from("profiles")
-                .update({
-                    role: "administrator"
-                })
-                .eq("id", userId)
-                .select()
-                .single();
-
-        if (error)
-            return res.status(500).json({
-                error: error.message
-            });
-
-        res.json(data);
-
-    } catch (error) {
-
-        console.error("ADD ADMIN ERROR:", error);
-
-        res.status(500).json({
-            error: "Server error."
-        });
-
-    }
-
-});
-
-
-// ==================================================
-// GET KICKS
-// GET /api/admin/kicks
-// ==================================================
-
-app.get("/api/admin/kicks", requireLogin, async (req, res) => {
-
-    try {
-
-        const { data, error } =
-            await supabase
-                .from("kicks")
-                .select("*")
-                .order("created_at", {
-                    ascending: false
-                });
-
-        if (error)
-            return res.status(500).json({
-                error: error.message
-            });
-
-        res.json(data || []);
-
-    } catch (error) {
-
-        console.error("GET KICKS ERROR:", error);
-
-        res.status(500).json({
-            error: "Server error."
-        });
-
-    }
-
-});
-
-
-// ==================================================
-// GET STAFF REVOKES
-// GET /api/admin/revokes
-// ==================================================
-
-app.get("/api/admin/revokes", requireLogin, async (req, res) => {
-
-    try {
-
-        const { data, error } =
-            await supabase
-                .from("staff_revocations")
-                .select("*")
-                .order("created_at", {
-                    ascending: false
-                });
-
-        if (error)
-            return res.status(500).json({
-                error: error.message
-            });
-
-        res.json(data || []);
-
-    } catch (error) {
-
-        console.error("GET REVOKES ERROR:", error);
-
-        res.status(500).json({
-            error: "Server error."
-        });
-
-    }
-
-});
-
-
-// ==================================================
-// CHANGE ROLE
-// POST /api/admin/role
-// ==================================================
-
-app.post("/api/admin/role", requireLogin, async (req, res) => {
-
-    try {
-
-        const userId =
-            String(req.body.user_id || "")
-                .trim();
-
-        const role =
-            String(req.body.role || "")
-                .trim()
-                .toLowerCase();
-
-
-        if (!userId || !role)
-            return res.status(400).json({
-                error: "User ID and role are required."
-            });
-
-
-        if (
-            !Object.prototype.hasOwnProperty.call(
-                STAFF_ROLES,
-                role
-            )
-        ) {
-
-            return res.status(400).json({
-                error: "Invalid role."
-            });
-
-        }
-
-
-        if (role === "owner") {
-
-            return res.status(403).json({
-                error:
-                    "Owner cannot be assigned through this panel."
-            });
-
-        }
-
-
-        const { data: target, error: findError } =
-            await supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    role
-                `)
-                .eq("id", userId)
-                .maybeSingle();
-
-
-        if (findError)
-            return res.status(500).json({
-                error: findError.message
-            });
-
-
-        if (!target)
-            return res.status(404).json({
-                error: "User not found."
-            });
-
-
-        if (target.role === "owner") {
-
-            return res.status(403).json({
-                error:
-                    "The owner is protected."
-            });
-
-        }
-
-
-        const { data, error } =
-            await supabase
-                .from("profiles")
-                .update({
-                    role
-                })
-                .eq("id", userId)
-                .select()
-                .single();
-
-
-        if (error)
-            return res.status(500).json({
-                error: error.message
-            });
-
-
-        // If staff was removed, record revocation.
-
-        if (
-            target.role !== "peasant" &&
-            role === "peasant"
-        ) {
-
-            await supabase
-                .from("staff_revocations")
-                .insert({
-                    user_id: userId,
-                    previous_role: target.role,
-                    reason: "Staff role revoked."
-                });
-
-        }
-
-
-        res.json({
-            success: true,
-            user: data
-        });
-
-    } catch (error) {
-
-        console.error("ROLE ERROR:", error);
-
-        res.status(500).json({
-            error: "Server error."
-        });
-
-    }
-
-});
-// ==================================================
 // 404 API HANDLER
 // ==================================================
 
-
 app.use(
     "/api",
-    (req, res) => {
+    (
+        req,
+        res
+    ) => {
 
         res.status(404).json({
 
@@ -6674,11 +5752,10 @@ app.use(
 
             path:
                 req.originalUrl
-
         });
-
     }
 );
+
 
 // ==================================================
 // START
@@ -6692,7 +5769,6 @@ app.listen(
         console.log(
             `🧌 ShrekBook running on port ${PORT}`
         );
-
     }
 );
 
