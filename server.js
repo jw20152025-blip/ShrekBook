@@ -5590,18 +5590,27 @@ app.post(
     }
 );
 
+// ==================================================
+// ADMIN API COMPATIBILITY ROUTES
+// These aliases prevent frontend/backend route-name
+// mismatches from causing 404 errors.
+// ==================================================
+
 
 // ==================================================
-// STAFF REVOCATIONS
+// ADMINS
 // ==================================================
+
+// Main
+// GET /api/admin/admins
+
+// Alias
+// GET /api/admin/administrators
 
 app.get(
-    "/api/admin/revokes",
+    "/api/admin/administrators",
     requireStaff,
-    async (
-        req,
-        res
-    ) => {
+    async (req, res) => {
 
         try {
 
@@ -5610,39 +5619,362 @@ app.get(
                 error
             } =
                 await supabase
-                    .from(
-                        "staff_revocations"
-                    )
-                    .select("*")
+                    .from("admins")
+                    .select(`
+                        user_id,
+                        role,
+                        created_at
+                    `)
                     .order(
-                        "revoked_at",
+                        "created_at",
                         {
-                            ascending:
-                                false
+                            ascending: false
                         }
                     );
 
+            if (error) {
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+            const result = [];
+
+            for (
+                const admin of
+                data || []
+            ) {
+
+                const {
+                    data: profile
+                } =
+                    await supabase
+                        .from("profiles")
+                        .select(`
+                            id,
+                            username,
+                            display_name,
+                            avatar
+                        `)
+                        .eq(
+                            "id",
+                            admin.user_id
+                        )
+                        .maybeSingle();
+
+                result.push({
+
+                    user_id:
+                        admin.user_id,
+
+                    role:
+                        admin.role,
+
+                    created_at:
+                        admin.created_at,
+
+                    username:
+                        profile?.username ||
+                        "Unknown",
+
+                    display_name:
+                        profile?.display_name ||
+                        profile?.username ||
+                        "Unknown",
+
+                    avatar:
+                        getAvatar(
+                            profile?.avatar
+                        )
+
+                });
+            }
+
+            res.json({
+
+                success: true,
+
+                administrators:
+                    result
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "ADMINISTRATORS API ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// KICKS
+// ==================================================
+
+// GET /api/admin/kicks
+// already supported
+
+// Alias:
+// GET /api/admin/kick-history
+
+app.get(
+    "/api/admin/kick-history",
+    requireStaff,
+    async (req, res) => {
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("kicks")
+                    .select(`
+                        id,
+                        user_id,
+                        reason,
+                        kicked_at,
+                        kicked_by,
+                        active
+                    `)
+                    .order(
+                        "kicked_at",
+                        {
+                            ascending: false
+                        }
+                    );
 
             if (error) {
 
-                if (
-                    error.code ===
-                        "42P01" ||
-                    error.message
-                        ?.toLowerCase()
-                        .includes(
-                            "relation"
-                        ) ||
-                    error.message
-                        ?.toLowerCase()
-                        .includes(
-                            "schema cache"
-                        )
-                ) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
 
-                    return res.json([]);
-                }
+            }
 
+            res.json({
+
+                success: true,
+
+                kicks:
+                    data || []
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "KICK HISTORY ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// REVOKES
+// ==================================================
+
+// Main:
+// GET /api/admin/revokes
+
+// Alias:
+// GET /api/admin/revocations
+
+app.get(
+    "/api/admin/revocations",
+    requireStaff,
+    async (req, res) => {
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("staff_revocations")
+                    .select(`
+                        id,
+                        user_id,
+                        previous_role,
+                        reason,
+                        revoked_by,
+                        created_at
+                    `)
+                    .order(
+                        "created_at",
+                        {
+                            ascending: false
+                        }
+                    );
+
+            if (error) {
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+            res.json({
+
+                success: true,
+
+                revokes:
+                    data || []
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "REVOCATIONS API ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// STAFF
+// ==================================================
+
+// Alias for:
+// GET /api/admin/staff
+
+app.get(
+    "/api/admin/staff-list",
+    requireStaff,
+    async (req, res) => {
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("admins")
+                    .select(`
+                        user_id,
+                        role,
+                        created_at
+                    `)
+                    .order(
+                        "created_at",
+                        {
+                            ascending: false
+                        }
+                    );
+
+            if (error) {
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+            res.json({
+
+                success: true,
+
+                staff:
+                    data || []
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "STAFF LIST ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// STAFF REVOCATIONS
+// GET /api/admin/revokes
+// ==================================================
+
+app.get(
+    "/api/admin/revokes",
+    requireStaff,
+    async (req, res) => {
+
+        try {
+
+            const {
+                data: revocations,
+                error
+            } =
+                await supabase
+                    .from("staff_revocations")
+                    .select(`
+                        id,
+                        user_id,
+                        previous_role,
+                        reason,
+                        revoked_by,
+                        created_at
+                    `)
+                    .order(
+                        "created_at",
+                        {
+                            ascending: false
+                        }
+                    );
+
+            if (error) {
+
+                console.error(
+                    "GET REVOKES SUPABASE ERROR:",
+                    error
+                );
 
                 return res.status(500).json({
                     error:
@@ -5650,10 +5982,77 @@ app.get(
                 });
             }
 
+            const result = [];
 
-            res.json(
-                data || []
-            );
+            for (
+                const revoke of
+                revocations || []
+            ) {
+
+                const {
+                    data: profile
+                } =
+                    await supabase
+                        .from("profiles")
+                        .select(`
+                            id,
+                            username,
+                            display_name,
+                            avatar
+                        `)
+                        .eq(
+                            "id",
+                            revoke.user_id
+                        )
+                        .maybeSingle();
+
+                result.push({
+
+                    id:
+                        revoke.id,
+
+                    user_id:
+                        revoke.user_id,
+
+                    username:
+                        profile?.username ||
+                        "Unknown",
+
+                    display_name:
+                        profile?.display_name ||
+                        profile?.username ||
+                        "Unknown",
+
+                    avatar:
+                        getAvatar(
+                            profile?.avatar
+                        ),
+
+                    previous_role:
+                        revoke.previous_role ||
+                        "Unknown",
+
+                    reason:
+                        revoke.reason ||
+                        "No reason provided.",
+
+                    revoked_by:
+                        revoke.revoked_by,
+
+                    created_at:
+                        revoke.created_at
+
+                });
+            }
+
+            res.json({
+
+                success: true,
+
+                revokes:
+                    result
+
+            });
 
         } catch (error) {
 
@@ -5664,6 +6063,7 @@ app.get(
 
             res.status(500).json({
                 error:
+                    error.message ||
                     "Server error."
             });
         }
