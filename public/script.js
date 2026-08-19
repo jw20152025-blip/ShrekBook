@@ -355,6 +355,7 @@ async function loadReactionCounts(userId) {
    LOGIN
    ================================================== */
 
+
 async function login() {
 
     const emailInput =
@@ -404,9 +405,11 @@ async function login() {
                             "application/json"
                     },
 
+                    credentials: "include",
+
                     body: JSON.stringify({
-                        email,
-                        password
+                        email: email,
+                        password: password
                     })
                 }
             );
@@ -434,11 +437,57 @@ async function login() {
         }
 
         /*
-         * Let the normal session check handle
-         * the rest of the UI.
+         * Login succeeded.
+         * Immediately switch to the home/app UI.
          */
+        showApp();
 
-        await checkLogin();
+        /*
+         * Then check the session in the background.
+         * This must NOT kick the user back to login
+         * just because /api/me has a temporary problem.
+         */
+        try {
+
+            const meResponse =
+                await fetch(
+                    "/api/me",
+                    {
+                        credentials:
+                            "include"
+                    }
+                );
+
+            const me =
+                await meResponse.json();
+
+            console.log(
+                "USER AFTER LOGIN:",
+                me
+            );
+
+            if (
+                meResponse.ok &&
+                me.loggedIn &&
+                me.user
+            ) {
+
+                setupAdminNav(
+                    me.user
+                );
+
+                checkAdmin();
+
+            }
+
+        } catch (sessionError) {
+
+            console.warn(
+                "SESSION CHECK FAILED:",
+                sessionError
+            );
+
+        }
 
     } catch (error) {
 
@@ -456,6 +505,7 @@ async function login() {
     }
 
 }
+
 
 /* ==================================================
    SIGNUP
