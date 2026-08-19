@@ -358,19 +358,13 @@ async function loadReactionCounts(userId) {
 async function login() {
 
     const emailInput =
-        document.getElementById(
-            "login-email"
-        );
+        document.getElementById("login-email");
 
     const passwordInput =
-        document.getElementById(
-            "login-password"
-        );
+        document.getElementById("login-password");
 
     const status =
-        document.getElementById(
-            "login-status"
-        );
+        document.getElementById("login-status");
 
     const email =
         emailInput
@@ -385,21 +379,16 @@ async function login() {
     if (!email || !password) {
 
         if (status) {
-
             status.textContent =
                 "❌ Enter your email and password.";
-
         }
 
         return;
-
     }
 
     if (status) {
-
         status.textContent =
             "Logging in...";
-
     }
 
     try {
@@ -408,10 +397,7 @@ async function login() {
             await fetch(
                 "/api/login",
                 {
-
                     method: "POST",
-
-                    credentials: "same-origin",
 
                     headers: {
                         "Content-Type":
@@ -422,22 +408,11 @@ async function login() {
                         email,
                         password
                     })
-
                 }
             );
 
-        let data = {};
-
-        try {
-
-            data =
-                await response.json();
-
-        } catch {
-
-            data = {};
-
-        }
+        const data =
+            await response.json();
 
         if (!response.ok) {
 
@@ -453,53 +428,17 @@ async function login() {
             data
         );
 
+        if (status) {
+            status.textContent =
+                "✅ Logged in!";
+        }
+
         /*
-         * Check the newly-created session.
+         * Let the normal session check handle
+         * the rest of the UI.
          */
 
-        const meResponse =
-            await fetch(
-                "/api/me",
-                {
-                    credentials:
-                        "same-origin"
-                }
-            );
-
-        const me =
-            await meResponse.json();
-
-        console.log(
-            "USER AFTER LOGIN:",
-            me
-        );
-
-        if (
-            meResponse.ok &&
-            me.loggedIn &&
-            me.user
-        ) {
-
-            setupAdminNav(
-                me.user
-            );
-
-            if (status) {
-
-                status.textContent =
-                    "✅ Login successful!";
-
-            }
-
-            showApp();
-
-        } else {
-
-            throw new Error(
-                "Login succeeded, but the session was not found."
-            );
-
-        }
+        await checkLogin();
 
     } catch (error) {
 
@@ -509,17 +448,14 @@ async function login() {
         );
 
         if (status) {
-
             status.textContent =
                 "❌ " +
                 error.message;
-
         }
 
     }
 
 }
-
 
 /* ==================================================
    SIGNUP
