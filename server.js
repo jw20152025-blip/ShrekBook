@@ -1664,6 +1664,182 @@ app.get(
 );
 
 // ==================================================
+// ADMIN USERS
+// GET /api/admin/admins
+// ==================================================
+
+app.get(
+    "/api/admin/admins",
+    requireStaff,
+    async (req, res) => {
+
+        try {
+
+            const {
+                data: admins,
+                error
+            } =
+                await supabase
+                    .from("admins")
+                    .select(`
+                        user_id,
+                        role,
+                        created_at
+                    `)
+                    .order(
+                        "created_at",
+                        {
+                            ascending: false
+                        }
+                    );
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+            const result = [];
+
+            for (
+                const admin of
+                admins || []
+            ) {
+
+                const {
+                    data: profile
+                } =
+                    await supabase
+                        .from("profiles")
+                        .select(`
+                            id,
+                            username,
+                            display_name,
+                            avatar
+                        `)
+                        .eq(
+                            "id",
+                            admin.user_id
+                        )
+                        .maybeSingle();
+
+                result.push({
+
+                    user_id:
+                        admin.user_id,
+
+                    role:
+                        admin.role,
+
+                    created_at:
+                        admin.created_at,
+
+                    username:
+                        profile?.username ||
+                        "Unknown",
+
+                    display_name:
+                        profile?.display_name ||
+                        profile?.username ||
+                        "Unknown",
+
+                    avatar:
+                        getAvatar(
+                            profile?.avatar
+                        )
+
+                });
+            }
+
+            res.json({
+                success: true,
+                admins: result
+            });
+
+        } catch (error) {
+
+            console.error(
+                "GET ADMINS ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message ||
+                    "Server error."
+            });
+        }
+    }
+);
+
+
+// ==================================================
+// KICKS
+// GET /api/admin/kicks
+// ==================================================
+
+app.get(
+    "/api/admin/kicks",
+    requireStaff,
+    async (req, res) => {
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("kicks")
+                    .select(`
+                        id,
+                        user_id,
+                        reason,
+                        kicked_at,
+                        kicked_by,
+                        active
+                    `)
+                    .order(
+                        "kicked_at",
+                        {
+                            ascending: false
+                        }
+                    );
+
+            if (error) {
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+            res.json({
+                success: true,
+                kicks:
+                    data || []
+            });
+
+        } catch (error) {
+
+            console.error(
+                "GET KICKS ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message ||
+                    "Server error."
+            });
+        }
+    }
+);
+
+
+// ==================================================
 // ADMINISTRATORS TABLE
 // GET /api/admin/administrators
 // ==================================================
