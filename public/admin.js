@@ -3,58 +3,45 @@
 // SHREKBOOK ADMIN PANEL
 // ==================================================
 
-const userList =
-    document.getElementById("user-list");
-
-const messageBox =
-    document.getElementById("message");
+let currentAdmin = null;
+let allUsers = [];
 
 
 // ==================================================
 // API HELPER
 // ==================================================
 
-async function api(
-    url,
-    options = {}
-) {
+async function api(url, options = {}) {
 
-    const response =
-        await fetch(
-            url,
-            {
-                credentials: "include",
+    const response = await fetch(
+        url,
+        {
+            credentials: "include",
 
-                ...options,
+            headers: {
+                "Content-Type": "application/json",
 
-                headers: {
-                    "Content-Type":
-                        "application/json",
+                ...(options.headers || {})
+            },
 
-                    ...(options.headers || {})
-                }
-            }
-        );
+            ...options
+        }
+    );
 
 
-    let data;
+    let data = null;
 
     try {
-
-        data =
-            await response.json();
-
+        data = await response.json();
     } catch {
-
-        data = {};
-
+        data = null;
     }
 
 
     if (!response.ok) {
 
         throw new Error(
-            data.error ||
+            data?.error ||
             `Request failed (${response.status})`
         );
 
@@ -62,27 +49,74 @@ async function api(
 
 
     return data;
+}
+
+
+// ==================================================
+// ELEMENTS
+// ==================================================
+
+const statusElement =
+    document.getElementById("status");
+
+const usersElement =
+    document.getElementById("users");
+
+const searchElement =
+    document.getElementById("search");
+
+const refreshButton =
+    document.getElementById("refresh-btn");
+
+const currentUserElement =
+    document.getElementById("current-user");
+
+const adminPanel =
+    document.getElementById("admin-panel");
+
+
+// ==================================================
+// STATUS
+// ==================================================
+
+function setStatus(message, error = false) {
+
+    statusElement.textContent =
+        message;
+
+    statusElement.style.color =
+        error
+            ? "#dc2626"
+            : "#15803d";
 
 }
 
 
 // ==================================================
-// MESSAGE
+// ESCAPE HTML
 // ==================================================
 
-function showMessage(
-    text,
-    type = "success"
-) {
+function escapeHTML(value) {
 
-    messageBox.textContent =
-        text;
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 
-    messageBox.className =
-        `message ${type}`;
+}
 
-    messageBox.style.display =
-        "block";
+
+// ==================================================
+// ROLE CLASS
+// ==================================================
+
+function roleClass(role) {
+
+    return String(role || "peasant")
+        .toLowerCase()
+        .replace(/\s+/g, "_");
 
 }
 
@@ -95,25 +129,64 @@ async function checkAdmin() {
 
     try {
 
-        await api(
-            "/api/admin/auth"
+        setStatus(
+            "Checking admin access..."
         );
+
+
+        const data =
+            await api("/api/admin/auth");
+
+
+        if (
+            !data ||
+            !data.authorized
+        ) {
+
+            throw new Error(
+                "You do not have permission to access the admin panel."
+            );
+
+        }
+
+
+        currentAdmin =
+            data.user;
+
+
+        currentUserElement.textContent =
+            `👑 ${currentAdmin.display_name || currentAdmin.username} — ${currentAdmin.role}`;
+
+
+        adminPanel.classList.remove(
+            "hidden"
+        );
+
+
+        setStatus(
+            "Admin access granted."
+        );
+
+
+        await loadUsers();
+
 
     } catch (error) {
 
-        showMessage(
-            error.message,
-            "error"
+        console.error(
+            "ADMIN AUTH ERROR:",
+            error
         );
 
-        userList.innerHTML = `
-            <div class="empty">
-                🚫 You do not have permission
-                to access the admin panel.
-            </div>
-        `;
 
-        throw error;
+        currentUserElement.textContent =
+            "🚫 Access denied";
+
+
+        setStatus(
+            error.message,
+            true
+        );
 
     }
 
@@ -126,23 +199,28 @@ async function checkAdmin() {
 
 async function loadUsers() {
 
-    userList.innerHTML =
-        "Loading users...";
-
-
     try {
 
-        await checkAdmin();
+        setStatus(
+            "Loading users..."
+        );
 
 
-        const users =
-            await api(
-                "/api/admin/users"
-            );
+        const data =
+            await api("/api/admin/users");
 
 
-        renderUsers(
-            users
+        allUsers =
+            Array.isArray(data)
+                ? data
+                : data.users || [];
+
+
+        renderUsers();
+
+
+        setStatus(
+            `Loaded ${allUsers.length} users.`
         );
 
 
@@ -153,21 +231,11 @@ async function loadUsers() {
             error
         );
 
-        if (
-            !userList.innerHTML.includes(
-                "permission"
-            )
-        ) {
 
-            userList.innerHTML = `
-                <div class="empty">
-                    ❌ ${escapeHtml(
-                        error.message
-                    )}
-                </div>
-            `;
-
-        }
+        setStatus(
+            error.message,
+            true
+        );
 
     }
 
@@ -178,193 +246,314 @@ async function loadUsers() {
 // RENDER USERS
 // ==================================================
 
-function renderUsers(
-    users
-) {
+function renderUsers() {
 
-    if (
-        !users ||
-        users.length === 0
-    ) {
+    const search =
+        searchElement.value
+            .trim()
+            .toLowerCase();
 
-        userList.innerHTML = `
-            <div class="empty">
+
+    const filtered =
+        allUsers.filter(user => {
+
+            return (
+
+                String(
+                    user.username || ""
+                )
+                    .toLowerCase()
+                    .includes(search)
+
+                ||
+
+                String(
+                    user.display_name || ""
+                )
+                    .toLowerCase()
+                    .includes(search)
+
+                ||
+
+                String(
+                    user.email || ""
+                )
+                    .toLowerCase()
+                    .includes(search)
+
+            );
+
+        });
+
+
+    if (!filtered.length) {
+
+        usersElement.innerHTML = `
+            <div class="user-card empty">
                 No users found.
             </div>
         `;
 
         return;
+    }
+
+
+    usersElement.innerHTML =
+        filtered
+            .map(renderUser)
+            .join("");
+
+}
+
+
+// ==================================================
+// RENDER SINGLE USER
+// ==================================================
+
+function renderUser(user) {
+
+    const role =
+        user.role || "peasant";
+
+
+    const active =
+        user.is_active !== false;
+
+
+    const banned =
+        user.is_banned === true;
+
+
+    let statusHTML;
+
+
+    if (banned) {
+
+        statusHTML = `
+            <div class="status banned">
+                🚫 BANNED
+            </div>
+        `;
+
+    } else if (!active) {
+
+        statusHTML = `
+            <div class="status inactive">
+                🦵 Page deactivated
+            </div>
+        `;
+
+    } else {
+
+        statusHTML = `
+            <div class="status active">
+                🟢 Active
+            </div>
+        `;
 
     }
 
 
-    userList.innerHTML =
-        users.map(
-            user => {
-
-                const avatar =
-                    escapeHtml(
-                        user.avatar ||
-                        "/default-avatar.png"
-                    );
+    const avatar =
+        user.avatar ||
+        "/default-avatar.png";
 
 
-                const username =
-                    escapeHtml(
-                        user.username ||
-                        "Unknown"
-                    );
+    return `
+        <div
+            class="user-card"
+            data-user-id="${escapeHTML(user.id)}"
+        >
 
+            <div class="user-top">
 
-                const displayName =
-                    escapeHtml(
-                        user.display_name ||
-                        ""
-                    );
+                <img
+                    class="avatar"
+                    src="${escapeHTML(avatar)}"
+                    onerror="this.src='/default-avatar.png'"
+                >
 
+                <div>
 
-                const role =
-                    escapeHtml(
-                        user.role ||
-                        "peasant"
-                    );
-
-
-                const active =
-                    user.is_active !== false;
-
-
-                return `
-
-                    <div
-                        class="user"
-                        data-user-id="${escapeHtml(
-                            user.id
-                        )}"
-                    >
-
-                        <img
-                            class="avatar"
-                            src="${avatar}"
-                            alt="Avatar"
-                            onerror="this.src='/default-avatar.png'"
-                        >
-
-
-                        <div class="info">
-
-                            <div class="username">
-                                ${username}
-                            </div>
-
-                            <div class="display-name">
-                                ${displayName}
-                            </div>
-
-
-                            <span class="role">
-                                👑 ${role}
-                            </span>
-
-
-                            <span
-                                class="status ${
-                                    active
-                                        ? "active"
-                                        : "inactive"
-                                }"
-                            >
-                                ${
-                                    active
-                                        ? "ACTIVE"
-                                        : "DEACTIVATED"
-                                }
-                            </span>
-
-                        </div>
-
-
-                        <div class="actions">
-
-                            ${
-                                user.role === "admin"
-                                ? `
-                                    <button
-                                        class="revoke"
-                                        onclick="revokeAdmin('${escapeHtml(user.id)}')"
-                                    >
-                                        🔻 Revoke
-                                    </button>
-                                `
-                                : ""
-                            }
-
-
-                            ${
-                                active
-                                ? `
-                                    <button
-                                        class="kick"
-                                        onclick="kickUser('${escapeHtml(user.id)}')"
-                                    >
-                                        🚫 Kick
-                                    </button>
-                                `
-                                : `
-                                    <button
-                                        class="reactivate"
-                                        onclick="reactivateUser('${escapeHtml(user.id)}')"
-                                    >
-                                        ♻️ Reactivate
-                                    </button>
-                                `
-                            }
-
-                        </div>
-
+                    <div class="user-name">
+                        ${escapeHTML(
+                            user.display_name ||
+                            user.username
+                        )}
                     </div>
 
-                `;
+                    <div class="username">
+                        @${escapeHTML(
+                            user.username
+                        )}
+                    </div>
 
-            }
-        ).join("");
+                    <span
+                        class="role ${roleClass(role)}"
+                    >
+                        ${escapeHTML(role)}
+                    </span>
+
+                    ${statusHTML}
+
+                </div>
+
+            </div>
+
+
+            <div class="actions">
+
+                <select
+                    class="role-select"
+                    data-id="${escapeHTML(user.id)}"
+                >
+
+                    <option value="owner"
+                        ${role === "owner" ? "selected" : ""}
+                    >
+                        👑 Owner
+                    </option>
+
+                    <option value="administrator"
+                        ${role === "administrator" ? "selected" : ""}
+                    >
+                        🛡️ Administrator
+                    </option>
+
+                    <option value="senior_moderator"
+                        ${role === "senior_moderator" ? "selected" : ""}
+                    >
+                        ⭐ Senior Moderator
+                    </option>
+
+                    <option value="junior_moderator"
+                        ${role === "junior_moderator" ? "selected" : ""}
+                    >
+                        🔨 Junior Moderator
+                    </option>
+
+                    <option value="peasant"
+                        ${role === "peasant" ? "selected" : ""}
+                    >
+                        🧌 Peasant
+                    </option>
+
+                </select>
+
+
+                <button
+                    class="success change-role"
+                    data-id="${escapeHTML(user.id)}"
+                >
+                    🔄 Change Role
+                </button>
+
+
+                <button
+                    class="warning revoke-user"
+                    data-id="${escapeHTML(user.id)}"
+                >
+                    ⬇️ Revoke
+                </button>
+
+
+                ${
+                    active && !banned
+                    ? `
+                        <button
+                            class="danger kick-user"
+                            data-id="${escapeHTML(user.id)}"
+                        >
+                            🦵 Kick
+                        </button>
+                    `
+                    : `
+                        <button
+                            class="success reactivate-user"
+                            data-id="${escapeHTML(user.id)}"
+                        >
+                            ♻️ Reactivate
+                        </button>
+                    `
+                }
+
+
+                ${
+                    banned
+                    ? `
+                        <button
+                            class="success unban-user"
+                            data-id="${escapeHTML(user.id)}"
+                        >
+                            🔓 Unban
+                        </button>
+                    `
+                    : `
+                        <button
+                            class="danger ban-user"
+                            data-id="${escapeHTML(user.id)}"
+                        >
+                            🚫 Ban
+                        </button>
+                    `
+                }
+
+            </div>
+
+        </div>
+    `;
 
 }
 
 
 // ==================================================
-// REVOKE ADMIN
+// CHANGE ROLE
 // ==================================================
 
-async function revokeAdmin(
-    userId
-) {
+async function changeRole(userId) {
 
-    const confirmed =
-        confirm(
-            "Revoke this user's admin privileges and make them a peasant?"
+    const select =
+        document.querySelector(
+            `.role-select[data-id="${CSS.escape(userId)}"]`
         );
 
 
-    if (!confirmed) {
+    if (!select) {
         return;
+    }
+
+
+    const role =
+        select.value;
+
+
+    if (
+        !confirm(
+            `Change this user's role to "${role}"?`
+        )
+    ) {
+
+        return;
+
     }
 
 
     try {
 
         await api(
-            `/api/admin/users/${encodeURIComponent(
-                userId
-            )}/revoke`,
+            `/api/admin/users/${encodeURIComponent(userId)}/role`,
             {
-                method: "POST"
+                method: "PUT",
+
+                body: JSON.stringify({
+                    role
+                })
             }
         );
 
 
-        showMessage(
-            "Admin privileges revoked."
+        setStatus(
+            `Role changed to ${role}.`
         );
 
 
@@ -373,9 +562,15 @@ async function revokeAdmin(
 
     } catch (error) {
 
-        showMessage(
+        console.error(
+            "CHANGE ROLE ERROR:",
+            error
+        );
+
+
+        setStatus(
             error.message,
-            "error"
+            true
         );
 
     }
@@ -384,38 +579,38 @@ async function revokeAdmin(
 
 
 // ==================================================
-// KICK USER
+// REVOKE
 // ==================================================
 
-async function kickUser(
-    userId
-) {
+async function revokeUser(userId) {
 
-    const confirmed =
-        confirm(
-            "Kick this user? Their ShrekBook page will be deactivated."
-        );
+    if (
+        !confirm(
+            "Revoke this user's staff privileges and make them a peasant?"
+        )
+    ) {
 
-
-    if (!confirmed) {
         return;
+
     }
 
 
     try {
 
         await api(
-            `/api/admin/users/${encodeURIComponent(
-                userId
-            )}/kick`,
+            `/api/admin/users/${encodeURIComponent(userId)}/role`,
             {
-                method: "POST"
+                method: "PUT",
+
+                body: JSON.stringify({
+                    role: "peasant"
+                })
             }
         );
 
 
-        showMessage(
-            "User has been deactivated."
+        setStatus(
+            "User has been revoked and made a peasant."
         );
 
 
@@ -424,9 +619,15 @@ async function kickUser(
 
     } catch (error) {
 
-        showMessage(
+        console.error(
+            "REVOKE ERROR:",
+            error
+        );
+
+
+        setStatus(
             error.message,
-            "error"
+            true
         );
 
     }
@@ -435,38 +636,87 @@ async function kickUser(
 
 
 // ==================================================
-// REACTIVATE USER
+// KICK
 // ==================================================
 
-async function reactivateUser(
-    userId
-) {
+async function kickUser(userId) {
 
-    const confirmed =
-        confirm(
+    if (
+        !confirm(
+            "Kick this user? Their ShrekBook page will be deactivated, but their account/data will remain."
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    try {
+
+        await api(
+            `/api/admin/users/${encodeURIComponent(userId)}/kick`,
+            {
+                method: "POST"
+            }
+        );
+
+
+        setStatus(
+            "User's ShrekBook page has been deactivated."
+        );
+
+
+        await loadUsers();
+
+
+    } catch (error) {
+
+        console.error(
+            "KICK ERROR:",
+            error
+        );
+
+
+        setStatus(
+            error.message,
+            true
+        );
+
+    }
+
+}
+
+
+// ==================================================
+// REACTIVATE
+// ==================================================
+
+async function reactivateUser(userId) {
+
+    if (
+        !confirm(
             "Reactivate this user's ShrekBook page?"
-        );
+        )
+    ) {
 
-
-    if (!confirmed) {
         return;
+
     }
 
 
     try {
 
         await api(
-            `/api/admin/users/${encodeURIComponent(
-                userId
-            )}/reactivate`,
+            `/api/admin/users/${encodeURIComponent(userId)}/reactivate`,
             {
                 method: "POST"
             }
         );
 
 
-        showMessage(
-            "User has been reactivated."
+        setStatus(
+            "User's page has been reactivated."
         );
 
 
@@ -475,9 +725,15 @@ async function reactivateUser(
 
     } catch (error) {
 
-        showMessage(
+        console.error(
+            "REACTIVATE ERROR:",
+            error
+        );
+
+
+        setStatus(
             error.message,
-            "error"
+            true
         );
 
     }
@@ -486,50 +742,229 @@ async function reactivateUser(
 
 
 // ==================================================
-// HTML ESCAPE
+// BAN
 // ==================================================
 
-function escapeHtml(
-    value
-) {
+async function banUser(userId) {
 
-    return String(
-        value ?? ""
-    )
-        .replace(
-            /&/g,
-            "&amp;"
+    if (
+        !confirm(
+            "BAN this user? They will be prevented from using ShrekBook."
         )
-        .replace(
-            /</g,
-            "&lt;"
-        )
-        .replace(
-            />/g,
-            "&gt;"
-        )
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-        .replace(
-            /'/g,
-            "&#039;"
+    ) {
+
+        return;
+
+    }
+
+
+    try {
+
+        await api(
+            `/api/admin/users/${encodeURIComponent(userId)}/ban`,
+            {
+                method: "POST"
+            }
         );
 
+
+        setStatus(
+            "User has been banned."
+        );
+
+
+        await loadUsers();
+
+
+    } catch (error) {
+
+        console.error(
+            "BAN ERROR:",
+            error
+        );
+
+
+        setStatus(
+            error.message,
+            true
+        );
+
+    }
+
 }
+
+
+// ==================================================
+// UNBAN
+// ==================================================
+
+async function unbanUser(userId) {
+
+    if (
+        !confirm(
+            "Unban this user?"
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    try {
+
+        await api(
+            `/api/admin/users/${encodeURIComponent(userId)}/unban`,
+            {
+                method: "POST"
+            }
+        );
+
+
+        setStatus(
+            "User has been unbanned."
+        );
+
+
+        await loadUsers();
+
+
+    } catch (error) {
+
+        console.error(
+            "UNBAN ERROR:",
+            error
+        );
+
+
+        setStatus(
+            error.message,
+            true
+        );
+
+    }
+
+}
+
+
+// ==================================================
+// BUTTON HANDLER
+// ==================================================
+
+document.addEventListener(
+    "click",
+    event => {
+
+        const button =
+            event.target.closest("button");
+
+
+        if (!button) {
+            return;
+        }
+
+
+        const userId =
+            button.dataset.id;
+
+
+        if (!userId) {
+            return;
+        }
+
+
+        if (
+            button.classList.contains(
+                "change-role"
+            )
+        ) {
+
+            changeRole(userId);
+
+        }
+
+
+        else if (
+            button.classList.contains(
+                "revoke-user"
+            )
+        ) {
+
+            revokeUser(userId);
+
+        }
+
+
+        else if (
+            button.classList.contains(
+                "kick-user"
+            )
+        ) {
+
+            kickUser(userId);
+
+        }
+
+
+        else if (
+            button.classList.contains(
+                "reactivate-user"
+            )
+        ) {
+
+            reactivateUser(userId);
+
+        }
+
+
+        else if (
+            button.classList.contains(
+                "ban-user"
+            )
+        ) {
+
+            banUser(userId);
+
+        }
+
+
+        else if (
+            button.classList.contains(
+                "unban-user"
+            )
+        ) {
+
+            unbanUser(userId);
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// SEARCH
+// ==================================================
+
+searchElement.addEventListener(
+    "input",
+    renderUsers
+);
+
+
+// ==================================================
+// REFRESH
+// ==================================================
+
+refreshButton.addEventListener(
+    "click",
+    loadUsers
+);
 
 
 // ==================================================
 // START
 // ==================================================
 
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-
-        loadUsers();
-
-    }
-);
+checkAdmin();
 
