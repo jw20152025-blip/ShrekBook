@@ -5084,13 +5084,6 @@ app.post(
 // Matches admin.js exactly
 // ==================================================
 
-const STAFF_ROLES = {
-    peasant: 1,
-    moderator: 2,
-    senior_moderator: 3,
-    administrator: 4,
-    owner: 5
-};
 
 
 // ==================================================
