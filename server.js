@@ -5090,7 +5090,164 @@ app.post(
 // Matches admin.js exactly
 // ==================================================
 
+// ==================================================
+// KICK USER
+// ==================================================
 
+app.post(
+    "/api/admin/kick",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            const staffUserId =
+                req.session.user.id;
+
+            const {
+                user_id,
+                reason
+            } = req.body;
+
+            if (!user_id) {
+                return res.status(400).json({
+                    error: "User ID is required."
+                });
+            }
+
+            // Get the staff member's role
+            const {
+                data: staff,
+                error: staffError
+            } = await supabase
+                .from("profiles")
+                .select("id, role")
+                .eq("id", staffUserId)
+                .maybeSingle();
+
+            if (staffError) {
+                return res.status(500).json({
+                    error: staffError.message
+                });
+            }
+
+            const staffRole =
+                staff?.role || "peasant";
+
+            const allowedRoles = [
+                "moderator",
+                "senior_moderator",
+                "administrator",
+                "owner"
+            ];
+
+            if (!allowedRoles.includes(staffRole)) {
+                return res.status(403).json({
+                    error:
+                        "You do not have permission to kick users."
+                });
+            }
+
+            // Find target user
+            const {
+                data: target,
+                error: targetError
+            } = await supabase
+                .from("profiles")
+                .select("id, username, role")
+                .eq("id", user_id)
+                .maybeSingle();
+
+            if (targetError) {
+                return res.status(500).json({
+                    error: targetError.message
+                });
+            }
+
+            if (!target) {
+                return res.status(404).json({
+                    error: "User not found."
+                });
+            }
+
+            // Owner protection
+            if (target.role === "owner") {
+                return res.status(403).json({
+                    error:
+                        "The owner cannot be kicked."
+                });
+            }
+
+            // Don't allow staff to kick equal/higher staff
+            const power = {
+                peasant: 1,
+                moderator: 2,
+                senior_moderator: 3,
+                administrator: 4,
+                owner: 5
+            };
+
+            if (
+                (power[target.role] || 1) >=
+                (power[staffRole] || 1)
+            ) {
+                return res.status(403).json({
+                    error:
+                        "You cannot kick a user with equal or higher staff power."
+                });
+            }
+
+            // Record the kick
+            const {
+                data: kick,
+                error: kickError
+            } = await supabase
+                .from("staff_kicks")
+                .insert({
+                    user_id: target.id,
+                    moderator_id: staffUserId,
+                    reason:
+                        String(reason || "")
+                            .trim() ||
+                        "No reason provided."
+                })
+                .select()
+                .single();
+
+            if (kickError) {
+                console.error(
+                    "KICK INSERT ERROR:",
+                    kickError
+                );
+
+                return res.status(500).json({
+                    error:
+                        kickError.message
+                });
+            }
+
+            res.json({
+                success: true,
+                message: "User kicked.",
+                kick
+            });
+
+        } catch (error) {
+
+            console.error(
+                "KICK ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
 
 // ==================================================
 // STAFF CHECK
