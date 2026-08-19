@@ -5155,58 +5155,100 @@ app.get("/api/admin/me", requireLogin, async (req, res) => {
 // GET /api/admin/users
 // ==================================================
 
-app.get("/api/admin/users", requireLogin, async (req, res) => {
+app.get(
+    "/api/admin/users",
+    requireLogin,
+    async (req, res) => {
 
-    try {
+        try {
 
-        const search =
-            String(req.query.search || "")
-                .trim();
+            const search =
+                String(
+                    req.query.search || ""
+                ).trim();
 
-        let query =
-            supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar,
-                    role
-                `)
-                .order("username", {
-                    ascending: true
-                })
-                .limit(200);
 
-        if (search) {
+            let query =
+                supabase
+                    .from("profiles")
+                    .select(`
+                        id,
+                        username,
+                        display_name,
+                        avatar
+                    `)
+                    .order(
+                        "username",
+                        {
+                            ascending: true
+                        }
+                    )
+                    .limit(200);
 
-            query = query.or(
-                `username.ilike.%${search}%,display_name.ilike.%${search}%`
+
+            // ==========================================
+            // SEARCH
+            // ==========================================
+
+            if (search) {
+
+                query =
+                    query.or(
+                        `username.ilike.%${search}%,display_name.ilike.%${search}%`
+                    );
+
+            }
+
+
+            const {
+                data,
+                error
+            } = await query;
+
+
+            if (error) {
+
+                console.error(
+                    "USER SEARCH ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+
+            // ==========================================
+            // GET ROLES FROM PROFILES
+            // ==========================================
+
+            const users =
+                data || [];
+
+
+            res.json(
+                users
             );
+
+        } catch (error) {
+
+            console.error(
+                "ADMIN USERS ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
 
         }
 
-        const { data, error } = await query;
-
-        if (error)
-            return res.status(500).json({
-                error: error.message
-            });
-
-        res.json(data || []);
-
-    } catch (error) {
-
-        console.error("ADMIN USERS ERROR:", error);
-
-        res.status(500).json({
-            error: "Server error."
-        });
-
     }
-
-});
-
+);
 
 // ==================================================
 // GET BANS
