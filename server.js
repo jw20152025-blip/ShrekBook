@@ -266,7 +266,64 @@ async function requireAdmin(req, res, next) {
         });
     }
 }
+// ==================================================
+// ADMIN AUTH
+// ==================================================
 
+app.get("/api/admin/auth", requireLogin, async (req, res) => {
+    try {
+
+        const userId = req.session.user.id;
+
+        const { data: profile, error } = await supabase
+            .from("profiles")
+            .select("id, username, display_name, role, is_active")
+            .eq("id", userId)
+            .maybeSingle();
+
+        if (error) {
+            console.error("ADMIN AUTH ERROR:", error);
+
+            return res.status(500).json({
+                error: error.message
+            });
+        }
+
+        if (!profile) {
+            return res.status(404).json({
+                error: "User profile not found."
+            });
+        }
+
+        const allowedRoles = [
+            "owner",
+            "administrator",
+            "senior_moderator",
+            "junior_moderator"
+        ];
+
+        if (!allowedRoles.includes(profile.role)) {
+            return res.status(403).json({
+                error: "Admin access required."
+            });
+        }
+
+        res.json({
+            success: true,
+            authorized: true,
+            user: profile
+        });
+
+    } catch (error) {
+
+        console.error("ADMIN AUTH ERROR:", error);
+
+        res.status(500).json({
+            error: "Server error."
+        });
+
+    }
+});
 // ==================================================
 // BAN CHECK FOR API REQUESTS
 // ==================================================
