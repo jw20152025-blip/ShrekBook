@@ -806,21 +806,27 @@ app.post(
             const {
                 data: profile,
                 error: profileError
-            } = await supabase
-                .from("profiles")
-                .insert({
-                    id: userId,
-                    username,
-                    display_name:
-                        display_name ||
+
+                } = await supabase
+                    .from("profiles")
+                    .insert({
+                        id: userId,
                         username,
-                    avatar: null,
-                    bio: "",
-                    last_seen:
-                        new Date().toISOString()
-                })
-                .select()
-                .single();
+                        display_name:
+                            display_name ||
+                            username,
+                        avatar: null,
+                        bio: "",
+                        last_seen:
+                            new Date().toISOString(),
+
+                        // Normal users start as peasants.
+                        role: "peasant"
+                    })
+                    .select()
+                    .single();
+
+
 
             if (profileError) {
 
