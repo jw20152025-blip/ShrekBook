@@ -1,3 +1,4 @@
+
 require("dotenv").config();
 
 const express = require("express");
@@ -2731,70 +2732,101 @@ app.post(
 // HEARTBEAT
 // ==================================================
 
-app.post(
-    "/api/heartbeat",
-    requireLogin,
-    async (
-        req,
-        res
-    ) => {
+async function heartbeat(
+    req,
+    res
+) {
 
-        try {
+    try {
 
-            const {
-                error
-            } =
-                await supabase
-                    .from("profiles")
-                    .update({
+        if (!req.session.user) {
 
-                        last_seen:
-                            new Date()
-                                .toISOString()
-
-                    })
-                    .eq(
-                        "id",
-                        req.session.user.id
-                    );
-
-
-            if (error) {
-
-                return res.status(500).json({
-
-                    error:
-                        error.message
-
-                });
-
-            }
-
-
-            res.json({
-
-                success:
-                    true
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "HEARTBEAT ERROR:",
-                error
-            );
-
-            res.status(500).json({
+            return res.status(401).json({
 
                 error:
-                    "Server error."
+                    "You must be logged in."
 
             });
 
         }
 
+
+        const {
+            error
+        } =
+            await supabase
+                .from("profiles")
+                .update({
+
+                    last_seen:
+                        new Date()
+                            .toISOString()
+
+                })
+                .eq(
+                    "id",
+                    req.session.user.id
+                );
+
+
+        if (error) {
+
+            return res.status(500).json({
+
+                error:
+                    error.message
+
+            });
+
+        }
+
+
+        res.json({
+
+            success:
+                true
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "HEARTBEAT ERROR:",
+            error
+        );
+
+        res.status(500).json({
+
+            error:
+                "Server error."
+
+        });
+
     }
+
+}
+
+
+// Original heartbeat route.
+app.post(
+    "/api/heartbeat",
+    requireLogin,
+    heartbeat
+);
+
+
+// ==================================================
+// ONLINE COMPATIBILITY ROUTE
+// ==================================================
+// The frontend was requesting /api/online.
+// Keep it as an alias to the heartbeat so the old
+// frontend keeps working without changing anything
+// else in the site.
+
+app.post(
+    "/api/online",
+    requireLogin,
+    heartbeat
 );
 
 
@@ -6052,3 +6084,4 @@ app.listen(
 
     }
 );
+

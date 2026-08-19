@@ -1,34 +1,38 @@
+
 /* ==================================================
-SHREKBOOK CLIENT SCRIPT
-================================================== */
+   SHREKBOOK CLIENT SCRIPT
+   ================================================== */
 
 
 /* ==================================================
-ESCAPE HTML
-================================================== */
+   GLOBALS
+   ================================================== */
+
+let onlineEndpointAvailable = true;
+
+
+/* ==================================================
+   ESCAPE HTML
+   ================================================== */
 
 function escapeHtml(text) {
 
-    const div =
-        document.createElement("div");
+    const div = document.createElement("div");
 
-    div.textContent =
-        text ?? "";
+    div.textContent = text ?? "";
 
     return div.innerHTML;
 }
 
 
 /* ==================================================
-WARNING
-================================================== */
+   WARNING
+   ================================================== */
 
 function warn() {
 
     const element =
-        document.getElementById(
-            "upload-avatar-button-warn"
-        );
+        document.getElementById("upload-avatar-button-warn");
 
     if (element) {
 
@@ -36,39 +40,40 @@ function warn() {
             "When changing your avatar, do not press the Save Profile button. Instead, press Upload Avatar.";
 
     }
-
 }
 
 
 /* ==================================================
-FILE -> BASE64
-================================================== */
+   FILE -> BASE64
+   ================================================== */
 
 function fileToBase64(file) {
 
     return new Promise((resolve, reject) => {
 
-        const reader =
-            new FileReader();
+        const reader = new FileReader();
 
         reader.onload = () => {
 
-            const result =
-                reader.result;
+            const result = reader.result;
 
-            const base64 =
-                result.split(",")[1];
+            if (!result || !result.includes(",")) {
 
-            resolve(base64);
+                reject(
+                    new Error("Could not read image.")
+                );
+
+                return;
+            }
+
+            resolve(result.split(",")[1]);
 
         };
 
         reader.onerror = () => {
 
             reject(
-                new Error(
-                    "Could not read image."
-                )
+                new Error("Could not read image.")
             );
 
         };
@@ -81,111 +86,8 @@ function fileToBase64(file) {
 
 
 /* ==================================================
-REACTIONS
-================================================== */
-
-async function giveReaction(type) {
-
-    const userId =
-        new URLSearchParams(
-            window.location.search
-        ).get("id");
-
-    if (!userId) {
-        return;
-    }
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/users/${userId}/${type}`,
-                {
-                    method: "POST"
-                }
-            );
-
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-
-            alert(
-                "❌ " +
-                data.error
-            );
-
-            return;
-
-        }
-
-        if (type === "gyatt") {
-
-            const element =
-                document.getElementById(
-                    "gyatt-count"
-                );
-
-            if (element) {
-
-                element.textContent =
-                    data.gyatt;
-
-            }
-
-        }
-
-        if (type === "cat") {
-
-            const element =
-                document.getElementById(
-                    "cat-count"
-                );
-
-            if (element) {
-
-                element.textContent =
-                    data.cat;
-
-            }
-
-        }
-
-        if (type === "ogred") {
-
-            const element =
-                document.getElementById(
-                    "ogred-count"
-                );
-
-            if (element) {
-
-                element.textContent =
-                    data.ogred;
-
-            }
-
-        }
-
-    } catch (error) {
-
-        console.error(
-            "REACTION ERROR:",
-            error
-        );
-
-        alert(
-            "❌ Could not react."
-        );
-
-    }
-
-}
-
-
-/* ==================================================
-MAKE IMAGE OBJECT
-================================================== */
+   PREPARE IMAGE
+   ================================================== */
 
 async function prepareImage(file) {
 
@@ -216,11 +118,9 @@ async function prepareImage(file) {
 
         data: data,
 
-        type:
-            file.type,
+        type: file.type,
 
-        name:
-            file.name
+        name: file.name
 
     };
 
@@ -228,37 +128,279 @@ async function prepareImage(file) {
 
 
 /* ==================================================
-LOGIN
-================================================== */
+   REACTIONS
+   ================================================== */
+
+async function giveReaction(type) {
+
+    const allowedTypes = [
+        "gyatt",
+        "cat",
+        "ogred"
+    ];
+
+    if (!allowedTypes.includes(type)) {
+
+        console.error(
+            "Invalid reaction type:",
+            type
+        );
+
+        return;
+
+    }
+
+    const userId =
+        new URLSearchParams(
+            window.location.search
+        ).get("id");
+
+    if (!userId) {
+
+        console.error(
+            "No profile ID found in URL."
+        );
+
+        return;
+
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/users/${encodeURIComponent(userId)}/${type}`,
+                {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                }
+            );
+
+        let data = {};
+
+        try {
+            data = await response.json();
+        } catch {
+            data = {};
+        }
+
+        if (!response.ok) {
+
+            alert(
+                "❌ " +
+                (data.error || "Could not react.")
+            );
+
+            return;
+
+        }
+
+        const countElement =
+            document.getElementById(
+                `${type}-count`
+            );
+
+        if (countElement) {
+
+            if (typeof data[type] !== "undefined") {
+
+                countElement.textContent =
+                    data[type];
+
+            } else if (
+                data.reactionCounts &&
+                typeof data.reactionCounts[type] !== "undefined"
+            ) {
+
+                countElement.textContent =
+                    data.reactionCounts[type];
+
+            }
+
+        }
+
+        /*
+         * Also refresh all reaction counters
+         * if the backend returned them.
+         */
+
+        if (data.reactionCounts) {
+
+            updateReactionCounts(
+                data.reactionCounts
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "REACTION ERROR:",
+            error
+        );
+
+        alert(
+            "❌ Could not react."
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   UPDATE REACTION COUNTS
+   ================================================== */
+
+function updateReactionCounts(counts) {
+
+    if (!counts) {
+        return;
+    }
+
+    [
+        "gyatt",
+        "cat",
+        "ogred"
+    ].forEach(type => {
+
+        const element =
+            document.getElementById(
+                `${type}-count`
+            );
+
+        if (
+            element &&
+            typeof counts[type] !== "undefined"
+        ) {
+
+            element.textContent =
+                counts[type];
+
+        }
+
+    });
+
+}
+
+
+/* ==================================================
+   LOAD REACTION COUNTS
+   ================================================== */
+
+async function loadReactionCounts(userId) {
+
+    if (!userId) {
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/users/${encodeURIComponent(userId)}`,
+                {
+                    credentials: "same-origin"
+                }
+            );
+
+        if (!response.ok) {
+            return;
+        }
+
+        const data =
+            await response.json();
+
+        /*
+         * New reactions system.
+         */
+
+        if (data.reactionCounts) {
+
+            updateReactionCounts(
+                data.reactionCounts
+            );
+
+            return;
+
+        }
+
+        /*
+         * Also support direct reaction
+         * properties if returned by backend.
+         */
+
+        updateReactionCounts({
+            gyatt: data.gyatt,
+            cat: data.cat,
+            ogred: data.ogred
+        });
+
+    } catch (error) {
+
+        console.error(
+            "REACTION COUNT ERROR:",
+            error
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   LOGIN
+   ================================================== */
 
 async function login() {
 
-    const email =
+    const emailInput =
         document.getElementById(
             "login-email"
-        ).value.trim();
+        );
 
-    const password =
+    const passwordInput =
         document.getElementById(
             "login-password"
-        ).value;
+        );
 
     const status =
         document.getElementById(
             "login-status"
         );
 
+    const email =
+        emailInput
+            ? emailInput.value.trim()
+            : "";
+
+    const password =
+        passwordInput
+            ? passwordInput.value
+            : "";
+
     if (!email || !password) {
 
-        status.textContent =
-            "❌ Enter your email and password.";
+        if (status) {
+
+            status.textContent =
+                "❌ Enter your email and password.";
+
+        }
 
         return;
 
     }
 
-    status.textContent =
-        "Logging in...";
+    if (status) {
+
+        status.textContent =
+            "Logging in...";
+
+    }
 
     try {
 
@@ -267,32 +409,35 @@ async function login() {
                 "/api/login",
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
+
+                    credentials: "same-origin",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
 
-                    body:
-                        JSON.stringify({
-
-                            email:
-                                email,
-
-                            password:
-                                password
-
-                        })
+                    body: JSON.stringify({
+                        email,
+                        password
+                    })
 
                 }
             );
 
-        const data =
-            await response.json();
+        let data = {};
+
+        try {
+
+            data =
+                await response.json();
+
+        } catch {
+
+            data = {};
+
+        }
 
         if (!response.ok) {
 
@@ -303,15 +448,58 @@ async function login() {
 
         }
 
-        status.textContent =
-            "✅ Logged in!";
+        console.log(
+            "LOGIN SUCCESS:",
+            data
+        );
 
         /*
-         * Refresh session data after login
-         * so admin status is detected.
+         * Check the newly-created session.
          */
 
-        await checkLogin();
+        const meResponse =
+            await fetch(
+                "/api/me",
+                {
+                    credentials:
+                        "same-origin"
+                }
+            );
+
+        const me =
+            await meResponse.json();
+
+        console.log(
+            "USER AFTER LOGIN:",
+            me
+        );
+
+        if (
+            meResponse.ok &&
+            me.loggedIn &&
+            me.user
+        ) {
+
+            setupAdminNav(
+                me.user
+            );
+
+            if (status) {
+
+                status.textContent =
+                    "✅ Login successful!";
+
+            }
+
+            showApp();
+
+        } else {
+
+            throw new Error(
+                "Login succeeded, but the session was not found."
+            );
+
+        }
 
     } catch (error) {
 
@@ -320,9 +508,13 @@ async function login() {
             error
         );
 
-        status.textContent =
-            "❌ " +
-            error.message;
+        if (status) {
+
+            status.textContent =
+                "❌ " +
+                error.message;
+
+        }
 
     }
 
@@ -330,35 +522,55 @@ async function login() {
 
 
 /* ==================================================
-SIGNUP
-================================================== */
+   SIGNUP
+   ================================================== */
 
 async function signup() {
 
-    const username =
+    const usernameInput =
         document.getElementById(
             "signup-username"
-        ).value.trim();
+        );
 
-    const displayName =
+    const displayNameInput =
         document.getElementById(
             "signup-display-name"
-        ).value.trim();
+        );
 
-    const email =
+    const emailInput =
         document.getElementById(
             "signup-email"
-        ).value.trim();
+        );
 
-    const password =
+    const passwordInput =
         document.getElementById(
             "signup-password"
-        ).value;
+        );
 
     const status =
         document.getElementById(
             "signup-status"
         );
+
+    const username =
+        usernameInput
+            ? usernameInput.value.trim()
+            : "";
+
+    const displayName =
+        displayNameInput
+            ? displayNameInput.value.trim()
+            : "";
+
+    const email =
+        emailInput
+            ? emailInput.value.trim()
+            : "";
+
+    const password =
+        passwordInput
+            ? passwordInput.value
+            : "";
 
     if (
         !username ||
@@ -366,15 +578,23 @@ async function signup() {
         !password
     ) {
 
-        status.textContent =
-            "❌ Fill in all required fields.";
+        if (status) {
+
+            status.textContent =
+                "❌ Fill in all required fields.";
+
+        }
 
         return;
 
     }
 
-    status.textContent =
-        "Creating account...";
+    if (status) {
+
+        status.textContent =
+            "Creating account...";
+
+    }
 
     try {
 
@@ -383,33 +603,31 @@ async function signup() {
                 "/api/signup",
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
+
+                    credentials: "same-origin",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
 
-                    body:
-                        JSON.stringify({
+                    body: JSON.stringify({
 
-                            username:
-                                username,
+                        username:
+                            username,
 
-                            display_name:
-                                displayName ||
-                                username,
+                        display_name:
+                            displayName ||
+                            username,
 
-                            email:
-                                email,
+                        email:
+                            email,
 
-                            password:
-                                password
+                        password:
+                            password
 
-                        })
+                    })
 
                 }
             );
@@ -426,8 +644,12 @@ async function signup() {
 
         }
 
-        status.textContent =
-            "✅ Account created!";
+        if (status) {
+
+            status.textContent =
+                "✅ Account created!";
+
+        }
 
         showLogin();
 
@@ -438,9 +660,13 @@ async function signup() {
             error
         );
 
-        status.textContent =
-            "❌ " +
-            error.message;
+        if (status) {
+
+            status.textContent =
+                "❌ " +
+                error.message;
+
+        }
 
     }
 
@@ -448,8 +674,8 @@ async function signup() {
 
 
 /* ==================================================
-AUTH UI
-================================================== */
+   AUTH UI
+   ================================================== */
 
 function showSignup() {
 
@@ -510,16 +736,28 @@ function showLogin() {
 
 
 /* ==================================================
-ADMIN NAVIGATION
-================================================== */
+   ADMIN NAVIGATION
+   ================================================== */
 
 function setupAdminNav(user) {
 
+    let adminNav =
+        document.getElementById(
+            "admin-nav"
+        );
+
     if (!user) {
+
+        if (adminNav) {
+
+            adminNav.style.display =
+                "none";
+
+        }
+
         return;
+
     }
-
-
 
     const isAdmin =
         user.is_admin === true ||
@@ -535,21 +773,6 @@ function setupAdminNav(user) {
 
         user.role === "admin";
 
-    /*
-     * Look for an admin navigation element
-     * that already exists in the HTML.
-     */
-
-    let adminNav =
-        document.getElementById(
-            "admin-nav"
-        );
-
-    /*
-     * If the user isn't an admin,
-     * hide the existing admin navigation.
-     */
-
     if (!isAdmin) {
 
         if (adminNav) {
@@ -563,11 +786,6 @@ function setupAdminNav(user) {
 
     }
 
-    /*
-     * If the HTML already contains the
-     * admin navigation, just show it.
-     */
-
     if (adminNav) {
 
         adminNav.style.display =
@@ -576,10 +794,6 @@ function setupAdminNav(user) {
         return;
 
     }
-
-    /*
-     * Create the admin navbar automatically.
-     */
 
     adminNav =
         document.createElement(
@@ -626,13 +840,8 @@ function setupAdminNav(user) {
 
         </a>
 
-        <span
-            style="
-                opacity:0.5;
-            ">
-
+        <span style="opacity:0.5;">
             |
-
         </span>
 
         <a
@@ -647,10 +856,6 @@ function setupAdminNav(user) {
         </a>
 
     `;
-
-    /*
-     * Put navbar at the top of the app.
-     */
 
     const app =
         document.getElementById(
@@ -676,8 +881,8 @@ function setupAdminNav(user) {
 
 
 /* ==================================================
-SESSION CHECK
-================================================== */
+   SESSION CHECK
+   ================================================== */
 
 async function checkLogin() {
 
@@ -685,7 +890,11 @@ async function checkLogin() {
 
         const response =
             await fetch(
-                "/api/me"
+                "/api/me",
+                {
+                    credentials:
+                        "same-origin"
+                }
             );
 
         const data =
@@ -696,10 +905,6 @@ async function checkLogin() {
             data.loggedIn &&
             data.user
         ) {
-
-            /*
-             * Detect admin status.
-             */
 
             setupAdminNav(
                 data.user
@@ -728,8 +933,8 @@ async function checkLogin() {
 
 
 /* ==================================================
-SHOW AUTH
-================================================== */
+   SHOW AUTH
+   ================================================== */
 
 function showAuth() {
 
@@ -782,9 +987,11 @@ function showAuth() {
     }
 
 }
+
+
 /* ==================================================
-ADMIN BUTTON
-================================================== */
+   ADMIN BUTTON
+   ================================================== */
 
 async function checkAdmin() {
 
@@ -797,7 +1004,6 @@ async function checkAdmin() {
         return;
     }
 
-    // Keep hidden until confirmed
     adminButton.style.display =
         "none";
 
@@ -805,7 +1011,11 @@ async function checkAdmin() {
 
         const response =
             await fetch(
-                "/api/admin/check"
+                "/api/admin/check",
+                {
+                    credentials:
+                        "same-origin"
+                }
             );
 
         const data =
@@ -840,9 +1050,10 @@ async function checkAdmin() {
 
 }
 
+
 /* ==================================================
-SHOW APP
-================================================== */
+   SHOW APP
+   ================================================== */
 
 function showApp() {
 
@@ -894,8 +1105,8 @@ function showApp() {
 
 
 /* ==================================================
-LOGOUT
-================================================== */
+   LOGOUT
+   ================================================== */
 
 async function logout() {
 
@@ -904,8 +1115,8 @@ async function logout() {
         await fetch(
             "/api/logout",
             {
-                method:
-                    "POST"
+                method: "POST",
+                credentials: "same-origin"
             }
         );
 
@@ -924,8 +1135,8 @@ async function logout() {
 
 
 /* ==================================================
-LOAD POSTS
-================================================== */
+   LOAD POSTS
+   ================================================== */
 
 async function loadPosts() {
 
@@ -942,7 +1153,11 @@ async function loadPosts() {
 
         const response =
             await fetch(
-                "/api/posts"
+                "/api/posts",
+                {
+                    credentials:
+                        "same-origin"
+                }
             );
 
         const posts =
@@ -957,7 +1172,7 @@ async function loadPosts() {
 
         }
 
-        if (!posts.length) {
+        if (!Array.isArray(posts) || !posts.length) {
 
             container.innerHTML =
                 "<p>No posts yet. Be the first! 🧌</p>";
@@ -978,8 +1193,10 @@ async function loadPosts() {
                     post.username ||
                     "User";
 
-                let imageHTML =
-                    "";
+                const postId =
+                    escapeHtml(post.id);
+
+                let imageHTML = "";
 
                 if (post.image_url) {
 
@@ -992,9 +1209,7 @@ async function loadPosts() {
                             ">
 
                             <img
-                                src="${escapeHtml(
-                                    post.image_url
-                                )}"
+                                src="${escapeHtml(post.image_url)}"
                                 alt="Post image"
                                 style="
                                     max-width:100%;
@@ -1002,6 +1217,9 @@ async function loadPosts() {
                                     border-radius:12px;
                                     object-fit:contain;
                                     display:block;
+                                "
+                                onerror="
+                                    this.style.display='none';
                                 ">
 
                         </div>
@@ -1012,8 +1230,7 @@ async function loadPosts() {
 
                 return `
 
-                    <article
-                        class="post">
+                    <article class="post">
 
                         <div
                             class="post-header"
@@ -1024,9 +1241,7 @@ async function loadPosts() {
                             ">
 
                             <img
-                                src="${escapeHtml(
-                                    avatar
-                                )}"
+                                src="${escapeHtml(avatar)}"
                                 alt="Avatar"
                                 style="
                                     width:45px;
@@ -1039,18 +1254,14 @@ async function loadPosts() {
                                 ">
 
                             <a
-                                href="/profile.html?id=${encodeURIComponent(
-                                    post.user_id
-                                )}"
+                                href="/profile.html?id=${encodeURIComponent(post.user_id)}"
                                 style="
                                     text-decoration:none;
                                     color:inherit;
                                 ">
 
                                 <strong>
-                                    ${escapeHtml(
-                                        displayName
-                                    )}
+                                    ${escapeHtml(displayName)}
                                 </strong>
 
                                 <div>
@@ -1087,25 +1298,21 @@ async function loadPosts() {
                         ${imageHTML}
 
                         <button
-                            onclick="
-                                toggleComments(
-                                    '${escapeHtml(post.id)}'
-                                )
-                            ">
+                            onclick="toggleComments('${postId}')">
 
                             💬 Comments
 
                         </button>
 
                         <div
-                            id="comments-${escapeHtml(post.id)}"
+                            id="comments-${postId}"
                             class="comments"
                             style="
                                 display:none;
                             ">
 
                             <div
-                                id="comment-list-${escapeHtml(post.id)}">
+                                id="comment-list-${postId}">
 
                                 Loading...
 
@@ -1118,12 +1325,12 @@ async function loadPosts() {
                                 ">
 
                                 <input
-                                    id="comment-input-${escapeHtml(post.id)}"
+                                    id="comment-input-${postId}"
                                     placeholder="Write a comment..."
                                     maxlength="500">
 
                                 <input
-                                    id="comment-image-${escapeHtml(post.id)}"
+                                    id="comment-image-${postId}"
                                     type="file"
                                     accept="
                                         image/png,
@@ -1133,25 +1340,21 @@ async function loadPosts() {
                                     ">
 
                                 <button
-                                    onclick="
-                                        submitComment(
-                                            '${escapeHtml(post.id)}'
-                                        )
-                                    ">
+                                    onclick="submitComment('${postId}')">
 
                                     Send
 
                                 </button>
 
                                 <div
-                                    id="comment-preview-${escapeHtml(post.id)}"
+                                    id="comment-preview-${postId}"
                                     style="
                                         display:none;
                                         margin-top:8px;
                                     ">
 
                                     <img
-                                        id="comment-preview-image-${escapeHtml(post.id)}"
+                                        id="comment-preview-image-${postId}"
                                         alt="Comment image preview"
                                         style="
                                             max-width:200px;
@@ -1164,9 +1367,7 @@ async function loadPosts() {
                                     <button
                                         type="button"
                                         onclick="
-                                            clearCommentImage(
-                                                '${escapeHtml(post.id)}'
-                                            )
+                                            clearCommentImage('${postId}')
                                         ">
 
                                         ❌ Remove image
@@ -1212,22 +1413,22 @@ async function loadPosts() {
                 () => {
 
                     const file =
-                        input.files[0];
+                        input.files?.[0];
 
                     if (!file) {
 
-                        preview.style.display =
-                            "none";
+                        if (preview) {
+
+                            preview.style.display =
+                                "none";
+
+                        }
 
                         return;
 
                     }
 
-                    if (
-                        !file.type.startsWith(
-                            "image/"
-                        )
-                    ) {
+                    if (!file.type.startsWith("image/")) {
 
                         alert(
                             "❌ Please choose an image."
@@ -1240,10 +1441,7 @@ async function loadPosts() {
 
                     }
 
-                    if (
-                        file.size >
-                        5 * 1024 * 1024
-                    ) {
+                    if (file.size > 5 * 1024 * 1024) {
 
                         alert(
                             "❌ Image must be under 5MB."
@@ -1262,11 +1460,19 @@ async function loadPosts() {
                     reader.onload =
                         event => {
 
-                            previewImage.src =
-                                event.target.result;
+                            if (previewImage) {
 
-                            preview.style.display =
-                                "block";
+                                previewImage.src =
+                                    event.target.result;
+
+                            }
+
+                            if (preview) {
+
+                                preview.style.display =
+                                    "block";
+
+                            }
 
                         };
 
@@ -1297,8 +1503,8 @@ async function loadPosts() {
 
 
 /* ==================================================
-CREATE POST
-================================================== */
+   CREATE POST
+   ================================================== */
 
 async function createPost() {
 
@@ -1327,15 +1533,23 @@ async function createPost() {
 
     if (!content && !file) {
 
-        status.textContent =
-            "❌ Write something or select an image.";
+        if (status) {
+
+            status.textContent =
+                "❌ Write something or select an image.";
+
+        }
 
         return;
 
     }
 
-    status.textContent =
-        "Posting...";
+    if (status) {
+
+        status.textContent =
+            "Posting...";
+
+    }
 
     try {
 
@@ -1347,26 +1561,25 @@ async function createPost() {
                 "/api/posts",
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
+
+                    credentials:
+                        "same-origin",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
 
-                    body:
-                        JSON.stringify({
+                    body: JSON.stringify({
 
-                            content:
-                                content,
+                        content:
+                            content,
 
-                            image:
-                                image
+                        image:
+                            image
 
-                        })
+                    })
 
                 }
             );
@@ -1383,8 +1596,12 @@ async function createPost() {
 
         }
 
-        input.value =
-            "";
+        if (input) {
+
+            input.value =
+                "";
+
+        }
 
         if (imageInput) {
 
@@ -1417,10 +1634,14 @@ async function createPost() {
 
         }
 
-        status.textContent =
-            "✅ Posted!";
+        if (status) {
 
-        loadPosts();
+            status.textContent =
+                "✅ Posted!";
+
+        }
+
+        await loadPosts();
 
     } catch (error) {
 
@@ -1429,9 +1650,13 @@ async function createPost() {
             error
         );
 
-        status.textContent =
-            "❌ " +
-            error.message;
+        if (status) {
+
+            status.textContent =
+                "❌ " +
+                error.message;
+
+        }
 
     }
 
@@ -1439,8 +1664,8 @@ async function createPost() {
 
 
 /* ==================================================
-TOGGLE COMMENTS
-================================================== */
+   TOGGLE COMMENTS
+   ================================================== */
 
 async function toggleComments(postId) {
 
@@ -1453,15 +1678,12 @@ async function toggleComments(postId) {
         return;
     }
 
-    if (
-        box.style.display ===
-        "none"
-    ) {
+    if (box.style.display === "none") {
 
         box.style.display =
             "block";
 
-        loadComments(
+        await loadComments(
             postId
         );
 
@@ -1476,8 +1698,8 @@ async function toggleComments(postId) {
 
 
 /* ==================================================
-LOAD COMMENTS
-================================================== */
+   LOAD COMMENTS
+   ================================================== */
 
 async function loadComments(postId) {
 
@@ -1494,7 +1716,11 @@ async function loadComments(postId) {
 
         const response =
             await fetch(
-                `/api/posts/${postId}/comments`
+                `/api/posts/${encodeURIComponent(postId)}/comments`,
+                {
+                    credentials:
+                        "same-origin"
+                }
             );
 
         const comments =
@@ -1574,9 +1800,7 @@ async function loadComments(postId) {
                             ">
 
                             <img
-                                src="${escapeHtml(
-                                    avatar
-                                )}"
+                                src="${escapeHtml(avatar)}"
                                 alt="Avatar"
                                 style="
                                     width:35px;
@@ -1589,11 +1813,7 @@ async function loadComments(postId) {
                                 ">
 
                             <strong>
-
-                                ${escapeHtml(
-                                    displayName
-                                )}
-
+                                ${escapeHtml(displayName)}
                             </strong>
 
                         </div>
@@ -1638,8 +1858,8 @@ async function loadComments(postId) {
 
 
 /* ==================================================
-SUBMIT COMMENT
-================================================== */
+   SUBMIT COMMENT
+   ================================================== */
 
 async function submitComment(postId) {
 
@@ -1672,29 +1892,28 @@ async function submitComment(postId) {
 
         const response =
             await fetch(
-                `/api/posts/${postId}/comments`,
+                `/api/posts/${encodeURIComponent(postId)}/comments`,
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
+
+                    credentials:
+                        "same-origin",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
 
-                    body:
-                        JSON.stringify({
+                    body: JSON.stringify({
 
-                            content:
-                                content,
+                        content:
+                            content,
 
-                            image:
-                                image
+                        image:
+                            image
 
-                        })
+                    })
 
                 }
             );
@@ -1711,12 +1930,9 @@ async function submitComment(postId) {
 
         }
 
-        input.value =
-            "";
+        if (input) {
 
-        if (imageInput) {
-
-            imageInput.value =
+            input.value =
                 "";
 
         }
@@ -1725,7 +1941,7 @@ async function submitComment(postId) {
             postId
         );
 
-        loadComments(
+        await loadComments(
             postId
         );
 
@@ -1747,8 +1963,8 @@ async function submitComment(postId) {
 
 
 /* ==================================================
-CLEAR COMMENT IMAGE
-================================================== */
+   CLEAR COMMENT IMAGE
+   ================================================== */
 
 function clearCommentImage(postId) {
 
@@ -1792,8 +2008,8 @@ function clearCommentImage(postId) {
 
 
 /* ==================================================
-PEOPLE
-================================================== */
+   PEOPLE
+   ================================================== */
 
 async function loadPeople() {
 
@@ -1810,7 +2026,11 @@ async function loadPeople() {
 
         const response =
             await fetch(
-                "/api/users"
+                "/api/users",
+                {
+                    credentials:
+                        "same-origin"
+                }
             );
 
         const users =
@@ -1825,7 +2045,7 @@ async function loadPeople() {
 
         }
 
-        if (!users.length) {
+        if (!Array.isArray(users) || !users.length) {
 
             container.innerHTML =
                 "<p>No users yet. 🧌</p>";
@@ -1846,11 +2066,6 @@ async function loadPeople() {
                     user.username ||
                     "User";
 
-                /*
-                 * Online if last_seen is less
-                 * than 2 minutes old.
-                 */
-
                 const isOnline =
                     user.last_seen &&
                     (
@@ -1863,9 +2078,7 @@ async function loadPeople() {
                 return `
 
                     <a
-                        href="/profile.html?id=${encodeURIComponent(
-                            user.id
-                        )}"
+                        href="/profile.html?id=${encodeURIComponent(user.id)}"
                         class="person"
                         style="
                             text-decoration:none;
@@ -1885,9 +2098,7 @@ async function loadPeople() {
 
                             <img
                                 class="avatar"
-                                src="${escapeHtml(
-                                    avatar
-                                )}"
+                                src="${escapeHtml(avatar)}"
                                 alt="Avatar"
                                 style="
                                     width:50px;
@@ -1928,14 +2139,13 @@ async function loadPeople() {
                         <div>
 
                             <strong>
-                                ${escapeHtml(
-                                    displayName
-                                )}
+                                ${escapeHtml(displayName)}
                             </strong>
 
                             <p>
                                 @${escapeHtml(
-                                    user.username
+                                    user.username ||
+                                    "user"
                                 )}
                             </p>
 
@@ -1965,8 +2175,8 @@ async function loadPeople() {
 
 
 /* ==================================================
-ENTER KEY FOR COMMENTS
-================================================== */
+   ENTER KEY FOR COMMENTS
+   ================================================== */
 
 document.addEventListener(
     "keydown",
@@ -2011,10 +2221,19 @@ document.addEventListener(
 
 
 /* ==================================================
-ONLINE STATUS
-================================================== */
+   ONLINE STATUS
+   ================================================== */
 
 async function updateOnlineStatus() {
+
+    /*
+     * If the server doesn't have this route,
+     * stop requesting it repeatedly.
+     */
+
+    if (!onlineEndpointAvailable) {
+        return;
+    }
 
     try {
 
@@ -2023,44 +2242,54 @@ async function updateOnlineStatus() {
                 "/api/online",
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
+
+                    credentials:
+                        "same-origin",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     }
 
                 }
             );
 
-        if (!response.ok) {
+        if (response.status === 404) {
 
-            /*
-             * Don't spam the console if the
-             * backend route doesn't exist.
-             */
+            onlineEndpointAvailable =
+                false;
 
-            if (response.status !== 404) {
-
-                console.warn(
-                    "Online status request failed:",
-                    response.status
-                );
-
-            }
+            console.info(
+                "Online status endpoint is not enabled."
+            );
 
             return;
 
         }
 
+        if (!response.ok) {
+
+            console.warn(
+                "Online status request failed:",
+                response.status
+            );
+
+        }
+
     } catch (error) {
 
-        console.warn(
-            "Online heartbeat unavailable."
-        );
+        /*
+         * Don't spam the console.
+         */
+
+        if (onlineEndpointAvailable) {
+
+            console.warn(
+                "Online heartbeat unavailable."
+            );
+
+        }
 
     }
 
@@ -2068,8 +2297,8 @@ async function updateOnlineStatus() {
 
 
 /* ==================================================
-START
-================================================== */
+   START
+   ================================================== */
 
 document.addEventListener(
     "DOMContentLoaded",
@@ -2082,8 +2311,8 @@ document.addEventListener(
 
 
 /* ==================================================
-ONLINE HEARTBEAT
-================================================== */
+   ONLINE HEARTBEAT
+   ================================================== */
 
 setTimeout(
     updateOnlineStatus,
@@ -2094,3 +2323,4 @@ setInterval(
     updateOnlineStatus,
     30000
 );
+
