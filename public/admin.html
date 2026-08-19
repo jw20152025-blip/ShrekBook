@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
 
     <meta
@@ -38,7 +40,8 @@
             padding: 20px;
             margin-bottom: 20px;
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+            box-shadow:
+                0 2px 8px rgba(0,0,0,.08);
         }
 
         .user-card,
@@ -80,6 +83,11 @@
 
         button:hover {
             opacity: .85;
+        }
+
+        button:disabled {
+            opacity: .55;
+            cursor: not-allowed;
         }
 
         .primary {
@@ -155,17 +163,21 @@
         }
 
     </style>
+
 </head>
+
 
 <body>
 
 <div class="container">
 
-    <!-- ============================================ -->
-    <!-- LOADING -->
-    <!-- ============================================ -->
 
-    <div id="loading" class="card">
+    <!-- LOADING -->
+
+    <div
+        id="loading"
+        class="card"
+    >
 
         <h2>
             🔄 Loading staff panel...
@@ -174,9 +186,7 @@
     </div>
 
 
-    <!-- ============================================ -->
     <!-- NOT STAFF -->
-    <!-- ============================================ -->
 
     <div
         id="not-staff"
@@ -202,18 +212,15 @@
     </div>
 
 
-    <!-- ============================================ -->
     <!-- STAFF PANEL -->
-    <!-- ============================================ -->
 
     <div
         id="staff-panel"
         class="hidden"
     >
 
-        <!-- ======================================== -->
+
         <!-- WELCOME -->
-        <!-- ======================================== -->
 
         <div class="card">
 
@@ -226,8 +233,7 @@
             </h2>
 
             <p>
-                Manage ShrekBook users and staff powers
-                from this panel.
+                Manage ShrekBook users and staff powers.
             </p>
 
             <button
@@ -240,9 +246,7 @@
         </div>
 
 
-        <!-- ======================================== -->
-        <!-- ROLE HIERARCHY -->
-        <!-- ======================================== -->
+        <!-- HIERARCHY -->
 
         <div class="card">
 
@@ -252,8 +256,7 @@
 
             <p>
                 <strong>👑 Owner</strong>
-                — Full control. Cannot be demoted,
-                revoked, banned, or modified by staff.
+                — Full control. Protected.
             </p>
 
             <p>
@@ -263,25 +266,23 @@
 
             <p>
                 <strong>⚔️ Senior Moderator</strong>
-                — Senior moderation powers.
+                — Senior moderation.
             </p>
 
             <p>
                 <strong>🔨 Moderator</strong>
-                — Kicks and normal moderation.
+                — Normal moderation.
             </p>
 
             <p>
                 <strong>👤 Peasant</strong>
-                — Normal user with no staff powers.
+                — Normal user.
             </p>
 
         </div>
 
 
-        <!-- ======================================== -->
         <!-- USER SEARCH -->
-        <!-- ======================================== -->
 
         <div class="card">
 
@@ -314,9 +315,7 @@
         </div>
 
 
-        <!-- ======================================== -->
         <!-- BANS -->
-        <!-- ======================================== -->
 
         <div class="card">
 
@@ -353,9 +352,7 @@
         </div>
 
 
-        <!-- ======================================== -->
         <!-- ADMINS -->
-        <!-- ======================================== -->
 
         <div class="card">
 
@@ -385,9 +382,7 @@
         </div>
 
 
-        <!-- ======================================== -->
         <!-- KICKS -->
-        <!-- ======================================== -->
 
         <div class="card">
 
@@ -406,9 +401,7 @@
         </div>
 
 
-        <!-- ======================================== -->
         <!-- REVOKES -->
-        <!-- ======================================== -->
 
         <div class="card">
 
@@ -427,14 +420,13 @@
 
         </div>
 
+
     </div>
 
 </div>
 
 
-<!-- ================================================ -->
 <!-- ROLE MODAL -->
-<!-- ================================================ -->
 
 <div
     id="role-modal"
@@ -483,10 +475,6 @@
                 🛡️ Administrator
             </option>
 
-            <option value="owner">
-                👑 Owner
-            </option>
-
         </select>
 
         <p
@@ -516,4 +504,5 @@
 <script src="/admin.js"></script>
 
 </body>
+
 </html>
