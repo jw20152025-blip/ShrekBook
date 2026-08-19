@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 
 const express = require("express");
@@ -8,116 +7,64 @@ const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 
-const PORT =
-    process.env.PORT || 3000;
-
-const SUPABASE_URL =
-    process.env.SUPABASE_URL;
-
-const SUPABASE_SERVICE_ROLE_KEY =
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-const SESSION_SECRET =
-    process.env.SESSION_SECRET;
-
-
-// ==================================================
-// ENVIRONMENT CHECK
-// ==================================================
-
-if (
-    !SUPABASE_URL ||
-    !SUPABASE_SERVICE_ROLE_KEY
-) {
-    console.error(
-        "❌ Missing Supabase environment variables."
-    );
-
-    process.exit(1);
-}
-
-if (!SESSION_SECRET) {
-    console.error(
-        "❌ Missing SESSION_SECRET."
-    );
-
-    process.exit(1);
-}
+const PORT = process.env.PORT || 3000;
 
 
 // ==================================================
 // SUPABASE
 // ==================================================
 
-const supabase =
-    createClient(
-        SUPABASE_URL,
-        SUPABASE_SERVICE_ROLE_KEY
-    );
-
-const DEFAULT_AVATAR =
-    "/default-avatar.png";
-
-
-// ==================================================
-// EXPRESS
-// ==================================================
-
-app.set(
-    "trust proxy",
-    1
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
 );
+
+
+// ==================================================
+// MIDDLEWARE
+// ==================================================
 
 app.use(
     express.json({
-        limit: "10mb"
+        limit: "15mb"
     })
 );
 
 app.use(
     express.urlencoded({
-        extended: true
+        extended: true,
+        limit: "15mb"
     })
 );
 
 app.use(
     session({
         secret:
-            SESSION_SECRET,
+            process.env.SESSION_SECRET ||
+            "shrekbook-secret-change-this",
 
-        resave:
-            false,
+        resave: false,
 
-        saveUninitialized:
-            false,
+        saveUninitialized: false,
 
         cookie: {
-            httpOnly:
-                true,
-
+            httpOnly: true,
             secure:
-                process.env.NODE_ENV ===
-                "production",
-
-            sameSite:
-                "lax",
-
+                process.env.NODE_ENV === "production",
             maxAge:
-                1000 *
-                60 *
-                60 *
-                24 *
-                30
+                1000 * 60 * 60 * 24 * 30
         }
     })
 );
 
+
+// ==================================================
+// STATIC FILES
+// ==================================================
+
 app.use(
     express.static(
-        path.join(
-            __dirname,
-            "public"
-        )
+        path.join(__dirname, "public")
     )
 );
 
@@ -126,20 +73,6 @@ app.use(
 // HELPERS
 // ==================================================
 
-function getAvatar(avatar) {
-
-    if (
-        typeof avatar ===
-            "string" &&
-        avatar.trim() !== ""
-    ) {
-        return avatar;
-    }
-
-    return DEFAULT_AVATAR;
-}
-
-
 function normalizeEmail(email) {
 
     return String(
@@ -147,22 +80,257 @@ function normalizeEmail(email) {
     )
         .trim()
         .toLowerCase();
+
+}
+
+
+function getAvatar(avatar) {
+
+    if (!avatar) {
+        return "/default-avatar.png";
+    }
+
+    return avatar;
+
+}
+
+
+async function getUserRole(userId) {
+
+    if (
+        process.env.OWNER_ID &&
+        userId === process.env.OWNER_ID
+    ) {
+
+        return "owner";
+
+    }
+
+
+    const {
+        data,
+        error
+    } =
+        await supabase
+            .from("admins")
+            .select("role")
+            .eq(
+                "user_id",
+                userId
+            )
+            .maybeSingle();
+
+
+    if (error) {
+
+        console.error(
+            "GET USER ROLE ERROR:",
+            error
+        );
+
+        return "peasant";
+
+    }
+
+
+    return data?.role || "peasant";
+
+}
+
+
+async function getActiveBanByUserId(userId) {
+
+    const {
+        data,
+        error
+    } =
+        await supabase
+            .from("bans")
+            .select("*")
+            .eq(
+                "user_id",
+                userId
+            )
+            .eq(
+                "active",
+                true
+            )
+            .order(
+                "banned_at",
+                {
+                    ascending: false
+                }
+            )
+            .limit(1)
+            .maybeSingle();
+
+
+    if (error) {
+
+        console.error(
+            "GET ACTIVE BAN ERROR:",
+            error
+        );
+
+        return null;
+
+    }
+
+
+    return data;
+
+}
+
+
+async function getActiveKickByUserId(userId) {
+
+    const {
+        data,
+        error
+    } =
+        await supabase
+            .from("kicks")
+            .select("*")
+            .eq(
+                "user_id",
+                userId
+            )
+            .eq(
+                "active",
+                true
+            )
+            .order(
+                "kicked_at",
+                {
+                    ascending: false
+                }
+            )
+            .limit(1)
+            .maybeSingle();
+
+
+    if (error) {
+
+        return null;
+
+    }
+
+
+    return data;
+
+}
+
+
+async function getReactionCounts(userId) {
+
+    const {
+        data,
+        error
+    } =
+        await supabase
+            .from("reactions")
+            .select("type")
+            .eq(
+                "to_user_id",
+                userId
+            );
+
+
+    if (error) {
+
+        console.error(
+            "GET REACTION COUNTS ERROR:",
+            error
+        );
+
+        return {
+            gyatt: 0,
+            cat: 0,
+            ogred: 0
+        };
+
+    }
+
+
+    const counts = {
+
+        gyatt: 0,
+
+        cat: 0,
+
+        ogred: 0
+
+    };
+
+
+    for (
+        const reaction of
+        data || []
+    ) {
+
+        if (
+            reaction.type ===
+            "gyatt"
+        ) {
+
+            counts.gyatt++;
+
+        }
+
+        if (
+            reaction.type ===
+            "cat"
+        ) {
+
+            counts.cat++;
+
+        }
+
+        if (
+            reaction.type ===
+            "ogred"
+        ) {
+
+            counts.ogred++;
+
+        }
+
+    }
+
+
+    return counts;
+
 }
 
 
 // ==================================================
-// REQUIRE STAFF
+// AUTH MIDDLEWARE
 // ==================================================
-//
-// Protects admin/staff API routes.
-//
-// A user is considered staff if their role is one of:
-// owner
-// administrator
-// senior_moderator
-// moderator
-//
-// ==================================================
+
+function requireLogin(
+    req,
+    res,
+    next
+) {
+
+    if (
+        !req.session.user
+    ) {
+
+        return res.status(401).json({
+
+            error:
+                "You must be logged in."
+
+        });
+
+    }
+
+
+    next();
+
+}
+
 
 async function requireStaff(
     req,
@@ -172,11 +340,9 @@ async function requireStaff(
 
     try {
 
-        // ------------------------------------------
-        // Must be logged in
-        // ------------------------------------------
-
-        if (!req.session.user) {
+        if (
+            !req.session.user
+        ) {
 
             return res.status(401).json({
 
@@ -188,64 +354,25 @@ async function requireStaff(
         }
 
 
-        const userId =
-            req.session.user.id;
-
-
-        // ------------------------------------------
-        // Owner override
-        // ------------------------------------------
-        // If OWNER_ID is configured, that user
-        // is always treated as owner.
-
-        if (
-            process.env.OWNER_ID &&
-            userId === process.env.OWNER_ID
-        ) {
-
-            req.staffRole =
-                "owner";
-
-            return next();
-
-        }
-
-
-        // ------------------------------------------
-        // Get role from admins table
-        // ------------------------------------------
-
         const role =
             await getUserRole(
-                userId
+                req.session.user.id
             );
 
 
-        // ------------------------------------------
-        // Check staff role
-        // ------------------------------------------
-
         if (
-            !STAFF_ROLES.includes(
-                role
-            )
+            role === "peasant"
         ) {
 
             return res.status(403).json({
 
                 error:
-                    "Staff access required.",
-
-                role
+                    "Staff access required."
 
             });
 
         }
 
-
-        // ------------------------------------------
-        // Save role for routes
-        // ------------------------------------------
 
         req.staffRole =
             role;
@@ -260,7 +387,7 @@ async function requireStaff(
             error
         );
 
-        return res.status(500).json({
+        res.status(500).json({
 
             error:
                 "Could not verify staff permissions."
@@ -272,118 +399,267 @@ async function requireStaff(
 }
 
 
-// ==================================================
-// LOGIN MIDDLEWARE
-// ==================================================
-
-function requireLogin(
+async function requireOwner(
     req,
     res,
     next
 ) {
 
-    if (!req.session.user) {
+    try {
 
-        return res.status(401).json({
+        if (
+            !req.session.user
+        ) {
+
+            return res.status(401).json({
+
+                error:
+                    "You must be logged in."
+
+            });
+
+        }
+
+
+        const role =
+            await getUserRole(
+                req.session.user.id
+            );
+
+
+        if (
+            role !== "owner"
+        ) {
+
+            return res.status(403).json({
+
+                error:
+                    "Owner access required."
+
+            });
+
+        }
+
+
+        next();
+
+    } catch (error) {
+
+        console.error(
+            "REQUIRE OWNER ERROR:",
+            error
+        );
+
+        res.status(500).json({
+
             error:
-                "You must be logged in."
+                "Could not verify owner permissions."
+
         });
+
     }
 
-    next();
 }
 
 
 // ==================================================
-// SHREKBOOK ADMIN SYSTEM
-// ==================================================
-// Requires:
-// - supabase
-// - requireStaff
-// - STAFF_ROLES
-// - getUserRole
-//
-// Tables used:
-// - profiles
-// - admins
-// - bans
-// - kicks
-// - staff_revocations
-//
-// DROP THIS BLOCK INTO server.js
-// AFTER requireStaff HAS BEEN DEFINED.
-// ==================================================
-
-
-// ==================================================
-// ADMIN - CURRENT STAFF
-// GET /api/admin/me
+// TEST / HEALTH
 // ==================================================
 
 app.get(
-    "/api/admin/me",
-    requireStaff,
-    async (req, res) => {
+    "/api/test",
+    (req, res) => {
+
+        res.json({
+
+            success: true,
+
+            message:
+                "ShrekBook API is working 🧌"
+
+        });
+
+    }
+);
+
+
+app.get(
+    "/api/health",
+    (req, res) => {
+
+        res.json({
+
+            success: true,
+
+            status: "ok"
+
+        });
+
+    }
+);
+
+
+// ==================================================
+// SIGNUP
+// ==================================================
+
+app.post(
+    "/api/signup",
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
-            const userId =
-                req.session.user.id;
+            const email =
+                normalizeEmail(
+                    req.body.email
+                );
 
-            const role =
-                req.staffRole ||
-                await getUserRole(userId);
+            const password =
+                String(
+                    req.body.password ||
+                    ""
+                );
+
+            const username =
+                String(
+                    req.body.username ||
+                    ""
+                ).trim();
+
+            const displayName =
+                String(
+                    req.body.display_name ||
+                    username
+                ).trim();
+
+
+            if (
+                !email ||
+                !password ||
+                !username
+            ) {
+
+                return res.status(400).json({
+
+                    error:
+                        "Email, password and username are required."
+
+                });
+
+            }
+
 
             const {
-                data: profile,
+                data,
                 error
+            } =
+                await supabase.auth.admin
+                    .createUser({
+
+                        email,
+
+                        password,
+
+                        email_confirm:
+                            true
+
+                    });
+
+
+            if (error) {
+
+                return res.status(400).json({
+
+                    error:
+                        error.message
+
+                });
+
+            }
+
+
+            const user =
+                data.user;
+
+
+            const {
+                error:
+                    profileError
             } =
                 await supabase
                     .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar,
-                        bio
-                    `)
-                    .eq("id", userId)
-                    .maybeSingle();
+                    .insert({
 
-            if (error) {
+                        id:
+                            user.id,
+
+                        username,
+
+                        display_name:
+                            displayName,
+
+                        avatar:
+                            null,
+
+                        bio:
+                            "",
+
+                        gyatt:
+                            0,
+
+                        cat:
+                            0,
+
+                        ogred:
+                            0
+
+                    });
+
+
+            if (
+                profileError
+            ) {
+
+                await supabase.auth.admin
+                    .deleteUser(
+                        user.id
+                    );
+
                 return res.status(500).json({
-                    error: error.message
+
+                    error:
+                        profileError.message
+
                 });
+
             }
 
-            res.json({
 
-                success: true,
+            res.status(201).json({
 
-                isStaff: true,
+                success:
+                    true,
 
-                isAdmin:
-                    [
-                        "owner",
-                        "administrator"
-                    ].includes(role),
-
-                role,
-
-                user: profile || null
+                message:
+                    "Account created successfully."
 
             });
 
         } catch (error) {
 
             console.error(
-                "ADMIN ME ERROR:",
+                "SIGNUP ERROR:",
                 error
             );
 
             res.status(500).json({
+
                 error:
-                    "Could not load staff information."
+                    "Server error."
+
             });
 
         }
@@ -393,24 +669,99 @@ app.get(
 
 
 // ==================================================
-// ADMIN - GET USERS
-// GET /api/admin/users
+// LOGIN
 // ==================================================
 
-app.get(
-    "/api/admin/users",
-    requireStaff,
-    async (req, res) => {
+app.post(
+    "/api/login",
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
-            const search =
-                String(
-                    req.query.search || ""
-                ).trim();
+            const email =
+                normalizeEmail(
+                    req.body.email
+                );
 
-            let query =
-                supabase
+            const password =
+                String(
+                    req.body.password ||
+                    ""
+                );
+
+
+            if (
+                !email ||
+                !password
+            ) {
+
+                return res.status(400).json({
+
+                    error:
+                        "Please enter your email and password."
+
+                });
+
+            }
+
+
+            const {
+                data,
+                error
+            } =
+                await supabase.auth
+                    .signInWithPassword({
+
+                        email,
+
+                        password
+
+                    });
+
+
+            if (error) {
+
+                return res.status(401).json({
+
+                    error:
+                        error.message
+
+                });
+
+            }
+
+
+            const user =
+                data.user;
+
+
+            const ban =
+                await getActiveBanByUserId(
+                    user.id
+                );
+
+
+            if (ban) {
+
+                return res.status(403).json({
+
+                    error:
+                        `You are banned. Reason: ${ban.reason}`
+
+                });
+
+            }
+
+
+            const {
+                data: profile,
+                error:
+                    profileError
+            } =
+                await supabase
                     .from("profiles")
                     .select(`
                         id,
@@ -418,579 +769,97 @@ app.get(
                         display_name,
                         avatar,
                         bio,
-                        created_at,
-                        last_seen
+                        created_at
                     `)
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
-                    );
-
-            if (search) {
-
-                query =
-                    query.or(
-                        `username.ilike.%${search}%,display_name.ilike.%${search}%`
-                    );
-
-            }
-
-            const {
-                data: users,
-                error
-            } = await query;
-
-            if (error) {
-
-                console.error(
-                    "ADMIN USERS ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            const result = [];
-
-            for (
-                const user of
-                users || []
-            ) {
-
-                let role = "peasant";
-
-                try {
-
-                    role =
-                        await getUserRole(
-                            user.id
-                        );
-
-                } catch {
-
-                    role =
-                        "peasant";
-
-                }
-
-
-                result.push({
-
-                    ...user,
-
-                    role,
-
-                    avatar:
-                        getAvatar(
-                            user.avatar
-                        )
-
-                });
-
-            }
-
-
-            res.json({
-                success: true,
-                users: result
-            });
-
-        } catch (error) {
-
-            console.error(
-                "ADMIN USERS EXCEPTION:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Could not load users."
-            });
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// ADMIN - CHANGE ROLE
-// POST /api/admin/role
-// ==================================================
-
-app.post(
-    "/api/admin/role",
-    requireStaff,
-    async (req, res) => {
-
-        try {
-
-            const targetId =
-                String(
-                    req.body.user_id || ""
-                ).trim();
-
-            const newRole =
-                String(
-                    req.body.role || ""
-                ).trim();
-
-
-            const allowedRoles = [
-                "peasant",
-                "moderator",
-                "senior_moderator",
-                "administrator"
-            ];
-
-
-            if (!targetId) {
-
-                return res.status(400).json({
-                    error:
-                        "User ID is required."
-                });
-
-            }
-
-
-            if (
-                !allowedRoles.includes(
-                    newRole
-                )
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Invalid role."
-                });
-
-            }
-
-
-            const actorId =
-                req.session.user.id;
-
-            const actorRole =
-                req.staffRole ||
-                await getUserRole(
-                    actorId
-                );
-
-
-            const {
-                data: target,
-                error: targetError
-            } =
-                await supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name
-                    `)
-                    .eq("id", targetId)
+                    .eq(
+                        "id",
+                        user.id
+                    )
                     .maybeSingle();
 
 
-            if (targetError) {
+            if (profileError) {
 
                 return res.status(500).json({
+
                     error:
-                        targetError.message
+                        profileError.message
+
                 });
 
             }
 
 
-            if (!target) {
-
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-
-            }
-
-
-            const targetRole =
-                await getUserRole(
-                    targetId
-                );
-
-
-            // Owner can NEVER be changed
-            // through this endpoint.
-
-            if (
-                targetRole === "owner"
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "The owner is protected."
-                });
-
-            }
-
-
-            // Moderators cannot promote
-            // people to administrator.
-
-            if (
-                actorRole === "moderator" &&
-                [
-                    "senior_moderator",
-                    "administrator"
-                ].includes(newRole)
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "Moderators cannot assign that role."
-                });
-
-            }
-
-
-            // Senior moderators cannot
-            // create administrators.
-
-            if (
-                actorRole === "senior_moderator" &&
-                newRole === "administrator"
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "Senior moderators cannot assign administrator."
-                });
-
-            }
-
-
-            // Update/create admins table entry.
-
-            if (newRole === "peasant") {
-
-                const {
-                    error
-                } =
-                    await supabase
-                        .from("admins")
-                        .delete()
-                        .eq(
-                            "user_id",
-                            targetId
-                        );
-
-                if (error) {
-
-                    return res.status(500).json({
-                        error:
-                            error.message
-                    });
-
-                }
-
-            } else {
-
-                const {
-                    error
-                } =
-                    await supabase
-                        .from("admins")
-                        .upsert(
-                            {
-                                user_id:
-                                    targetId,
-
-                                role:
-                                    newRole
-                            },
-                            {
-                                onConflict:
-                                    "user_id"
-                            }
-                        );
-
-                if (error) {
-
-                    return res.status(500).json({
-                        error:
-                            error.message
-                    });
-
-                }
-
-            }
-
-
-            res.json({
-
-                success: true,
-
-                user_id:
-                    targetId,
-
-                role:
-                    newRole
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "CHANGE ROLE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Could not change role."
-            });
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// ADMIN - GET BANS
-// GET /api/admin/bans
-// ==================================================
-
-app.get(
-    "/api/admin/bans",
-    requireStaff,
-    async (req, res) => {
-
-        try {
-
-            const {
-                data,
-                error
-            } =
-                await supabase
-                    .from("bans")
-                    .select(`
-                        id,
-                        user_id,
-                        email,
-                        reason,
-                        banned_at,
-                        banned_by,
-                        active
-                    `)
-                    .order(
-                        "banned_at",
-                        {
-                            ascending: false
-                        }
-                    );
-
-            if (error) {
-
-                console.error(
-                    "GET BANS ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            res.json({
-
-                success: true,
-
-                bans:
-                    data || []
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "GET BANS EXCEPTION:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Could not load bans."
-            });
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// ADMIN - CREATE BAN
-// POST /api/admin/bans
-// ==================================================
-
-app.post(
-    "/api/admin/bans",
-    requireStaff,
-    async (req, res) => {
-
-        try {
-
-            const email =
-                String(
-                    req.body.email || ""
-                )
-                    .trim()
-                    .toLowerCase();
-
-            const reason =
-                String(
-                    req.body.reason || ""
-                ).trim();
-
-
-            if (!email) {
-
-                return res.status(400).json({
-                    error:
-                        "Email is required."
-                });
-
-            }
-
-
-            const bannedBy =
-                req.session.user.id;
-
-
-            const {
-                data: existingUser
-            } =
-                await supabase
-                    .from("profiles")
-                    .select("id")
-                    .limit(1)
-                    .maybeSingle();
-
-
-            // Find auth user by email.
-            // Service-role key allows this.
-
-            let targetUser = null;
-
-            try {
-
-                const {
-                    data: authUsers
-                } =
-                    await supabase.auth.admin
-                        .listUsers({
-                            page: 1,
-                            perPage: 1000
-                        });
-
-
-                targetUser =
-                    authUsers?.users?.find(
-                        user =>
-                            String(
-                                user.email || ""
-                            )
-                                .toLowerCase() ===
-                            email
-                    ) || null;
-
-            } catch {
-
-                targetUser = null;
-
-            }
-
-
-            const insertData = {
-
-                user_id:
-                    targetUser?.id ||
-                    null,
-
-                email,
-
-                reason:
-                    reason ||
-                    "No reason provided.",
-
-                banned_by:
-                    bannedBy,
-
-                banned_at:
-                    new Date().toISOString(),
-
-                active:
-                    true
+            req.session.user = {
+
+                id:
+                    user.id,
+
+                email:
+                    user.email,
+
+                username:
+                    profile?.username ||
+                    "",
+
+                display_name:
+                    profile?.display_name ||
+                    profile?.username ||
+                    "",
+
+                avatar:
+                    getAvatar(
+                        profile?.avatar
+                    )
 
             };
 
 
-            const {
-                data: ban,
-                error
-            } =
-                await supabase
-                    .from("bans")
-                    .insert(
-                        insertData
-                    )
-                    .select()
-                    .single();
+            await new Promise(
+                (
+                    resolve,
+                    reject
+                ) => {
 
+                    req.session.save(
+                        error => {
 
-            if (error) {
+                            if (error) {
+                                reject(error);
+                            } else {
+                                resolve();
+                            }
 
-                console.error(
-                    "CREATE BAN ERROR:",
-                    error
-                );
+                        }
+                    );
 
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
+                }
+            );
 
 
             res.json({
 
-                success: true,
+                success:
+                    true,
 
-                ban
+                user:
+                    req.session.user
 
             });
 
         } catch (error) {
 
             console.error(
-                "BAN EXCEPTION:",
+                "LOGIN ERROR:",
                 error
             );
 
             res.status(500).json({
+
                 error:
-                    "Could not ban user."
+                    error.message ||
+                    "Server error."
+
             });
 
         }
@@ -1000,243 +869,70 @@ app.post(
 
 
 // ==================================================
-// ADMIN - UNBAN
-// POST /api/admin/bans/:id/unban
+// LOGOUT
 // ==================================================
 
 app.post(
-    "/api/admin/bans/:id/unban",
-    requireStaff,
-    async (req, res) => {
+    "/api/logout",
+    (
+        req,
+        res
+    ) => {
 
-        try {
+        req.session.destroy(
+            error => {
 
-            const id =
-                req.params.id;
+                if (error) {
 
-            if (!id) {
+                    return res.status(500).json({
 
-                return res.status(400).json({
-                    error:
-                        "Ban ID is required."
+                        error:
+                            "Could not log out."
+
+                    });
+
+                }
+
+
+                res.json({
+
+                    success:
+                        true
+
                 });
 
             }
-
-
-            const {
-                error
-            } =
-                await supabase
-                    .from("bans")
-                    .update({
-                        active: false
-                    })
-                    .eq(
-                        "id",
-                        id
-                    );
-
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            res.json({
-                success: true
-            });
-
-        } catch (error) {
-
-            console.error(
-                "UNBAN ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Could not unban user."
-            });
-
-        }
+        );
 
     }
 );
 
 
 // ==================================================
-// ADMIN - LIST ADMINISTRATORS
-// GET /api/admin/admins
+// CURRENT USER
 // ==================================================
 
 app.get(
-    "/api/admin/admins",
-    requireStaff,
-    async (req, res) => {
+    "/api/me",
+    async (
+        req,
+        res
+    ) => {
 
         try {
-
-            const {
-                data,
-                error
-            } =
-                await supabase
-                    .from("admins")
-                    .select(`
-                        user_id,
-                        role
-                    `)
-                    .order(
-                        "role"
-                    );
-
-            if (error) {
-
-                console.error(
-                    "GET ADMINS ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            const admins = [];
-
-
-            for (
-                const admin
-                of data || []
-            ) {
-
-                const {
-                    data: profile
-                } =
-                    await supabase
-                        .from("profiles")
-                        .select(`
-                            id,
-                            username,
-                            display_name,
-                            avatar
-                        `)
-                        .eq(
-                            "id",
-                            admin.user_id
-                        )
-                        .maybeSingle();
-
-
-                admins.push({
-
-                    user_id:
-                        admin.user_id,
-
-                    role:
-                        admin.role,
-
-                    username:
-                        profile?.username ||
-                        "Unknown",
-
-                    display_name:
-                        profile?.display_name ||
-                        profile?.username ||
-                        "Unknown",
-
-                    avatar:
-                        getAvatar(
-                            profile?.avatar
-                        )
-
-                });
-
-            }
-
-
-            res.json({
-
-                success: true,
-
-                admins
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "GET ADMINS EXCEPTION:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Could not load administrators."
-            });
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// ADMIN - ADD ADMINISTRATOR
-// POST /api/admin/admins
-// ==================================================
-
-app.post(
-    "/api/admin/admins",
-    requireStaff,
-    async (req, res) => {
-
-        try {
-
-            const userId =
-                String(
-                    req.body.user_id || ""
-                ).trim();
-
-
-            if (!userId) {
-
-                return res.status(400).json({
-                    error:
-                        "User UUID is required."
-                });
-
-            }
-
-
-            const actorRole =
-                req.staffRole ||
-                await getUserRole(
-                    req.session.user.id
-                );
-
 
             if (
-                ![
-                    "owner",
-                    "administrator"
-                ].includes(
-                    actorRole
-                )
+                !req.session.user
             ) {
 
-                return res.status(403).json({
-                    error:
-                        "Only owners and administrators can add administrators."
+                return res.json({
+
+                    loggedIn:
+                        false,
+
+                    user:
+                        null
+
                 });
 
             }
@@ -1247,160 +943,74 @@ app.post(
             } =
                 await supabase
                     .from("profiles")
-                    .select("id")
+                    .select(`
+                        id,
+                        username,
+                        display_name,
+                        avatar,
+                        bio,
+                        created_at
+                    `)
                     .eq(
                         "id",
-                        userId
+                        req.session.user.id
                     )
                     .maybeSingle();
 
 
             if (!profile) {
 
-                return res.status(404).json({
-                    error:
-                        "User not found."
+                return res.json({
+
+                    loggedIn:
+                        false,
+
+                    user:
+                        null
+
                 });
 
             }
 
 
-            const {
-                error
-            } =
-                await supabase
-                    .from("admins")
-                    .upsert(
-                        {
-                            user_id:
-                                userId,
-
-                            role:
-                                "administrator"
-                        },
-                        {
-                            onConflict:
-                                "user_id"
-                        }
-                    );
-
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
+            const role =
+                await getUserRole(
+                    profile.id
+                );
 
 
             res.json({
 
-                success: true,
+                loggedIn:
+                    true,
 
-                message:
-                    "Administrator added."
+                user: {
 
-            });
+                    ...profile,
 
-        } catch (error) {
+                    avatar:
+                        getAvatar(
+                            profile.avatar
+                        ),
 
-            console.error(
-                "ADD ADMIN ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Could not add administrator."
-            });
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// ADMIN - GET KICKS
-// GET /api/admin/kicks
-// ==================================================
-
-app.get(
-    "/api/admin/kicks",
-    requireStaff,
-    async (req, res) => {
-
-        try {
-
-            const {
-                data,
-                error
-            } =
-                await supabase
-                    .from("kicks")
-                    .select(`
-                        id,
-                        user_id,
-                        reason,
-                        kicked_at,
-                        kicked_by,
-                        active
-                    `)
-                    .order(
-                        "kicked_at",
-                        {
-                            ascending: false
-                        }
-                    );
-
-            if (error) {
-
-                // Gracefully handle table
-                // not existing.
-
-                if (
-                    error.code === "42P01"
-                ) {
-
-                    return res.json({
-
-                        success: true,
-
-                        kicks: []
-
-                    });
+                    role
 
                 }
 
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            res.json({
-
-                success: true,
-
-                kicks:
-                    data || []
-
             });
 
         } catch (error) {
 
             console.error(
-                "GET KICKS ERROR:",
+                "ME ERROR:",
                 error
             );
 
             res.status(500).json({
+
                 error:
-                    "Could not load kicks."
+                    "Server error."
+
             });
 
         }
@@ -1410,516 +1020,140 @@ app.get(
 
 
 // ==================================================
-// ADMIN - KICK USER
-// POST /api/admin/kicks
+// IMAGE UPLOAD
 // ==================================================
 
-app.post(
-    "/api/admin/kicks",
-    requireStaff,
-    async (req, res) => {
+async function uploadImage(
+    fileData,
+    fileType,
+    fileName,
+    userId
+) {
 
-        try {
+    if (
+        !fileData ||
+        !fileType ||
+        !fileName
+    ) {
 
-            const userId =
-                String(
-                    req.body.user_id || ""
-                ).trim();
+        throw new Error(
+            "Missing image data."
+        );
 
-            const reason =
-                String(
-                    req.body.reason || ""
-                ).trim();
-
-
-            if (!userId) {
-
-                return res.status(400).json({
-                    error:
-                        "User ID is required."
-                });
-
-            }
+    }
 
 
-            const targetRole =
-                await getUserRole(
-                    userId
-                );
+    if (
+        !fileType.startsWith(
+            "image/"
+        )
+    ) {
+
+        throw new Error(
+            "File must be an image."
+        );
+
+    }
 
 
-            if (
-                targetRole === "owner"
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "The owner cannot be kicked."
-                });
-
-            }
+    const buffer =
+        Buffer.from(
+            fileData,
+            "base64"
+        );
 
 
-            const {
-                error
-            } =
-                await supabase
-                    .from("kicks")
-                    .insert({
+    if (
+        buffer.length >
+        5 * 1024 * 1024
+    ) {
 
-                        user_id:
-                            userId,
+        throw new Error(
+            "Image must be under 5MB."
+        );
 
-                        reason:
-                            reason ||
-                            "No reason provided.",
-
-                        kicked_at:
-                            new Date().toISOString(),
-
-                        kicked_by:
-                            req.session.user.id,
-
-                        active:
-                            true
-
-                    });
+    }
 
 
-            if (error) {
+    const extension =
+        fileName
+            .split(".")
+            .pop()
+            .toLowerCase();
 
-                if (
-                    error.code === "42P01"
-                ) {
 
-                    return res.status(500).json({
-                        error:
-                            "The kicks table does not exist yet."
-                    });
+    const allowed = [
+
+        "png",
+        "jpg",
+        "jpeg",
+        "webp",
+        "gif"
+
+    ];
+
+
+    if (
+        !allowed.includes(
+            extension
+        )
+    ) {
+
+        throw new Error(
+            "Unsupported image type."
+        );
+
+    }
+
+
+    const filePath =
+        `posts/${userId}/${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2)}.${extension}`;
+
+
+    const {
+        error: uploadError
+    } =
+        await supabase.storage
+            .from("avatars")
+            .upload(
+                filePath,
+                buffer,
+                {
+
+                    contentType:
+                        fileType,
+
+                    upsert:
+                        false
 
                 }
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            res.json({
-
-                success: true,
-
-                message:
-                    "User kicked."
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "KICK ERROR:",
-                error
             );
 
-            res.status(500).json({
-                error:
-                    "Could not kick user."
-            });
 
-        }
+    if (uploadError) {
+
+        throw new Error(
+            uploadError.message
+        );
 
     }
-);
 
 
-// ==================================================
-// ADMIN - GET STAFF REVOCATIONS
-// GET /api/admin/revokes
-// ==================================================
-
-app.get(
-    "/api/admin/revokes",
-    requireStaff,
-    async (req, res) => {
-
-        try {
-
-            // Don't select revoked_at because
-            // older versions of the table may
-            // not have that column.
-
-            const {
-                data,
-                error
-            } =
-                await supabase
-                    .from("staff_revocations")
-                    .select(`
-                        id,
-                        user_id,
-                        reason,
-                        revoked_by,
-                        active,
-                        created_at
-                    `)
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
-                    );
-
-
-            if (error) {
-
-                console.error(
-                    "GET REVOKES ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            const revokes =
-                data || [];
-
-
-            res.json({
-
-                success: true,
-
-                revokes
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "GET REVOKES EXCEPTION:",
-                error
+    const {
+        data: publicData
+    } =
+        supabase.storage
+            .from("avatars")
+            .getPublicUrl(
+                filePath
             );
 
-            res.status(500).json({
-                error:
-                    "Could not load staff revocations."
-            });
 
-        }
+    return publicData.publicUrl;
 
-    }
-);
-
-
-// ==================================================
-// ADMIN - REVOKE STAFF
-// POST /api/admin/revokes
-// ==================================================
-
-app.post(
-    "/api/admin/revokes",
-    requireStaff,
-    async (req, res) => {
-
-        try {
-
-            const userId =
-                String(
-                    req.body.user_id || ""
-                ).trim();
-
-            const reason =
-                String(
-                    req.body.reason || ""
-                ).trim();
-
-
-            if (!userId) {
-
-                return res.status(400).json({
-                    error:
-                        "User ID is required."
-                });
-
-            }
-
-
-            const actorId =
-                req.session.user.id;
-
-            const actorRole =
-                req.staffRole ||
-                await getUserRole(
-                    actorId
-                );
-
-
-            const targetRole =
-                await getUserRole(
-                    userId
-                );
-
-
-            if (
-                targetRole === "owner"
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "The owner cannot be revoked."
-                });
-
-            }
-
-
-            if (
-                actorRole !== "owner" &&
-                targetRole === "administrator"
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "Only the owner can revoke an administrator."
-                });
-
-            }
-
-
-            if (
-                targetRole === "peasant"
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "This user does not have staff powers."
-                });
-
-            }
-
-
-            // Record the revocation.
-
-            const {
-                error: revokeError
-            } =
-                await supabase
-                    .from("staff_revocations")
-                    .insert({
-
-                        user_id:
-                            userId,
-
-                        reason:
-                            reason ||
-                            "Staff powers revoked.",
-
-                        revoked_by:
-                            actorId,
-
-                        active:
-                            true
-
-                    });
-
-
-            if (revokeError) {
-
-                return res.status(500).json({
-                    error:
-                        revokeError.message
-                });
-
-            }
-
-
-            // Remove staff role.
-
-            const {
-                error: deleteError
-            } =
-                await supabase
-                    .from("admins")
-                    .delete()
-                    .eq(
-                        "user_id",
-                        userId
-                    );
-
-
-            if (deleteError) {
-
-                return res.status(500).json({
-                    error:
-                        deleteError.message
-                });
-
-            }
-
-
-            res.json({
-
-                success: true,
-
-                message:
-                    "Staff powers revoked."
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "REVOKE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Could not revoke staff powers."
-            });
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// ADMIN - REVOKE/RESTORE STAFF RECORD
-// POST /api/admin/revokes/:id/restore
-// ==================================================
-
-app.post(
-    "/api/admin/revokes/:id/restore",
-    requireStaff,
-    async (req, res) => {
-
-        try {
-
-            const id =
-                req.params.id;
-
-
-            const {
-                data: revoke,
-                error: revokeError
-            } =
-                await supabase
-                    .from("staff_revocations")
-                    .select(`
-                        id,
-                        user_id,
-                        active
-                    `)
-                    .eq(
-                        "id",
-                        id
-                    )
-                    .maybeSingle();
-
-
-            if (revokeError) {
-
-                return res.status(500).json({
-                    error:
-                        revokeError.message
-                });
-
-            }
-
-
-            if (!revoke) {
-
-                return res.status(404).json({
-                    error:
-                        "Revocation not found."
-                });
-
-            }
-
-
-            const {
-                error
-            } =
-                await supabase
-                    .from("staff_revocations")
-                    .update({
-                        active: false
-                    })
-                    .eq(
-                        "id",
-                        id
-                    );
-
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            res.json({
-                success: true
-            });
-
-        } catch (error) {
-
-            console.error(
-                "RESTORE REVOKE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Could not restore revocation."
-            });
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// ADMIN API FALLBACK
-// ==================================================
-// This prevents mysterious "API endpoint not found"
-// messages from being mistaken for normal pages.
-//
-// Keep this AFTER all /api/admin routes.
-// ==================================================
-
-app.use(
-    "/api/admin",
-    (req, res) => {
-
-        res.status(404).json({
-
-            error:
-                "Admin API endpoint not found.",
-
-            path:
-                req.originalUrl,
-
-            method:
-                req.method
-
-        });
-
-    }
-);
-
-
-
+}
 
 
 // ==================================================
@@ -1962,15 +1196,19 @@ app.get(
             if (usersError) {
 
                 return res.status(500).json({
+
                     error:
                         usersError.message
+
                 });
+
             }
 
 
             const {
                 data: reactions,
-                error: reactionsError
+                error:
+                    reactionsError
             } =
                 await supabase
                     .from("reactions")
@@ -1983,19 +1221,21 @@ app.get(
             if (reactionsError) {
 
                 return res.status(500).json({
+
                     error:
                         reactionsError.message
+
                 });
+
             }
 
 
-            const reactionCounts =
-                {};
+            const reactionCounts = {};
 
 
             for (
                 const reaction of
-                    reactions || []
+                reactions || []
             ) {
 
                 const userId =
@@ -2016,7 +1256,9 @@ app.get(
 
                         ogred:
                             0
+
                     };
+
                 }
 
 
@@ -2027,6 +1269,7 @@ app.get(
 
                     reactionCounts[userId]
                         .gyatt++;
+
                 }
 
 
@@ -2037,6 +1280,7 @@ app.get(
 
                     reactionCounts[userId]
                         .cat++;
+
                 }
 
 
@@ -2047,7 +1291,9 @@ app.get(
 
                     reactionCounts[userId]
                         .ogred++;
+
                 }
+
             }
 
 
@@ -2098,7 +1344,9 @@ app.get(
                                     user.id
                                 ]?.ogred ||
                                 0
+
                         };
+
                     }
                 );
 
@@ -2115,10 +1363,14 @@ app.get(
             );
 
             res.status(500).json({
+
                 error:
                     "Server error."
+
             });
+
         }
+
     }
 );
 
@@ -2143,9 +1395,12 @@ app.get(
             if (!id) {
 
                 return res.status(400).json({
+
                     error:
                         "No profile ID was provided."
+
                 });
+
             }
 
 
@@ -2173,18 +1428,24 @@ app.get(
             if (profileError) {
 
                 return res.status(500).json({
+
                     error:
                         profileError.message
+
                 });
+
             }
 
 
             if (!profile) {
 
                 return res.status(404).json({
+
                     error:
                         "User not found."
+
                 });
+
             }
 
 
@@ -2217,9 +1478,12 @@ app.get(
             if (postsError) {
 
                 return res.status(500).json({
+
                     error:
                         postsError.message
+
                 });
+
             }
 
 
@@ -2249,6 +1513,7 @@ app.get(
 
                 posts:
                     posts || []
+
             });
 
         } catch (error) {
@@ -2259,10 +1524,14 @@ app.get(
             );
 
             res.status(500).json({
+
                 error:
                     "Server error."
+
             });
+
         }
+
     }
 );
 
@@ -2298,9 +1567,12 @@ app.put(
             if (!display_name) {
 
                 return res.status(400).json({
+
                     error:
                         "Display name cannot be empty."
+
                 });
+
             }
 
 
@@ -2310,9 +1582,12 @@ app.put(
             ) {
 
                 return res.status(400).json({
+
                     error:
                         "Display name is too long."
+
                 });
+
             }
 
 
@@ -2322,9 +1597,12 @@ app.put(
             ) {
 
                 return res.status(400).json({
+
                     error:
                         "Bio is too long."
+
                 });
+
             }
 
 
@@ -2335,8 +1613,11 @@ app.put(
                 await supabase
                     .from("profiles")
                     .update({
+
                         display_name,
+
                         bio
+
                     })
                     .eq(
                         "id",
@@ -2356,9 +1637,12 @@ app.put(
             if (error) {
 
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
+
             }
 
 
@@ -2373,9 +1657,12 @@ app.put(
                     if (sessionError) {
 
                         return res.status(500).json({
+
                             error:
                                 "Could not save profile session."
+
                         });
+
                     }
 
 
@@ -2392,8 +1679,11 @@ app.put(
                                 getAvatar(
                                     data.avatar
                                 )
+
                         }
+
                     });
+
                 }
             );
 
@@ -2405,10 +1695,14 @@ app.put(
             );
 
             res.status(500).json({
+
                 error:
                     "Server error."
+
             });
+
         }
+
     }
 );
 
@@ -2441,9 +1735,12 @@ app.post(
             ) {
 
                 return res.status(400).json({
+
                     error:
                         "Missing image data."
+
                 });
+
             }
 
 
@@ -2454,9 +1751,12 @@ app.post(
             ) {
 
                 return res.status(400).json({
+
                     error:
                         "File must be an image."
+
                 });
+
             }
 
 
@@ -2473,9 +1773,12 @@ app.post(
             ) {
 
                 return res.status(400).json({
+
                     error:
                         "Image must be under 5MB."
+
                 });
+
             }
 
 
@@ -2487,11 +1790,13 @@ app.post(
 
 
             const allowed = [
+
                 "png",
                 "jpg",
                 "jpeg",
                 "webp",
                 "gif"
+
             ];
 
 
@@ -2502,9 +1807,12 @@ app.post(
             ) {
 
                 return res.status(400).json({
+
                     error:
                         "Unsupported image type."
+
                 });
+
             }
 
 
@@ -2521,11 +1829,13 @@ app.post(
                         filePath,
                         buffer,
                         {
+
                             contentType:
                                 fileType,
 
                             upsert:
                                 true
+
                         }
                     );
 
@@ -2533,9 +1843,12 @@ app.post(
             if (uploadError) {
 
                 return res.status(500).json({
+
                     error:
                         uploadError.message
+
                 });
+
             }
 
 
@@ -2560,8 +1873,10 @@ app.post(
                 await supabase
                     .from("profiles")
                     .update({
+
                         avatar:
                             avatarUrl
+
                     })
                     .eq(
                         "id",
@@ -2574,9 +1889,12 @@ app.post(
             if (profileError) {
 
                 return res.status(500).json({
+
                     error:
                         profileError.message
+
                 });
+
             }
 
 
@@ -2594,7 +1912,9 @@ app.post(
 
                     avatar:
                         avatarUrl
+
                 }
+
             });
 
         } catch (error) {
@@ -2605,139 +1925,16 @@ app.post(
             );
 
             res.status(500).json({
+
                 error:
                     "Server error."
+
             });
+
         }
+
     }
 );
-
-
-// ==================================================
-// IMAGE UPLOAD
-// ==================================================
-
-async function uploadImage(
-    fileData,
-    fileType,
-    fileName,
-    userId
-) {
-
-    if (
-        !fileData ||
-        !fileType ||
-        !fileName
-    ) {
-
-        throw new Error(
-            "Missing image data."
-        );
-    }
-
-
-    if (
-        !fileType.startsWith(
-            "image/"
-        )
-    ) {
-
-        throw new Error(
-            "File must be an image."
-        );
-    }
-
-
-    const buffer =
-        Buffer.from(
-            fileData,
-            "base64"
-        );
-
-
-    if (
-        buffer.length >
-        5 * 1024 * 1024
-    ) {
-
-        throw new Error(
-            "Image must be under 5MB."
-        );
-    }
-
-
-    const extension =
-        fileName
-            .split(".")
-            .pop()
-            .toLowerCase();
-
-
-    const allowed = [
-        "png",
-        "jpg",
-        "jpeg",
-        "webp",
-        "gif"
-    ];
-
-
-    if (
-        !allowed.includes(
-            extension
-        )
-    ) {
-
-        throw new Error(
-            "Unsupported image type."
-        );
-    }
-
-
-    const filePath =
-        `posts/${userId}/${Date.now()}-${Math.random()
-            .toString(36)
-            .slice(2)}.${extension}`;
-
-
-    const {
-        error: uploadError
-    } =
-        await supabase.storage
-            .from("avatars")
-            .upload(
-                filePath,
-                buffer,
-                {
-                    contentType:
-                        fileType,
-
-                    upsert:
-                        false
-                }
-            );
-
-
-    if (uploadError) {
-
-        throw new Error(
-            uploadError.message
-        );
-    }
-
-
-    const {
-        data: publicData
-    } =
-        supabase.storage
-            .from("avatars")
-            .getPublicUrl(
-                filePath
-            );
-
-
-    return publicData.publicUrl;
-}
 
 
 // ==================================================
@@ -2779,9 +1976,12 @@ app.get(
             if (error) {
 
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
+
             }
 
 
@@ -2790,7 +1990,7 @@ app.get(
 
             for (
                 const post of
-                    posts || []
+                posts || []
             ) {
 
                 const {
@@ -2827,7 +2027,9 @@ app.get(
                         getAvatar(
                             profile?.avatar
                         )
+
                 });
+
             }
 
 
@@ -2843,10 +2045,14 @@ app.get(
             );
 
             res.status(500).json({
+
                 error:
                     "Server error."
+
             });
+
         }
+
     }
 );
 
@@ -2874,9 +2080,12 @@ app.post(
             ) {
 
                 return res.status(400).json({
+
                     error:
                         "Post is too long."
+
                 });
+
             }
 
 
@@ -2895,19 +2104,28 @@ app.post(
 
                     imageUrl =
                         await uploadImage(
+
                             req.body.image.data,
+
                             req.body.image.type,
+
                             req.body.image.name,
+
                             req.session.user.id
+
                         );
 
                 } catch (error) {
 
                     return res.status(400).json({
+
                         error:
                             error.message
+
                     });
+
                 }
+
             }
 
 
@@ -2917,9 +2135,12 @@ app.post(
             ) {
 
                 return res.status(400).json({
+
                     error:
                         "Post cannot be empty."
+
                 });
+
             }
 
 
@@ -2930,6 +2151,7 @@ app.post(
                 await supabase
                     .from("posts")
                     .insert({
+
                         user_id:
                             req.session.user.id,
 
@@ -2937,6 +2159,7 @@ app.post(
 
                         image_url:
                             imageUrl
+
                     })
                     .select()
                     .single();
@@ -2945,9 +2168,12 @@ app.post(
             if (error) {
 
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
+
             }
 
 
@@ -2963,10 +2189,14 @@ app.post(
             );
 
             res.status(500).json({
+
                 error:
                     "Server error."
+
             });
+
         }
+
     }
 );
 
@@ -3014,9 +2244,12 @@ app.get(
             if (error) {
 
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
+
             }
 
 
@@ -3025,7 +2258,7 @@ app.get(
 
             for (
                 const comment of
-                    comments || []
+                comments || []
             ) {
 
                 const {
@@ -3060,7 +2293,9 @@ app.get(
                         getAvatar(
                             profile?.avatar
                         )
+
                 });
+
             }
 
 
@@ -3076,10 +2311,14 @@ app.get(
             );
 
             res.status(500).json({
+
                 error:
                     "Server error."
+
             });
+
         }
+
     }
 );
 
@@ -3107,9 +2346,12 @@ app.post(
             ) {
 
                 return res.status(400).json({
+
                     error:
                         "Comment is too long."
+
                 });
+
             }
 
 
@@ -3128,19 +2370,28 @@ app.post(
 
                     imageUrl =
                         await uploadImage(
+
                             req.body.image.data,
+
                             req.body.image.type,
+
                             req.body.image.name,
+
                             req.session.user.id
+
                         );
 
                 } catch (error) {
 
                     return res.status(400).json({
+
                         error:
                             error.message
+
                     });
+
                 }
+
             }
 
 
@@ -3150,9 +2401,12 @@ app.post(
             ) {
 
                 return res.status(400).json({
+
                     error:
                         "Comment cannot be empty."
+
                 });
+
             }
 
 
@@ -3163,6 +2417,7 @@ app.post(
                 await supabase
                     .from("comments")
                     .insert({
+
                         post_id:
                             req.params.postId,
 
@@ -3173,6 +2428,7 @@ app.post(
 
                         image_url:
                             imageUrl
+
                     })
                     .select()
                     .single();
@@ -3181,9 +2437,12 @@ app.post(
             if (error) {
 
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
+
             }
 
 
@@ -3199,10 +2458,14 @@ app.post(
             );
 
             res.status(500).json({
+
                 error:
                     "Server error."
+
             });
+
         }
+
     }
 );
 
@@ -3219,12 +2482,17 @@ async function addReaction(
 
     try {
 
-        if (!req.session.user) {
+        if (
+            !req.session.user
+        ) {
 
             return res.status(401).json({
+
                 error:
                     "You must be logged in."
+
             });
+
         }
 
 
@@ -3242,9 +2510,12 @@ async function addReaction(
         ) {
 
             return res.status(400).json({
+
                 error:
                     "You cannot react to yourself."
+
             });
+
         }
 
 
@@ -3265,18 +2536,24 @@ async function addReaction(
         if (targetError) {
 
             return res.status(500).json({
+
                 error:
                     targetError.message
+
             });
+
         }
 
 
         if (!targetUser) {
 
             return res.status(404).json({
+
                 error:
                     "User not found."
+
             });
+
         }
 
 
@@ -3286,6 +2563,7 @@ async function addReaction(
             await supabase
                 .from("reactions")
                 .insert({
+
                     from_user_id:
                         fromUserId,
 
@@ -3293,6 +2571,7 @@ async function addReaction(
                         toUserId,
 
                     type
+
                 });
 
 
@@ -3313,20 +2592,27 @@ async function addReaction(
 
                     ogred:
                         "Ogred"
+
                 };
 
 
                 return res.status(400).json({
+
                     error:
                         `You already gave this person a ${names[type]}.`
+
                 });
+
             }
 
 
             return res.status(500).json({
+
                 error:
                     insertError.message
+
             });
+
         }
 
 
@@ -3339,11 +2625,13 @@ async function addReaction(
                 .select(
                     "*",
                     {
+
                         count:
                             "exact",
 
                         head:
                             true
+
                     }
                 )
                 .eq(
@@ -3359,9 +2647,12 @@ async function addReaction(
         if (countError) {
 
             return res.status(500).json({
+
                 error:
                     countError.message
+
             });
+
         }
 
 
@@ -3372,6 +2663,7 @@ async function addReaction(
 
             [type]:
                 count || 0
+
         });
 
     } catch (error) {
@@ -3382,10 +2674,14 @@ async function addReaction(
         );
 
         res.status(500).json({
+
             error:
                 "Server error."
+
         });
+
     }
+
 }
 
 
@@ -3451,9 +2747,11 @@ app.post(
                 await supabase
                     .from("profiles")
                     .update({
+
                         last_seen:
                             new Date()
                                 .toISOString()
+
                     })
                     .eq(
                         "id",
@@ -3464,15 +2762,20 @@ app.post(
             if (error) {
 
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
+
             }
 
 
             res.json({
+
                 success:
                     true
+
             });
 
         } catch (error) {
@@ -3483,10 +2786,14 @@ app.post(
             );
 
             res.status(500).json({
+
                 error:
                     "Server error."
+
             });
+
         }
+
     }
 );
 
@@ -3504,9 +2811,6 @@ app.get(
     ) => {
 
         try {
-
-            // Do NOT select profiles.role.
-            // Roles come from admins.
 
             const {
                 data: users,
@@ -3534,9 +2838,12 @@ app.get(
             if (error) {
 
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
+
             }
 
 
@@ -3545,7 +2852,7 @@ app.get(
 
             for (
                 const user of
-                    users || []
+                users || []
             ) {
 
                 const role =
@@ -3582,7 +2889,9 @@ app.get(
 
                     kicked:
                         !!kick
+
                 });
+
             }
 
 
@@ -3598,10 +2907,14 @@ app.get(
             );
 
             res.status(500).json({
+
                 error:
                     error.message
+
             });
+
         }
+
     }
 );
 
@@ -3637,19 +2950,27 @@ app.post(
 
 
             const allowedRoles = [
+
                 "administrator",
+
                 "senior_moderator",
+
                 "moderator",
+
                 "peasant"
+
             ];
 
 
             if (!targetUserId) {
 
                 return res.status(400).json({
+
                     error:
                         "User ID is required."
+
                 });
+
             }
 
 
@@ -3660,9 +2981,12 @@ app.post(
             ) {
 
                 return res.status(400).json({
+
                     error:
                         "Invalid role."
+
                 });
+
             }
 
 
@@ -3676,9 +3000,12 @@ app.post(
             ) {
 
                 return res.status(403).json({
+
                     error:
                         "You cannot change your own role."
+
                 });
+
             }
 
 
@@ -3688,15 +3015,14 @@ app.post(
             ) {
 
                 return res.status(403).json({
+
                     error:
                         "The Owner cannot be modified."
+
                 });
+
             }
 
-
-            // ==================================================
-            // TARGET PROFILE
-            // ==================================================
 
             const {
                 data: targetProfile,
@@ -3720,24 +3046,26 @@ app.post(
             if (profileError) {
 
                 return res.status(500).json({
+
                     error:
                         profileError.message
+
                 });
+
             }
 
 
             if (!targetProfile) {
 
                 return res.status(404).json({
+
                     error:
                         "User not found."
+
                 });
+
             }
 
-
-            // ==================================================
-            // CURRENT ROLE
-            // ==================================================
 
             const {
                 data: existingAdmin,
@@ -3759,9 +3087,12 @@ app.post(
             if (roleError) {
 
                 return res.status(500).json({
+
                     error:
                         roleError.message
+
                 });
+
             }
 
 
@@ -3776,15 +3107,14 @@ app.post(
             ) {
 
                 return res.status(403).json({
+
                     error:
                         "The Owner cannot be modified."
+
                 });
+
             }
 
-
-            // ==================================================
-            // PEASANT
-            // ==================================================
 
             if (
                 newRole ===
@@ -3811,16 +3141,16 @@ app.post(
                     if (deleteError) {
 
                         return res.status(500).json({
+
                             error:
                                 deleteError.message
+
                         });
+
                     }
+
                 }
 
-
-                // Record revocation if the table
-                // exists. Missing table won't
-                // break the role change.
 
                 if (
                     oldRole !==
@@ -3836,6 +3166,7 @@ app.post(
                                 "staff_revocations"
                             )
                             .insert({
+
                                 user_id:
                                     targetUserId,
 
@@ -3850,6 +3181,7 @@ app.post(
 
                                 active:
                                     true
+
                             });
 
 
@@ -3875,7 +3207,9 @@ app.post(
                             "REVOCATION ERROR:",
                             revokeError
                         );
+
                     }
+
                 }
 
 
@@ -3900,14 +3234,13 @@ app.post(
 
                         role:
                             "peasant"
+
                     }
+
                 });
+
             }
 
-
-            // ==================================================
-            // STAFF ROLE
-            // ==================================================
 
             const {
                 data: updatedAdmin,
@@ -3916,17 +3249,24 @@ app.post(
                 await supabase
                     .from("admins")
                     .upsert(
+
                         {
+
                             user_id:
                                 targetUserId,
 
                             role:
                                 newRole
+
                         },
+
                         {
+
                             onConflict:
                                 "user_id"
+
                         }
+
                     )
                     .select(`
                         user_id,
@@ -3939,9 +3279,12 @@ app.post(
             if (upsertError) {
 
                 return res.status(500).json({
+
                     error:
                         upsertError.message
+
                 });
+
             }
 
 
@@ -3966,7 +3309,9 @@ app.post(
 
                     role:
                         updatedAdmin.role
+
                 }
+
             });
 
         } catch (error) {
@@ -3977,11 +3322,15 @@ app.post(
             );
 
             res.status(500).json({
+
                 error:
                     error.message ||
                     "Server error while changing role."
+
             });
+
         }
+
     }
 );
 
@@ -4023,9 +3372,12 @@ app.get(
             if (error) {
 
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
+
             }
 
 
@@ -4034,7 +3386,7 @@ app.get(
 
             for (
                 const member of
-                    staff || []
+                staff || []
             ) {
 
                 const {
@@ -4079,12 +3431,11 @@ app.get(
                         getAvatar(
                             profile?.avatar
                         )
+
                 });
+
             }
 
-
-            // Add OWNER to staff list even though
-            // owner does not need an admins row.
 
             if (
                 process.env.OWNER_ID
@@ -4142,9 +3493,13 @@ app.get(
                                 getAvatar(
                                     ownerProfile.avatar
                                 )
+
                         });
+
                     }
+
                 }
+
             }
 
 
@@ -4155,6 +3510,7 @@ app.get(
 
                 staff:
                     result
+
             });
 
         } catch (error) {
@@ -4165,16 +3521,20 @@ app.get(
             );
 
             res.status(500).json({
+
                 error:
                     error.message
+
             });
+
         }
+
     }
 );
 
 
 // ==================================================
-// BANS
+// BAN LIST
 // ==================================================
 
 app.get(
@@ -4213,10 +3573,18 @@ app.get(
 
             if (error) {
 
+                console.error(
+                    "GET BANS SUPABASE ERROR:",
+                    error
+                );
+
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
+
             }
 
 
@@ -4227,6 +3595,7 @@ app.get(
 
                 bans:
                     data || []
+
             });
 
         } catch (error) {
@@ -4237,10 +3606,14 @@ app.get(
             );
 
             res.status(500).json({
+
                 error:
-                    error.message
+                    "Server error while loading bans."
+
             });
+
         }
+
     }
 );
 
@@ -4276,9 +3649,12 @@ app.post(
             if (!userId) {
 
                 return res.status(400).json({
+
                     error:
                         "User ID is required."
+
                 });
+
             }
 
 
@@ -4288,9 +3664,12 @@ app.post(
             ) {
 
                 return res.status(403).json({
+
                     error:
                         "You cannot ban yourself."
+
                 });
+
             }
 
 
@@ -4306,9 +3685,12 @@ app.post(
             ) {
 
                 return res.status(403).json({
+
                     error:
                         "The Owner cannot be banned."
+
                 });
+
             }
 
 
@@ -4332,18 +3714,24 @@ app.post(
             if (targetError) {
 
                 return res.status(500).json({
+
                     error:
                         targetError.message
+
                 });
+
             }
 
 
             if (!target) {
 
                 return res.status(404).json({
+
                     error:
                         "User not found."
+
                 });
+
             }
 
 
@@ -4360,9 +3748,12 @@ app.post(
             if (authError) {
 
                 return res.status(500).json({
+
                     error:
                         authError.message
+
                 });
+
             }
 
 
@@ -4378,6 +3769,7 @@ app.post(
                 await supabase
                     .from("bans")
                     .insert({
+
                         user_id:
                             userId,
 
@@ -4398,15 +3790,19 @@ app.post(
 
                         active:
                             true
+
                     });
 
 
             if (error) {
 
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
+
             }
 
 
@@ -4417,6 +3813,7 @@ app.post(
 
                 message:
                     "User banned successfully."
+
             });
 
         } catch (error) {
@@ -4427,10 +3824,14 @@ app.post(
             );
 
             res.status(500).json({
+
                 error:
                     error.message
+
             });
+
         }
+
     }
 );
 
@@ -4459,9 +3860,12 @@ app.post(
             if (!userId) {
 
                 return res.status(400).json({
+
                     error:
                         "User ID is required."
+
                 });
+
             }
 
 
@@ -4471,8 +3875,10 @@ app.post(
                 await supabase
                     .from("bans")
                     .update({
+
                         active:
                             false
+
                     })
                     .eq(
                         "user_id",
@@ -4487,9 +3893,12 @@ app.post(
             if (error) {
 
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
+
             }
 
 
@@ -4500,6 +3909,7 @@ app.post(
 
                 message:
                     "User unbanned successfully."
+
             });
 
         } catch (error) {
@@ -4510,10 +3920,14 @@ app.post(
             );
 
             res.status(500).json({
+
                 error:
                     error.message
+
             });
+
         }
+
     }
 );
 
@@ -4566,13 +3980,17 @@ app.get(
                 ) {
 
                     return res.json([]);
+
                 }
 
 
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
+
             }
 
 
@@ -4588,78 +4006,17 @@ app.get(
             );
 
             res.status(500).json({
+
                 error:
                     "Server error."
+
             });
+
         }
+
     }
 );
-// ==================================================
-// ADMIN - GET BANS
-// GET /api/admin/bans
-// ==================================================
 
-app.get(
-    "/api/admin/bans",
-    requireStaff,
-    async (req, res) => {
-
-        try {
-
-            const {
-                data,
-                error
-            } = await supabase
-                .from("bans")
-                .select(`
-                    id,
-                    user_id,
-                    email,
-                    reason,
-                    banned_at,
-                    banned_by,
-                    active
-                `)
-                .order(
-                    "banned_at",
-                    {
-                        ascending: false
-                    }
-                );
-
-            if (error) {
-
-                console.error(
-                    "GET BANS SUPABASE ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            res.json({
-                success: true,
-                bans:
-                    data || []
-            });
-
-        } catch (error) {
-
-            console.error(
-                "GET BANS ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error while loading bans."
-            });
-        }
-    }
-);
 
 // ==================================================
 // KICK USER
@@ -4692,9 +4049,12 @@ app.post(
             if (!userId) {
 
                 return res.status(400).json({
+
                     error:
                         "User ID is required."
+
                 });
+
             }
 
 
@@ -4704,9 +4064,12 @@ app.post(
             ) {
 
                 return res.status(403).json({
+
                     error:
                         "You cannot kick yourself."
+
                 });
+
             }
 
 
@@ -4722,9 +4085,12 @@ app.post(
             ) {
 
                 return res.status(403).json({
+
                     error:
                         "The Owner cannot be kicked."
+
                 });
+
             }
 
 
@@ -4748,18 +4114,24 @@ app.post(
             if (targetError) {
 
                 return res.status(500).json({
+
                     error:
                         targetError.message
+
                 });
+
             }
 
 
             if (!target) {
 
                 return res.status(404).json({
+
                     error:
                         "User not found."
+
                 });
+
             }
 
 
@@ -4769,6 +4141,7 @@ app.post(
                 await supabase
                     .from("kicks")
                     .insert({
+
                         user_id:
                             userId,
 
@@ -4785,6 +4158,7 @@ app.post(
 
                         active:
                             true
+
                     });
 
 
@@ -4806,16 +4180,22 @@ app.post(
                 ) {
 
                     return res.status(500).json({
+
                         error:
                             "The kicks table does not exist in Supabase yet."
+
                     });
+
                 }
 
 
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
+
             }
 
 
@@ -4826,6 +4206,7 @@ app.post(
 
                 message:
                     "User kicked successfully."
+
             });
 
         } catch (error) {
@@ -4836,10 +4217,14 @@ app.post(
             );
 
             res.status(500).json({
+
                 error:
                     error.message
+
             });
+
         }
+
     }
 );
 
@@ -4868,9 +4253,12 @@ app.post(
             if (!userId) {
 
                 return res.status(400).json({
+
                     error:
                         "User ID is required."
+
                 });
+
             }
 
 
@@ -4880,8 +4268,10 @@ app.post(
                 await supabase
                     .from("kicks")
                     .update({
+
                         active:
                             false
+
                     })
                     .eq(
                         "user_id",
@@ -4896,9 +4286,12 @@ app.post(
             if (error) {
 
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
+
             }
 
 
@@ -4909,6 +4302,7 @@ app.post(
 
                 message:
                     "Kick removed successfully."
+
             });
 
         } catch (error) {
@@ -4919,135 +4313,10 @@ app.post(
             );
 
             res.status(500).json({
+
                 error:
                     error.message
-            });
-        }
-    }
-);
 
-// ==================================================
-// ADMIN API COMPATIBILITY ROUTES
-// These aliases prevent frontend/backend route-name
-// mismatches from causing 404 errors.
-// ==================================================
-
-
-// ==================================================
-// ADMINS
-// ==================================================
-
-// Main
-// GET /api/admin/admins
-
-// Alias
-// GET /api/admin/administrators
-
-app.get(
-    "/api/admin/administrators",
-    requireStaff,
-    async (req, res) => {
-
-        try {
-
-            const {
-                data,
-                error
-            } =
-                await supabase
-                    .from("admins")
-                    .select(`
-                        user_id,
-                        role,
-                        created_at
-                    `)
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
-                    );
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            const result = [];
-
-            for (
-                const admin of
-                data || []
-            ) {
-
-                const {
-                    data: profile
-                } =
-                    await supabase
-                        .from("profiles")
-                        .select(`
-                            id,
-                            username,
-                            display_name,
-                            avatar
-                        `)
-                        .eq(
-                            "id",
-                            admin.user_id
-                        )
-                        .maybeSingle();
-
-                result.push({
-
-                    user_id:
-                        admin.user_id,
-
-                    role:
-                        admin.role,
-
-                    created_at:
-                        admin.created_at,
-
-                    username:
-                        profile?.username ||
-                        "Unknown",
-
-                    display_name:
-                        profile?.display_name ||
-                        profile?.username ||
-                        "Unknown",
-
-                    avatar:
-                        getAvatar(
-                            profile?.avatar
-                        )
-
-                });
-            }
-
-            res.json({
-
-                success: true,
-
-                administrators:
-                    result
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "ADMINISTRATORS API ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    error.message
             });
 
         }
@@ -5057,19 +4326,16 @@ app.get(
 
 
 // ==================================================
-// KICKS
+// KICK HISTORY
 // ==================================================
-
-// GET /api/admin/kicks
-// already supported
-
-// Alias:
-// GET /api/admin/kick-history
 
 app.get(
     "/api/admin/kick-history",
     requireStaff,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -5090,22 +4356,28 @@ app.get(
                     .order(
                         "kicked_at",
                         {
-                            ascending: false
+                            ascending:
+                                false
                         }
                     );
+
 
             if (error) {
 
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
 
             }
 
+
             res.json({
 
-                success: true,
+                success:
+                    true,
 
                 kicks:
                     data || []
@@ -5120,8 +4392,10 @@ app.get(
             );
 
             res.status(500).json({
+
                 error:
                     error.message
+
             });
 
         }
@@ -5131,139 +4405,308 @@ app.get(
 
 
 // ==================================================
-// REVOKES
+// REVOKE STAFF
 // ==================================================
 
-// Main:
-// GET /api/admin/revokes
-
-// Alias:
-// GET /api/admin/revocations
-
-app.get(
-    "/api/admin/revocations",
+app.post(
+    "/api/admin/revokes",
     requireStaff,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
+            const userId =
+                String(
+                    req.body.user_id ||
+                    ""
+                ).trim();
+
+
+            const reason =
+                String(
+                    req.body.reason ||
+                    ""
+                ).trim();
+
+
+            if (!userId) {
+
+                return res.status(400).json({
+
+                    error:
+                        "User ID is required."
+
+                });
+
+            }
+
+
+            const actorId =
+                req.session.user.id;
+
+
+            const actorRole =
+                req.staffRole ||
+                await getUserRole(
+                    actorId
+                );
+
+
+            const targetRole =
+                await getUserRole(
+                    userId
+                );
+
+
+            if (
+                targetRole ===
+                "owner"
+            ) {
+
+                return res.status(403).json({
+
+                    error:
+                        "The owner cannot be revoked."
+
+                });
+
+            }
+
+
+            if (
+                actorRole !== "owner" &&
+                targetRole ===
+                    "administrator"
+            ) {
+
+                return res.status(403).json({
+
+                    error:
+                        "Only the owner can revoke an administrator."
+
+                });
+
+            }
+
+
+            if (
+                targetRole ===
+                "peasant"
+            ) {
+
+                return res.status(400).json({
+
+                    error:
+                        "This user does not have staff powers."
+
+                });
+
+            }
+
+
             const {
-                data,
+                error: revokeError
+            } =
+                await supabase
+                    .from("staff_revocations")
+                    .insert({
+
+                        user_id:
+                            userId,
+
+                        previous_role:
+                            targetRole,
+
+                        reason:
+                            reason ||
+                            "Staff powers revoked.",
+
+                        revoked_by:
+                            actorId,
+
+                        active:
+                            true
+
+                    });
+
+
+            if (revokeError) {
+
+                return res.status(500).json({
+
+                    error:
+                        revokeError.message
+
+                });
+
+            }
+
+
+            const {
+                error: deleteError
+            } =
+                await supabase
+                    .from("admins")
+                    .delete()
+                    .eq(
+                        "user_id",
+                        userId
+                    );
+
+
+            if (deleteError) {
+
+                return res.status(500).json({
+
+                    error:
+                        deleteError.message
+
+                });
+
+            }
+
+
+            res.json({
+
+                success:
+                    true,
+
+                message:
+                    "Staff powers revoked."
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "REVOKE ERROR:",
                 error
+            );
+
+            res.status(500).json({
+
+                error:
+                    "Could not revoke staff powers."
+
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// RESTORE REVOCATION
+// ==================================================
+
+app.post(
+    "/api/admin/revokes/:id/restore",
+    requireStaff,
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const id =
+                req.params.id;
+
+
+            const {
+                data: revoke,
+                error: revokeError
             } =
                 await supabase
                     .from("staff_revocations")
                     .select(`
                         id,
                         user_id,
-                        previous_role,
-                        reason,
-                        revoked_by,
-                        created_at
+                        active
                     `)
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
-                    );
+                    .eq(
+                        "id",
+                        id
+                    )
+                    .maybeSingle();
 
-            if (error) {
+
+            if (revokeError) {
 
                 return res.status(500).json({
+
                     error:
-                        error.message
+                        revokeError.message
+
                 });
 
             }
 
-            res.json({
 
-                success: true,
+            if (!revoke) {
 
-                revokes:
-                    data || []
+                return res.status(404).json({
 
-            });
+                    error:
+                        "Revocation not found."
 
-        } catch (error) {
+                });
 
-            console.error(
-                "REVOCATIONS API ERROR:",
-                error
-            );
+            }
 
-            res.status(500).json({
-                error:
-                    error.message
-            });
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// STAFF
-// ==================================================
-
-// Alias for:
-// GET /api/admin/staff
-
-app.get(
-    "/api/admin/staff-list",
-    requireStaff,
-    async (req, res) => {
-
-        try {
 
             const {
-                data,
                 error
             } =
                 await supabase
-                    .from("admins")
-                    .select(`
-                        user_id,
-                        role,
-                        created_at
-                    `)
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
+                    .from("staff_revocations")
+                    .update({
+
+                        active:
+                            false
+
+                    })
+                    .eq(
+                        "id",
+                        id
                     );
+
 
             if (error) {
 
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
 
             }
 
+
             res.json({
 
-                success: true,
-
-                staff:
-                    data || []
+                success:
+                    true
 
             });
 
         } catch (error) {
 
             console.error(
-                "STAFF LIST ERROR:",
+                "RESTORE REVOKE ERROR:",
                 error
             );
 
             res.status(500).json({
+
                 error:
-                    error.message
+                    "Could not restore revocation."
+
             });
 
         }
@@ -5273,14 +4716,16 @@ app.get(
 
 
 // ==================================================
-// STAFF REVOCATIONS
-// GET /api/admin/revokes
+// GET REVOKES
 // ==================================================
 
 app.get(
     "/api/admin/revokes",
     requireStaff,
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -5301,24 +4746,26 @@ app.get(
                     .order(
                         "created_at",
                         {
-                            ascending: false
+                            ascending:
+                                false
                         }
                     );
 
+
             if (error) {
 
-                console.error(
-                    "GET REVOKES SUPABASE ERROR:",
-                    error
-                );
-
                 return res.status(500).json({
+
                     error:
                         error.message
+
                 });
+
             }
 
+
             const result = [];
+
 
             for (
                 const revoke of
@@ -5341,6 +4788,7 @@ app.get(
                             revoke.user_id
                         )
                         .maybeSingle();
+
 
                 result.push({
 
@@ -5379,11 +4827,14 @@ app.get(
                         revoke.created_at
 
                 });
+
             }
+
 
             res.json({
 
-                success: true,
+                success:
+                    true,
 
                 revokes:
                     result
@@ -5398,11 +4849,15 @@ app.get(
             );
 
             res.status(500).json({
+
                 error:
                     error.message ||
                     "Server error."
+
             });
+
         }
+
 
 
     }
@@ -6316,12 +5771,249 @@ app.post(
         }
 
 
+
     }
 );
 
 
 // ==================================================
-// 404 API HANDLER
+// ADMINISTRATORS COMPATIBILITY ROUTE
+// ==================================================
+
+app.get(
+    "/api/admin/administrators",
+    requireStaff,
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("admins")
+                    .select(`
+                        user_id,
+                        role,
+                        created_at
+                    `)
+                    .order(
+                        "created_at",
+                        {
+                            ascending:
+                                false
+                        }
+                    );
+
+
+            if (error) {
+
+                return res.status(500).json({
+
+                    error:
+                        error.message
+
+                });
+
+            }
+
+
+            const result = [];
+
+
+            for (
+                const admin of
+                data || []
+            ) {
+
+                const {
+                    data: profile
+                } =
+                    await supabase
+                        .from("profiles")
+                        .select(`
+                            id,
+                            username,
+                            display_name,
+                            avatar
+                        `)
+                        .eq(
+                            "id",
+                            admin.user_id
+                        )
+                        .maybeSingle();
+
+
+                result.push({
+
+                    user_id:
+                        admin.user_id,
+
+                    role:
+                        admin.role,
+
+                    created_at:
+                        admin.created_at,
+
+                    username:
+                        profile?.username ||
+                        "Unknown",
+
+                    display_name:
+                        profile?.display_name ||
+                        profile?.username ||
+                        "Unknown",
+
+                    avatar:
+                        getAvatar(
+                            profile?.avatar
+                        )
+
+                });
+
+            }
+
+
+            res.json({
+
+                success:
+                    true,
+
+                administrators:
+                    result
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "ADMINISTRATORS API ERROR:",
+                error
+            );
+
+            res.status(500).json({
+
+                error:
+                    error.message
+
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// STAFF LIST COMPATIBILITY ROUTE
+// ==================================================
+
+app.get(
+    "/api/admin/staff-list",
+    requireStaff,
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("admins")
+                    .select(`
+                        user_id,
+                        role,
+                        created_at
+                    `)
+                    .order(
+                        "created_at",
+                        {
+                            ascending:
+                                false
+                        }
+                    );
+
+
+            if (error) {
+
+                return res.status(500).json({
+
+                    error:
+                        error.message
+
+                });
+
+            }
+
+
+            res.json({
+
+                success:
+                    true,
+
+                staff:
+                    data || []
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "STAFF LIST ERROR:",
+                error
+            );
+
+            res.status(500).json({
+
+                error:
+                    error.message
+
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// ADMIN API FALLBACK
+// ==================================================
+
+app.use(
+    "/api/admin",
+    (
+        req,
+        res
+    ) => {
+
+        res.status(404).json({
+
+            error:
+                "Admin API endpoint not found.",
+
+            path:
+                req.originalUrl,
+
+            method:
+                req.method
+
+        });
+
+    }
+);
+
+
+// ==================================================
+// GENERAL API FALLBACK
 // ==================================================
 
 app.use(
@@ -6338,7 +6030,9 @@ app.use(
 
             path:
                 req.originalUrl
+
         });
+
     }
 );
 
@@ -6355,6 +6049,6 @@ app.listen(
         console.log(
             `🧌 ShrekBook running on port ${PORT}`
         );
+
     }
 );
-
