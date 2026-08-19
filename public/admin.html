@@ -1,4 +1,12 @@
 
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+
 require("dotenv").config();
 
 const express = require("express");
@@ -272,6 +280,7 @@ async function requireOwner(req, res, next) {
 
         }
 
+
         req.staffRole =
             role;
 
@@ -308,6 +317,15 @@ async function requireAdministrator(req, res, next) {
                 error:
                     "You must be logged in."
             });
+
+
+        .card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow:
+                0 2px 8px rgba(0,0,0,.08);
 
         }
 
@@ -595,6 +613,7 @@ async function getReactionCounts(userId) {
             counts.ogred++;
         }
 
+
     }
 
     return counts;
@@ -817,6 +836,16 @@ app.post(
                     "Server error."
             });
 
+=======
+        button:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+        }
+
+        .primary {
+            background: #333;
+            color: white;
+>>>>>>> 3478045 (FSDFSDF)
         }
 
     }
@@ -2514,13 +2543,28 @@ app.post(
 
         }
 
+</style>
+
+</head>
+
+
+<body>
+
     }
 );
+
 
 
 // ==================================================
 // REACTIONS
 // ==================================================
+
+    <!-- LOADING -->
+
+    <div
+        id="loading"
+        class="card"
+    >
 
 async function addReaction(
     req,
@@ -2529,6 +2573,7 @@ async function addReaction(
 ) {
 
     try {
+
 
         if (!req.session.user) {
 
@@ -2539,8 +2584,11 @@ async function addReaction(
 
         }
 
+    <!-- NOT STAFF -->
+
         const fromUserId =
             req.session.user.id;
+
 
         const toUserId =
             req.params.id;
@@ -2571,14 +2619,20 @@ async function addReaction(
 
         if (targetError) {
 
+    <!-- STAFF PANEL -->
+
             return res.status(500).json({
                 error:
                     targetError.message
             });
 
+
         }
 
+    <!-- WELCOME -->
+
         if (!targetUser) {
+
 
             return res.status(404).json({
                 error:
@@ -2593,8 +2647,13 @@ async function addReaction(
             .from("reactions")
             .insert({
 
+            <p>
+                Manage ShrekBook users and staff powers.
+            </p>
+
                 from_user_id:
                     fromUserId,
+
 
                 to_user_id:
                     toUserId,
@@ -2603,7 +2662,10 @@ async function addReaction(
 
             });
 
+    <!-- HIERARCHY -->
+
         if (insertError) {
+
 
             if (
                 insertError.code ===
@@ -2612,11 +2674,32 @@ async function addReaction(
 
                 const names = {
 
+            <p>
+                <strong>👑 Owner</strong>
+                — Full control. Protected.
+            </p>
+
                     gyatt:
                         "Gyatt",
 
+
                     cat:
                         "Cat",
+
+            <p>
+                <strong>⚔️ Senior Moderator</strong>
+                — Senior moderation.
+            </p>
+
+            <p>
+                <strong>🔨 Moderator</strong>
+                — Normal moderation.
+            </p>
+
+            <p>
+                <strong>👤 Peasant</strong>
+                — Normal user.
+            </p>
 
                     ogred:
                         "Ogred"
@@ -2628,6 +2711,7 @@ async function addReaction(
                         `You already gave this person a ${names[type]}.`
                 });
 
+
             }
 
             return res.status(500).json({
@@ -2635,7 +2719,10 @@ async function addReaction(
                     insertError.message
             });
 
+        <!-- USER SEARCH -->
+
         }
+
 
         const {
             count,
@@ -2677,7 +2764,10 @@ async function addReaction(
 
         });
 
+        <!-- BANS -->
+
     } catch (error) {
+
 
         console.error(
             `${type.toUpperCase()} ERROR:`,
@@ -2877,7 +2967,10 @@ app.post(
                         "Room name cannot be empty."
                 });
 
+        <!-- ADMINS -->
+
             }
+
 
             if (name.length > 50) {
 
@@ -2907,7 +3000,10 @@ app.post(
                 .select()
                 .single();
 
+        <!-- KICKS -->
+
             if (error) {
+
 
                 return res.status(500).json({
                     error:
@@ -2930,7 +3026,10 @@ app.post(
 
                 });
 
+        <!-- REVOKES -->
+
             if (memberError) {
+
 
                 await supabase
                     .from("chat_rooms")
@@ -2953,10 +3052,13 @@ app.post(
 
         } catch (error) {
 
+</div>
+
             console.error(
                 "CREATE ROOM ERROR:",
                 error
             );
+
 
             res.status(500).json({
                 error:
@@ -2965,8 +3067,11 @@ app.post(
 
         }
 
+<!-- ROLE MODAL -->
+
     }
 );
+
 
 
 app.post(
@@ -3014,8 +3119,9 @@ app.post(
                         "Room not found."
                 });
 
-            }
+        </select>
 
+            
             if (room.is_private) {
 
                 const {
@@ -3049,6 +3155,7 @@ app.post(
                 }
 
             }
+
 
             const {
                 error: joinError
@@ -5715,4 +5822,8 @@ app.listen(
 
     }
 );
+
+</body>
+
+</html>
 
