@@ -19,7 +19,6 @@ const ROLE_POWER = {
     owner: 5
 };
 
-
 const ROLE_NAMES = {
     peasant: "👤 Peasant",
     moderator: "🔨 Moderator",
@@ -51,22 +50,18 @@ function escapeHtml(value) {
 
 function roleName(role) {
 
-    return (
-        ROLE_NAMES[role] ||
-        "👤 Peasant"
-    );
+    return ROLE_NAMES[role] || "👤 Peasant";
 
 }
 
 
 // ==================================================
-// SAFE JSON
+// SAFE JSON RESPONSE
 // ==================================================
 
 async function readJson(response) {
 
-    const text =
-        await response.text();
+    const text = await response.text();
 
     try {
 
@@ -74,9 +69,7 @@ async function readJson(response) {
             ? JSON.parse(text)
             : {};
 
-    }
-
-    catch {
+    } catch {
 
         return {
             error:
@@ -100,22 +93,16 @@ async function checkStaff() {
             await fetch(
                 "/api/admin/me",
                 {
-                    credentials:
-                        "include"
+                    credentials: "include"
                 }
             );
 
-
         const data =
-            await readJson(
-                response
-            );
-
+            await readJson(response);
 
         document
             .getElementById("loading")
-            .classList
-            .add("hidden");
+            .classList.add("hidden");
 
 
         if (
@@ -125,8 +112,7 @@ async function checkStaff() {
 
             document
                 .getElementById("not-staff")
-                .classList
-                .remove("hidden");
+                .classList.remove("hidden");
 
             return;
 
@@ -142,8 +128,7 @@ async function checkStaff() {
 
         document
             .getElementById("staff-panel")
-            .classList
-            .remove("hidden");
+            .classList.remove("hidden");
 
 
         updateWelcome();
@@ -165,7 +150,6 @@ async function checkStaff() {
             "STAFF CHECK ERROR:",
             error
         );
-
 
         document
             .getElementById("loading")
@@ -190,7 +174,6 @@ function updateWelcome() {
             "staff-welcome"
         );
 
-
     welcome.textContent =
         `Welcome, ${roleName(currentUserRole)}. Use your powers wisely. 🏰`;
 
@@ -201,19 +184,14 @@ function updateWelcome() {
 // LOAD USERS
 // ==================================================
 
-async function loadUsers(
-    search = ""
-) {
+async function loadUsers(search = "") {
 
     const container =
         document.getElementById(
             "user-list"
         );
 
-
-    if (!container) {
-        return;
-    }
+    if (!container) return;
 
 
     container.innerHTML =
@@ -232,16 +210,13 @@ async function loadUsers(
             await fetch(
                 url,
                 {
-                    credentials:
-                        "include"
+                    credentials: "include"
                 }
             );
 
 
         const data =
-            await readJson(
-                response
-            );
+            await readJson(response);
 
 
         if (!response.ok) {
@@ -289,11 +264,8 @@ async function loadUsers(
             error
         );
 
-
         container.innerHTML =
-            `<p class="error">
-                ❌ Could not load users.
-            </p>`;
+            "<p class='error'>❌ Could not load users.</p>";
 
     }
 
@@ -311,113 +283,21 @@ function renderUser(user) {
         user.user_id ||
         "";
 
-
     const username =
         user.username ||
         "Unknown";
 
-
     const displayName =
         user.display_name ||
         username;
-
 
     const role =
         user.role ||
         "peasant";
 
 
-    const targetPower =
-        ROLE_POWER[role] ||
-        1;
-
-
-    const myPower =
-        ROLE_POWER[
-            currentUserRole
-        ] ||
-        1;
-
-
     const protectedOwner =
         role === "owner";
-
-
-    const protectedEqual =
-        targetPower >= myPower;
-
-
-    let buttons = "";
-
-
-    if (
-        protectedOwner ||
-        protectedEqual
-    ) {
-
-        buttons = `
-            <button
-                class="secondary"
-                disabled
-            >
-                ${
-                    protectedOwner
-                        ? "👑 Owner Protected"
-                        : "🔒 Protected"
-                }
-            </button>
-        `;
-
-    }
-
-    else {
-
-        buttons = `
-
-            <button
-                class="success"
-                onclick='openRoleModal(${JSON.stringify({
-                    id,
-                    username,
-                    display_name:
-                        displayName,
-                    role
-                }).replace(/'/g, "&#39;")})'
-            >
-                🔄 Change Role
-            </button>
-
-
-            <button
-                class="danger"
-                onclick='kickUser(
-                    ${JSON.stringify(id)},
-                    ${JSON.stringify(displayName)}
-                )'
-            >
-                👢 Kick
-            </button>
-
-
-            ${
-                targetPower > 1
-                    ? `
-                        <button
-                            class="secondary"
-                            onclick='revokeStaff(
-                                ${JSON.stringify(id)},
-                                ${JSON.stringify(displayName)}
-                            )'
-                        >
-                            🔒 Revoke Staff
-                        </button>
-                    `
-                    : ""
-            }
-
-        `;
-
-    }
 
 
     return `
@@ -433,9 +313,7 @@ function renderUser(user) {
             </p>
 
             <span class="role-badge">
-                ${escapeHtml(
-                    roleName(role)
-                )}
+                ${escapeHtml(roleName(role))}
             </span>
 
             <p class="muted">
@@ -444,7 +322,38 @@ function renderUser(user) {
             </p>
 
             <div class="actions">
-                ${buttons}
+
+                ${
+                    protectedOwner
+
+                    ?
+
+                    `
+                    <button
+                        class="secondary"
+                        disabled
+                    >
+                        👑 Owner Protected
+                    </button>
+                    `
+
+                    :
+
+                    `
+                    <button
+                        class="success"
+                        onclick='openRoleModal(${JSON.stringify({
+                            id,
+                            username,
+                            display_name: displayName,
+                            role
+                        })})'
+                    >
+                        🔄 Change Role
+                    </button>
+                    `
+                }
+
             </div>
 
         </div>
@@ -465,7 +374,6 @@ async function searchUsers() {
             "user-search"
         );
 
-
     await loadUsers(
         input.value.trim()
     );
@@ -479,15 +387,10 @@ async function searchUsers() {
 
 function openRoleModal(user) {
 
-    if (!user?.id) {
-        return;
-    }
+    if (!user?.id) return;
 
 
-    if (
-        user.role ===
-        "owner"
-    ) {
+    if (user.role === "owner") {
 
         alert(
             "👑 The owner is protected."
@@ -498,8 +401,7 @@ function openRoleModal(user) {
     }
 
 
-    selectedRoleUser =
-        user;
+    selectedRoleUser = user;
 
 
     document
@@ -517,9 +419,7 @@ function openRoleModal(user) {
             "role-current"
         )
         .textContent =
-            roleName(
-                user.role
-            );
+            roleName(user.role);
 
 
     document
@@ -527,8 +427,7 @@ function openRoleModal(user) {
             "role-select"
         )
         .value =
-            user.role ||
-            "peasant";
+            user.role || "peasant";
 
 
     updateRoleWarning();
@@ -538,24 +437,20 @@ function openRoleModal(user) {
         .getElementById(
             "role-modal"
         )
-        .classList
-        .remove("hidden");
+        .classList.remove("hidden");
 
 }
 
 
 function closeRoleModal() {
 
-    selectedRoleUser =
-        null;
-
+    selectedRoleUser = null;
 
     document
         .getElementById(
             "role-modal"
         )
-        .classList
-        .add("hidden");
+        .classList.add("hidden");
 
 }
 
@@ -571,20 +466,16 @@ function updateRoleWarning() {
             "role-select"
         );
 
-
     const warning =
         document.getElementById(
             "role-warning"
         );
 
 
-    if (
-        select.value ===
-        "owner"
-    ) {
+    if (select.value === "owner") {
 
         warning.textContent =
-            "⚠️ Owner cannot be assigned.";
+            "⚠️ Owner cannot be assigned through this panel.";
 
         return;
 
@@ -593,8 +484,7 @@ function updateRoleWarning() {
 
     if (
         selectedRoleUser &&
-        select.value ===
-            selectedRoleUser.role
+        select.value === selectedRoleUser.role
     ) {
 
         warning.textContent =
@@ -606,9 +496,7 @@ function updateRoleWarning() {
 
 
     warning.textContent =
-        `Change this user to ${roleName(
-            select.value
-        )}?`;
+        `Change this user to ${roleName(select.value)}?`;
 
 }
 
@@ -625,20 +513,15 @@ async function saveRole() {
 
 
     const role =
-        document
-            .getElementById(
-                "role-select"
-            )
-            .value;
+        document.getElementById(
+            "role-select"
+        ).value;
 
 
-    if (
-        role ===
-        "owner"
-    ) {
+    if (role === "owner") {
 
         alert(
-            "👑 Owner cannot be assigned."
+            "👑 Owner cannot be assigned here."
         );
 
         return;
@@ -675,8 +558,7 @@ async function saveRole() {
                 "/api/admin/role",
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
 
                     headers: {
                         "Content-Type":
@@ -698,9 +580,7 @@ async function saveRole() {
 
 
         const data =
-            await readJson(
-                response
-            );
+            await readJson(response);
 
 
         if (!response.ok) {
@@ -735,21 +615,17 @@ async function saveRole() {
                 .trim()
         );
 
-
-        await loadAdmins();
-
     }
 
     catch (error) {
 
         console.error(
-            "ROLE ERROR:",
+            "CHANGE ROLE ERROR:",
             error
         );
 
-
         alert(
-            "❌ Could not contact server."
+            "❌ Could not contact the server."
         );
 
     }
@@ -758,223 +634,7 @@ async function saveRole() {
 
 
 // ==================================================
-// KICK USER
-// ==================================================
-
-async function kickUser(
-    userId,
-    displayName
-) {
-
-    const reason =
-        prompt(
-            `Why are you kicking ${displayName}?`
-        );
-
-
-    if (
-        reason ===
-        null
-    ) {
-        return;
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/admin/kicks",
-                {
-
-                    method:
-                        "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    credentials:
-                        "include",
-
-                    body:
-                        JSON.stringify({
-
-                            user_id:
-                                userId,
-
-                            reason:
-                                reason.trim()
-
-                        })
-
-                }
-            );
-
-
-        const data =
-            await readJson(
-                response
-            );
-
-
-        if (!response.ok) {
-
-            alert(
-                "❌ " +
-                (
-                    data.error ||
-                    "Kick failed."
-                )
-            );
-
-            return;
-
-        }
-
-
-        alert(
-            `👢 ${displayName} was kicked.`
-        );
-
-
-        await loadKicks();
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "KICK ERROR:",
-            error
-        );
-
-
-        alert(
-            "❌ Could not contact server."
-        );
-
-    }
-
-}
-
-
-// ==================================================
-// REVOKE STAFF
-// ==================================================
-
-async function revokeStaff(
-    userId,
-    displayName
-) {
-
-    const reason =
-        prompt(
-            `Why are you revoking ${displayName}'s staff powers?`
-        );
-
-
-    if (
-        reason ===
-        null
-    ) {
-        return;
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/admin/revoke",
-                {
-
-                    method:
-                        "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    credentials:
-                        "include",
-
-                    body:
-                        JSON.stringify({
-
-                            user_id:
-                                userId,
-
-                            reason:
-                                reason.trim()
-
-                        })
-
-                }
-            );
-
-
-        const data =
-            await readJson(
-                response
-            );
-
-
-        if (!response.ok) {
-
-            alert(
-                "❌ " +
-                (
-                    data.error ||
-                    "Revocation failed."
-                )
-            );
-
-            return;
-
-        }
-
-
-        alert(
-            `🔒 ${displayName}'s staff powers were revoked.`
-        );
-
-
-        await loadUsers(
-            document
-                .getElementById(
-                    "user-search"
-                )
-                .value
-                .trim()
-        );
-
-
-        await loadAdmins();
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "REVOKE ERROR:",
-            error
-        );
-
-
-        alert(
-            "❌ Could not contact server."
-        );
-
-    }
-
-}
-
-
-// ==================================================
-// LOAD BANS
+// BANS
 // ==================================================
 
 async function loadBans() {
@@ -991,16 +651,13 @@ async function loadBans() {
             await fetch(
                 "/api/admin/bans",
                 {
-                    credentials:
-                        "include"
+                    credentials: "include"
                 }
             );
 
 
         const data =
-            await readJson(
-                response
-            );
+            await readJson(response);
 
 
         if (!response.ok) {
@@ -1019,7 +676,9 @@ async function loadBans() {
 
 
         const bans =
-            data.bans || [];
+            Array.isArray(data)
+                ? data
+                : data.bans || [];
 
 
         const active =
@@ -1081,7 +740,7 @@ async function loadBans() {
     catch (error) {
 
         console.error(
-            "BANS ERROR:",
+            "LOAD BANS ERROR:",
             error
         );
 
@@ -1101,21 +760,15 @@ async function banEmail() {
 
     const email =
         document
-            .getElementById(
-                "ban-email"
-            )
+            .getElementById("ban-email")
             .value
             .trim();
-
 
     const reason =
         document
-            .getElementById(
-                "ban-reason"
-            )
+            .getElementById("ban-reason")
             .value
             .trim();
-
 
     const status =
         document.getElementById(
@@ -1144,8 +797,7 @@ async function banEmail() {
                 "/api/admin/bans",
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
 
                     headers: {
                         "Content-Type":
@@ -1166,18 +818,13 @@ async function banEmail() {
 
 
         const data =
-            await readJson(
-                response
-            );
+            await readJson(response);
 
 
         if (!response.ok) {
 
             status.textContent =
-                `❌ ${
-                    data.error ||
-                    "Ban failed."
-                }`;
+                `❌ ${data.error || "Ban failed."}`;
 
             return;
 
@@ -1187,18 +834,12 @@ async function banEmail() {
         status.textContent =
             "✅ User banned.";
 
-
         document
-            .getElementById(
-                "ban-email"
-            )
+            .getElementById("ban-email")
             .value = "";
 
-
         document
-            .getElementById(
-                "ban-reason"
-            )
+            .getElementById("ban-reason")
             .value = "";
 
 
@@ -1213,7 +854,6 @@ async function banEmail() {
             error
         );
 
-
         status.textContent =
             "❌ Server error.";
 
@@ -1226,21 +866,13 @@ async function banEmail() {
 // UNBAN
 // ==================================================
 
-async function unban(
-    encodedId
-) {
+async function unban(encodedId) {
 
     const id =
-        decodeURIComponent(
-            encodedId
-        );
+        decodeURIComponent(encodedId);
 
 
-    if (
-        !confirm(
-            "Unban this user?"
-        )
-    ) {
+    if (!confirm("Unban this user?")) {
         return;
     }
 
@@ -1251,21 +883,14 @@ async function unban(
             await fetch(
                 `/api/admin/bans/${encodeURIComponent(id)}/unban`,
                 {
-
-                    method:
-                        "POST",
-
-                    credentials:
-                        "include"
-
+                    method: "POST",
+                    credentials: "include"
                 }
             );
 
 
         const data =
-            await readJson(
-                response
-            );
+            await readJson(response);
 
 
         if (!response.ok) {
@@ -1294,10 +919,7 @@ async function unban(
             error
         );
 
-
-        alert(
-            "❌ Server error."
-        );
+        alert("❌ Server error.");
 
     }
 
@@ -1305,7 +927,7 @@ async function unban(
 
 
 // ==================================================
-// LOAD ADMINS
+// ADMINS
 // ==================================================
 
 async function loadAdmins() {
@@ -1322,16 +944,13 @@ async function loadAdmins() {
             await fetch(
                 "/api/admin/admins",
                 {
-                    credentials:
-                        "include"
+                    credentials: "include"
                 }
             );
 
 
         const data =
-            await readJson(
-                response
-            );
+            await readJson(response);
 
 
         if (!response.ok) {
@@ -1381,7 +1000,8 @@ async function loadAdmins() {
                         <p>
                             ${escapeHtml(
                                 roleName(
-                                    admin.role
+                                    admin.role ||
+                                    "administrator"
                                 )
                             )}
                         </p>
@@ -1396,10 +1016,9 @@ async function loadAdmins() {
     catch (error) {
 
         console.error(
-            "ADMINS ERROR:",
+            "LOAD ADMINS ERROR:",
             error
         );
-
 
         container.innerHTML =
             "<p class='error'>❌ Could not load administrators.</p>";
@@ -1422,7 +1041,6 @@ async function addAdmin() {
             )
             .value
             .trim();
-
 
     const status =
         document.getElementById(
@@ -1451,8 +1069,7 @@ async function addAdmin() {
                 "/api/admin/admins",
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
 
                     headers: {
                         "Content-Type":
@@ -1464,8 +1081,7 @@ async function addAdmin() {
 
                     body:
                         JSON.stringify({
-                            user_id:
-                                userId
+                            user_id: userId
                         })
 
                 }
@@ -1473,18 +1089,13 @@ async function addAdmin() {
 
 
         const data =
-            await readJson(
-                response
-            );
+            await readJson(response);
 
 
         if (!response.ok) {
 
             status.textContent =
-                `❌ ${
-                    data.error ||
-                    "Could not add administrator."
-                }`;
+                `❌ ${data.error || "Could not add administrator."}`;
 
             return;
 
@@ -1494,7 +1105,6 @@ async function addAdmin() {
         status.textContent =
             "✅ Administrator added.";
 
-
         document
             .getElementById(
                 "admin-user-id"
@@ -1503,7 +1113,6 @@ async function addAdmin() {
 
 
         await loadAdmins();
-        await loadUsers();
 
     }
 
@@ -1514,7 +1123,6 @@ async function addAdmin() {
             error
         );
 
-
         status.textContent =
             "❌ Server error.";
 
@@ -1524,7 +1132,7 @@ async function addAdmin() {
 
 
 // ==================================================
-// LOAD KICKS
+// KICKS
 // ==================================================
 
 async function loadKicks() {
@@ -1541,16 +1149,13 @@ async function loadKicks() {
             await fetch(
                 "/api/admin/kicks",
                 {
-                    credentials:
-                        "include"
+                    credentials: "include"
                 }
             );
 
 
         const data =
-            await readJson(
-                response
-            );
+            await readJson(response);
 
 
         if (!response.ok) {
@@ -1569,7 +1174,9 @@ async function loadKicks() {
 
 
         const kicks =
-            data.kicks || [];
+            Array.isArray(data)
+                ? data
+                : data.kicks || [];
 
 
         if (!kicks.length) {
@@ -1610,6 +1217,7 @@ async function loadKicks() {
 
                         <p class="muted">
                             ${escapeHtml(
+                                kick.kicked_at ||
                                 kick.created_at ||
                                 ""
                             )}
@@ -1625,10 +1233,9 @@ async function loadKicks() {
     catch (error) {
 
         console.error(
-            "KICKS ERROR:",
+            "LOAD KICKS ERROR:",
             error
         );
-
 
         container.innerHTML =
             "<p class='error'>❌ Could not load kicks.</p>";
@@ -1639,7 +1246,7 @@ async function loadKicks() {
 
 
 // ==================================================
-// LOAD REVOKES
+// REVOKES
 // ==================================================
 
 async function loadRevokes() {
@@ -1656,16 +1263,13 @@ async function loadRevokes() {
             await fetch(
                 "/api/admin/revokes",
                 {
-                    credentials:
-                        "include"
+                    credentials: "include"
                 }
             );
 
 
         const data =
-            await readJson(
-                response
-            );
+            await readJson(response);
 
 
         if (!response.ok) {
@@ -1684,13 +1288,15 @@ async function loadRevokes() {
 
 
         const revokes =
-            data.revokes || [];
+            Array.isArray(data)
+                ? data
+                : data.revokes || [];
 
 
         if (!revokes.length) {
 
             container.innerHTML =
-                "<p>No staff revocations recorded.</p>";
+                "<p>No staff revocations.</p>";
 
             return;
 
@@ -1732,6 +1338,14 @@ async function loadRevokes() {
                             )}
                         </p>
 
+                        <p class="muted">
+                            ${escapeHtml(
+                                revoke.revoked_at ||
+                                revoke.created_at ||
+                                ""
+                            )}
+                        </p>
+
                     </div>
 
                 `
@@ -1742,10 +1356,9 @@ async function loadRevokes() {
     catch (error) {
 
         console.error(
-            "REVOKES ERROR:",
+            "LOAD REVOKES ERROR:",
             error
         );
-
 
         container.innerHTML =
             "<p class='error'>❌ Could not load revocations.</p>";
@@ -1766,10 +1379,8 @@ async function logout() {
         await fetch(
             "/api/logout",
             {
-                method:
-                    "POST",
-                credentials:
-                    "include"
+                method: "POST",
+                credentials: "include"
             }
         );
 
@@ -1777,8 +1388,7 @@ async function logout() {
 
     finally {
 
-        window.location.href =
-            "/";
+        window.location.href = "/";
 
     }
 
@@ -1829,8 +1439,7 @@ document.addEventListener(
             event => {
 
                 if (
-                    event.key ===
-                        "Enter" &&
+                    event.key === "Enter" &&
                     document.activeElement?.id ===
                         "user-search"
                 ) {
