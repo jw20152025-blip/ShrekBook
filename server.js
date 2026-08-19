@@ -86,17 +86,22 @@ function normalizeEmail(email) {
 }
 
 // ==================================================
-// STAFF ROLE SYSTEM
+// LOGIN MIDDLEWARE
 // ==================================================
-//
-// IMPORTANT:
-// The admins table is the ONLY source of staff roles.
-//
-// admins:
-//   user_id
-//   role
-//
-// profiles.role is NOT used.
+
+function requireLogin(req, res, next) {
+
+    if (!req.session.user) {
+        return res.status(401).json({
+            error: "You must be logged in."
+        });
+    }
+
+    next();
+}
+
+// ==================================================
+// STAFF ROLE SYSTEM
 // ==================================================
 
 const STAFF_ROLES = [
@@ -106,34 +111,10 @@ const STAFF_ROLES = [
     "moderator"
 ];
 
-const ALL_ROLES = [
-    "owner",
-    "administrator",
-    "senior_moderator",
-    "moderator",
-    "peasant"
-];
-
-const ROLE_LEVEL = {
-    peasant: 0,
-    moderator: 1,
-    senior_moderator: 2,
-    administrator: 3,
-    owner: 4
-};
-
 async function getUserRole(userId) {
 
     if (!userId) {
         return "peasant";
-    }
-
-    // OWNER_ID is an emergency/configured owner override.
-    if (
-        process.env.OWNER_ID &&
-        userId === process.env.OWNER_ID
-    ) {
-        return "owner";
     }
 
     const {
@@ -146,7 +127,6 @@ async function getUserRole(userId) {
         .maybeSingle();
 
     if (error) {
-
         console.error(
             "GET USER ROLE ERROR:",
             error
@@ -159,210 +139,7 @@ async function getUserRole(userId) {
         return "peasant";
     }
 
-    if (
-        !ALL_ROLES.includes(
-            data.role
-        )
-    ) {
-        return "peasant";
-    }
-
-    return data.role;
-}
-
-// ==================================================
-// REQUIRE LOGIN
-// ==================================================
-
-function requireLogin(req, res, next) {
-
-    if (!req.session.user) {
-
-        return res.status(401).json({
-            error:
-                "You must be logged in."
-        });
-
-    }
-
-    next();
-}
-
-// ==================================================
-// REQUIRE STAFF
-// ==================================================
-
-async function requireStaff(
-    req,
-    res,
-    next
-) {
-
-    try {
-
-        if (!req.session.user) {
-
-            return res.status(401).json({
-                error:
-                    "You must be logged in."
-            });
-
-        }
-
-        const role =
-            await getUserRole(
-                req.session.user.id
-            );
-
-        if (
-            !STAFF_ROLES.includes(
-                role
-            )
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "Staff access required."
-            });
-
-        }
-
-        req.staffRole =
-            role;
-
-        next();
-
-    } catch (error) {
-
-        console.error(
-            "REQUIRE STAFF ERROR:",
-            error
-        );
-
-        return res.status(500).json({
-            error:
-                "Could not verify staff permissions."
-        });
-
-    }
-
-}
-
-// ==================================================
-// REQUIRE OWNER
-// ==================================================
-
-async function requireOwner(
-    req,
-    res,
-    next
-) {
-
-    try {
-
-        if (!req.session.user) {
-
-            return res.status(401).json({
-                error:
-                    "You must be logged in."
-            });
-
-        }
-
-        const role =
-            await getUserRole(
-                req.session.user.id
-            );
-
-        if (
-            role !== "owner"
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "Owner access required."
-            });
-
-        }
-
-        req.staffRole =
-            role;
-
-        next();
-
-    } catch (error) {
-
-        console.error(
-            "REQUIRE OWNER ERROR:",
-            error
-        );
-
-        return res.status(500).json({
-            error:
-                "Could not verify owner permissions."
-        });
-
-    }
-
-}
-
-// ==================================================
-// REQUIRE ADMINISTRATOR OR HIGHER
-// ==================================================
-
-async function requireAdministrator(
-    req,
-    res,
-    next
-) {
-
-    try {
-
-        if (!req.session.user) {
-
-            return res.status(401).json({
-                error:
-                    "You must be logged in."
-            });
-
-        }
-
-        const role =
-            await getUserRole(
-                req.session.user.id
-            );
-
-        if (
-            ROLE_LEVEL[role] <
-            ROLE_LEVEL.administrator
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "Administrator access required."
-            });
-
-        }
-
-        req.staffRole =
-            role;
-
-        next();
-
-    } catch (error) {
-
-        console.error(
-            "REQUIRE ADMINISTRATOR ERROR:",
-            error
-        );
-
-        return res.status(500).json({
-            error:
-                "Could not verify administrator permissions."
-        });
-
-    }
-
+    return data.role || "administrator";
 }
 
 // ==================================================
@@ -375,14 +152,25 @@ async function isAdmin(userId) {
         return false;
     }
 
-    const role =
-        await getUserRole(
-            userId
+    const {
+        data,
+        error
+    } = await supabase
+        .from("admins")
+        .select("user_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (error) {
+        console.error(
+            "ADMIN CHECK ERROR:",
+            error
         );
 
-    return STAFF_ROLES.includes(
-        role
-    );
+        return false;
+    }
+
+    return !!data;
 }
 
 async function getActiveBanByUserId(userId) {
@@ -405,25 +193,15 @@ async function getActiveBanByUserId(userId) {
             banned_by,
             active
         `)
-        .eq(
-            "user_id",
-            userId
-        )
-        .eq(
-            "active",
-            true
-        )
-        .order(
-            "banned_at",
-            {
-                ascending: false
-            }
-        )
+        .eq("user_id", userId)
+        .eq("active", true)
+        .order("banned_at", {
+            ascending: false
+        })
         .limit(1)
         .maybeSingle();
 
     if (error) {
-
         console.error(
             "BAN USER CHECK ERROR:",
             error
@@ -438,9 +216,7 @@ async function getActiveBanByUserId(userId) {
 async function getActiveBanByEmail(email) {
 
     const normalized =
-        normalizeEmail(
-            email
-        );
+        normalizeEmail(email);
 
     if (!normalized) {
         return null;
@@ -460,25 +236,15 @@ async function getActiveBanByEmail(email) {
             banned_by,
             active
         `)
-        .eq(
-            "email",
-            normalized
-        )
-        .eq(
-            "active",
-            true
-        )
-        .order(
-            "banned_at",
-            {
-                ascending: false
-            }
-        )
+        .eq("email", normalized)
+        .eq("active", true)
+        .order("banned_at", {
+            ascending: false
+        })
         .limit(1)
         .maybeSingle();
 
     if (error) {
-
         console.error(
             "BAN EMAIL CHECK ERROR:",
             error
@@ -490,23 +256,300 @@ async function getActiveBanByEmail(email) {
     return data;
 }
 
-async function getActiveBan(
-    userId,
-    email
-) {
+async function getActiveBan(userId, email) {
 
     const userBan =
-        await getActiveBanByUserId(
-            userId
-        );
+        await getActiveBanByUserId(userId);
 
     if (userBan) {
         return userBan;
     }
 
-    return await getActiveBanByEmail(
-        email
-    );
+    return await getActiveBanByEmail(email);
+}
+
+// ==================================================
+// KICK HELPERS
+// ==================================================
+
+async function getActiveKickByUserId(userId) {
+
+    if (!userId) {
+        return null;
+    }
+
+    const {
+        data,
+        error
+    } = await supabase
+        .from("kicks")
+        .select(`
+            id,
+            user_id,
+            reason,
+            kicked_at,
+            kicked_by,
+            active
+        `)
+        .eq("user_id", userId)
+        .eq("active", true)
+        .order("kicked_at", {
+            ascending: false
+        })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+
+        // If the table does not exist yet,
+        // do not destroy the entire website.
+        if (
+            error.code === "42P01" ||
+            error.message?.toLowerCase().includes(
+                "relation"
+            )
+        ) {
+            return null;
+        }
+
+        console.error(
+            "KICK CHECK ERROR:",
+            error
+        );
+
+        return null;
+    }
+
+    return data;
+}
+
+// ==================================================
+// STAFF REVOCATION HELPERS
+// ==================================================
+
+async function getActiveRevocationByUserId(userId) {
+
+    if (!userId) {
+        return null;
+    }
+
+    const {
+        data,
+        error
+    } = await supabase
+        .from("staff_revocations")
+        .select(`
+            id,
+            user_id,
+            reason,
+            revoked_at,
+            revoked_by,
+            active
+        `)
+        .eq("user_id", userId)
+        .eq("active", true)
+        .order("revoked_at", {
+            ascending: false
+        })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+
+        if (
+            error.code === "42P01" ||
+            error.message?.toLowerCase().includes(
+                "relation"
+            )
+        ) {
+            return null;
+        }
+
+        console.error(
+            "REVOCATION CHECK ERROR:",
+            error
+        );
+
+        return null;
+    }
+
+    return data;
+}
+
+// ==================================================
+// REQUIRE STAFF
+// ==================================================
+
+async function requireStaff(
+    req,
+    res,
+    next
+) {
+
+    try {
+
+        if (!req.session.user) {
+            return res.status(401).json({
+                error:
+                    "You must be logged in."
+            });
+        }
+
+        const role =
+            await getUserRole(
+                req.session.user.id
+            );
+
+        if (
+            !STAFF_ROLES.includes(role)
+        ) {
+            return res.status(403).json({
+                error:
+                    "Staff access required."
+            });
+        }
+
+        req.staffRole = role;
+
+        next();
+
+    } catch (error) {
+
+        console.error(
+            "REQUIRE STAFF ERROR:",
+            error
+        );
+
+        return res.status(500).json({
+            error:
+                "Could not verify staff permissions."
+        });
+    }
+}
+
+// ==================================================
+// REQUIRE ADMIN
+// ==================================================
+
+async function requireAdmin(
+    req,
+    res,
+    next
+) {
+
+    try {
+
+        if (!req.session.user) {
+            return res.status(401).json({
+                error:
+                    "You must be logged in."
+            });
+        }
+
+        const userId =
+            req.session.user.id;
+
+        // OWNER ALWAYS HAS STAFF ACCESS
+        if (
+            process.env.OWNER_ID &&
+            userId === process.env.OWNER_ID
+        ) {
+            req.staffRole = "owner";
+            return next();
+        }
+
+        const role =
+            await getUserRole(
+                userId
+            );
+
+        if (
+            !STAFF_ROLES.includes(role)
+        ) {
+            return res.status(403).json({
+                error:
+                    "Staff access required."
+            });
+        }
+
+        req.staffRole = role;
+
+        next();
+
+    } catch (error) {
+
+        console.error(
+            "REQUIRE ADMIN ERROR:",
+            error
+        );
+
+        return res.status(500).json({
+            error:
+                "Could not verify staff permissions."
+        });
+    }
+}
+
+// ==================================================
+// REQUIRE OWNER
+// ==================================================
+
+async function requireOwner(
+    req,
+    res,
+    next
+) {
+
+    try {
+
+        if (!req.session.user) {
+            return res.status(401).json({
+                error:
+                    "You must be logged in."
+            });
+        }
+
+        const userId =
+            req.session.user.id;
+
+        if (
+            process.env.OWNER_ID &&
+            userId === process.env.OWNER_ID
+        ) {
+            req.staffRole = "owner";
+            return next();
+        }
+
+        const role =
+            await getUserRole(
+                userId
+            );
+
+        if (
+            role !== "owner"
+        ) {
+            return res.status(403).json({
+                error:
+                    "Owner access required."
+            });
+        }
+
+        req.staffRole = role;
+
+        next();
+
+    } catch (error) {
+
+        console.error(
+            "REQUIRE OWNER ERROR:",
+            error
+        );
+
+        return res.status(500).json({
+            error:
+                "Could not verify owner permissions."
+        });
+    }
 }
 
 // ==================================================
@@ -546,21 +589,15 @@ app.use(
 
             if (ban) {
 
-                req.session.destroy(
-                    () => {}
-                );
+                req.session.destroy(() => {});
 
                 return res.status(403).json({
-
                     error:
                         "Your account has been banned.",
-
                     reason:
                         ban.reason ||
                         "No reason provided."
-
                 });
-
             }
 
             next();
@@ -574,7 +611,6 @@ app.use(
 
             next();
         }
-
     }
 );
 
@@ -582,9 +618,7 @@ app.use(
 // REACTION COUNTS
 // ==================================================
 
-async function getReactionCounts(
-    userId
-) {
+async function getReactionCounts(userId) {
 
     const counts = {
         gyatt: 0,
@@ -632,7 +666,6 @@ async function getReactionCounts(
         ) {
             counts.ogred++;
         }
-
     }
 
     return counts;
@@ -706,12 +739,10 @@ app.post(
                 !email ||
                 !password
             ) {
-
                 return res.status(400).json({
                     error:
                         "Username, email, and password are required."
                 });
-
             }
 
             const emailBan =
@@ -720,12 +751,10 @@ app.post(
                 );
 
             if (emailBan) {
-
                 return res.status(403).json({
                     error:
                         "This email address is banned from ShrekBook."
                 });
-
             }
 
             const {
@@ -741,46 +770,34 @@ app.post(
                 .maybeSingle();
 
             if (usernameError) {
-
                 return res.status(500).json({
                     error:
                         usernameError.message
                 });
-
             }
 
             if (existing) {
-
                 return res.status(400).json({
                     error:
                         "That username is already taken."
                 });
-
             }
 
             const {
                 data: authData,
                 error: authError
             } =
-                await supabase.auth.admin
-                    .createUser({
-
-                        email,
-
-                        password,
-
-                        email_confirm:
-                            true
-
-                    });
+                await supabase.auth.admin.createUser({
+                    email,
+                    password,
+                    email_confirm: true
+                });
 
             if (authError) {
-
                 return res.status(400).json({
                     error:
                         authError.message
                 });
-
             }
 
             const userId =
@@ -789,33 +806,21 @@ app.post(
             const {
                 data: profile,
                 error: profileError
-            } =
-                await supabase
-                    .from("profiles")
-                    .insert({
-
-                        id:
-                            userId,
-
+            } = await supabase
+                .from("profiles")
+                .insert({
+                    id: userId,
+                    username,
+                    display_name:
+                        display_name ||
                         username,
-
-                        display_name:
-                            display_name ||
-                            username,
-
-                        avatar:
-                            null,
-
-                        bio:
-                            "",
-
-                        last_seen:
-                            new Date()
-                                .toISOString()
-
-                    })
-                    .select()
-                    .single();
+                    avatar: null,
+                    bio: "",
+                    last_seen:
+                        new Date().toISOString()
+                })
+                .select()
+                .single();
 
             if (profileError) {
 
@@ -828,7 +833,6 @@ app.post(
                     error:
                         profileError.message
                 });
-
             }
 
             res.status(201).json({
@@ -836,14 +840,12 @@ app.post(
                 success: true,
 
                 user: {
-
                     ...profile,
 
                     avatar:
                         getAvatar(
                             profile.avatar
                         )
-
                 }
 
             });
@@ -859,9 +861,7 @@ app.post(
                 error:
                     "Server error."
             });
-
         }
-
     }
 );
 
@@ -890,12 +890,10 @@ app.post(
                 !email ||
                 !password
             ) {
-
                 return res.status(400).json({
                     error:
                         "Email and password are required."
                 });
-
             }
 
             const emailBan =
@@ -904,42 +902,29 @@ app.post(
                 );
 
             if (emailBan) {
-
                 return res.status(403).json({
-
                     error:
                         "This email address is banned from ShrekBook.",
-
                     reason:
                         emailBan.reason ||
                         "No reason provided."
-
                 });
-
             }
 
             const {
                 data: authData,
                 error: authError
             } =
-                await supabase.auth
-                    .signInWithPassword({
-
-                        email,
-
-                        password
-
-                    });
-
-            if (authError) {
-
-                return res.status(401).json({
-
-                    error:
-                        authError.message
-
+                await supabase.auth.signInWithPassword({
+                    email,
+                    password
                 });
 
+            if (authError) {
+                return res.status(401).json({
+                    error:
+                        authError.message
+                });
             }
 
             const authUser =
@@ -951,18 +936,13 @@ app.post(
                 );
 
             if (userBan) {
-
                 return res.status(403).json({
-
                     error:
                         "Your account has been banned.",
-
                     reason:
                         userBan.reason ||
                         "No reason provided."
-
                 });
-
             }
 
             let {
@@ -979,14 +959,10 @@ app.post(
                     .maybeSingle();
 
             if (profileError) {
-
                 return res.status(500).json({
-
                     error:
                         profileError.message
-
                 });
-
             }
 
             if (!profile) {
@@ -1002,10 +978,7 @@ app.post(
                             /[^a-z0-9_]/g,
                             ""
                         )
-                        .slice(
-                            0,
-                            20
-                        );
+                        .slice(0, 20);
 
                 if (!username) {
                     username = "user";
@@ -1047,7 +1020,6 @@ app.post(
                     await supabase
                         .from("profiles")
                         .insert({
-
                             id:
                                 authUser.id,
 
@@ -1061,24 +1033,18 @@ app.post(
 
                             bio:
                                 ""
-
                         })
                         .select()
                         .single();
 
                 if (createError) {
-
                     return res.status(500).json({
-
                         error:
                             createError.message
-
                     });
-
                 }
 
-                profile =
-                    created;
+                profile = created;
             }
 
             req.session.user = {
@@ -1108,12 +1074,9 @@ app.post(
                         );
 
                         return res.status(500).json({
-
                             error:
                                 "Could not save login session."
-
                         });
-
                     }
 
                     res.json({
@@ -1145,14 +1108,10 @@ app.post(
             );
 
             res.status(500).json({
-
                 error:
                     "Server error."
-
             });
-
         }
-
     }
 );
 
@@ -1168,12 +1127,10 @@ app.post(
             error => {
 
                 if (error) {
-
                     return res.status(500).json({
                         error:
                             "Logout failed."
                     });
-
                 }
 
                 res.clearCookie(
@@ -1183,10 +1140,8 @@ app.post(
                 res.json({
                     success: true
                 });
-
             }
         );
-
     }
 );
 
@@ -1201,35 +1156,27 @@ app.get(
         try {
 
             if (!req.session.user) {
-
                 return res.json({
                     loggedIn: false
                 });
-
             }
 
             const {
                 data,
                 error
-            } =
-                await supabase
-                    .from("profiles")
-                    .select("*")
-                    .eq(
-                        "id",
-                        req.session.user.id
-                    )
-                    .single();
+            } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq(
+                    "id",
+                    req.session.user.id
+                )
+                .single();
 
-            if (
-                error ||
-                !data
-            ) {
-
+            if (error || !data) {
                 return res.json({
                     loggedIn: false
                 });
-
             }
 
             const reactions =
@@ -1242,25 +1189,21 @@ app.get(
                     data.id
                 );
 
-            const staff =
-                STAFF_ROLES.includes(
-                    role
-                );
-
             res.json({
 
-                loggedIn:
-                    true,
+                loggedIn: true,
 
                 isAdmin:
-                    staff,
+                    STAFF_ROLES.includes(
+                        role
+                    ),
 
                 isStaff:
-                    staff,
+                    STAFF_ROLES.includes(
+                        role
+                    ),
 
-                role:
-
-                    role,
+                role,
 
                 user: {
 
@@ -1295,18 +1238,74 @@ app.get(
                 error:
                     "Server error."
             });
-
         }
-
     }
 );
 
 // ==================================================
-// ADMIN STATUS
+// ADMIN CHECK
 // ==================================================
 
 app.get(
     "/api/admin/check",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.user) {
+                return res.status(401).json({
+                    isAdmin: false,
+                    isStaff: false,
+                    error:
+                        "Not logged in."
+                });
+            }
+
+            const role =
+                await getUserRole(
+                    req.session.user.id
+                );
+
+            const staff =
+                STAFF_ROLES.includes(
+                    role
+                );
+
+            return res.json({
+
+                isAdmin:
+                    staff,
+
+                isStaff:
+                    staff,
+
+                role
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "ADMIN CHECK ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                isAdmin: false,
+                isStaff: false,
+                error:
+                    "Could not check administrator status."
+            });
+        }
+    }
+);
+
+// ==================================================
+// ADMIN ME
+// ==================================================
+
+app.get(
+    "/api/admin/me",
     requireLogin,
     async (req, res) => {
 
@@ -1320,90 +1319,24 @@ app.get(
                     userId
                 );
 
-            const staff =
+            const isStaff =
                 STAFF_ROLES.includes(
                     role
                 );
 
             res.json({
 
-                isAdmin:
-                    staff,
-
-                isStaff:
-                    staff,
-
-                role:
-                    role,
-
-                userId:
-                    userId
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "ADMIN CHECK ERROR:",
-                error
-            );
-
-            res.status(500).json({
+                success: true,
 
                 isAdmin:
-                    false,
+                    isStaff,
 
                 isStaff:
-                    false,
+                    isStaff,
 
-                role:
-                    "peasant",
+                userId,
 
-                error:
-                    "Could not check administrator status."
-
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// ADMIN ME
-// ==================================================
-
-app.get(
-    "/api/admin/me",
-    requireStaff,
-    async (req, res) => {
-
-        try {
-
-            const userId =
-                req.session.user.id;
-
-            const role =
-                await getUserRole(
-                    userId
-                );
-
-            res.json({
-
-                success:
-                    true,
-
-                isAdmin:
-                    true,
-
-                isStaff:
-                    true,
-
-                userId:
-                    userId,
-
-                role:
-                    role
+                role
 
             });
 
@@ -1418,9 +1351,7 @@ app.get(
                 error:
                     "Could not determine staff role."
             });
-
         }
-
     }
 );
 
@@ -1437,52 +1368,46 @@ app.get(
             const {
                 data: users,
                 error: usersError
-            } =
-                await supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar,
-                        bio,
-                        created_at,
-                        last_seen
-                    `)
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
-                    );
+            } = await supabase
+                .from("profiles")
+                .select(`
+                    id,
+                    username,
+                    display_name,
+                    avatar,
+                    bio,
+                    created_at,
+                    last_seen
+                `)
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                );
 
             if (usersError) {
-
                 return res.status(500).json({
                     error:
                         usersError.message
                 });
-
             }
 
             const {
                 data: reactions,
                 error: reactionsError
-            } =
-                await supabase
-                    .from("reactions")
-                    .select(`
-                        to_user_id,
-                        type
-                    `);
+            } = await supabase
+                .from("reactions")
+                .select(`
+                    to_user_id,
+                    type
+                `);
 
             if (reactionsError) {
-
                 return res.status(500).json({
                     error:
                         reactionsError.message
                 });
-
             }
 
             const reactionCounts = {};
@@ -1498,39 +1423,33 @@ app.get(
                 if (
                     !reactionCounts[userId]
                 ) {
-
                     reactionCounts[userId] = {
                         gyatt: 0,
                         cat: 0,
                         ogred: 0
                     };
-
                 }
 
                 if (
                     reaction.type ===
                     "gyatt"
                 ) {
-                    reactionCounts[userId]
-                        .gyatt++;
+                    reactionCounts[userId].gyatt++;
                 }
 
                 if (
                     reaction.type ===
                     "cat"
                 ) {
-                    reactionCounts[userId]
-                        .cat++;
+                    reactionCounts[userId].cat++;
                 }
 
                 if (
                     reaction.type ===
                     "ogred"
                 ) {
-                    reactionCounts[userId]
-                        .ogred++;
+                    reactionCounts[userId].ogred++;
                 }
-
             }
 
             const result =
@@ -1578,9 +1497,7 @@ app.get(
                                     user.id
                                 ]?.ogred ||
                                 0
-
                         };
-
                     }
                 );
 
@@ -1597,9 +1514,7 @@ app.get(
                 error:
                     "Server error."
             });
-
         }
-
     }
 );
 
@@ -1617,83 +1532,73 @@ app.get(
                 req.params.id;
 
             if (!id) {
-
                 return res.status(400).json({
                     error:
                         "No profile ID was provided."
                 });
-
             }
 
             const {
                 data: profile,
                 error: profileError
-            } =
-                await supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar,
-                        bio,
-                        created_at
-                    `)
-                    .eq(
-                        "id",
-                        id
-                    )
-                    .maybeSingle();
+            } = await supabase
+                .from("profiles")
+                .select(`
+                    id,
+                    username,
+                    display_name,
+                    avatar,
+                    bio,
+                    created_at
+                `)
+                .eq(
+                    "id",
+                    id
+                )
+                .maybeSingle();
 
             if (profileError) {
-
                 return res.status(500).json({
                     error:
                         profileError.message
                 });
-
             }
 
             if (!profile) {
-
                 return res.status(404).json({
                     error:
                         "User not found."
                 });
-
             }
 
             const {
                 data: posts,
                 error: postsError
-            } =
-                await supabase
-                    .from("posts")
-                    .select(`
-                        id,
-                        user_id,
-                        content,
-                        image_url,
-                        created_at
-                    `)
-                    .eq(
-                        "user_id",
-                        id
-                    )
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
-                    );
+            } = await supabase
+                .from("posts")
+                .select(`
+                    id,
+                    user_id,
+                    content,
+                    image_url,
+                    created_at
+                `)
+                .eq(
+                    "user_id",
+                    id
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                );
 
             if (postsError) {
-
                 return res.status(500).json({
                     error:
                         postsError.message
                 });
-
             }
 
             const reactions =
@@ -1735,9 +1640,7 @@ app.get(
                 error:
                     "Server error."
             });
-
         }
-
     }
 );
 
@@ -1765,72 +1668,60 @@ app.put(
                 ).trim();
 
             if (!display_name) {
-
                 return res.status(400).json({
                     error:
                         "Display name cannot be empty."
                 });
-
             }
 
             if (
                 display_name.length >
                 50
             ) {
-
                 return res.status(400).json({
                     error:
                         "Display name is too long."
                 });
-
             }
 
             if (
                 bio.length >
                 500
             ) {
-
                 return res.status(400).json({
                     error:
                         "Bio is too long."
                 });
-
             }
 
             const {
                 data,
                 error
-            } =
-                await supabase
-                    .from("profiles")
-                    .update({
-
-                        display_name,
-
-                        bio
-
-                    })
-                    .eq(
-                        "id",
-                        req.session.user.id
-                    )
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar,
-                        bio,
-                        created_at
-                    `)
-                    .single();
+            } = await supabase
+                .from("profiles")
+                .update({
+                    display_name,
+                    bio
+                })
+                .eq(
+                    "id",
+                    req.session.user.id
+                )
+                .select(`
+                    id,
+                    username,
+                    display_name,
+                    avatar,
+                    bio,
+                    created_at
+                `)
+                .single();
 
             if (error) {
-
                 return res.status(500).json({
                     error:
                         error.message
                 });
-
             }
 
             req.session.user.display_name =
@@ -1840,12 +1731,10 @@ app.put(
                 sessionError => {
 
                     if (sessionError) {
-
                         return res.status(500).json({
                             error:
                                 "Could not save profile session."
                         });
-
                     }
 
                     res.json({
@@ -1864,7 +1753,6 @@ app.put(
                         }
 
                     });
-
                 }
             );
 
@@ -1879,9 +1767,7 @@ app.put(
                 error:
                     "Server error."
             });
-
         }
-
     }
 );
 
@@ -1907,12 +1793,10 @@ app.post(
                 !fileType ||
                 !fileData
             ) {
-
                 return res.status(400).json({
                     error:
                         "Missing image data."
                 });
-
             }
 
             if (
@@ -1920,12 +1804,10 @@ app.post(
                     "image/"
                 )
             ) {
-
                 return res.status(400).json({
                     error:
                         "File must be an image."
                 });
-
             }
 
             const buffer =
@@ -1938,12 +1820,10 @@ app.post(
                 buffer.length >
                 5 * 1024 * 1024
             ) {
-
                 return res.status(400).json({
                     error:
                         "Image must be under 5MB."
                 });
-
             }
 
             const extension =
@@ -1965,12 +1845,10 @@ app.post(
                     extension
                 )
             ) {
-
                 return res.status(400).json({
                     error:
                         "Unsupported image type."
                 });
-
             }
 
             const filePath =
@@ -1987,18 +1865,15 @@ app.post(
                         {
                             contentType:
                                 fileType,
-                            upsert:
-                                true
+                            upsert: true
                         }
                     );
 
             if (uploadError) {
-
                 return res.status(500).json({
                     error:
                         uploadError.message
                 });
-
             }
 
             const {
@@ -2031,12 +1906,10 @@ app.post(
                     .single();
 
             if (profileError) {
-
                 return res.status(500).json({
                     error:
                         profileError.message
                 });
-
             }
 
             res.json({
@@ -2068,9 +1941,7 @@ app.post(
                 error:
                     "Server error."
             });
-
         }
-
     }
 );
 
@@ -2090,11 +1961,9 @@ async function uploadImage(
         !fileType ||
         !fileName
     ) {
-
         throw new Error(
             "Missing image data."
         );
-
     }
 
     if (
@@ -2102,11 +1971,9 @@ async function uploadImage(
             "image/"
         )
     ) {
-
         throw new Error(
             "File must be an image."
         );
-
     }
 
     const buffer =
@@ -2119,11 +1986,9 @@ async function uploadImage(
         buffer.length >
         5 * 1024 * 1024
     ) {
-
         throw new Error(
             "Image must be under 5MB."
         );
-
     }
 
     const extension =
@@ -2145,11 +2010,9 @@ async function uploadImage(
             extension
         )
     ) {
-
         throw new Error(
             "Unsupported image type."
         );
-
     }
 
     const filePath =
@@ -2168,17 +2031,14 @@ async function uploadImage(
                 {
                     contentType:
                         fileType,
-                    upsert:
-                        false
+                    upsert: false
                 }
             );
 
     if (uploadError) {
-
         throw new Error(
             uploadError.message
         );
-
     }
 
     const {
@@ -2219,19 +2079,16 @@ app.get(
                     .order(
                         "created_at",
                         {
-                            ascending:
-                                false
+                            ascending: false
                         }
                     )
                     .limit(100);
 
             if (error) {
-
                 return res.status(500).json({
                     error:
                         error.message
                 });
-
             }
 
             const result = [];
@@ -2274,9 +2131,7 @@ app.get(
                         getAvatar(
                             profile?.avatar
                         )
-
                 });
-
             }
 
             res.json(result);
@@ -2292,9 +2147,7 @@ app.get(
                 error:
                     "Server error."
             });
-
         }
-
     }
 );
 
@@ -2315,12 +2168,10 @@ app.post(
                 content.length >
                 5000
             ) {
-
                 return res.status(400).json({
                     error:
                         "Post is too long."
                 });
-
             }
 
             let imageUrl = null;
@@ -2348,21 +2199,17 @@ app.post(
                         error:
                             error.message
                     });
-
                 }
-
             }
 
             if (
                 !content &&
                 !imageUrl
             ) {
-
                 return res.status(400).json({
                     error:
                         "Post cannot be empty."
                 });
-
             }
 
             const {
@@ -2372,31 +2219,23 @@ app.post(
                 await supabase
                     .from("posts")
                     .insert({
-
                         user_id:
                             req.session.user.id,
-
                         content,
-
                         image_url:
                             imageUrl
-
                     })
                     .select()
                     .single();
 
             if (error) {
-
                 return res.status(500).json({
                     error:
                         error.message
                 });
-
             }
 
-            res.status(201).json(
-                data
-            );
+            res.status(201).json(data);
 
         } catch (error) {
 
@@ -2409,9 +2248,7 @@ app.post(
                 error:
                     "Server error."
             });
-
         }
-
     }
 );
 
@@ -2446,18 +2283,15 @@ app.get(
                     .order(
                         "created_at",
                         {
-                            ascending:
-                                true
+                            ascending: true
                         }
                     );
 
             if (error) {
-
                 return res.status(500).json({
                     error:
                         error.message
                 });
-
             }
 
             const result = [];
@@ -2498,9 +2332,7 @@ app.get(
                         getAvatar(
                             profile?.avatar
                         )
-
                 });
-
             }
 
             res.json(result);
@@ -2516,9 +2348,7 @@ app.get(
                 error:
                     "Server error."
             });
-
         }
-
     }
 );
 
@@ -2539,12 +2369,10 @@ app.post(
                 content.length >
                 500
             ) {
-
                 return res.status(400).json({
                     error:
                         "Comment is too long."
                 });
-
             }
 
             let imageUrl = null;
@@ -2572,21 +2400,17 @@ app.post(
                         error:
                             error.message
                     });
-
                 }
-
             }
 
             if (
                 !content &&
                 !imageUrl
             ) {
-
                 return res.status(400).json({
                     error:
                         "Comment cannot be empty."
                 });
-
             }
 
             const {
@@ -2596,7 +2420,6 @@ app.post(
                 await supabase
                     .from("comments")
                     .insert({
-
                         post_id:
                             req.params.postId,
 
@@ -2607,23 +2430,18 @@ app.post(
 
                         image_url:
                             imageUrl
-
                     })
                     .select()
                     .single();
 
             if (error) {
-
                 return res.status(500).json({
                     error:
                         error.message
                 });
-
             }
 
-            res.status(201).json(
-                data
-            );
+            res.status(201).json(data);
 
         } catch (error) {
 
@@ -2636,9 +2454,7 @@ app.post(
                 error:
                     "Server error."
             });
-
         }
-
     }
 );
 
@@ -2655,12 +2471,10 @@ async function addReaction(
     try {
 
         if (!req.session.user) {
-
             return res.status(401).json({
                 error:
                     "You must be logged in."
             });
-
         }
 
         const fromUserId =
@@ -2673,12 +2487,10 @@ async function addReaction(
             fromUserId ===
             toUserId
         ) {
-
             return res.status(400).json({
                 error:
                     "You cannot react to yourself."
             });
-
         }
 
         const {
@@ -2695,21 +2507,17 @@ async function addReaction(
                 .maybeSingle();
 
         if (targetError) {
-
             return res.status(500).json({
                 error:
                     targetError.message
             });
-
         }
 
         if (!targetUser) {
-
             return res.status(404).json({
                 error:
                     "User not found."
             });
-
         }
 
         const {
@@ -2718,7 +2526,6 @@ async function addReaction(
             await supabase
                 .from("reactions")
                 .insert({
-
                     from_user_id:
                         fromUserId,
 
@@ -2726,7 +2533,6 @@ async function addReaction(
                         toUserId,
 
                     type
-
                 });
 
         if (insertError) {
@@ -2737,32 +2543,21 @@ async function addReaction(
             ) {
 
                 const names = {
-
-                    gyatt:
-                        "Gyatt",
-
-                    cat:
-                        "Cat",
-
-                    ogred:
-                        "Ogred"
-
+                    gyatt: "Gyatt",
+                    cat: "Cat",
+                    ogred: "Ogred"
                 };
 
                 return res.status(400).json({
-
                     error:
                         `You already gave this person a ${names[type]}.`
-
                 });
-
             }
 
             return res.status(500).json({
                 error:
                     insertError.message
             });
-
         }
 
         const {
@@ -2790,18 +2585,15 @@ async function addReaction(
                 );
 
         if (countError) {
-
             return res.status(500).json({
                 error:
                     countError.message
             });
-
         }
 
         res.json({
 
-            success:
-                true,
+            success: true,
 
             [type]:
                 count || 0
@@ -2819,1160 +2611,37 @@ async function addReaction(
             error:
                 "Server error."
         });
-
     }
-
 }
 
 app.post(
     "/api/users/:id/gyatt",
-    addReaction.bind(
-        null,
-        undefined,
-        undefined,
-        "gyatt"
-    )
-);
-
-// Re-register reaction routes normally so req/res are preserved.
-app.post(
-    "/api/users/:id/gyatt",
-    async (req, res) => {
-
-        await addReaction(
+    (req, res) =>
+        addReaction(
             req,
             res,
             "gyatt"
-        );
-
-    }
+        )
 );
 
 app.post(
     "/api/users/:id/cat",
-    async (req, res) => {
-
-        await addReaction(
+    (req, res) =>
+        addReaction(
             req,
             res,
             "cat"
-        );
-
-    }
+        )
 );
 
 app.post(
     "/api/users/:id/ogred",
-    async (req, res) => {
-
-        await addReaction(
+    (req, res) =>
+        addReaction(
             req,
             res,
             "ogred"
-        );
-
-    }
-);
-
-// ==================================================
-// SHREKCHAT - ROOMS
-// ==================================================
-
-app.get(
-    "/api/chat/rooms",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const userId =
-                req.session.user.id;
-
-            const {
-                data: rooms,
-                error: roomError
-            } =
-                await supabase
-                    .from("chat_rooms")
-                    .select(`
-                        id,
-                        name,
-                        created_by,
-                        is_private,
-                        created_at
-                    `)
-                    .order(
-                        "created_at",
-                        {
-                            ascending:
-                                true
-                        }
-                    );
-
-            if (roomError) {
-
-                return res.status(500).json({
-                    error:
-                        roomError.message
-                });
-
-            }
-
-            const {
-                data: memberships,
-                error: memberError
-            } =
-                await supabase
-                    .from("chat_members")
-                    .select(
-                        "room_id"
-                    )
-                    .eq(
-                        "user_id",
-                        userId
-                    );
-
-            if (memberError) {
-
-                return res.status(500).json({
-                    error:
-                        memberError.message
-                });
-
-            }
-
-            const memberRooms =
-                new Set(
-                    (memberships || [])
-                        .map(
-                            member =>
-                                member.room_id
-                        )
-                );
-
-            const visibleRooms =
-                (rooms || [])
-                    .filter(
-                        room => {
-
-                            if (
-                                !room.is_private
-                            ) {
-                                return true;
-                            }
-
-                            return (
-                                room.created_by ===
-                                userId ||
-                                memberRooms.has(
-                                    room.id
-                                )
-                            );
-
-                        }
-                    );
-
-            res.json(
-                visibleRooms
-            );
-
-        } catch (error) {
-
-            console.error(
-                "GET ROOMS ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// CREATE ROOM
-// ==================================================
-
-app.post(
-    "/api/chat/rooms",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const name =
-                String(
-                    req.body.name ||
-                    ""
-                ).trim();
-
-            const isPrivate =
-                req.body.is_private ===
-                true;
-
-            if (!name) {
-
-                return res.status(400).json({
-                    error:
-                        "Room name cannot be empty."
-                });
-
-            }
-
-            if (
-                name.length >
-                50
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Room name is too long."
-                });
-
-            }
-
-            const {
-                data: room,
-                error
-            } =
-                await supabase
-                    .from("chat_rooms")
-                    .insert({
-
-                        name,
-
-                        created_by:
-                            req.session.user.id,
-
-                        is_private:
-                            isPrivate
-
-                    })
-                    .select()
-                    .single();
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            const {
-                error: memberError
-            } =
-                await supabase
-                    .from("chat_members")
-                    .insert({
-
-                        room_id:
-                            room.id,
-
-                        user_id:
-                            req.session.user.id
-
-                    });
-
-            if (memberError) {
-
-                await supabase
-                    .from("chat_rooms")
-                    .delete()
-                    .eq(
-                        "id",
-                        room.id
-                    );
-
-                return res.status(500).json({
-                    error:
-                        memberError.message
-                });
-
-            }
-
-            res.status(201).json(
-                room
-            );
-
-        } catch (error) {
-
-            console.error(
-                "CREATE ROOM ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// JOIN ROOM
-// ==================================================
-
-app.post(
-    "/api/chat/rooms/:roomId/join",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const roomId =
-                req.params.roomId;
-
-            const userId =
-                req.session.user.id;
-
-            const {
-                data: room,
-                error
-            } =
-                await supabase
-                    .from("chat_rooms")
-                    .select(`
-                        id,
-                        created_by,
-                        is_private
-                    `)
-                    .eq(
-                        "id",
-                        roomId
-                    )
-                    .maybeSingle();
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            if (!room) {
-
-                return res.status(404).json({
-                    error:
-                        "Room not found."
-                });
-
-            }
-
-            if (
-                room.is_private
-            ) {
-
-                const {
-                    data: membership
-                } =
-                    await supabase
-                        .from("chat_members")
-                        .select(
-                            "room_id"
-                        )
-                        .eq(
-                            "room_id",
-                            roomId
-                        )
-                        .eq(
-                            "user_id",
-                            userId
-                        )
-                        .maybeSingle();
-
-                if (
-                    !membership &&
-                    room.created_by !==
-                    userId
-                ) {
-
-                    return res.status(403).json({
-                        error:
-                            "🔒 You need an invitation to enter this room."
-                    });
-
-                }
-
-            }
-
-            const {
-                error: joinError
-            } =
-                await supabase
-                    .from("chat_members")
-                    .upsert(
-                        {
-
-                            room_id:
-                                roomId,
-
-                            user_id:
-                                userId
-
-                        },
-                        {
-                            onConflict:
-                                "room_id,user_id"
-                        }
-                    );
-
-            if (joinError) {
-
-                return res.status(500).json({
-                    error:
-                        joinError.message
-                });
-
-            }
-
-            res.json({
-                success:
-                    true
-            });
-
-        } catch (error) {
-
-            console.error(
-                "JOIN ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// LEAVE ROOM
-// ==================================================
-
-app.post(
-    "/api/chat/rooms/:roomId/leave",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const {
-                error
-            } =
-                await supabase
-                    .from("chat_members")
-                    .delete()
-                    .eq(
-                        "room_id",
-                        req.params.roomId
-                    )
-                    .eq(
-                        "user_id",
-                        req.session.user.id
-                    );
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            res.json({
-                success:
-                    true
-            });
-
-        } catch (error) {
-
-            console.error(
-                "LEAVE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// DELETE ROOM
-// ==================================================
-
-app.delete(
-    "/api/chat/rooms/:roomId",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const {
-                data: room
-            } =
-                await supabase
-                    .from("chat_rooms")
-                    .select(
-                        "created_by"
-                    )
-                    .eq(
-                        "id",
-                        req.params.roomId
-                    )
-                    .maybeSingle();
-
-            if (!room) {
-
-                return res.status(404).json({
-                    error:
-                        "Room not found."
-                });
-
-            }
-
-            if (
-                room.created_by !==
-                req.session.user.id
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "Only the room creator can delete it."
-                });
-
-            }
-
-            const {
-                error
-            } =
-                await supabase
-                    .from("chat_rooms")
-                    .delete()
-                    .eq(
-                        "id",
-                        req.params.roomId
-                    );
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            res.json({
-                success:
-                    true
-            });
-
-        } catch (error) {
-
-            console.error(
-                "DELETE ROOM ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// INVITABLE USERS
-// ==================================================
-
-app.get(
-    "/api/chat/rooms/:roomId/invite-users",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const roomId =
-                req.params.roomId;
-
-            const {
-                data: room
-            } =
-                await supabase
-                    .from("chat_rooms")
-                    .select(`
-                        created_by,
-                        is_private
-                    `)
-                    .eq(
-                        "id",
-                        roomId
-                    )
-                    .maybeSingle();
-
-            if (!room) {
-
-                return res.status(404).json({
-                    error:
-                        "Room not found."
-                });
-
-            }
-
-            if (
-                room.created_by !==
-                req.session.user.id
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "Only the creator can invite people."
-                });
-
-            }
-
-            const {
-                data: members
-            } =
-                await supabase
-                    .from("chat_members")
-                    .select(
-                        "user_id"
-                    )
-                    .eq(
-                        "room_id",
-                        roomId
-                    );
-
-            const memberIds =
-                new Set(
-                    (members || [])
-                        .map(
-                            member =>
-                                member.user_id
-                        )
-                );
-
-            const {
-                data: users,
-                error
-            } =
-                await supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar
-                    `)
-                    .order(
-                        "username",
-                        {
-                            ascending:
-                                true
-                        }
-                    );
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            const result =
-                (users || [])
-                    .filter(
-                        user =>
-                            !memberIds.has(
-                                user.id
-                            )
-                    )
-                    .map(
-                        user => ({
-
-                            ...user,
-
-                            avatar:
-                                getAvatar(
-                                    user.avatar
-                                )
-
-                        })
-                    );
-
-            res.json(result);
-
-        } catch (error) {
-
-            console.error(
-                "INVITE USERS ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// INVITE USER
-// ==================================================
-
-app.post(
-    "/api/chat/rooms/:roomId/invite",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const roomId =
-                req.params.roomId;
-
-            const invitedUserId =
-                req.body.user_id;
-
-            if (!invitedUserId) {
-
-                return res.status(400).json({
-                    error:
-                        "No user selected."
-                });
-
-            }
-
-            const {
-                data: room
-            } =
-                await supabase
-                    .from("chat_rooms")
-                    .select(`
-                        created_by,
-                        is_private
-                    `)
-                    .eq(
-                        "id",
-                        roomId
-                    )
-                    .maybeSingle();
-
-            if (!room) {
-
-                return res.status(404).json({
-                    error:
-                        "Room not found."
-                });
-
-            }
-
-            if (
-                room.created_by !==
-                req.session.user.id
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "Only the creator can invite people."
-                });
-
-            }
-
-            const {
-                data: user
-            } =
-                await supabase
-                    .from("profiles")
-                    .select("id")
-                    .eq(
-                        "id",
-                        invitedUserId
-                    )
-                    .maybeSingle();
-
-            if (!user) {
-
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-
-            }
-
-            const {
-                error
-            } =
-                await supabase
-                    .from("chat_members")
-                    .upsert(
-                        {
-
-                            room_id:
-                                roomId,
-
-                            user_id:
-                                invitedUserId
-
-                        },
-                        {
-                            onConflict:
-                                "room_id,user_id"
-                        }
-                    );
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            res.json({
-                success:
-                    true
-            });
-
-        } catch (error) {
-
-            console.error(
-                "INVITE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// GET MESSAGES
-// ==================================================
-
-app.get(
-    "/api/chat/rooms/:roomId/messages",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const roomId =
-                req.params.roomId;
-
-            const userId =
-                req.session.user.id;
-
-            const {
-                data: membership
-            } =
-                await supabase
-                    .from("chat_members")
-                    .select(
-                        "room_id"
-                    )
-                    .eq(
-                        "room_id",
-                        roomId
-                    )
-                    .eq(
-                        "user_id",
-                        userId
-                    )
-                    .maybeSingle();
-
-            if (!membership) {
-
-                return res.status(403).json({
-                    error:
-                        "You are not a member of this room."
-                });
-
-            }
-
-            const {
-                data: messages,
-                error
-            } =
-                await supabase
-                    .from("chat_messages")
-                    .select(`
-                        id,
-                        room_id,
-                        user_id,
-                        content,
-                        created_at
-                    `)
-                    .eq(
-                        "room_id",
-                        roomId
-                    )
-                    .order(
-                        "created_at",
-                        {
-                            ascending:
-                                true
-                        }
-                    )
-                    .limit(200);
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            const result = [];
-
-            for (
-                const message of
-                messages || []
-            ) {
-
-                const {
-                    data: profile
-                } =
-                    await supabase
-                        .from("profiles")
-                        .select(`
-                            id,
-                            username,
-                            display_name,
-                            avatar
-                        `)
-                        .eq(
-                            "id",
-                            message.user_id
-                        )
-                        .maybeSingle();
-
-                let reactions = {
-                    gyatt: 0,
-                    cat: 0,
-                    ogred: 0
-                };
-
-                try {
-
-                    reactions =
-                        await getReactionCounts(
-                            message.user_id
-                        );
-
-                } catch (reactionError) {
-
-                    console.error(
-                        "MESSAGE REACTION ERROR:",
-                        reactionError
-                    );
-
-                }
-
-                result.push({
-
-                    ...message,
-
-                    username:
-                        profile?.username ||
-                        "User",
-
-                    display_name:
-                        profile?.display_name ||
-                        profile?.username ||
-                        "User",
-
-                    avatar:
-                        getAvatar(
-                            profile?.avatar
-                        ),
-
-                    cat:
-                        reactions.cat,
-
-                    gyatt:
-                        reactions.gyatt,
-
-                    ogred:
-                        reactions.ogred
-
-                });
-
-            }
-
-            res.json(result);
-
-        } catch (error) {
-
-            console.error(
-                "MESSAGES ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// SEND MESSAGE
-// ==================================================
-
-app.post(
-    "/api/chat/rooms/:roomId/messages",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const roomId =
-                req.params.roomId;
-
-            const userId =
-                req.session.user.id;
-
-            const {
-                data: membership
-            } =
-                await supabase
-                    .from("chat_members")
-                    .select(
-                        "room_id"
-                    )
-                    .eq(
-                        "room_id",
-                        roomId
-                    )
-                    .eq(
-                        "user_id",
-                        userId
-                    )
-                    .maybeSingle();
-
-            if (!membership) {
-
-                return res.status(403).json({
-                    error:
-                        "You are not a member of this room."
-                });
-
-            }
-
-            const content =
-                String(
-                    req.body.content ||
-                    ""
-                ).trim();
-
-            if (!content) {
-
-                return res.status(400).json({
-                    error:
-                        "Message cannot be empty."
-                });
-
-            }
-
-            if (
-                content.length >
-                1000
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Message is too long."
-                });
-
-            }
-
-            const {
-                data,
-                error
-            } =
-                await supabase
-                    .from("chat_messages")
-                    .insert({
-
-                        room_id:
-                            roomId,
-
-                        user_id:
-                            userId,
-
-                        content
-
-                    })
-                    .select()
-                    .single();
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            res.status(201).json(
-                data
-            );
-
-        } catch (error) {
-
-            console.error(
-                "SEND MESSAGE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
+        )
 );
 
 // ==================================================
@@ -3992,11 +2661,9 @@ app.post(
                 await supabase
                     .from("profiles")
                     .update({
-
                         last_seen:
                             new Date()
                                 .toISOString()
-
                     })
                     .eq(
                         "id",
@@ -4004,17 +2671,14 @@ app.post(
                     );
 
             if (error) {
-
                 return res.status(500).json({
                     error:
                         error.message
                 });
-
             }
 
             res.json({
-                success:
-                    true
+                success: true
             });
 
         } catch (error) {
@@ -4028,140 +2692,12 @@ app.post(
                 error:
                     "Server error."
             });
-
         }
-
     }
 );
 
 // ==================================================
-// ADMIN - SEARCH USERS
-// ==================================================
-
-app.get(
-    "/api/admin/users",
-    requireStaff,
-    async (req, res) => {
-
-        try {
-
-            const search =
-                String(
-                    req.query.search ||
-                    ""
-                ).trim();
-
-            let query =
-                supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar,
-                        bio,
-                        created_at,
-                        last_seen
-                    `)
-                    .order(
-                        "created_at",
-                        {
-                            ascending:
-                                false
-                        }
-                    )
-                    .limit(100);
-
-            if (search) {
-
-                query =
-                    query.or(
-                        `username.ilike.%${search}%,display_name.ilike.%${search}%`
-                    );
-
-            }
-
-            const {
-                data: users,
-                error
-            } = await query;
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            const result = [];
-
-            for (
-                const user of
-                users || []
-            ) {
-
-                const role =
-                    await getUserRole(
-                        user.id
-                    );
-
-                const ban =
-                    await getActiveBanByUserId(
-                        user.id
-                    );
-
-                result.push({
-
-                    ...user,
-
-                    avatar:
-                        getAvatar(
-                            user.avatar
-                        ),
-
-                    role,
-
-                    banned:
-                        !!ban,
-
-                    ban:
-                        ban || null
-
-                });
-
-            }
-
-            res.json({
-
-                success:
-                    true,
-
-                users:
-                    result
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "ADMIN USERS ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    error.message
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// ADMIN - GET STAFF
+// ADMIN STAFF LIST
 // ==================================================
 
 app.get(
@@ -4185,18 +2721,15 @@ app.get(
                     .order(
                         "created_at",
                         {
-                            ascending:
-                                true
+                            ascending: true
                         }
                     );
 
             if (error) {
-
                 return res.status(500).json({
                     error:
                         error.message
                 });
-
             }
 
             const result = [];
@@ -4247,15 +2780,12 @@ app.get(
                         getAvatar(
                             profile?.avatar
                         )
-
                 });
-
             }
 
             res.json({
 
-                success:
-                    true,
+                success: true,
 
                 staff:
                     result
@@ -4273,218 +2803,239 @@ app.get(
                 error:
                     error.message
             });
-
         }
-
     }
 );
 
 // ==================================================
-// ADMIN - CHANGE ROLE
-// ==================================================
-//
-// POST /api/admin/role
-//
-// {
-//     "user_id": "...",
-//     "role": "moderator"
-// }
-//
-// Only Owner can change roles.
+// CHANGE USER ROLE
 // ==================================================
 
-async function changeUserRole(
-    req,
-    res
-) {
+app.post(
+    "/api/admin/role",
+    requireOwner,
+    async (req, res) => {
 
-    try {
+        try {
 
-        const targetUserId =
-            String(
-                req.body.user_id ||
-                req.params.userId ||
-                ""
-            ).trim();
+            const targetUserId =
+                String(
+                    req.body.user_id ||
+                    ""
+                ).trim();
 
-        const newRole =
-            String(
-                req.body.role ||
-                ""
-            ).trim().toLowerCase();
+            const newRole =
+                String(
+                    req.body.role ||
+                    ""
+                ).trim().toLowerCase();
 
-        if (!targetUserId) {
+            const allowedRoles = [
+                "owner",
+                "administrator",
+                "senior_moderator",
+                "moderator",
+                "peasant"
+            ];
 
-            return res.status(400).json({
-                error:
-                    "User ID is required."
-            });
+            if (!targetUserId) {
+                return res.status(400).json({
+                    error:
+                        "User ID is required."
+                });
+            }
 
-        }
-
-        if (
-            !ALL_ROLES.includes(
-                newRole
-            )
-        ) {
-
-            return res.status(400).json({
-                error:
-                    "Invalid role."
-            });
-
-        }
-
-        const currentUserId =
-            req.session.user.id;
-
-        if (
-            targetUserId ===
-            currentUserId
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "You cannot change your own role."
-            });
-
-        }
-
-        if (
-            newRole ===
-            "owner"
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "The Owner role cannot be assigned."
-            });
-
-        }
-
-        const {
-            data: targetProfile,
-            error: profileError
-        } =
-            await supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar
-                `)
-                .eq(
-                    "id",
-                    targetUserId
+            if (
+                !allowedRoles.includes(
+                    newRole
                 )
-                .maybeSingle();
+            ) {
+                return res.status(400).json({
+                    error:
+                        "Invalid role."
+                });
+            }
 
-        if (profileError) {
+            const currentUserId =
+                req.session.user.id;
 
-            return res.status(500).json({
-                error:
-                    profileError.message
-            });
-
-        }
-
-        if (!targetProfile) {
-
-            return res.status(404).json({
-                error:
-                    "User not found."
-            });
-
-        }
-
-        const oldRole =
-            await getUserRole(
-                targetUserId
-            );
-
-        if (
-            oldRole ===
-            "owner"
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "The Owner cannot be demoted or modified."
-            });
-
-        }
-
-        // Only Owner can create/remove Administrator.
-        const currentRole =
-            await getUserRole(
+            if (
+                targetUserId ===
                 currentUserId
-            );
+            ) {
+                return res.status(403).json({
+                    error:
+                        "You cannot change your own role."
+                });
+            }
 
-        if (
-            newRole ===
-            "administrator" &&
-            currentRole !==
-            "owner"
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "Only the Owner can promote users to Administrator."
-            });
-
-        }
-
-        // Owner is also the only role allowed to modify
-        // other staff members.
-        if (
-            ROLE_LEVEL[oldRole] >=
-            ROLE_LEVEL.administrator &&
-            currentRole !==
-            "owner"
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "Only the Owner can modify Administrators."
-            });
-
-        }
-
-        // Turning someone into a peasant means
-        // removing their admins row.
-        if (
-            newRole ===
-            "peasant"
-        ) {
+            if (
+                newRole ===
+                "owner"
+            ) {
+                return res.status(403).json({
+                    error:
+                        "The Owner role cannot be assigned."
+                });
+            }
 
             const {
-                error: deleteError
+                data: targetProfile,
+                error: profileError
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(`
+                        id,
+                        username,
+                        display_name,
+                        avatar
+                    `)
+                    .eq(
+                        "id",
+                        targetUserId
+                    )
+                    .maybeSingle();
+
+            if (profileError) {
+                return res.status(500).json({
+                    error:
+                        profileError.message
+                });
+            }
+
+            if (!targetProfile) {
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+            }
+
+            const {
+                data: existingAdmin,
+                error: roleError
             } =
                 await supabase
                     .from("admins")
-                    .delete()
+                    .select(`
+                        user_id,
+                        role
+                    `)
                     .eq(
                         "user_id",
                         targetUserId
-                    );
+                    )
+                    .maybeSingle();
 
-            if (deleteError) {
-
+            if (roleError) {
                 return res.status(500).json({
                     error:
-                        deleteError.message
+                        roleError.message
                 });
-
             }
 
-            return res.json({
+            const oldRole =
+                existingAdmin?.role ||
+                "peasant";
 
-                success:
-                    true,
+            if (
+                oldRole ===
+                "owner"
+            ) {
+                return res.status(403).json({
+                    error:
+                        "The Owner cannot be demoted or modified."
+                });
+            }
+
+            if (
+                newRole ===
+                "peasant"
+            ) {
+
+                const {
+                    error: deleteError
+                } =
+                    await supabase
+                        .from("admins")
+                        .delete()
+                        .eq(
+                            "user_id",
+                            targetUserId
+                        );
+
+                if (deleteError) {
+                    return res.status(500).json({
+                        error:
+                            deleteError.message
+                    });
+                }
+
+                return res.json({
+
+                    success: true,
+
+                    message:
+                        "User is now a Peasant.",
+
+                    user: {
+
+                        id:
+                            targetProfile.id,
+
+                        username:
+                            targetProfile.username,
+
+                        display_name:
+                            targetProfile.display_name,
+
+                        role:
+                            "peasant"
+
+                    }
+
+                });
+            }
+
+            const {
+                data: updatedAdmin,
+                error: upsertError
+            } =
+                await supabase
+                    .from("admins")
+                    .upsert(
+                        {
+                            user_id:
+                                targetUserId,
+
+                            role:
+                                newRole
+                        },
+                        {
+                            onConflict:
+                                "user_id"
+                        }
+                    )
+                    .select(`
+                        user_id,
+                        role,
+                        created_at
+                    `)
+                    .single();
+
+            if (upsertError) {
+                return res.status(500).json({
+                    error:
+                        upsertError.message
+                });
+            }
+
+            res.json({
+
+                success: true,
 
                 message:
-                    "User is now a Peasant.",
+                    `Role changed from ${oldRole} to ${newRole}.`,
 
                 user: {
 
@@ -4498,434 +3049,157 @@ async function changeUserRole(
                         targetProfile.display_name,
 
                     role:
-                        "peasant"
+                        updatedAdmin.role
 
                 }
 
             });
 
-        }
-
-        const {
-            data: updatedAdmin,
-            error: upsertError
-        } =
-            await supabase
-                .from("admins")
-                .upsert(
-                    {
-
-                        user_id:
-                            targetUserId,
-
-                        role:
-                            newRole
-
-                    },
-                    {
-                        onConflict:
-                            "user_id"
-                    }
-                )
-                .select(`
-                    user_id,
-                    role,
-                    created_at
-                `)
-                .single();
-
-        if (upsertError) {
-
-            console.error(
-                "ROLE UPSERT ERROR:",
-                upsertError
-            );
-
-            return res.status(500).json({
-                error:
-                    upsertError.message
-            });
-
-        }
-
-        res.json({
-
-            success:
-                true,
-
-            message:
-                `Role changed from ${oldRole} to ${newRole}.`,
-
-            user: {
-
-                id:
-                    targetProfile.id,
-
-                username:
-                    targetProfile.username,
-
-                display_name:
-                    targetProfile.display_name,
-
-                role:
-                    updatedAdmin.role
-
-            }
-
-        });
-
-    } catch (error) {
-
-        console.error(
-            "CHANGE ROLE ERROR:",
-            error
-        );
-
-        res.status(500).json({
-
-            error:
-                error.message ||
-                "Server error while changing role."
-
-        });
-
-    }
-
-}
-
-app.post(
-    "/api/admin/role",
-    requireOwner,
-    changeUserRole
-);
-
-// Compatibility with your older frontend endpoint.
-app.post(
-    "/api/admin/users/:userId/role",
-    requireOwner,
-    changeUserRole
-);
-
-// ==================================================
-// ADMIN - BAN USER
-// ==================================================
-
-app.post(
-    "/api/admin/ban",
-    requireStaff,
-    async (req, res) => {
-
-        try {
-
-            const targetUserId =
-                String(
-                    req.body.user_id ||
-                    ""
-                ).trim();
-
-            const reason =
-                String(
-                    req.body.reason ||
-                    ""
-                ).trim();
-
-            if (!targetUserId) {
-
-                return res.status(400).json({
-                    error:
-                        "User ID is required."
-                });
-
-            }
-
-            const targetRole =
-                await getUserRole(
-                    targetUserId
-                );
-
-            if (
-                targetRole ===
-                "owner"
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "The Owner cannot be banned."
-                });
-
-            }
-
-            const currentRole =
-                req.staffRole ||
-                await getUserRole(
-                    req.session.user.id
-                );
-
-            if (
-                ROLE_LEVEL[currentRole] <=
-                ROLE_LEVEL[targetRole] &&
-                targetRole !== "peasant"
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot ban a staff member with equal or higher permissions."
-                });
-
-            }
-
-            const {
-                data: target,
-                error: targetError
-            } =
-                await supabase
-                    .from("profiles")
-                    .select(
-                        "id, username, display_name"
-                    )
-                    .eq(
-                        "id",
-                        targetUserId
-                    )
-                    .maybeSingle();
-
-            if (targetError) {
-
-                return res.status(500).json({
-                    error:
-                        targetError.message
-                });
-
-            }
-
-            if (!target) {
-
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-
-            }
-
-            const {
-                data: authUser,
-                error: authError
-            } =
-                await supabase.auth.admin
-                    .getUserById(
-                        targetUserId
-                    );
-
-            if (authError) {
-
-                return res.status(500).json({
-                    error:
-                        authError.message
-                });
-
-            }
-
-            const email =
-                normalizeEmail(
-                    authUser?.user?.email
-                );
-
-            const {
-                data: existingBan
-            } =
-                await supabase
-                    .from("bans")
-                    .select("id")
-                    .eq(
-                        "user_id",
-                        targetUserId
-                    )
-                    .eq(
-                        "active",
-                        true
-                    )
-                    .maybeSingle();
-
-            if (existingBan) {
-
-                return res.status(400).json({
-                    error:
-                        "This user is already banned."
-                });
-
-            }
-
-            const {
-                data: ban,
-                error: banError
-            } =
-                await supabase
-                    .from("bans")
-                    .insert({
-
-                        user_id:
-                            targetUserId,
-
-                        email:
-                            email || null,
-
-                        reason:
-                            reason ||
-                            "Banned by staff.",
-
-                        banned_at:
-                            new Date()
-                                .toISOString(),
-
-                        banned_by:
-                            req.session.user.id,
-
-                        active:
-                            true
-
-                    })
-                    .select()
-                    .single();
-
-            if (banError) {
-
-                return res.status(500).json({
-                    error:
-                        banError.message
-                });
-
-            }
-
-            res.json({
-
-                success:
-                    true,
-
-                message:
-                    "User has been banned.",
-
-                ban
-
-            });
-
         } catch (error) {
 
             console.error(
-                "BAN USER ERROR:",
+                "CHANGE ROLE ERROR:",
                 error
             );
 
             res.status(500).json({
                 error:
-                    error.message
+                    error.message ||
+                    "Server error while changing role."
             });
-
         }
-
     }
 );
 
 // ==================================================
-// ADMIN - BAN BY EMAIL
+// MODERATION - USERS
 // ==================================================
 
-app.post(
-    "/api/admin/ban-email",
+app.get(
+    "/api/admin/users",
     requireStaff,
     async (req, res) => {
 
         try {
 
-            const email =
-                normalizeEmail(
-                    req.body.email
-                );
-
-            const reason =
-                String(
-                    req.body.reason ||
-                    ""
-                ).trim();
-
-            if (!email) {
-
-                return res.status(400).json({
-                    error:
-                        "Email is required."
-                });
-
-            }
-
-            const existingBan =
-                await getActiveBanByEmail(
-                    email
-                );
-
-            if (existingBan) {
-
-                return res.status(400).json({
-                    error:
-                        "This email is already banned."
-                });
-
-            }
-
             const {
-                data: ban,
+                data: users,
                 error
             } =
                 await supabase
-                    .from("bans")
-                    .insert({
-
-                        user_id:
-                            null,
-
+                    .from("profiles")
+                    .select(`
+                        id,
+                        username,
+                        display_name,
+                        avatar,
                         email,
-
-                        reason:
-                            reason ||
-                            "Email banned by staff.",
-
-                        banned_at:
-                            new Date()
-                                .toISOString(),
-
-                        banned_by:
-                            req.session.user.id,
-
-                        active:
-                            true
-
-                    })
-                    .select()
-                    .single();
+                        created_at,
+                        last_seen
+                    `)
+                    .order(
+                        "created_at",
+                        {
+                            ascending:
+                                false
+                        }
+                    );
 
             if (error) {
+
+                // Some profiles tables don't have
+                // an email column.
+                if (
+                    error.message?.includes(
+                        "email"
+                    )
+                ) {
+
+                    const fallback =
+                        await supabase
+                            .from("profiles")
+                            .select(`
+                                id,
+                                username,
+                                display_name,
+                                avatar,
+                                created_at,
+                                last_seen
+                            `)
+                            .order(
+                                "created_at",
+                                {
+                                    ascending:
+                                        false
+                                }
+                            );
+
+                    if (fallback.error) {
+                        return res.status(500).json({
+                            error:
+                                fallback.error.message
+                        });
+                    }
+
+                    return res.json(
+                        fallback.data || []
+                    );
+                }
 
                 return res.status(500).json({
                     error:
                         error.message
                 });
-
             }
 
-            res.json({
+            const result = [];
 
-                success:
-                    true,
+            for (
+                const user of
+                users || []
+            ) {
 
-                message:
-                    "Email has been banned.",
+                const role =
+                    await getUserRole(
+                        user.id
+                    );
 
-                ban
+                const ban =
+                    await getActiveBanByUserId(
+                        user.id
+                    );
 
-            });
+                const kick =
+                    await getActiveKickByUserId(
+                        user.id
+                    );
+
+                result.push({
+
+                    ...user,
+
+                    avatar:
+                        getAvatar(
+                            user.avatar
+                        ),
+
+                    role,
+
+                    banned:
+                        !!ban,
+
+                    kicked:
+                        !!kick
+
+                });
+            }
+
+            res.json(result);
 
         } catch (error) {
 
             console.error(
-                "BAN EMAIL ERROR:",
+                "ADMIN USERS ERROR:",
                 error
             );
 
@@ -4933,14 +3207,12 @@ app.post(
                 error:
                     error.message
             });
-
         }
-
     }
 );
 
 // ==================================================
-// ADMIN - GET BANS
+// BANS
 // ==================================================
 
 app.get(
@@ -4951,7 +3223,7 @@ app.get(
         try {
 
             const {
-                data: bans,
+                data,
                 error
             } =
                 await supabase
@@ -4974,22 +3246,16 @@ app.get(
                     );
 
             if (error) {
-
                 return res.status(500).json({
                     error:
                         error.message
                 });
-
             }
 
             res.json({
-
-                success:
-                    true,
-
+                success: true,
                 bans:
-                    bans || []
-
+                    data || []
             });
 
         } catch (error) {
@@ -5003,14 +3269,164 @@ app.get(
                 error:
                     error.message
             });
-
         }
-
     }
 );
 
 // ==================================================
-// ADMIN - UNBAN
+// BAN USER
+// ==================================================
+
+app.post(
+    "/api/admin/ban",
+    requireStaff,
+    async (req, res) => {
+
+        try {
+
+            const userId =
+                String(
+                    req.body.user_id ||
+                    ""
+                ).trim();
+
+            const reason =
+                String(
+                    req.body.reason ||
+                    ""
+                ).trim();
+
+            if (!userId) {
+                return res.status(400).json({
+                    error:
+                        "User ID is required."
+                });
+            }
+
+            if (
+                userId ===
+                req.session.user.id
+            ) {
+                return res.status(403).json({
+                    error:
+                        "You cannot ban yourself."
+                });
+            }
+
+            const targetRole =
+                await getUserRole(
+                    userId
+                );
+
+            if (
+                targetRole ===
+                "owner"
+            ) {
+                return res.status(403).json({
+                    error:
+                        "The Owner cannot be banned."
+                });
+            }
+
+            const {
+                data: target,
+                error: targetError
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(`
+                        id,
+                        username
+                    `)
+                    .eq(
+                        "id",
+                        userId
+                    )
+                    .maybeSingle();
+
+            if (targetError) {
+                return res.status(500).json({
+                    error:
+                        targetError.message
+                });
+            }
+
+            if (!target) {
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+            }
+
+            const {
+                data: authUser
+            } =
+                await supabase.auth.admin.getUserById(
+                    userId
+                );
+
+            const email =
+                normalizeEmail(
+                    authUser?.user?.email
+                );
+
+            const {
+                error
+            } =
+                await supabase
+                    .from("bans")
+                    .insert({
+                        user_id:
+                            userId,
+
+                        email:
+                            email || null,
+
+                        reason:
+                            reason ||
+                            "No reason provided.",
+
+                        banned_at:
+                            new Date()
+                                .toISOString(),
+
+                        banned_by:
+                            req.session.user.id,
+
+                        active:
+                            true
+                    });
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+            res.json({
+                success: true,
+                message:
+                    "User banned successfully."
+            });
+
+        } catch (error) {
+
+            console.error(
+                "BAN USER ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message
+            });
+        }
+    }
+);
+
+// ==================================================
+// UNBAN USER
 // ==================================================
 
 app.post(
@@ -5020,23 +3436,20 @@ app.post(
 
         try {
 
-            const banId =
+            const userId =
                 String(
-                    req.body.ban_id ||
+                    req.body.user_id ||
                     ""
                 ).trim();
 
-            if (!banId) {
-
+            if (!userId) {
                 return res.status(400).json({
                     error:
-                        "Ban ID is required."
+                        "User ID is required."
                 });
-
             }
 
             const {
-                data: ban,
                 error
             } =
                 await supabase
@@ -5046,31 +3459,25 @@ app.post(
                             false
                     })
                     .eq(
-                        "id",
-                        banId
+                        "user_id",
+                        userId
                     )
-                    .select()
-                    .single();
+                    .eq(
+                        "active",
+                        true
+                    );
 
             if (error) {
-
                 return res.status(500).json({
                     error:
                         error.message
                 });
-
             }
 
             res.json({
-
-                success:
-                    true,
-
+                success: true,
                 message:
-                    "Ban removed.",
-
-                ban
-
+                    "User unbanned successfully."
             });
 
         } catch (error) {
@@ -5084,20 +3491,83 @@ app.post(
                 error:
                     error.message
             });
-
         }
-
     }
 );
 
 // ==================================================
-// ADMIN - KICK USER
-// ==================================================
-//
-// Uses express-session's MemoryStore.
-// This destroys active sessions for the target user.
+// KICKS
 // ==================================================
 
+// GET KICKS
+app.get(
+    "/api/admin/kicks",
+    requireStaff,
+    async (req, res) => {
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("kicks")
+                    .select(`
+                        id,
+                        user_id,
+                        reason,
+                        kicked_at,
+                        kicked_by,
+                        active
+                    `)
+                    .order(
+                        "kicked_at",
+                        {
+                            ascending:
+                                false
+                        }
+                    );
+
+            if (error) {
+
+                console.error(
+                    "GET KICKS ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+            res.json({
+
+                success:
+                    true,
+
+                kicks:
+                    data || []
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "GET KICKS ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message
+            });
+        }
+    }
+);
+
+// CREATE KICK
 app.post(
     "/api/admin/kick",
     requireStaff,
@@ -5105,168 +3575,128 @@ app.post(
 
         try {
 
-            const targetUserId =
+            const userId =
                 String(
                     req.body.user_id ||
                     ""
                 ).trim();
 
-            if (!targetUserId) {
+            const reason =
+                String(
+                    req.body.reason ||
+                    ""
+                ).trim();
 
+            if (!userId) {
                 return res.status(400).json({
                     error:
                         "User ID is required."
                 });
+            }
 
+            if (
+                userId ===
+                req.session.user.id
+            ) {
+                return res.status(403).json({
+                    error:
+                        "You cannot kick yourself."
+                });
             }
 
             const targetRole =
                 await getUserRole(
-                    targetUserId
+                    userId
                 );
 
             if (
                 targetRole ===
                 "owner"
             ) {
-
                 return res.status(403).json({
                     error:
                         "The Owner cannot be kicked."
                 });
-
             }
 
-            const currentRole =
-                req.staffRole;
+            const {
+                data: target,
+                error: targetError
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(`
+                        id,
+                        username
+                    `)
+                    .eq(
+                        "id",
+                        userId
+                    )
+                    .maybeSingle();
 
-            if (
-                ROLE_LEVEL[currentRole] <=
-                ROLE_LEVEL[targetRole] &&
-                targetRole !==
-                "peasant"
-            ) {
-
-                return res.status(403).json({
+            if (targetError) {
+                return res.status(500).json({
                     error:
-                        "You cannot kick a staff member with equal or higher permissions."
+                        targetError.message
                 });
-
             }
 
-            const store =
-                req.sessionStore;
+            if (!target) {
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+            }
 
-            if (
-                !store ||
-                typeof store.all !==
-                "function"
-            ) {
+            const {
+                error
+            } =
+                await supabase
+                    .from("kicks")
+                    .insert({
+
+                        user_id:
+                            userId,
+
+                        reason:
+                            reason ||
+                            "No reason provided.",
+
+                        kicked_at:
+                            new Date()
+                                .toISOString(),
+
+                        kicked_by:
+                            req.session.user.id,
+
+                        active:
+                            true
+
+                    });
+
+            if (error) {
+
+                console.error(
+                    "CREATE KICK ERROR:",
+                    error
+                );
 
                 return res.status(500).json({
                     error:
-                        "Session store does not support kicking users."
+                        error.message
                 });
-
             }
 
-            store.all(
-                (error, sessions) => {
+            res.json({
 
-                    if (error) {
+                success:
+                    true,
 
-                        console.error(
-                            "KICK SESSION LIST ERROR:",
-                            error
-                        );
+                message:
+                    "User kicked successfully."
 
-                        return res.status(500).json({
-                            error:
-                                error.message
-                        });
-
-                    }
-
-                    const sessionIds =
-                        Object.entries(
-                            sessions || {}
-                        )
-                            .filter(
-                                ([, sessionData]) =>
-                                    sessionData?.user?.id ===
-                                    targetUserId
-                            )
-                            .map(
-                                ([sessionId]) =>
-                                    sessionId
-                            );
-
-                    let remaining =
-                        sessionIds.length;
-
-                    if (
-                        remaining ===
-                        0
-                    ) {
-
-                        return res.json({
-
-                            success:
-                                true,
-
-                            message:
-                                "User was not currently logged in."
-
-                        });
-
-                    }
-
-                    for (
-                        const sessionId of
-                        sessionIds
-                    ) {
-
-                        store.destroy(
-                            sessionId,
-                            destroyError => {
-
-                                if (
-                                    destroyError
-                                ) {
-
-                                    console.error(
-                                        "KICK DESTROY ERROR:",
-                                        destroyError
-                                    );
-
-                                }
-
-                                remaining--;
-
-                                if (
-                                    remaining ===
-                                    0
-                                ) {
-
-                                    res.json({
-
-                                        success:
-                                            true,
-
-                                        message:
-                                            "User has been kicked."
-
-                                    });
-
-                                }
-
-                            }
-                        );
-
-                    }
-
-                }
-            );
+            });
 
         } catch (error) {
 
@@ -5279,77 +3709,50 @@ app.post(
                 error:
                     error.message
             });
-
         }
-
     }
 );
 
-// ==================================================
-// ADMIN - REVOKE STAFF
-// ==================================================
-//
-// Equivalent to demoting someone to Peasant.
-// Owner-only.
-// ==================================================
-
+// CLEAR KICK
 app.post(
-    "/api/admin/revoke",
-    requireOwner,
+    "/api/admin/kicks/:kickId/clear",
+    requireStaff,
     async (req, res) => {
 
         try {
 
-            const targetUserId =
+            const kickId =
                 String(
-                    req.body.user_id ||
+                    req.params.kickId ||
                     ""
                 ).trim();
 
-            if (!targetUserId) {
-
+            if (!kickId) {
                 return res.status(400).json({
                     error:
-                        "User ID is required."
+                        "Kick ID is required."
                 });
-
-            }
-
-            const targetRole =
-                await getUserRole(
-                    targetUserId
-                );
-
-            if (
-                targetRole ===
-                "owner"
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "The Owner cannot be revoked."
-                });
-
             }
 
             const {
                 error
             } =
                 await supabase
-                    .from("admins")
-                    .delete()
+                    .from("kicks")
+                    .update({
+                        active:
+                            false
+                    })
                     .eq(
-                        "user_id",
-                        targetUserId
+                        "id",
+                        kickId
                     );
 
             if (error) {
-
                 return res.status(500).json({
                     error:
                         error.message
                 });
-
             }
 
             res.json({
@@ -5358,14 +3761,14 @@ app.post(
                     true,
 
                 message:
-                    "Staff privileges revoked."
+                    "Kick cleared."
 
             });
 
         } catch (error) {
 
             console.error(
-                "REVOKE ERROR:",
+                "CLEAR KICK ERROR:",
                 error
             );
 
@@ -5373,86 +3776,55 @@ app.post(
                 error:
                     error.message
             });
-
         }
-
     }
 );
 
 // ==================================================
-// ADMIN - GET USER DETAILS
+// STAFF REVOCATIONS
 // ==================================================
 
+// GET STAFF REVOCATIONS
 app.get(
-    "/api/admin/users/:userId",
+    "/api/admin/revocations",
     requireStaff,
     async (req, res) => {
 
         try {
 
-            const userId =
-                req.params.userId;
-
             const {
-                data: profile,
-                error: profileError
+                data,
+                error
             } =
                 await supabase
-                    .from("profiles")
-                    .select("*")
-                    .eq(
-                        "id",
-                        userId
-                    )
-                    .maybeSingle();
+                    .from("staff_revocations")
+                    .select(`
+                        id,
+                        user_id,
+                        reason,
+                        revoked_at,
+                        revoked_by,
+                        active
+                    `)
+                    .order(
+                        "revoked_at",
+                        {
+                            ascending:
+                                false
+                        }
+                    );
 
-            if (profileError) {
+            if (error) {
+
+                console.error(
+                    "GET REVOCATIONS ERROR:",
+                    error
+                );
 
                 return res.status(500).json({
                     error:
-                        profileError.message
+                        error.message
                 });
-
-            }
-
-            if (!profile) {
-
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-
-            }
-
-            const role =
-                await getUserRole(
-                    userId
-                );
-
-            const ban =
-                await getActiveBanByUserId(
-                    userId
-                );
-
-            let email = null;
-
-            try {
-
-                const {
-                    data: authData
-                } =
-                    await supabase.auth.admin
-                        .getUserById(
-                            userId
-                        );
-
-                email =
-                    authData?.user?.email ||
-                    null;
-
-            } catch (_) {
-                // Profile information is still useful
-                // even if Auth lookup fails.
             }
 
             res.json({
@@ -5460,33 +3832,15 @@ app.get(
                 success:
                     true,
 
-                user: {
-
-                    ...profile,
-
-                    avatar:
-                        getAvatar(
-                            profile.avatar
-                        ),
-
-                    email,
-
-                    role,
-
-                    banned:
-                        !!ban,
-
-                    ban:
-                        ban || null
-
-                }
+                revocations:
+                    data || []
 
             });
 
         } catch (error) {
 
             console.error(
-                "ADMIN USER DETAILS ERROR:",
+                "GET REVOCATIONS ERROR:",
                 error
             );
 
@@ -5494,14 +3848,1267 @@ app.get(
                 error:
                     error.message
             });
-
         }
+    }
+);
+
+// CREATE STAFF REVOCATION
+app.post(
+    "/api/admin/revoke-staff",
+    requireOwner,
+    async (req, res) => {
+
+        try {
+
+            const userId =
+                String(
+                    req.body.user_id ||
+                    ""
+                ).trim();
+
+            const reason =
+                String(
+                    req.body.reason ||
+                    ""
+                ).trim();
+
+            if (!userId) {
+                return res.status(400).json({
+                    error:
+                        "User ID is required."
+                });
+            }
+
+            if (
+                userId ===
+                req.session.user.id
+            ) {
+                return res.status(403).json({
+                    error:
+                        "You cannot revoke your own staff powers."
+                });
+            }
+
+            const targetRole =
+                await getUserRole(
+                    userId
+                );
+
+            if (
+                targetRole ===
+                "owner"
+            ) {
+                return res.status(403).json({
+                    error:
+                        "The Owner's staff powers cannot be revoked."
+                });
+            }
+
+            if (
+                targetRole ===
+                "peasant"
+            ) {
+                return res.status(400).json({
+                    error:
+                        "This user does not have staff powers."
+                });
+            }
+
+            const {
+                error: revokeError
+            } =
+                await supabase
+                    .from("staff_revocations")
+                    .insert({
+
+                        user_id:
+                            userId,
+
+                        reason:
+                            reason ||
+                            "No reason provided.",
+
+                        revoked_at:
+                            new Date()
+                                .toISOString(),
+
+                        revoked_by:
+                            req.session.user.id,
+
+                        active:
+                            true
+
+                    });
+
+            if (revokeError) {
+
+                console.error(
+                    "REVOCATION INSERT ERROR:",
+                    revokeError
+                );
+
+                return res.status(500).json({
+                    error:
+                        revokeError.message
+                });
+            }
+
+            // Remove staff permissions.
+            const {
+                error: roleDeleteError
+            } =
+                await supabase
+                    .from("admins")
+                    .delete()
+                    .eq(
+                        "user_id",
+                        userId
+                    );
+
+            if (roleDeleteError) {
+
+                console.error(
+                    "REVOCATION ROLE DELETE ERROR:",
+                    roleDeleteError
+                );
+
+                return res.status(500).json({
+                    error:
+                        roleDeleteError.message
+                });
+            }
+
+            res.json({
+
+                success:
+                    true,
+
+                message:
+                    "Staff powers revoked. The account remains active."
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "REVOKE STAFF ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message
+            });
+        }
+    }
+);
+
+// ==================================================
+// CLEAR STAFF REVOCATION
+// ==================================================
+
+app.post(
+    "/api/admin/revocations/:revocationId/clear",
+    requireOwner,
+    async (req, res) => {
+
+        try {
+
+            const revocationId =
+                String(
+                    req.params.revocationId ||
+                    ""
+                ).trim();
+
+            if (!revocationId) {
+                return res.status(400).json({
+                    error:
+                        "Revocation ID is required."
+                });
+            }
+
+            const {
+                error
+            } =
+                await supabase
+                    .from("staff_revocations")
+                    .update({
+                        active:
+                            false
+                    })
+                    .eq(
+                        "id",
+                        revocationId
+                    );
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+            res.json({
+
+                success:
+                    true,
+
+                message:
+                    "Staff revocation cleared."
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "CLEAR REVOCATION ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message
+            });
+        }
+    }
+);
+
+// ==================================================
+// SHREKCHAT - ROOMS
+// ==================================================
+
+app.get(
+    "/api/chat/rooms",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            const userId =
+                req.session.user.id;
+
+            const {
+                data: rooms,
+                error: roomError
+            } =
+                await supabase
+                    .from("chat_rooms")
+                    .select(`
+                        id,
+                        name,
+                        created_by,
+                        is_private,
+                        created_at
+                    `)
+                    .order(
+                        "created_at",
+                        {
+                            ascending:
+                                true
+                        }
+                    );
+
+            if (roomError) {
+                return res.status(500).json({
+                    error:
+                        roomError.message
+                });
+            }
+
+            const {
+                data: memberships,
+                error: memberError
+            } =
+                await supabase
+                    .from("chat_members")
+                    .select(
+                        "room_id"
+                    )
+                    .eq(
+                        "user_id",
+                        userId
+                    );
+
+            if (memberError) {
+                return res.status(500).json({
+                    error:
+                        memberError.message
+                });
+            }
+
+            const memberRooms =
+                new Set(
+                    (memberships || [])
+                        .map(
+                            member =>
+                                member.room_id
+                        )
+                );
+
+            const visibleRooms =
+                (rooms || [])
+                    .filter(
+                        room => {
+
+                            if (
+                                !room.is_private
+                            ) {
+                                return true;
+                            }
+
+                            return (
+                                room.created_by ===
+                                userId ||
+                                memberRooms.has(
+                                    room.id
+                                )
+                            );
+                        }
+                    );
+
+            res.json(
+                visibleRooms
+            );
+
+        } catch (error) {
+
+            console.error(
+                "GET ROOMS ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+        }
+    }
+);
+
+// ==================================================
+// CREATE ROOM
+// ==================================================
+
+app.post(
+    "/api/chat/rooms",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            const name =
+                String(
+                    req.body.name ||
+                    ""
+                ).trim();
+
+            const isPrivate =
+                req.body.is_private ===
+                true;
+
+            if (!name) {
+                return res.status(400).json({
+                    error:
+                        "Room name cannot be empty."
+                });
+            }
+
+            if (
+                name.length >
+                50
+            ) {
+                return res.status(400).json({
+                    error:
+                        "Room name is too long."
+                });
+            }
+
+            const {
+                data: room,
+                error
+            } =
+                await supabase
+                    .from("chat_rooms")
+                    .insert({
+                        name,
+
+                        created_by:
+                            req.session.user.id,
+
+                        is_private:
+                            isPrivate
+                    })
+                    .select()
+                    .single();
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+            const {
+                error: memberError
+            } =
+                await supabase
+                    .from("chat_members")
+                    .insert({
+                        room_id:
+                            room.id,
+
+                        user_id:
+                            req.session.user.id
+                    });
+
+            if (memberError) {
+
+                await supabase
+                    .from("chat_rooms")
+                    .delete()
+                    .eq(
+                        "id",
+                        room.id
+                    );
+
+                return res.status(500).json({
+                    error:
+                        memberError.message
+                });
+            }
+
+            res.status(201).json(
+                room
+            );
+
+        } catch (error) {
+
+            console.error(
+                "CREATE ROOM ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+        }
+    }
+);
+
+// ==================================================
+// JOIN ROOM
+// ==================================================
+
+app.post(
+    "/api/chat/rooms/:roomId/join",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            const roomId =
+                req.params.roomId;
+
+            const userId =
+                req.session.user.id;
+
+            const {
+                data: room,
+                error
+            } =
+                await supabase
+                    .from("chat_rooms")
+                    .select(`
+                        id,
+                        created_by,
+                        is_private
+                    `)
+                    .eq(
+                        "id",
+                        roomId
+                    )
+                    .maybeSingle();
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+            if (!room) {
+                return res.status(404).json({
+                    error:
+                        "Room not found."
+                });
+            }
+
+            if (
+                room.is_private
+            ) {
+
+                const {
+                    data: membership
+                } =
+                    await supabase
+                        .from("chat_members")
+                        .select(
+                            "room_id"
+                        )
+                        .eq(
+                            "room_id",
+                            roomId
+                        )
+                        .eq(
+                            "user_id",
+                            userId
+                        )
+                        .maybeSingle();
+
+                if (
+                    !membership &&
+                    room.created_by !==
+                    userId
+                ) {
+                    return res.status(403).json({
+                        error:
+                            "🔒 You need an invitation to enter this room."
+                    });
+                }
+            }
+
+            const {
+                error: joinError
+            } =
+                await supabase
+                    .from("chat_members")
+                    .upsert(
+                        {
+                            room_id:
+                                roomId,
+
+                            user_id:
+                                userId
+                        },
+                        {
+                            onConflict:
+                                "room_id,user_id"
+                        }
+                    );
+
+            if (joinError) {
+                return res.status(500).json({
+                    error:
+                        joinError.message
+                });
+            }
+
+            res.json({
+                success: true
+            });
+
+        } catch (error) {
+
+            console.error(
+                "JOIN ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+        }
+    }
+);
+
+// ==================================================
+// LEAVE ROOM
+// ==================================================
+
+app.post(
+    "/api/chat/rooms/:roomId/leave",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            const {
+                error
+            } =
+                await supabase
+                    .from("chat_members")
+                    .delete()
+                    .eq(
+                        "room_id",
+                        req.params.roomId
+                    )
+                    .eq(
+                        "user_id",
+                        req.session.user.id
+                    );
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+            res.json({
+                success: true
+            });
+
+        } catch (error) {
+
+            console.error(
+                "LEAVE ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+        }
+    }
+);
+
+// ==================================================
+// DELETE ROOM
+// ==================================================
+
+app.delete(
+    "/api/chat/rooms/:roomId",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            const {
+                data: room
+            } =
+                await supabase
+                    .from("chat_rooms")
+                    .select(
+                        "created_by"
+                    )
+                    .eq(
+                        "id",
+                        req.params.roomId
+                    )
+                    .maybeSingle();
+
+            if (!room) {
+                return res.status(404).json({
+                    error:
+                        "Room not found."
+                });
+            }
+
+            if (
+                room.created_by !==
+                req.session.user.id
+            ) {
+                return res.status(403).json({
+                    error:
+                        "Only the room creator can delete it."
+                });
+            }
+
+            const {
+                error
+            } =
+                await supabase
+                    .from("chat_rooms")
+                    .delete()
+                    .eq(
+                        "id",
+                        req.params.roomId
+                    );
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+            res.json({
+                success: true
+            });
+
+        } catch (error) {
+
+            console.error(
+                "DELETE ROOM ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+        }
+    }
+);
+
+// ==================================================
+// INVITABLE USERS
+// ==================================================
+
+app.get(
+    "/api/chat/rooms/:roomId/invite-users",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            const roomId =
+                req.params.roomId;
+
+            const {
+                data: room
+            } =
+                await supabase
+                    .from("chat_rooms")
+                    .select(`
+                        created_by,
+                        is_private
+                    `)
+                    .eq(
+                        "id",
+                        roomId
+                    )
+                    .maybeSingle();
+
+            if (!room) {
+                return res.status(404).json({
+                    error:
+                        "Room not found."
+                });
+            }
+
+            if (
+                room.created_by !==
+                req.session.user.id
+            ) {
+                return res.status(403).json({
+                    error:
+                        "Only the creator can invite people."
+                });
+            }
+
+            const {
+                data: members
+            } =
+                await supabase
+                    .from("chat_members")
+                    .select(
+                        "user_id"
+                    )
+                    .eq(
+                        "room_id",
+                        roomId
+                    );
+
+            const memberIds =
+                new Set(
+                    (members || [])
+                        .map(
+                            member =>
+                                member.user_id
+                        )
+                );
+
+            const {
+                data: users,
+                error
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(`
+                        id,
+                        username,
+                        display_name,
+                        avatar
+                    `)
+                    .order(
+                        "username",
+                        {
+                            ascending:
+                                true
+                        }
+                    );
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+            const result =
+                (users || [])
+                    .filter(
+                        user =>
+                            !memberIds.has(
+                                user.id
+                            )
+                    )
+                    .map(
+                        user => ({
+
+                            ...user,
+
+                            avatar:
+                                getAvatar(
+                                    user.avatar
+                                )
+
+                        })
+                    );
+
+            res.json(result);
+
+        } catch (error) {
+
+            console.error(
+                "INVITE USERS ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+        }
+    }
+);
+
+// ==================================================
+// INVITE USER
+// ==================================================
+
+app.post(
+    "/api/chat/rooms/:roomId/invite",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            const roomId =
+                req.params.roomId;
+
+            const invitedUserId =
+                req.body.user_id;
+
+            if (!invitedUserId) {
+                return res.status(400).json({
+                    error:
+                        "No user selected."
+                });
+            }
+
+            const {
+                data: room
+            } =
+                await supabase
+                    .from("chat_rooms")
+                    .select(`
+                        created_by,
+                        is_private
+                    `)
+                    .eq(
+                        "id",
+                        roomId
+                    )
+                    .maybeSingle();
+
+            if (!room) {
+                return res.status(404).json({
+                    error:
+                        "Room not found."
+                });
+            }
+
+            if (
+                room.created_by !==
+                req.session.user.id
+            ) {
+                return res.status(403).json({
+                    error:
+                        "Only the creator can invite people."
+                });
+            }
+
+            const {
+                data: user
+            } =
+                await supabase
+                    .from("profiles")
+                    .select("id")
+                    .eq(
+                        "id",
+                        invitedUserId
+                    )
+                    .maybeSingle();
+
+            if (!user) {
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+            }
+
+            const {
+                error
+            } =
+                await supabase
+                    .from("chat_members")
+                    .upsert(
+                        {
+                            room_id:
+                                roomId,
+
+                            user_id:
+                                invitedUserId
+                        },
+                        {
+                            onConflict:
+                                "room_id,user_id"
+                        }
+                    );
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+            res.json({
+                success: true
+            });
+
+        } catch (error) {
+
+            console.error(
+                "INVITE ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+        }
+    }
+);
+
+// ==================================================
+// GET MESSAGES
+// ==================================================
+
+app.get(
+    "/api/chat/rooms/:roomId/messages",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            const roomId =
+                req.params.roomId;
+
+            const userId =
+                req.session.user.id;
+
+            const {
+                data: membership
+            } =
+                await supabase
+                    .from("chat_members")
+                    .select(
+                        "room_id"
+                    )
+                    .eq(
+                        "room_id",
+                        roomId
+                    )
+                    .eq(
+                        "user_id",
+                        userId
+                    )
+                    .maybeSingle();
+
+            if (!membership) {
+                return res.status(403).json({
+                    error:
+                        "You are not a member of this room."
+                });
+            }
+
+            const {
+                data: messages,
+                error
+            } =
+                await supabase
+                    .from("chat_messages")
+                    .select(`
+                        id,
+                        room_id,
+                        user_id,
+                        content,
+                        created_at
+                    `)
+                    .eq(
+                        "room_id",
+                        roomId
+                    )
+                    .order(
+                        "created_at",
+                        {
+                            ascending:
+                                true
+                        }
+                    )
+                    .limit(200);
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+            const result = [];
+
+            for (
+                const message of
+                messages || []
+            ) {
+
+                const {
+                    data: profile
+                } =
+                    await supabase
+                        .from("profiles")
+                        .select(`
+                            id,
+                            username,
+                            display_name,
+                            avatar
+                        `)
+                        .eq(
+                            "id",
+                            message.user_id
+                        )
+                        .maybeSingle();
+
+                let reactions = {
+                    gyatt: 0,
+                    cat: 0,
+                    ogred: 0
+                };
+
+                try {
+
+                    reactions =
+                        await getReactionCounts(
+                            message.user_id
+                        );
+
+                } catch (reactionError) {
+
+                    console.error(
+                        "MESSAGE REACTION ERROR:",
+                        reactionError
+                    );
+                }
+
+                result.push({
+
+                    ...message,
+
+                    username:
+                        profile?.username ||
+                        "User",
+
+                    display_name:
+                        profile?.display_name ||
+                        profile?.username ||
+                        "User",
+
+                    avatar:
+                        getAvatar(
+                            profile?.avatar
+                        ),
+
+                    cat:
+                        reactions.cat,
+
+                    gyatt:
+                        reactions.gyatt,
+
+                    ogred:
+                        reactions.ogred
+                });
+            }
+
+            res.json(result);
+
+        } catch (error) {
+
+            console.error(
+                "MESSAGES ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+        }
+    }
+);
+
+// ==================================================
+// SEND MESSAGE
+// ==================================================
+
+app.post(
+    "/api/chat/rooms/:roomId/messages",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            const roomId =
+                req.params.roomId;
+
+            const userId =
+                req.session.user.id;
+
+            const {
+                data: membership
+            } =
+                await supabase
+                    .from("chat_members")
+                    .select(
+                        "room_id"
+                    )
+                    .eq(
+                        "room_id",
+                        roomId
+                    )
+                    .eq(
+                        "user_id",
+                        userId
+                    )
+                    .maybeSingle();
+
+            if (!membership) {
+                return res.status(403).json({
+                    error:
+                        "You are not a member of this room."
+                });
+            }
+
+            const content =
+                String(
+                    req.body.content ||
+                    ""
+                ).trim();
+
+            if (!content) {
+                return res.status(400).json({
+                    error:
+                        "Message cannot be empty."
+                });
+            }
+
+            if (
+                content.length >
+                1000
+            ) {
+                return res.status(400).json({
+                    error:
+                        "Message is too long."
+                });
+            }
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("chat_messages")
+                    .insert({
+                        room_id:
+                            roomId,
+
+                        user_id:
+                            userId,
+
+                        content
+                    })
+                    .select()
+                    .single();
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+            res.status(201).json(data);
+
+        } catch (error) {
+
+            console.error(
+                "SEND MESSAGE ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+        }
+    }
+);
+
+// ==================================================
+// 404 API HANDLER
+// ==================================================
+//
+// This is useful because your frontend expects JSON.
+// Instead of Express returning an HTML 404 page,
+// API requests now receive JSON.
+//
+// ==================================================
+
+app.use(
+    "/api",
+    (req, res) => {
+
+        res.status(404).json({
+
+            error:
+                "API endpoint not found.",
+
+            path:
+                req.originalUrl
+
+        });
 
     }
 );
 
 // ==================================================
-// START SERVER
+// START
 // ==================================================
 
 app.listen(
@@ -5513,20 +5120,5 @@ app.listen(
             `🧌 ShrekBook running on port ${PORT}`
         );
 
-        console.log(
-            "🛡️ Staff role system: admins.role"
-        );
-
-        if (
-            process.env.OWNER_ID
-        ) {
-
-            console.log(
-                "👑 OWNER_ID override is configured."
-            );
-
-        }
-
     }
 );
-
