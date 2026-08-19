@@ -1663,6 +1663,680 @@ app.get(
     }
 );
 
+// ==================================================
+// ADMINISTRATORS TABLE
+// GET /api/admin/administrators
+// ==================================================
+
+app.get(
+    "/api/admin/administrators",
+    requireStaff,
+    async (req, res) => {
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("admins")
+                    .select(`
+                        user_id,
+                        role,
+                        created_at
+                    `)
+                    .eq(
+                        "role",
+                        "administrator"
+                    )
+                    .order(
+                        "created_at",
+                        {
+                            ascending: false
+                        }
+                    );
+
+            if (error) {
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+            const administrators = [];
+
+            for (
+                const admin of
+                data || []
+            ) {
+
+                const {
+                    data: profile
+                } =
+                    await supabase
+                        .from("profiles")
+                        .select(`
+                            id,
+                            username,
+                            display_name,
+                            avatar
+                        `)
+                        .eq(
+                            "id",
+                            admin.user_id
+                        )
+                        .maybeSingle();
+
+                administrators.push({
+
+                    user_id:
+                        admin.user_id,
+
+                    role:
+                        admin.role,
+
+                    created_at:
+                        admin.created_at,
+
+                    username:
+                        profile?.username ||
+                        "Unknown",
+
+                    display_name:
+                        profile?.display_name ||
+                        profile?.username ||
+                        "Unknown",
+
+                    avatar:
+                        getAvatar(
+                            profile?.avatar
+                        )
+
+                });
+            }
+
+            res.json({
+
+                success: true,
+
+                administrators
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "ADMINISTRATORS TABLE ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message ||
+                    "Server error."
+            });
+        }
+    }
+);
+
+
+// ==================================================
+// KICK USER
+// POST /api/admin/kick
+// ==================================================
+
+app.post(
+    "/api/admin/kick",
+    requireStaff,
+    async (req, res) => {
+
+        try {
+
+            const userId =
+                String(
+                    req.body.user_id ||
+                    req.body.userId ||
+                    ""
+                ).trim();
+
+            const reason =
+                String(
+                    req.body.reason ||
+                    ""
+                ).trim();
+
+            if (!userId) {
+                return res.status(400).json({
+                    error:
+                        "User ID is required."
+                });
+            }
+
+            // Cannot kick yourself.
+            if (
+                userId ===
+                req.session.user.id
+            ) {
+                return res.status(403).json({
+                    error:
+                        "You cannot kick yourself."
+                });
+            }
+
+            // Check target exists.
+            const {
+                data: target,
+                error: targetError
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(`
+                        id,
+                        username,
+                        display_name
+                    `)
+                    .eq(
+                        "id",
+                        userId
+                    )
+                    .maybeSingle();
+
+            if (targetError) {
+                return res.status(500).json({
+                    error:
+                        targetError.message
+                });
+            }
+
+            if (!target) {
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+            }
+
+            // Get target's role.
+            const targetRole =
+                await getUserRole(
+                    userId
+                );
+
+            // Owner protection.
+            if (
+                targetRole ===
+                "owner"
+            ) {
+                return res.status(403).json({
+                    error:
+                        "The Owner cannot be kicked."
+                });
+            }
+
+            // Prevent lower staff from kicking
+            // higher-ranking staff.
+            const rank = {
+                peasant: 0,
+                moderator: 1,
+                senior_moderator: 2,
+                administrator: 3,
+                owner: 4
+            };
+
+            const actorRole =
+                req.staffRole ||
+                await getUserRole(
+                    req.session.user.id
+                );
+
+            if (
+                rank[targetRole] >
+                rank[actorRole]
+            ) {
+                return res.status(403).json({
+                    error:
+                        "You cannot kick a higher-ranking staff member."
+                });
+            }
+
+            // Remove any existing active kick.
+            await supabase
+                .from("kicks")
+                .update({
+                    active:
+                        false
+                })
+                .eq(
+                    "user_id",
+                    userId
+                )
+                .eq(
+                    "active",
+                    true
+                );
+
+            // Create kick.
+            const {
+                data: kick,
+                error: kickError
+            } =
+                await supabase
+                    .from("kicks")
+                    .insert({
+                        user_id:
+                            userId,
+
+                        reason:
+                            reason ||
+                            "No reason provided.",
+
+                        kicked_at:
+                            new Date()
+                                .toISOString(),
+
+                        kicked_by:
+                            req.session.user.id,
+
+                        active:
+                            true
+                    })
+                    .select()
+                    .single();
+
+            if (kickError) {
+                return res.status(500).json({
+                    error:
+                        kickError.message
+                });
+            }
+
+            res.json({
+
+                success: true,
+
+                message:
+                    "User kicked successfully.",
+
+                kick
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "KICK ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message ||
+                    "Server error while kicking user."
+            });
+        }
+    }
+);
+
+
+// ==================================================
+// UNKICK USER
+// POST /api/admin/unkick
+// ==================================================
+
+app.post(
+    "/api/admin/unkick",
+    requireStaff,
+    async (req, res) => {
+
+        try {
+
+            const userId =
+                String(
+                    req.body.user_id ||
+                    req.body.userId ||
+                    ""
+                ).trim();
+
+            if (!userId) {
+                return res.status(400).json({
+                    error:
+                        "User ID is required."
+                });
+            }
+
+            const {
+                error
+            } =
+                await supabase
+                    .from("kicks")
+                    .update({
+                        active:
+                            false
+                    })
+                    .eq(
+                        "user_id",
+                        userId
+                    )
+                    .eq(
+                        "active",
+                        true
+                    );
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+            res.json({
+
+                success: true,
+
+                message:
+                    "User kick removed."
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "UNKICK ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message ||
+                    "Server error."
+            });
+        }
+    }
+);
+
+
+// ==================================================
+// GET KICKS
+// GET /api/admin/kicks
+// ==================================================
+
+app.get(
+    "/api/admin/kicks",
+    requireStaff,
+    async (req, res) => {
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("kicks")
+                    .select(`
+                        id,
+                        user_id,
+                        reason,
+                        kicked_at,
+                        kicked_by,
+                        active
+                    `)
+                    .order(
+                        "kicked_at",
+                        {
+                            ascending: false
+                        }
+                    );
+
+            if (error) {
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+            res.json({
+
+                success: true,
+
+                kicks:
+                    data || []
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "GET KICKS ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message
+            });
+        }
+    }
+);
+
+
+// ==================================================
+// REVOKE STAFF
+// POST /api/admin/revoke
+// ==================================================
+
+app.post(
+    "/api/admin/revoke",
+    requireOwner,
+    async (req, res) => {
+
+        try {
+
+            const userId =
+                String(
+                    req.body.user_id ||
+                    ""
+                ).trim();
+
+            const reason =
+                String(
+                    req.body.reason ||
+                    ""
+                ).trim();
+
+            if (!userId) {
+
+                return res.status(400).json({
+                    error:
+                        "User ID is required."
+                });
+
+            }
+
+            // Cannot revoke yourself.
+            if (
+                userId ===
+                req.session.user.id
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You cannot revoke your own staff powers."
+                });
+
+            }
+
+            // Find target's current role.
+            const targetRole =
+                await getUserRole(
+                    userId
+                );
+
+            if (
+                targetRole ===
+                "peasant"
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "This user is not staff."
+                });
+
+            }
+
+            // Owner cannot be revoked.
+            if (
+                targetRole ===
+                "owner"
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "The Owner cannot have their staff powers revoked."
+                });
+
+            }
+
+            // Make sure the user exists.
+            const {
+                data: target,
+                error: targetError
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(`
+                        id,
+                        username,
+                        display_name
+                    `)
+                    .eq(
+                        "id",
+                        userId
+                    )
+                    .maybeSingle();
+
+            if (targetError) {
+
+                return res.status(500).json({
+                    error:
+                        targetError.message
+                });
+
+            }
+
+            if (!target) {
+
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+
+            }
+
+            // Record the revocation.
+            const {
+                data: revocation,
+                error: revokeError
+            } =
+                await supabase
+                    .from("staff_revocations")
+                    .insert({
+                        user_id:
+                            userId,
+
+                        reason:
+                            reason ||
+                            "Staff powers revoked.",
+
+                        revoked_by:
+                            req.session.user.id,
+
+                        active:
+                            true,
+
+                        created_at:
+                            new Date()
+                                .toISOString()
+                    })
+                    .select()
+                    .single();
+
+            if (revokeError) {
+
+                return res.status(500).json({
+                    error:
+                        revokeError.message
+                });
+
+            }
+
+            // Remove the user's staff role.
+            const {
+                error: deleteError
+            } =
+                await supabase
+                    .from("admins")
+                    .delete()
+                    .eq(
+                        "user_id",
+                        userId
+                    );
+
+            if (deleteError) {
+
+                return res.status(500).json({
+                    error:
+                        deleteError.message
+                });
+
+            }
+
+            res.json({
+
+                success: true,
+
+                message:
+                    "Staff powers revoked successfully.",
+
+                user: {
+
+                    id:
+                        target.id,
+
+                    username:
+                        target.username,
+
+                    display_name:
+                        target.display_name,
+
+                    role:
+                        "peasant"
+
+                },
+
+                revocation
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "REVOKE STAFF ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    error.message ||
+                    "Server error while revoking staff."
+            });
+        }
+    }
+);
+
+
 
 // ==================================================
 // ADMIN CHECK
