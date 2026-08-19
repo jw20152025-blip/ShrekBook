@@ -5596,7 +5596,72 @@ app.post(
 // mismatches from causing 404 errors.
 // ==================================================
 
+// ==================================================
+// ADMIN - GET BANS
+// GET /api/admin/bans
+// ==================================================
 
+app.get(
+    "/api/admin/bans",
+    requireStaff,
+    async (req, res) => {
+
+        try {
+
+            const {
+                data,
+                error
+            } = await supabase
+                .from("bans")
+                .select(`
+                    id,
+                    user_id,
+                    email,
+                    reason,
+                    banned_at,
+                    banned_by,
+                    active
+                `)
+                .order(
+                    "banned_at",
+                    {
+                        ascending: false
+                    }
+                );
+
+            if (error) {
+
+                console.error(
+                    "GET BANS SUPABASE ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+            }
+
+            res.json({
+                success: true,
+                bans:
+                    data || []
+            });
+
+        } catch (error) {
+
+            console.error(
+                "GET BANS ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error while loading bans."
+            });
+        }
+    }
+);
 // ==================================================
 // ADMINS
 // ==================================================
