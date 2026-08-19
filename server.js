@@ -3783,96 +3783,124 @@ app.post(
 );
 
 // ==================================================
-// ADMIN SYSTEM
+// SHREKBOOK ADMIN SYSTEM
 // ==================================================
 
-// Admin check
-async function requireAdmin(req, res, next) {
+const ROLE_LEVELS = {
+    peasant: 1,
+    junior_moderator: 2,
+    senior_moderator: 3,
+    administrator: 4,
+    owner: 5
+};
+
+function getRoleLevel(role) {
+    return ROLE_LEVELS[role] || 0;
+}
+
+
+// --------------------------------------------------
+// GET CURRENT PROFILE
+// --------------------------------------------------
+
+async function getCurrentProfile(req) {
+
+    if (
+        !req.session ||
+        !req.session.user
+    ) {
+        return null;
+    }
+
+    const userId =
+        req.session.user.id;
+
+    const {
+        data,
+        error
+    } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
+
+    if (error) {
+        console.error(
+            "ADMIN PROFILE ERROR:",
+            error
+        );
+
+        return null;
+    }
+
+    return data;
+}
+
+
+// --------------------------------------------------
+// ADMIN AUTH
+// --------------------------------------------------
+
+async function requireAdmin(
+    req,
+    res,
+    next
+) {
 
     try {
 
-        if (
-            !req.session ||
-            !req.session.user
-        ) {
-
-            return res.status(401).json({
-                error: "You must be logged in."
-            });
-
-        }
-
-        const userId =
-            req.session.user.id;
-
-
-        const {
-            data: profile,
-            error
-        } = await supabase
-            .from("profiles")
-            .select("id, username, role, is_active")
-            .eq("id", userId)
-            .maybeSingle();
-
-
-        if (error) {
-
-            console.error(
-                "ADMIN CHECK ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error: error.message
-            });
-
-        }
-
+        const profile =
+            await getCurrentProfile(req);
 
         if (!profile) {
 
-            return res.status(404).json({
-                error: "Profile not found."
+            return res.status(401).json({
+                error:
+                    "You must be logged in."
             });
 
         }
 
+        const level =
+            getRoleLevel(
+                profile.role
+            );
 
-        if (profile.is_active === false) {
+        if (level < 2) {
 
             return res.status(403).json({
-                error: "Your ShrekBook account is deactivated."
+                error:
+                    "Admin access required."
             });
 
         }
 
-
-        if (profile.role !== "admin") {
+        if (
+            profile.is_active === false
+        ) {
 
             return res.status(403).json({
-                error: "Admin access required."
+                error:
+                    "Your account is deactivated."
             });
 
         }
 
-
-        // Save the fresh admin information
-        // onto the request.
-
-        req.admin = profile;
+        req.adminProfile =
+            profile;
 
         next();
 
     } catch (error) {
 
         console.error(
-            "ADMIN CHECK ERROR:",
+            "ADMIN AUTH ERROR:",
             error
         );
 
         res.status(500).json({
-            error: "Server error."
+            error:
+                "Server error."
         });
 
     }
@@ -3880,9 +3908,47 @@ async function requireAdmin(req, res, next) {
 }
 
 
-// ==================================================
-// ADMIN: LIST USERS
-// ==================================================
+// --------------------------------------------------
+// ADMIN INFORMATION
+// --------------------------------------------------
+
+app.get(
+    "/api/admin/me",
+    requireAdmin,
+    (req, res) => {
+
+        res.json({
+
+            success: true,
+
+            user: {
+
+                id:
+                    req.adminProfile.id,
+
+                username:
+                    req.adminProfile.username,
+
+                display_name:
+                    req.adminProfile.display_name,
+
+                role:
+                    req.adminProfile.role,
+
+                is_active:
+                    req.adminProfile.is_active
+
+            }
+
+        });
+
+    }
+);
+
+
+// --------------------------------------------------
+// GET USERS
+// --------------------------------------------------
 
 app.get(
     "/api/admin/users",
@@ -3897,7 +3963,7 @@ app.get(
             } = await supabase
                 .from("profiles")
                 .select(
-                    "id, username, display_name, avatar, bio, role, is_active, last_seen"
+                    "id, username, display_name, avatar, role, is_active, last_seen"
                 )
                 .order(
                     "username",
@@ -3906,153 +3972,7 @@ app.get(
                     }
                 );
 
-
             if (error) {
-
-                console.error(
-                    "ADMIN USERS ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error: error.message
-                });
-
-            }
-
-
-            res.json(
-                (data || []).map(user => ({
-
-                    ...user,
-
-                    avatar:
-                        getAvatar(
-                            user.avatar
-                        )
-
-                }))
-            );
-
-        } catch (error) {
-
-            console.error(
-                "ADMIN USERS ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error: "Server error."
-            });
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// ADMIN: REVOKE ADMIN
-// Changes role -> peasant
-// ==================================================
-
-app.post(
-    "/api/admin/users/:id/revoke",
-    requireAdmin,
-    async (req, res) => {
-
-        try {
-
-            const targetId =
-                req.params.id;
-
-
-            // Don't let an admin revoke
-            // their own admin privileges.
-
-            if (
-                targetId ===
-                req.admin.id
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "You cannot revoke your own admin privileges."
-                });
-
-            }
-
-
-            const {
-                data: target,
-                error: findError
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "id, username, role"
-                )
-                .eq(
-                    "id",
-                    targetId
-                )
-                .maybeSingle();
-
-
-            if (findError) {
-
-                return res.status(500).json({
-                    error:
-                        findError.message
-                });
-
-            }
-
-
-            if (!target) {
-
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-
-            }
-
-
-            if (
-                target.role !==
-                "admin"
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "That user is not an admin."
-                });
-
-            }
-
-
-            const {
-                data,
-                error
-            } = await supabase
-                .from("profiles")
-                .update({
-                    role: "peasant"
-                })
-                .eq(
-                    "id",
-                    targetId
-                )
-                .select()
-                .single();
-
-
-            if (error) {
-
-                console.error(
-                    "REVOKE ADMIN ERROR:",
-                    error
-                );
 
                 return res.status(500).json({
                     error:
@@ -4061,22 +3981,14 @@ app.post(
 
             }
 
-
-            res.json({
-
-                success: true,
-
-                message:
-                    `${target.username} is now a peasant.`,
-
-                user: data
-
-            });
+            res.json(
+                data || []
+            );
 
         } catch (error) {
 
             console.error(
-                "REVOKE ADMIN ERROR:",
+                "ADMIN USERS ERROR:",
                 error
             );
 
@@ -4091,10 +4003,9 @@ app.post(
 );
 
 
-// ==================================================
-// ADMIN: KICK USER
-// Deactivates their ShrekBook page
-// ==================================================
+// --------------------------------------------------
+// KICK / DEACTIVATE
+// --------------------------------------------------
 
 app.post(
     "/api/admin/users/:id/kick",
@@ -4103,29 +4014,16 @@ app.post(
 
         try {
 
+            const actor =
+                req.adminProfile;
+
             const targetId =
                 req.params.id;
 
 
-            // Don't let an admin
-            // deactivate themselves.
-
-            if (
-                targetId ===
-                req.admin.id
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "You cannot kick yourself."
-                });
-
-            }
-
-
             const {
                 data: target,
-                error: findError
+                error: targetError
             } = await supabase
                 .from("profiles")
                 .select(
@@ -4138,11 +4036,11 @@ app.post(
                 .maybeSingle();
 
 
-            if (findError) {
+            if (targetError) {
 
                 return res.status(500).json({
                     error:
-                        findError.message
+                        targetError.message
                 });
 
             }
@@ -4158,8 +4056,49 @@ app.post(
             }
 
 
+            const actorLevel =
+                getRoleLevel(
+                    actor.role
+                );
+
+            const targetLevel =
+                getRoleLevel(
+                    target.role
+                );
+
+
+            // Cannot kick yourself.
+
+            if (
+                actor.id ===
+                target.id
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "You cannot kick yourself."
+                });
+
+            }
+
+
+            // Cannot kick someone
+            // at your level or above.
+
+            if (
+                targetLevel >=
+                actorLevel
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You cannot kick this user."
+                });
+
+            }
+
+
             const {
-                data,
                 error
             } = await supabase
                 .from("profiles")
@@ -4169,17 +4108,10 @@ app.post(
                 .eq(
                     "id",
                     targetId
-                )
-                .select()
-                .single();
+                );
 
 
             if (error) {
-
-                console.error(
-                    "KICK USER ERROR:",
-                    error
-                );
 
                 return res.status(500).json({
                     error:
@@ -4190,20 +4122,15 @@ app.post(
 
 
             res.json({
-
                 success: true,
-
                 message:
-                    `${target.username}'s ShrekBook page has been deactivated.`,
-
-                user: data
-
+                    `${target.username} was kicked.`
             });
 
         } catch (error) {
 
             console.error(
-                "KICK USER ERROR:",
+                "KICK ERROR:",
                 error
             );
 
@@ -4218,9 +4145,9 @@ app.post(
 );
 
 
-// ==================================================
-// ADMIN: REACTIVATE USER
-// ==================================================
+// --------------------------------------------------
+// REACTIVATE
+// --------------------------------------------------
 
 app.post(
     "/api/admin/users/:id/reactivate",
@@ -4229,17 +4156,20 @@ app.post(
 
         try {
 
+            const actor =
+                req.adminProfile;
+
             const targetId =
                 req.params.id;
 
 
             const {
                 data: target,
-                error: findError
+                error
             } = await supabase
                 .from("profiles")
                 .select(
-                    "id, username"
+                    "id, username, role"
                 )
                 .eq(
                     "id",
@@ -4248,11 +4178,11 @@ app.post(
                 .maybeSingle();
 
 
-            if (findError) {
+            if (error) {
 
                 return res.status(500).json({
                     error:
-                        findError.message
+                        error.message
                 });
 
             }
@@ -4268,9 +4198,46 @@ app.post(
             }
 
 
+            const actorLevel =
+                getRoleLevel(
+                    actor.role
+                );
+
+            const targetLevel =
+                getRoleLevel(
+                    target.role
+                );
+
+
+            if (
+                target.id ===
+                actor.id
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Invalid target."
+                });
+
+            }
+
+
+            if (
+                targetLevel >=
+                actorLevel
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You cannot reactivate this user."
+                });
+
+            }
+
+
             const {
-                data,
-                error
+                error:
+                    updateError
             } = await supabase
                 .from("profiles")
                 .update({
@@ -4279,41 +4246,27 @@ app.post(
                 .eq(
                     "id",
                     targetId
-                )
-                .select()
-                .single();
-
-
-            if (error) {
-
-                console.error(
-                    "REACTIVATE USER ERROR:",
-                    error
                 );
+
+
+            if (updateError) {
 
                 return res.status(500).json({
                     error:
-                        error.message
+                        updateError.message
                 });
 
             }
 
 
             res.json({
-
-                success: true,
-
-                message:
-                    `${target.username}'s ShrekBook page has been reactivated.`,
-
-                user: data
-
+                success: true
             });
 
         } catch (error) {
 
             console.error(
-                "REACTIVATE USER ERROR:",
+                "REACTIVATE ERROR:",
                 error
             );
 
@@ -4328,9 +4281,9 @@ app.post(
 );
 
 
-// ==================================================
-// ADMIN: CHANGE ROLE
-// ==================================================
+// --------------------------------------------------
+// CHANGE ROLE
+// --------------------------------------------------
 
 app.post(
     "/api/admin/users/:id/role",
@@ -4339,25 +4292,22 @@ app.post(
 
         try {
 
+            const actor =
+                req.adminProfile;
+
             const targetId =
                 req.params.id;
 
-            const role =
+            const newRole =
                 String(
                     req.body.role || ""
-                ).trim().toLowerCase();
-
-
-            const allowedRoles = [
-                "admin",
-                "peasant"
-            ];
+                ).trim();
 
 
             if (
-                !allowedRoles.includes(
-                    role
-                )
+                !ROLE_LEVELS[
+                    newRole
+                ]
             ) {
 
                 return res.status(400).json({
@@ -4368,12 +4318,47 @@ app.post(
             }
 
 
+            const {
+                data: target,
+                error
+            } = await supabase
+                .from("profiles")
+                .select(
+                    "id, username, role"
+                )
+                .eq(
+                    "id",
+                    targetId
+                )
+                .maybeSingle();
+
+
+            if (error) {
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+
+            if (!target) {
+
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+
+            }
+
+
             if (
-                targetId ===
-                req.admin.id
+                target.id ===
+                actor.id
             ) {
 
-                return res.status(400).json({
+                return res.status(403).json({
                     error:
                         "You cannot change your own role."
                 });
@@ -4381,32 +4366,76 @@ app.post(
             }
 
 
+            const actorLevel =
+                getRoleLevel(
+                    actor.role
+                );
+
+            const targetLevel =
+                getRoleLevel(
+                    target.role
+                );
+
+            const newLevel =
+                getRoleLevel(
+                    newRole
+                );
+
+
+            // Nobody can modify
+            // someone at their level
+            // or above.
+
+            if (
+                targetLevel >=
+                actorLevel
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You cannot manage this user."
+                });
+
+            }
+
+
+            // You also cannot promote
+            // someone to your level
+            // or above.
+
+            if (
+                newLevel >=
+                actorLevel
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You cannot give this role."
+                });
+
+            }
+
+
             const {
-                data,
-                error
+                error:
+                    updateError
             } = await supabase
                 .from("profiles")
                 .update({
-                    role
+                    role:
+                        newRole
                 })
                 .eq(
                     "id",
                     targetId
-                )
-                .select()
-                .single();
-
-
-            if (error) {
-
-                console.error(
-                    "CHANGE ROLE ERROR:",
-                    error
                 );
+
+
+            if (updateError) {
 
                 return res.status(500).json({
                     error:
-                        error.message
+                        updateError.message
                 });
 
             }
@@ -4417,16 +4446,14 @@ app.post(
                 success: true,
 
                 message:
-                    `User role changed to ${role}.`,
-
-                user: data
+                    `${target.username} is now ${newRole}.`
 
             });
 
         } catch (error) {
 
             console.error(
-                "CHANGE ROLE ERROR:",
+                "ROLE CHANGE ERROR:",
                 error
             );
 
@@ -4441,22 +4468,85 @@ app.post(
 );
 
 
-// ==================================================
-// ADMIN: CHECK CURRENT ADMIN STATUS
-// ==================================================
+// --------------------------------------------------
+// SENIOR MODERATOR REQUEST
+// --------------------------------------------------
 
-app.get(
-    "/api/admin/auth",
+app.post(
+    "/api/admin/request-action",
     requireAdmin,
-    (req, res) => {
+    async (req, res) => {
 
-        res.json({
+        try {
 
-            isAdmin: true,
+            const actor =
+                req.adminProfile;
 
-            user: req.admin
 
-        });
+            if (
+                actor.role !==
+                "senior_moderator"
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "Only senior moderators can submit these requests."
+                });
+
+            }
+
+
+            const targetId =
+                String(
+                    req.body.targetId || ""
+                ).trim();
+
+            const reason =
+                String(
+                    req.body.reason || ""
+                ).trim();
+
+
+            if (!targetId || !reason) {
+
+                return res.status(400).json({
+                    error:
+                        "Target and reason are required."
+                });
+
+            }
+
+
+            // This endpoint intentionally
+            // does NOT change the target's role.
+
+            console.log(
+                `SENIOR MOD REQUEST: ${actor.username} requested action against ${targetId}: ${reason}`
+            );
+
+
+            res.json({
+
+                success: true,
+
+                message:
+                    "Request sent to administrators."
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "ACTION REQUEST ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
 
     }
 );
