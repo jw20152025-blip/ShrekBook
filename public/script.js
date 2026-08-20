@@ -461,6 +461,208 @@ async function signup() {
 let kickCheckRunning = false;
 
 
+
+// ==================================================
+// SHREKBOOK BAN + KICK WATCHER
+// ==================================================
+
+(function startModerationWatcher() {
+
+    const path =
+        window.location.pathname.toLowerCase();
+
+
+    // Don't run on these pages.
+
+    if (
+        path.endsWith("/login.html") ||
+        path.endsWith("/kicked.html")
+    ) {
+        return;
+    }
+
+
+    let checkingBan = false;
+    let checkingKick = false;
+
+
+    // ==================================================
+    // BAN CHECK
+    // EVERY 500ms
+    // ==================================================
+
+    async function checkBan() {
+
+        if (checkingBan) {
+            return;
+        }
+
+        checkingBan = true;
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/me",
+                    {
+                        credentials: "include",
+                        cache: "no-store"
+                    }
+                );
+
+
+            if (!response.ok) {
+                return;
+            }
+
+
+            const data =
+                await response.json();
+
+
+            if (
+                data &&
+                data.loggedIn &&
+                data.banned === true
+            ) {
+
+                console.log(
+                    "🚫 BANNED — sending to login."
+                );
+
+
+                window.location.replace(
+                    "/login.html"
+                );
+
+            }
+
+        }
+
+        catch (error) {
+
+            console.error(
+                "BAN CHECK ERROR:",
+                error
+            );
+
+        }
+
+        finally {
+
+            checkingBan = false;
+
+        }
+
+    }
+
+
+    // ==================================================
+    // KICK CHECK
+    // EVERY 2000ms
+    // ==================================================
+
+    async function checkKick() {
+
+        if (checkingKick) {
+            return;
+        }
+
+        checkingKick = true;
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/me",
+                    {
+                        credentials: "include",
+                        cache: "no-store"
+                    }
+                );
+
+
+            if (!response.ok) {
+                return;
+            }
+
+
+            const data =
+                await response.json();
+
+
+            if (
+                data &&
+                data.loggedIn &&
+                data.kicked === true
+            ) {
+
+                console.log(
+                    "🦵 KICKED — sending to kicked page."
+                );
+
+
+                window.location.replace(
+                    "/kicked.html"
+                );
+
+            }
+
+        }
+
+        catch (error) {
+
+            console.error(
+                "KICK CHECK ERROR:",
+                error
+            );
+
+        }
+
+        finally {
+
+            checkingKick = false;
+
+        }
+
+    }
+
+
+    // ==================================================
+    // INITIAL CHECK
+    // ==================================================
+
+    checkBan();
+    checkKick();
+
+
+    // ==================================================
+    // TIMERS
+    // ==================================================
+
+    setInterval(
+        checkBan,
+        500
+    );
+
+
+    setInterval(
+        checkKick,
+        2000
+    );
+
+
+    console.log(
+        "🛡️ Moderation watcher started."
+    );
+
+
+})();
+
+
+
 // ==================================================
 // CHECK KICK STATUS
 // ==================================================
