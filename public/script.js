@@ -447,6 +447,149 @@ async function signup() {
 }
 
 
+// ==================================================
+// SHREKBOOK KICK DETECTOR
+// ==================================================
+//
+// Checks the server every second.
+// If the currently logged-in user has been kicked,
+// immediately send this page to kicked.html.
+//
+// No refresh required.
+// ==================================================
+
+let kickCheckRunning = false;
+
+
+// ==================================================
+// CHECK KICK STATUS
+// ==================================================
+
+async function checkKickStatus() {
+
+    if (kickCheckRunning) {
+        return;
+    }
+
+
+    kickCheckRunning = true;
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/me",
+                {
+                    method: "GET",
+
+                    credentials: "include",
+
+                    cache: "no-store",
+
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
+                }
+            );
+
+
+        if (!response.ok) {
+            return;
+        }
+
+
+        const data =
+            await response.json();
+
+
+        // ------------------------------------------
+        // USER HAS BEEN KICKED
+        // ------------------------------------------
+
+        if (
+            data &&
+            data.kicked === true
+        ) {
+
+            console.log(
+                "🚪 User has been kicked."
+            );
+
+
+            // Stop checking.
+
+            kickCheckRunning =
+                true;
+
+
+            // Send them to the kicked dimension. 👹
+
+            window.location.replace(
+                "/kicked.html"
+            );
+
+
+            return;
+
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "KICK STATUS ERROR:",
+            error
+        );
+
+    } finally {
+
+        // Don't unlock after redirect.
+
+        if (
+            !window.location.pathname
+                .endsWith(
+                    "/kicked.html"
+                )
+        ) {
+
+            kickCheckRunning =
+                false;
+
+        }
+
+    }
+
+}
+
+
+// ==================================================
+// START KICK MONITOR
+// ==================================================
+
+if (
+    !window.location.pathname
+        .endsWith(
+            "/kicked.html"
+        )
+) {
+
+    // Check immediately.
+
+    checkKickStatus();
+
+
+    // Then check every second.
+
+    setInterval(
+        checkKickStatus,
+        1000
+    );
+
+}
+
+
 /* ==================================================
 AUTH UI
 ================================================== */

@@ -4641,15 +4641,198 @@ app.post(
     }
 );
 
+// ==================================================
+// SHREKBOOK KICK SYSTEM
+// ==================================================
+//
+// kicked = true
+// means the user's CURRENT ShrekBook session/page
+// should be sent to kicked.html.
+//
+// This does NOT delete their account.
+// This does NOT ban them.
+// ==================================================
+
 
 // ==================================================
-// KICK
-//
-// DOES NOT DELETE ACCOUNT.
-//
-// Makes the account inactive.
-// The access middleware then blocks
-// the user's ShrekBook requests.
+// REQUIRE LOGIN
+// ==================================================
+
+function requireLogin(req, res, next) {
+
+    if (!req.session?.user?.id) {
+
+        return res.status(401).json({
+            error: "Not logged in."
+        });
+
+    }
+
+    next();
+
+}
+
+
+// ==================================================
+// CHECK WHETHER CURRENT USER IS KICKED
+// ==================================================
+
+async function isUserKicked(userId) {
+
+    const {
+        data: profile,
+        error
+    } = await supabase
+        .from("profiles")
+        .select("kicked")
+        .eq("id", userId)
+        .maybeSingle();
+
+
+    if (error) {
+
+        console.error(
+            "KICK CHECK ERROR:",
+            error
+        );
+
+        return false;
+
+    }
+
+
+    return profile?.kicked === true;
+
+}
+
+
+// ==================================================
+// /api/me
+// ==================================================
+
+app.get(
+    "/api/me",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session?.user?.id) {
+
+                return res.json({
+                    loggedIn: false,
+                    user: null,
+                    kicked: false
+                });
+
+            }
+
+
+            const userId =
+                req.session.user.id;
+
+
+            // ------------------------------------------
+            // CHECK KICK STATUS
+            // ------------------------------------------
+
+            const kicked =
+                await isUserKicked(userId);
+
+
+            if (kicked) {
+
+                return res.json({
+
+                    loggedIn: true,
+
+                    kicked: true,
+
+                    user: null
+
+                });
+
+            }
+
+
+            // ------------------------------------------
+            // LOAD PROFILE
+            // ------------------------------------------
+
+            const {
+                data: profile,
+                error
+            } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("id", userId)
+                .maybeSingle();
+
+
+            if (error) {
+
+                console.error(
+                    "ME PROFILE ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        "Could not load profile."
+                });
+
+            }
+
+
+            if (!profile) {
+
+                return res.status(404).json({
+                    error:
+                        "User profile not found."
+                });
+
+            }
+
+
+            res.json({
+
+                loggedIn: true,
+
+                kicked: false,
+
+                user: {
+
+                    ...profile,
+
+                    email:
+                        req.session.user.email
+
+                }
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "ME ERROR:",
+                error
+            );
+
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// ADMIN KICK
+// POST /api/admin/users/:id/kick
 // ==================================================
 
 app.post(
@@ -4665,14 +4848,23 @@ app.post(
                     res
                 );
 
+
             if (!actor) {
                 return;
             }
 
 
+            const targetId =
+                req.params.id;
+
+
+            // ------------------------------------------
+            // GET TARGET
+            // ------------------------------------------
+
             const {
                 data: target,
-                error
+                error: targetError
             } = await supabase
                 .from("profiles")
                 .select(
@@ -4680,16 +4872,21 @@ app.post(
                 )
                 .eq(
                     "id",
-                    req.params.id
+                    targetId
                 )
                 .maybeSingle();
 
 
-            if (error) {
+            if (targetError) {
+
+                console.error(
+                    "KICK TARGET ERROR:",
+                    targetError
+                );
 
                 return res.status(500).json({
                     error:
-                        error.message
+                        targetError.message
                 });
 
             }
@@ -4705,6 +4902,10 @@ app.post(
             }
 
 
+            // ------------------------------------------
+            // CANNOT KICK YOURSELF
+            // ------------------------------------------
+
             if (
                 target.id === actor.id
             ) {
@@ -4716,6 +4917,10 @@ app.post(
 
             }
 
+
+            // ------------------------------------------
+            // ROLE PROTECTION
+            // ------------------------------------------
 
             if (
                 !canManageRole(
@@ -4732,6 +4937,10 @@ app.post(
             }
 
 
+            // ------------------------------------------
+            // BANNED USERS
+            // ------------------------------------------
+
             if (target.banned) {
 
                 return res.status(403).json({
@@ -4742,12 +4951,16 @@ app.post(
             }
 
 
+            // ------------------------------------------
+            // MARK USER AS KICKED
+            // ------------------------------------------
+
             const {
                 error: updateError
             } = await supabase
                 .from("profiles")
                 .update({
-                    is_active: false
+                    kicked: true
                 })
                 .eq(
                     "id",
@@ -4757,6 +4970,11 @@ app.post(
 
             if (updateError) {
 
+                console.error(
+                    "KICK UPDATE ERROR:",
+                    updateError
+                );
+
                 return res.status(500).json({
                     error:
                         updateError.message
@@ -4765,14 +4983,22 @@ app.post(
             }
 
 
+            // ------------------------------------------
+            // SUCCESS
+            // ------------------------------------------
+
             res.json({
+
                 success: true,
+
+                kicked: true,
+
                 username:
                     target.username,
-                is_active:
-                    false,
+
                 message:
-                    `${target.username} was kicked.`
+                    `${target.username} has been kicked.`
+
             });
 
 
@@ -4782,6 +5008,7 @@ app.post(
                 "KICK ERROR:",
                 error
             );
+
 
             res.status(500).json({
                 error:
