@@ -885,6 +885,7 @@ function requireLogin(req, res, next) {
 // LOGIN
 // ==================================================
 
+
 app.post("/api/login", async (req, res) => {
 
     try {
@@ -899,6 +900,11 @@ app.post("/api/login", async (req, res) => {
                 req.body.password || ""
             );
 
+
+        // ==========================================
+        // CHECK INPUT
+        // ==========================================
+
         if (!email || !password) {
 
             return res.status(400).json({
@@ -910,13 +916,17 @@ app.post("/api/login", async (req, res) => {
 
 
         // ==========================================
-        // CHECK EMAIL BAN BEFORE LOGIN
+        // CHECK EMAIL BAN
+        //
+        // This is your restored email-ban system.
+        // It happens BEFORE Supabase authentication.
         // ==========================================
 
         const emailBan =
             await getActiveBanByEmail(
                 email
             );
+
 
         if (emailBan) {
 
@@ -966,8 +976,22 @@ app.post("/api/login", async (req, res) => {
             authData.user;
 
 
+        if (!authUser) {
+
+            return res.status(401).json({
+
+                error:
+                    "Login failed."
+
+            });
+
+        }
+
+
         // ==========================================
-        // CHECK USER ID BAN
+        // CHECK USER-ID BAN
+        //
+        // This checks your account/user ban system.
         // ==========================================
 
         const userBan =
@@ -1011,6 +1035,11 @@ app.post("/api/login", async (req, res) => {
 
 
         if (profileError) {
+
+            console.error(
+                "LOGIN PROFILE ERROR:",
+                profileError
+            );
 
             return res.status(500).json({
 
@@ -1058,6 +1087,8 @@ app.post("/api/login", async (req, res) => {
                 1;
 
 
+            // Find an unused username.
+
             while (true) {
 
                 const {
@@ -1089,6 +1120,8 @@ app.post("/api/login", async (req, res) => {
             }
 
 
+            // Create the profile.
+
             const {
                 data: created,
                 error: createError
@@ -1110,7 +1143,16 @@ app.post("/api/login", async (req, res) => {
                             null,
 
                         bio:
-                            ""
+                            "",
+
+                        role:
+                            "peasant",
+
+                        is_active:
+                            true,
+
+                        banned:
+                            false
 
                     })
                     .select()
@@ -1118,6 +1160,11 @@ app.post("/api/login", async (req, res) => {
 
 
             if (createError) {
+
+                console.error(
+                    "CREATE PROFILE ERROR:",
+                    createError
+                );
 
                 return res.status(500).json({
 
@@ -1131,6 +1178,52 @@ app.post("/api/login", async (req, res) => {
 
             profile =
                 created;
+
+        }
+
+
+        // ==========================================
+        // CHECK PROFILE BAN
+        //
+        // Your ADMIN BAN button sets:
+        //
+        // banned = true
+        //
+        // So this prevents those accounts from
+        // logging in.
+        // ==========================================
+
+        if (profile.banned === true) {
+
+            return res.status(403).json({
+
+                error:
+                    "Your account has been banned from ShrekBook."
+
+            });
+
+        }
+
+
+        // ==========================================
+        // CHECK PROFILE ACTIVE STATUS
+        //
+        // Kicked users have:
+        //
+        // is_active = false
+        //
+        // They cannot log back in until the account
+        // is made active again.
+        // ==========================================
+
+        if (profile.is_active === false) {
+
+            return res.status(403).json({
+
+                error:
+                    "Your ShrekBook account is currently inactive."
+
+            });
 
         }
 
@@ -1224,32 +1317,8 @@ app.post("/api/login", async (req, res) => {
     }
 
 });
-// ==================================================
-// LOGOUT
-// ==================================================
 
-app.post("/api/logout", (req, res) => {
 
-    req.session.destroy(error => {
-
-        if (error) {
-            return res.status(500).json({
-                error:
-                    "Logout failed."
-            });
-        }
-
-        res.clearCookie(
-            "connect.sid"
-        );
-
-        res.json({
-            success: true
-        });
-
-    });
-
-});
 
 // ==================================================
 // CURRENT USER
