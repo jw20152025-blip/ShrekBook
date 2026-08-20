@@ -19,9 +19,7 @@ async function api(url, options = {}) {
             credentials: "include",
 
             headers: {
-                "Content-Type":
-                    "application/json",
-
+                "Content-Type": "application/json",
                 ...(options.headers || {})
             },
 
@@ -29,13 +27,19 @@ async function api(url, options = {}) {
         }
     );
 
+
     let data = null;
 
     try {
+
         data = await response.json();
+
     } catch {
+
         data = null;
+
     }
+
 
     if (!response.ok) {
 
@@ -45,6 +49,7 @@ async function api(url, options = {}) {
         );
 
     }
+
 
     return data;
 }
@@ -103,27 +108,11 @@ function setStatus(
 function escapeHTML(value) {
 
     return String(value ?? "")
-        .replace(
-            /&/g,
-            "&amp;"
-        )
-        .replace(
-            /</g,
-            "&lt;"
-        )
-        .replace(
-            />/g,
-            "&gt;"
-        )
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-        .replace(
-            /'/g,
-            "&#039;"
-        );
-
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 
@@ -137,11 +126,7 @@ function roleClass(role) {
         role || "peasant"
     )
         .toLowerCase()
-        .replace(
-            /\s+/g,
-            "_"
-        );
-
+        .replace(/\s+/g, "_");
 }
 
 
@@ -157,10 +142,12 @@ async function checkAdmin() {
             "Checking admin access..."
         );
 
+
         const data =
             await api(
                 "/api/admin/auth"
             );
+
 
         if (
             !data ||
@@ -173,8 +160,10 @@ async function checkAdmin() {
 
         }
 
+
         currentAdmin =
             data.user;
+
 
         if (currentUserElement) {
 
@@ -188,6 +177,7 @@ async function checkAdmin() {
 
         }
 
+
         if (adminPanel) {
 
             adminPanel.classList.remove(
@@ -196,11 +186,14 @@ async function checkAdmin() {
 
         }
 
+
         setStatus(
             "Admin access granted."
         );
 
+
         await loadUsers();
+
 
     } catch (error) {
 
@@ -209,12 +202,14 @@ async function checkAdmin() {
             error
         );
 
+
         if (currentUserElement) {
 
             currentUserElement.textContent =
                 "🚫 Access denied";
 
         }
+
 
         setStatus(
             error.message,
@@ -238,26 +233,30 @@ async function loadUsers() {
             "Loading users..."
         );
 
+
         const data =
             await api(
                 "/api/admin/users"
             );
 
+
         allUsers =
             Array.isArray(data)
                 ? data
-                : data.users || [];
+                : (
+                    Array.isArray(data?.users)
+                        ? data.users
+                        : []
+                );
 
-        console.log(
-            "ADMIN USERS:",
-            allUsers
-        );
 
         renderUsers();
+
 
         setStatus(
             `Loaded ${allUsers.length} users.`
         );
+
 
     } catch (error) {
 
@@ -265,6 +264,7 @@ async function loadUsers() {
             "LOAD USERS ERROR:",
             error
         );
+
 
         setStatus(
             error.message,
@@ -286,6 +286,7 @@ function renderUsers() {
         return;
     }
 
+
     const search =
         searchElement
             ? searchElement.value
@@ -293,30 +294,31 @@ function renderUsers() {
                 .toLowerCase()
             : "";
 
+
     const filtered =
-        allUsers.filter(
-            user => {
+        allUsers.filter(user => {
 
-                return (
+            const username =
+                String(
+                    user.username || ""
+                )
+                .toLowerCase();
 
-                    String(
-                        user.username || ""
-                    )
-                        .toLowerCase()
-                        .includes(search)
 
-                    ||
+            const displayName =
+                String(
+                    user.display_name || ""
+                )
+                .toLowerCase();
 
-                    String(
-                        user.display_name || ""
-                    )
-                        .toLowerCase()
-                        .includes(search)
 
-                );
+            return (
+                username.includes(search) ||
+                displayName.includes(search)
+            );
 
-            }
-        );
+        });
+
 
     if (!filtered.length) {
 
@@ -329,11 +331,11 @@ function renderUsers() {
         return;
     }
 
+
     usersElement.innerHTML =
         filtered
             .map(renderUser)
             .join("");
-
 }
 
 
@@ -347,11 +349,13 @@ function renderUser(user) {
         user.role ||
         "peasant";
 
+
     const active =
-        user.is_active === true;
+        user.is_active !== false;
+
 
     // IMPORTANT:
-    // Backend field is "banned".
+    // The backend uses "banned".
     const banned =
         user.banned === true;
 
@@ -373,7 +377,7 @@ function renderUser(user) {
 
         statusHTML = `
             <div class="status inactive">
-                🦵 Page deactivated
+                🦵 KICKED / DEACTIVATED
             </div>
         `;
 
@@ -397,25 +401,18 @@ function renderUser(user) {
 
     // ==================================================
     // MODERATION BUTTONS
-    //
-    // ACTIVE:
-    //     Kick + Ban
-    //
-    // KICKED:
-    //     Reactivate + Ban
-    //
-    // BANNED:
-    //     Unban ONLY
     // ==================================================
 
     let moderationButtons = "";
 
 
-    if (banned === true) {
+    if (banned) {
+
+        // BANNED:
+        // Only show Unban.
 
         moderationButtons = `
             <button
-                type="button"
                 class="success unban-user"
                 data-id="${escapeHTML(user.id)}"
             >
@@ -425,19 +422,16 @@ function renderUser(user) {
 
     }
 
-    else if (active === false) {
+    else if (!active) {
+
+        // KICKED:
+        // No Reactivate button.
+        //
+        // Account remains in database.
+        // Manual database restoration is possible.
 
         moderationButtons = `
             <button
-                type="button"
-                class="success reactivate-user"
-                data-id="${escapeHTML(user.id)}"
-            >
-                ♻️ Reactivate
-            </button>
-
-            <button
-                type="button"
                 class="danger ban-user"
                 data-id="${escapeHTML(user.id)}"
             >
@@ -449,9 +443,10 @@ function renderUser(user) {
 
     else {
 
+        // ACTIVE:
+
         moderationButtons = `
             <button
-                type="button"
                 class="danger kick-user"
                 data-id="${escapeHTML(user.id)}"
             >
@@ -459,7 +454,6 @@ function renderUser(user) {
             </button>
 
             <button
-                type="button"
                 class="danger ban-user"
                 data-id="${escapeHTML(user.id)}"
             >
@@ -481,6 +475,7 @@ function renderUser(user) {
                 <img
                     class="avatar"
                     src="${escapeHTML(avatar)}"
+                    alt="Avatar"
                     onerror="this.src='/default-avatar.png'"
                 >
 
@@ -514,6 +509,8 @@ function renderUser(user) {
 
             <div class="actions">
 
+                <!-- ROLE -->
+
                 <select
                     class="role-select"
                     data-id="${escapeHTML(user.id)}"
@@ -530,6 +527,7 @@ function renderUser(user) {
                         👑 Owner
                     </option>
 
+
                     <option
                         value="administrator"
                         ${
@@ -540,6 +538,7 @@ function renderUser(user) {
                     >
                         🛡️ Administrator
                     </option>
+
 
                     <option
                         value="senior_moderator"
@@ -552,6 +551,7 @@ function renderUser(user) {
                         ⭐ Senior Moderator
                     </option>
 
+
                     <option
                         value="junior_moderator"
                         ${
@@ -562,6 +562,7 @@ function renderUser(user) {
                     >
                         🔨 Junior Moderator
                     </option>
+
 
                     <option
                         value="peasant"
@@ -578,7 +579,6 @@ function renderUser(user) {
 
 
                 <button
-                    type="button"
                     class="success change-role"
                     data-id="${escapeHTML(user.id)}"
                 >
@@ -587,7 +587,6 @@ function renderUser(user) {
 
 
                 <button
-                    type="button"
                     class="warning revoke-user"
                     data-id="${escapeHTML(user.id)}"
                 >
@@ -601,7 +600,6 @@ function renderUser(user) {
 
         </div>
     `;
-
 }
 
 
@@ -616,40 +614,58 @@ async function changeRole(userId) {
             `.role-select[data-id="${CSS.escape(userId)}"]`
         );
 
+
     if (!select) {
         return;
     }
 
+
     const role =
         select.value;
+
 
     if (
         !confirm(
             `Change this user's role to "${role}"?`
         )
     ) {
+
         return;
     }
 
+
     try {
 
-        await api(
-            `/api/admin/users/${encodeURIComponent(userId)}/role`,
-            {
-                method: "PUT",
+        const result =
+            await api(
+                `/api/admin/users/${encodeURIComponent(userId)}/role`,
+                {
+                    method: "PUT",
 
-                body:
-                    JSON.stringify({
-                        role
-                    })
-            }
+                    body:
+                        JSON.stringify({
+                            role
+                        })
+                }
+            );
+
+
+        console.log(
+            "ROLE CHANGE SUCCESS:",
+            result
         );
+
 
         setStatus(
-            `Role changed to ${role}.`
+            `${result.username} is now ${result.role}.`
         );
 
+
+        // Reload directly from Supabase
+        // through the backend.
+
         await loadUsers();
+
 
     } catch (error) {
 
@@ -657,6 +673,7 @@ async function changeRole(userId) {
             "CHANGE ROLE ERROR:",
             error
         );
+
 
         setStatus(
             error.message,
@@ -679,28 +696,34 @@ async function revokeUser(userId) {
             "Revoke this user's staff privileges and make them a peasant?"
         )
     ) {
+
         return;
     }
 
+
     try {
 
-        await api(
-            `/api/admin/users/${encodeURIComponent(userId)}/role`,
-            {
-                method: "PUT",
+        const result =
+            await api(
+                `/api/admin/users/${encodeURIComponent(userId)}/role`,
+                {
+                    method: "PUT",
 
-                body:
-                    JSON.stringify({
-                        role: "peasant"
-                    })
-            }
-        );
+                    body:
+                        JSON.stringify({
+                            role: "peasant"
+                        })
+                }
+            );
+
 
         setStatus(
-            "User has been revoked."
+            `${result.username} is now a peasant.`
         );
 
+
         await loadUsers();
+
 
     } catch (error) {
 
@@ -708,6 +731,7 @@ async function revokeUser(userId) {
             "REVOKE ERROR:",
             error
         );
+
 
         setStatus(
             error.message,
@@ -727,26 +751,33 @@ async function kickUser(userId) {
 
     if (
         !confirm(
-            "Kick this user? Their page will be deactivated, but their account/data will remain."
+            "Kick this user? Their ShrekBook access will stop working, but their account and data will remain."
         )
     ) {
+
         return;
     }
 
+
     try {
 
-        await api(
-            `/api/admin/users/${encodeURIComponent(userId)}/kick`,
-            {
-                method: "POST"
-            }
-        );
+        const result =
+            await api(
+                `/api/admin/users/${encodeURIComponent(userId)}/kick`,
+                {
+                    method: "POST"
+                }
+            );
+
 
         setStatus(
+            result.message ||
             "User has been kicked."
         );
 
+
         await loadUsers();
+
 
     } catch (error) {
 
@@ -755,51 +786,6 @@ async function kickUser(userId) {
             error
         );
 
-        setStatus(
-            error.message,
-            true
-        );
-
-    }
-
-}
-
-
-// ==================================================
-// REACTIVATE
-// ==================================================
-
-async function reactivateUser(userId) {
-
-    if (
-        !confirm(
-            "Reactivate this user's ShrekBook page?"
-        )
-    ) {
-        return;
-    }
-
-    try {
-
-        await api(
-            `/api/admin/users/${encodeURIComponent(userId)}/reactivate`,
-            {
-                method: "POST"
-            }
-        );
-
-        setStatus(
-            "User's page has been reactivated."
-        );
-
-        await loadUsers();
-
-    } catch (error) {
-
-        console.error(
-            "REACTIVATE ERROR:",
-            error
-        );
 
         setStatus(
             error.message,
@@ -819,26 +805,33 @@ async function banUser(userId) {
 
     if (
         !confirm(
-            "BAN this user? They will be prevented from using ShrekBook."
+            "BAN this user? They will be completely blocked from ShrekBook."
         )
     ) {
+
         return;
     }
 
+
     try {
 
-        await api(
-            `/api/admin/users/${encodeURIComponent(userId)}/ban`,
-            {
-                method: "POST"
-            }
-        );
+        const result =
+            await api(
+                `/api/admin/users/${encodeURIComponent(userId)}/ban`,
+                {
+                    method: "POST"
+                }
+            );
+
 
         setStatus(
+            result.message ||
             "User has been banned."
         );
 
+
         await loadUsers();
+
 
     } catch (error) {
 
@@ -846,6 +839,7 @@ async function banUser(userId) {
             "BAN ERROR:",
             error
         );
+
 
         setStatus(
             error.message,
@@ -865,26 +859,33 @@ async function unbanUser(userId) {
 
     if (
         !confirm(
-            "Unban this user? Their page will become active again."
+            "Unban this user and restore their ShrekBook access?"
         )
     ) {
+
         return;
     }
 
+
     try {
 
-        await api(
-            `/api/admin/users/${encodeURIComponent(userId)}/unban`,
-            {
-                method: "POST"
-            }
-        );
+        const result =
+            await api(
+                `/api/admin/users/${encodeURIComponent(userId)}/unban`,
+                {
+                    method: "POST"
+                }
+            );
+
 
         setStatus(
-            "User has been unbanned and reactivated."
+            result.message ||
+            "User has been unbanned."
         );
 
+
         await loadUsers();
+
 
     } catch (error) {
 
@@ -892,6 +893,7 @@ async function unbanUser(userId) {
             "UNBAN ERROR:",
             error
         );
+
 
         setStatus(
             error.message,
@@ -916,16 +918,20 @@ document.addEventListener(
                 "button"
             );
 
+
         if (!button) {
             return;
         }
 
+
         const userId =
             button.dataset.id;
+
 
         if (!userId) {
             return;
         }
+
 
         if (
             button.classList.contains(
@@ -954,16 +960,6 @@ document.addEventListener(
         ) {
 
             kickUser(userId);
-
-        }
-
-        else if (
-            button.classList.contains(
-                "reactivate-user"
-            )
-        ) {
-
-            reactivateUser(userId);
 
         }
 
@@ -1024,3 +1020,4 @@ if (refreshButton) {
 // ==================================================
 
 checkAdmin();
+
