@@ -9,168 +9,141 @@
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
-    <link rel="canonical" href="https://shrekbook.bbroot.com/">
 
-    <title>ShrekBook Admin Panel</title>
+    <title>ShrekBook Admin</title>
 
     <style>
+
         * {
             box-sizing: border-box;
         }
 
         body {
             margin: 0;
-            padding: 0;
+            padding: 30px;
+
+            background: #f4f4f4;
 
             font-family:
                 Arial,
                 Helvetica,
                 sans-serif;
 
-            background: #f1f5e9;
             color: #222;
         }
 
-        header {
-            background: #4d7c0f;
-            color: white;
-
-            padding: 20px;
-
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-
-            box-shadow:
-                0 2px 8px rgba(0, 0, 0, 0.2);
+        .container {
+            max-width: 1100px;
+            margin: auto;
         }
 
-        header h1 {
-            margin: 0;
-            font-size: 24px;
+        h1 {
+            margin-bottom: 5px;
         }
 
-        .admin-info {
-            font-size: 14px;
-            opacity: 0.95;
+        #admin-info {
+            color: #666;
+            margin-bottom: 25px;
         }
 
-        main {
-            max-width: 1200px;
-            margin: 30px auto;
-            padding: 0 20px;
+        #message {
+            display: none;
+
+            padding: 12px 15px;
+
+            border-radius: 8px;
+
+            margin-bottom: 20px;
+        }
+
+        #message.success {
+            display: block;
+            background: #d9f7df;
+            color: #146b2d;
+        }
+
+        #message.error {
+            display: block;
+            background: #ffdede;
+            color: #9b1c1c;
         }
 
         .toolbar {
-            background: white;
-            padding: 15px;
-
-            border-radius: 12px;
-
             display: flex;
+
             gap: 10px;
-            flex-wrap: wrap;
 
             margin-bottom: 20px;
-
-            box-shadow:
-                0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
-        input,
-        select,
-        button {
-            font: inherit;
-        }
+        #search {
+            flex: 1;
 
-        input,
-        select {
-            padding: 10px;
+            padding: 12px;
 
             border: 1px solid #ccc;
+
             border-radius: 8px;
 
-            background: white;
+            font-size: 16px;
         }
 
-        input {
-            flex: 1;
-            min-width: 220px;
-        }
+        button,
+        select {
 
-        button {
-            border: none;
-            border-radius: 8px;
+            padding: 9px 12px;
 
-            padding: 10px 14px;
+            border: 0;
+
+            border-radius: 7px;
 
             cursor: pointer;
 
-            font-weight: bold;
+            font-size: 14px;
+
         }
 
         button:hover {
-            filter: brightness(0.95);
+            opacity: .85;
         }
 
         .refresh {
-            background: #65a30d;
-            color: white;
-        }
-
-        .danger {
-            background: #dc2626;
-            color: white;
-        }
-
-        .warning {
-            background: #f59e0b;
-            color: white;
-        }
-
-        .success {
-            background: #16a34a;
-            color: white;
-        }
-
-        .dark {
-            background: #374151;
+            background: #333;
             color: white;
         }
 
         .users {
-            display: grid;
-            gap: 15px;
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 12px;
         }
 
         .user-card {
+
             background: white;
 
-            border-radius: 14px;
+            border-radius: 12px;
 
             padding: 18px;
 
             box-shadow:
-                0 2px 8px rgba(0, 0, 0, 0.08);
+                0 2px 8px
+                rgba(0, 0, 0, .08);
+
         }
 
         .user-top {
+
             display: flex;
+
+            justify-content: space-between;
+
             align-items: center;
+
             gap: 15px;
 
-            margin-bottom: 15px;
-        }
-
-        .avatar {
-            width: 55px;
-            height: 55px;
-
-            border-radius: 50%;
-
-            object-fit: cover;
-
-            background: #ddd;
         }
 
         .user-name {
@@ -179,149 +152,127 @@
         }
 
         .username {
-            color: #666;
-            font-size: 14px;
+            color: #777;
+            margin-top: 3px;
         }
 
-        .role {
-            display: inline-block;
-
-            margin-top: 5px;
-
-            padding: 4px 8px;
-
-            border-radius: 999px;
-
-            font-size: 12px;
-            font-weight: bold;
-
-            background: #e5e7eb;
-        }
-
-        .role.owner {
-            background: #facc15;
-            color: #713f12;
-        }
-
-        .role.administrator {
-            background: #c084fc;
-            color: #581c87;
-        }
-
-        .role.senior_moderator {
-            background: #60a5fa;
-            color: #1e3a8a;
-        }
-
-        .role.junior_moderator {
-            background: #93c5fd;
-            color: #1e40af;
-        }
-
-        .role.peasant {
-            background: #d1d5db;
-            color: #374151;
-        }
-
-        .status {
-            font-size: 13px;
+        .badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
             margin-top: 8px;
         }
 
-        .active {
-            color: #15803d;
-            font-weight: bold;
+        .badge {
+
+            padding: 4px 8px;
+
+            border-radius: 20px;
+
+            background: #eee;
+
+            font-size: 12px;
+
         }
 
-        .inactive {
-            color: #dc2626;
-            font-weight: bold;
+        .badge.banned {
+            background: #ffcccc;
+            color: #8a0000;
         }
 
-        .banned {
-            color: #991b1b;
-            font-weight: bold;
+        .badge.kicked {
+            background: #ffe5b3;
+            color: #7a4a00;
         }
 
         .actions {
+
             display: flex;
+
             gap: 8px;
+
             flex-wrap: wrap;
+
+            margin-top: 15px;
+
         }
 
-        .actions select {
-            min-width: 180px;
+        .role-button {
+            background: #4d6cff;
+            color: white;
         }
 
-        #status {
-            margin-bottom: 15px;
-            font-weight: bold;
+        .ban-button {
+            background: #d93025;
+            color: white;
         }
 
-        .hidden {
-            display: none !important;
+        .unban-button {
+            background: #188038;
+            color: white;
         }
 
-        .empty {
+        .kick-button {
+            background: #f29900;
+            color: white;
+        }
+
+        .clear-kick-button {
+            background: #777;
+            color: white;
+        }
+
+        .loading {
             text-align: center;
             padding: 40px;
-            color: #666;
+            color: #777;
         }
+
     </style>
+
 </head>
 
 <body>
 
-<header>
+<div class="container">
 
-    <h1>🧌 ShrekBook Admin Panel</h1>
+    <h1>🛡️ ShrekBook Admin Panel</h1>
 
-    <div class="admin-info">
-        <span id="current-user">
-            Checking admin access...
-        </span>
+    <div id="admin-info">
+        Checking administrator access...
     </div>
 
-</header>
+    <div id="message"></div>
 
+    <div class="toolbar">
 
-<main>
+        <input
+            id="search"
+            type="text"
+            placeholder="Search users..."
+        >
 
-    <div id="status"></div>
+        <button
+            class="refresh"
+            onclick="loadUsers()"
+        >
+            Refresh
+        </button>
 
+    </div>
 
     <div
-        id="admin-panel"
-        class="hidden"
+        id="users"
+        class="users"
     >
 
-        <div class="toolbar">
-
-            <input
-                type="text"
-                id="search"
-                placeholder="🔎 Search users..."
-            >
-
-            <button
-                class="refresh"
-                id="refresh-btn"
-            >
-                🔄 Refresh
-            </button>
-
+        <div class="loading">
+            Loading users...
         </div>
-
-
-        <div
-            id="users"
-            class="users"
-        ></div>
 
     </div>
 
-</main>
-
+</div>
 
 <script src="/admin.js"></script>
 

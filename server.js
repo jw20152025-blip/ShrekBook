@@ -4529,171 +4529,18 @@ const VALID_ROLES = [
 
 
 // ==================================================
-// ROLE HELPERS
+// REQUIRE LOGIN
 // ==================================================
 
-function canManageRole(actorRole, targetRole) {
+function requireLogin(req, res, next) {
 
-    return (
-        ROLE_LEVELS[actorRole] >
-        ROLE_LEVELS[targetRole]
-    );
-
-}
-
-function canUseAdminPanel(role) {
-
-    return ADMIN_ROLES.includes(role);
-
-}
-
-
-// ==================================================
-// GET CURRENT USER FROM DATABASE
-//
-// IMPORTANT:
-// Do NOT trust req.session.user.role.
-// Always read the current role from profiles.
-// ==================================================
-
-async function getCurrentProfile(req) {
-
-    const userId =
-        req.session?.user?.id;
-
-    if (!userId) {
-        return null;
-    }
-
-    const {
-        data: profile,
-        error
-    } = await supabase
-        .from("profiles")
-        .select(
-            "id, username, display_name, avatar, role, is_active, banned, last_seen"
-        )
-        .eq(
-            "id",
-            userId
-        )
-        .maybeSingle();
-
-    if (error) {
-
-        console.error(
-            "GET CURRENT PROFILE ERROR:",
-            error
-        );
-
-        return null;
-    }
-
-    return profile || null;
-}
-
-
-// ==================================================
-// ACCOUNT ACCESS CHECK
-//
-// Put this AFTER your session middleware.
-//
-// This makes kicks and bans actually work.
-//
-// KICK:
-//     is_active = false
-//
-// BAN:
-//     banned = true
-//
-// Both prevent access.
-// ==================================================
-
-async function requireActiveAccount(req, res, next) {
-
-    // Let login/signup/logout/me work normally.
-    const allowedPaths = [
-        "/api/login",
-        "/api/signup",
-        "/api/logout",
-        "/api/me"
-    ];
-
-    if (
-        allowedPaths.includes(
-            req.path
-        )
-    ) {
-        return next();
-    }
-
-
-    const userId =
-        req.session?.user?.id;
-
-    // Not logged in.
-    // Let normal requireLogin middleware handle it.
-    if (!userId) {
-        return next();
-    }
-
-
-    const profile =
-        await getCurrentProfile(req);
-
-
-    if (!profile) {
+    if (!req.session?.user?.id) {
 
         return res.status(401).json({
-            error:
-                "Account not found."
+            error: "Not logged in."
         });
 
     }
-
-
-    // ==================================================
-    // BAN CHECK
-    // ==================================================
-
-    if (profile.banned === true) {
-
-        return res.status(403).json({
-            error:
-                "Your ShrekBook account is banned."
-        });
-
-    }
-
-
-    // ==================================================
-    // KICK CHECK
-    // ==================================================
-
-    if (profile.is_active === false) {
-
-        return res.status(403).json({
-            error:
-                "Your ShrekBook account has been deactivated."
-        });
-
-    }
-
-
-    // ==================================================
-    // KEEP SESSION ROLE FRESH
-    // ==================================================
-
-    if (req.session.user) {
-
-        req.session.user.role =
-            profile.role;
-
-        req.session.user.username =
-            profile.username;
-
-    }
-
 
     next();
 
@@ -4701,15 +4548,15 @@ async function requireActiveAccount(req, res, next) {
 
 
 // ==================================================
-// GET ADMIN ACTOR
+// GET CURRENT ADMIN
 // ==================================================
 
 async function getAdminActor(req) {
 
-    const actorId =
+    const userId =
         req.session?.user?.id;
 
-    if (!actorId) {
+    if (!userId) {
 
         return {
             actor: null,
@@ -4725,11 +4572,11 @@ async function getAdminActor(req) {
     } = await supabase
         .from("profiles")
         .select(
-            "id, username, display_name, avatar, role, is_active, banned"
+            "id, username, display_name, role, banned, kicked"
         )
         .eq(
             "id",
-            actorId
+            userId
         )
         .maybeSingle();
 
@@ -4792,10 +4639,7 @@ async function requireAdmin(req, res) {
     }
 
 
-    // A banned/deactivated administrator
-    // cannot use the admin panel.
-
-    if (actor.banned === true) {
+    if (actor.banned) {
 
         res.status(403).json({
             error:
@@ -4807,19 +4651,7 @@ async function requireAdmin(req, res) {
     }
 
 
-    if (actor.is_active === false) {
-
-        res.status(403).json({
-            error:
-                "Your account is deactivated."
-        });
-
-        return null;
-
-    }
-
-
-    if (!canUseAdminPanel(actor.role)) {
+    if (!ADMIN_ROLES.includes(actor.role)) {
 
         res.status(403).json({
             error:
@@ -4832,6 +4664,23 @@ async function requireAdmin(req, res) {
 
 
     return actor;
+
+}
+
+
+// ==================================================
+// CAN MANAGE
+// ==================================================
+
+function canManageRole(
+    actorRole,
+    targetRole
+) {
+
+    return (
+        ROLE_LEVELS[actorRole] >
+        ROLE_LEVELS[targetRole]
+    );
 
 }
 
@@ -4853,6 +4702,7 @@ app.get(
                     res
                 );
 
+
             if (!actor) {
                 return;
             }
@@ -4864,12 +4714,14 @@ app.get(
                 user: actor
             });
 
+
         } catch (error) {
 
             console.error(
                 "ADMIN AUTH ERROR:",
                 error
             );
+
 
             res.status(500).json({
                 error:
@@ -4899,6 +4751,7 @@ app.get(
                     res
                 );
 
+
             if (!actor) {
                 return;
             }
@@ -4910,7 +4763,7 @@ app.get(
             } = await supabase
                 .from("profiles")
                 .select(
-                    "id, username, display_name, avatar, role, is_active, banned, last_seen"
+                    "id, username, display_name, avatar, role, banned, kicked"
                 )
                 .order(
                     "username",
@@ -4921,11 +4774,6 @@ app.get(
 
 
             if (error) {
-
-                console.error(
-                    "ADMIN USERS ERROR:",
-                    error
-                );
 
                 return res.status(500).json({
                     error:
@@ -4939,12 +4787,14 @@ app.get(
                 users || []
             );
 
+
         } catch (error) {
 
             console.error(
-                "ADMIN USERS SERVER ERROR:",
+                "ADMIN USERS ERROR:",
                 error
             );
+
 
             res.status(500).json({
                 error:
@@ -4959,463 +4809,10 @@ app.get(
 
 // ==================================================
 // CHANGE ROLE
-//
-// Database is the source of truth.
 // ==================================================
-
-async function changeUserRole(req, res) {
-
-    try {
-
-        const actor =
-            await requireAdmin(
-                req,
-                res
-            );
-
-        if (!actor) {
-            return;
-        }
-
-
-        const targetId =
-            req.params.id;
-
-
-        const newRole =
-            String(
-                req.body?.role || ""
-            )
-            .trim()
-            .toLowerCase();
-
-
-        if (
-            !VALID_ROLES.includes(
-                newRole
-            )
-        ) {
-
-            return res.status(400).json({
-                error:
-                    "Invalid role."
-            });
-
-        }
-
-
-        const {
-            data: target,
-            error: targetError
-        } = await supabase
-            .from("profiles")
-            .select(
-                "id, username, display_name, role, is_active, banned"
-            )
-            .eq(
-                "id",
-                targetId
-            )
-            .maybeSingle();
-
-
-        if (targetError) {
-
-            console.error(
-                "ROLE TARGET ERROR:",
-                targetError
-            );
-
-            return res.status(500).json({
-                error:
-                    targetError.message
-            });
-
-        }
-
-
-        if (!target) {
-
-            return res.status(404).json({
-                error:
-                    "User not found."
-            });
-
-        }
-
-
-        // ==================================================
-        // CANNOT CHANGE YOURSELF
-        // ==================================================
-
-        if (
-            actor.id === target.id
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "You cannot change your own role."
-            });
-
-        }
-
-
-        // ==================================================
-        // TARGET MUST BE LOWER THAN ACTOR
-        // ==================================================
-
-        if (
-            !canManageRole(
-                actor.role,
-                target.role
-            )
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "You cannot manage this user."
-            });
-
-        }
-
-
-        // ==================================================
-        // ONLY OWNER CAN CREATE OWNER
-        // ==================================================
-
-        if (
-            newRole === "owner" &&
-            actor.role !== "owner"
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "Only the owner can assign owner."
-            });
-
-        }
-
-
-        // ==================================================
-        // NON-OWNER CANNOT ASSIGN THEIR OWN LEVEL
-        // ==================================================
-
-        if (
-            actor.role !== "owner" &&
-            ROLE_LEVELS[newRole] >=
-            ROLE_LEVELS[actor.role]
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "You cannot assign a role equal to or above your own."
-            });
-
-        }
-
-
-        // ==================================================
-        // UPDATE DATABASE
-        // ==================================================
-
-        const {
-            data: updatedUser,
-            error: updateError
-        } = await supabase
-            .from("profiles")
-            .update({
-                role:
-                    newRole
-            })
-            .eq(
-                "id",
-                target.id
-            )
-            .select(
-                "id, username, display_name, role, is_active, banned"
-            )
-            .single();
-
-
-        if (updateError) {
-
-            console.error(
-                "ROLE UPDATE ERROR:",
-                updateError
-            );
-
-            return res.status(500).json({
-                error:
-                    updateError.message
-            });
-
-        }
-
-
-        // ==================================================
-        // IF TARGET IS CURRENTLY ONLINE,
-        // THEIR NEXT REQUEST WILL GET THE NEW ROLE.
-        // ==================================================
-
-        res.json({
-            success: true,
-            user:
-                updatedUser,
-            username:
-                updatedUser.username,
-            role:
-                updatedUser.role
-        });
-
-
-    } catch (error) {
-
-        console.error(
-            "ROLE CHANGE ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error:
-                "Server error."
-        });
-
-    }
-
-}
-
 
 app.put(
     "/api/admin/users/:id/role",
-    requireLogin,
-    changeUserRole
-);
-
-
-app.post(
-    "/api/admin/users/:id/role",
-    requireLogin,
-    changeUserRole
-);
-
-
-// ==================================================
-// REVOKE
-// ==================================================
-
-app.post(
-    "/api/admin/users/:id/revoke",
-    requireLogin,
-    async (req, res) => {
-
-        req.body = {
-            role: "peasant"
-        };
-
-        return changeUserRole(
-            req,
-            res
-        );
-
-    }
-);
-
-// ==================================================
-// SHREKBOOK KICK SYSTEM
-// ==================================================
-//
-// kicked = true
-// means the user's CURRENT ShrekBook session/page
-// should be sent to kicked.html.
-//
-// This does NOT delete their account.
-// This does NOT ban them.
-// ==================================================
-
-
-// ==================================================
-// REQUIRE LOGIN
-// ==================================================
-
-function requireLogin(req, res, next) {
-
-    if (!req.session?.user?.id) {
-
-        return res.status(401).json({
-            error: "Not logged in."
-        });
-
-    }
-
-    next();
-
-}
-
-
-// ==================================================
-// CHECK WHETHER CURRENT USER IS KICKED
-// ==================================================
-
-async function isUserKicked(userId) {
-
-    const {
-        data: profile,
-        error
-    } = await supabase
-        .from("profiles")
-        .select("kicked")
-        .eq("id", userId)
-        .maybeSingle();
-
-
-    if (error) {
-
-        console.error(
-            "KICK CHECK ERROR:",
-            error
-        );
-
-        return false;
-
-    }
-
-
-    return profile?.kicked === true;
-
-}
-
-
-// ==================================================
-// /api/me
-// ==================================================
-
-app.get(
-    "/api/me",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session?.user?.id) {
-
-                return res.json({
-                    loggedIn: false,
-                    user: null,
-                    kicked: false
-                });
-
-            }
-
-
-            const userId =
-                req.session.user.id;
-
-
-            // ------------------------------------------
-            // CHECK KICK STATUS
-            // ------------------------------------------
-
-            const kicked =
-                await isUserKicked(userId);
-
-
-            if (kicked) {
-
-                return res.json({
-
-                    loggedIn: true,
-
-                    kicked: true,
-
-                    user: null
-
-                });
-
-            }
-
-
-            // ------------------------------------------
-            // LOAD PROFILE
-            // ------------------------------------------
-
-            const {
-                data: profile,
-                error
-            } = await supabase
-                .from("profiles")
-                .select("*")
-                .eq("id", userId)
-                .maybeSingle();
-
-
-            if (error) {
-
-                console.error(
-                    "ME PROFILE ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        "Could not load profile."
-                });
-
-            }
-
-
-            if (!profile) {
-
-                return res.status(404).json({
-                    error:
-                        "User profile not found."
-                });
-
-            }
-
-
-            res.json({
-
-                loggedIn: true,
-
-                kicked: false,
-
-                user: {
-
-                    ...profile,
-
-                    email:
-                        req.session.user.email
-
-                }
-
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "ME ERROR:",
-                error
-            );
-
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// ADMIN KICK
-// POST /api/admin/users/:id/kick
-// ==================================================
-
-app.post(
-    "/api/admin/users/:id/kick",
     requireLogin,
     async (req, res) => {
 
@@ -5437,17 +4834,35 @@ app.post(
                 req.params.id;
 
 
-            // ------------------------------------------
-            // GET TARGET
-            // ------------------------------------------
+            const newRole =
+                String(
+                    req.body?.role || ""
+                )
+                .trim()
+                .toLowerCase();
+
+
+            if (
+                !VALID_ROLES.includes(
+                    newRole
+                )
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Invalid role."
+                });
+
+            }
+
 
             const {
                 data: target,
-                error: targetError
+                error
             } = await supabase
                 .from("profiles")
                 .select(
-                    "id, username, role, banned"
+                    "id, username, role"
                 )
                 .eq(
                     "id",
@@ -5456,16 +4871,11 @@ app.post(
                 .maybeSingle();
 
 
-            if (targetError) {
-
-                console.error(
-                    "KICK TARGET ERROR:",
-                    targetError
-                );
+            if (error) {
 
                 return res.status(500).json({
                     error:
-                        targetError.message
+                        error.message
                 });
 
             }
@@ -5481,25 +4891,17 @@ app.post(
             }
 
 
-            // ------------------------------------------
-            // CANNOT KICK YOURSELF
-            // ------------------------------------------
-
             if (
                 target.id === actor.id
             ) {
 
                 return res.status(403).json({
                     error:
-                        "You cannot kick yourself."
+                        "You cannot change your own role."
                 });
 
             }
 
-
-            // ------------------------------------------
-            // ROLE PROTECTION
-            // ------------------------------------------
 
             if (
                 !canManageRole(
@@ -5510,36 +4912,51 @@ app.post(
 
                 return res.status(403).json({
                     error:
-                        "You cannot kick this user."
+                        "You cannot manage this user."
                 });
 
             }
 
 
-            // ------------------------------------------
-            // BANNED USERS
-            // ------------------------------------------
+            // Only owner can assign owner.
 
-            if (target.banned) {
+            if (
+                newRole === "owner" &&
+                actor.role !== "owner"
+            ) {
 
                 return res.status(403).json({
                     error:
-                        "This user is already banned."
+                        "Only the owner can assign owner."
                 });
 
             }
 
 
-            // ------------------------------------------
-            // MARK USER AS KICKED
-            // ------------------------------------------
+            // Non-owner cannot assign
+            // equal or higher role.
+
+            if (
+                actor.role !== "owner" &&
+                ROLE_LEVELS[newRole] >=
+                ROLE_LEVELS[actor.role]
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You cannot assign a role equal to or above your own."
+                });
+
+            }
+
 
             const {
                 error: updateError
             } = await supabase
                 .from("profiles")
                 .update({
-                    kicked: true
+                    role:
+                        newRole
                 })
                 .eq(
                     "id",
@@ -5550,7 +4967,7 @@ app.post(
             if (updateError) {
 
                 console.error(
-                    "KICK UPDATE ERROR:",
+                    "ROLE UPDATE ERROR:",
                     updateError
                 );
 
@@ -5562,29 +4979,24 @@ app.post(
             }
 
 
-            // ------------------------------------------
-            // SUCCESS
-            // ------------------------------------------
+            console.log(
+                `ADMIN: ${actor.username} changed ${target.username} to ${newRole}`
+            );
+
 
             res.json({
-
                 success: true,
-
-                kicked: true,
-
                 username:
                     target.username,
-
-                message:
-                    `${target.username} has been kicked.`
-
+                role:
+                    newRole
             });
 
 
         } catch (error) {
 
             console.error(
-                "KICK ERROR:",
+                "ROLE CHANGE ERROR:",
                 error
             );
 
@@ -5594,55 +5006,6 @@ app.post(
                     "Server error."
             });
 
-        const {
-            error: updateError
-        } = await supabase
-            .from("profiles")
-            .update({
-                kicked: true
-            })
-            .eq(
-                "id",
-                target.id
-            );
-
-
-        if (updateError) {
-
-            console.error(
-                "KICK UPDATE ERROR:",
-                updateError
-            );
-
-            return res.status(500).json({
-                error:
-                    updateError.message
-            });
-
-        }
-
-
-        // ==================================================
-        // INSTANTLY NOTIFY USER
-        // ==================================================
-
-        sendModerationEvent(
-            target.id,
-            "KICK"
-        );
-
-
-        res.json({
-            success: true,
-            username:
-                target.username,
-            kicked: true,
-            message:
-                `${target.username} was kicked.`
-        });
-
-
-
         }
 
     }
@@ -5651,11 +5014,6 @@ app.post(
 
 // ==================================================
 // BAN
-//
-// banned = true
-// is_active = false
-//
-// A ban is stronger than a kick.
 // ==================================================
 
 app.post(
@@ -5671,6 +5029,7 @@ app.post(
                     res
                 );
 
+
             if (!actor) {
                 return;
             }
@@ -5682,7 +5041,7 @@ app.post(
             } = await supabase
                 .from("profiles")
                 .select(
-                    "id, username, role, banned"
+                    "id, username, role"
                 )
                 .eq(
                     "id",
@@ -5744,7 +5103,7 @@ app.post(
                 .from("profiles")
                 .update({
                     banned: true,
-                    is_active: false
+                    kicked: false
                 })
                 .eq(
                     "id",
@@ -5755,7 +5114,7 @@ app.post(
             if (updateError) {
 
                 console.error(
-                    "BAN UPDATE ERROR:",
+                    "BAN ERROR:",
                     updateError
                 );
 
@@ -5767,79 +5126,29 @@ app.post(
             }
 
 
+            console.log(
+                `ADMIN: ${actor.username} banned ${target.username}`
+            );
+
+
             res.json({
                 success: true,
-                username:
-                    target.username,
-                banned:
-                    true,
-                is_active:
-                    false,
-                message:
-                    `${target.username} has been banned.`
+                banned: true
             });
 
 
         } catch (error) {
 
             console.error(
-                "BAN ERROR:",
+                "BAN ROUTE ERROR:",
                 error
             );
+
 
             res.status(500).json({
                 error:
                     "Server error."
             });
-
-    const {
-        error: updateError
-    } = await supabase
-        .from("profiles")
-        .update({
-            banned: true
-        })
-        .eq(
-            "id",
-            target.id
-        );
-
-
-    if (updateError) {
-
-        console.error(
-            "BAN UPDATE ERROR:",
-            updateError
-        );
-
-        return res.status(500).json({
-            error:
-                updateError.message
-        });
-
-    }
-
-
-    // ==================================================
-    // INSTANTLY NOTIFY USER
-    // ==================================================
-
-    sendModerationEvent(
-        target.id,
-        "BAN"
-    );
-
-
-    res.json({
-        success: true,
-        username:
-            target.username,
-        banned: true,
-        message:
-            `${target.username} has been banned.`
-    });
-
-
 
         }
 
@@ -5849,8 +5158,6 @@ app.post(
 
 // ==================================================
 // UNBAN
-//
-// Unbanning also restores the account.
 // ==================================================
 
 app.post(
@@ -5865,6 +5172,7 @@ app.post(
                     req,
                     res
                 );
+
 
             if (!actor) {
                 return;
@@ -5933,23 +5241,12 @@ app.post(
             }
 
 
-            if (!target.banned) {
-
-                return res.status(400).json({
-                    error:
-                        "This user is not banned."
-                });
-
-            }
-
-
             const {
                 error: updateError
             } = await supabase
                 .from("profiles")
                 .update({
-                    banned: false,
-                    is_active: true
+                    banned: false
                 })
                 .eq(
                     "id",
@@ -5958,11 +5255,6 @@ app.post(
 
 
             if (updateError) {
-
-                console.error(
-                    "UNBAN UPDATE ERROR:",
-                    updateError
-                );
 
                 return res.status(500).json({
                     error:
@@ -5974,14 +5266,7 @@ app.post(
 
             res.json({
                 success: true,
-                username:
-                    target.username,
-                banned:
-                    false,
-                is_active:
-                    true,
-                message:
-                    `${target.username} has been unbanned.`
+                banned: false
             });
 
 
@@ -5991,6 +5276,373 @@ app.post(
                 "UNBAN ERROR:",
                 error
             );
+
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// KICK
+// ==================================================
+
+app.post(
+    "/api/admin/users/:id/kick",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            const actor =
+                await requireAdmin(
+                    req,
+                    res
+                );
+
+
+            if (!actor) {
+                return;
+            }
+
+
+            const {
+                data: target,
+                error
+            } = await supabase
+                .from("profiles")
+                .select(
+                    "id, username, role"
+                )
+                .eq(
+                    "id",
+                    req.params.id
+                )
+                .maybeSingle();
+
+
+            if (error) {
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+
+            if (!target) {
+
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+
+            }
+
+
+            if (
+                target.id === actor.id
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You cannot kick yourself."
+                });
+
+            }
+
+
+            if (
+                !canManageRole(
+                    actor.role,
+                    target.role
+                )
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You cannot kick this user."
+                });
+
+            }
+
+
+            const {
+                error: updateError
+            } = await supabase
+                .from("profiles")
+                .update({
+                    kicked: true,
+                    banned: false
+                })
+                .eq(
+                    "id",
+                    target.id
+                );
+
+
+            if (updateError) {
+
+                console.error(
+                    "KICK ERROR:",
+                    updateError
+                );
+
+                return res.status(500).json({
+                    error:
+                        updateError.message
+                });
+
+            }
+
+
+            console.log(
+                `ADMIN: ${actor.username} kicked ${target.username}`
+            );
+
+
+            res.json({
+                success: true,
+                kicked: true
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "KICK ROUTE ERROR:",
+                error
+            );
+
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// CLEAR KICK
+// ==================================================
+//
+// This is NOT a "reactivate" system.
+// It simply clears the temporary kick flag.
+//
+// Your admin panel doesn't have to expose this.
+// ==================================================
+
+app.post(
+    "/api/admin/users/:id/clear-kick",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            const actor =
+                await requireAdmin(
+                    req,
+                    res
+                );
+
+
+            if (!actor) {
+                return;
+            }
+
+
+            const {
+                data: target,
+                error
+            } = await supabase
+                .from("profiles")
+                .select(
+                    "id, username, role"
+                )
+                .eq(
+                    "id",
+                    req.params.id
+                )
+                .maybeSingle();
+
+
+            if (error) {
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+
+            if (!target) {
+
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+
+            }
+
+
+            if (
+                target.id === actor.id
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You cannot do this to yourself."
+                });
+
+            }
+
+
+            if (
+                !canManageRole(
+                    actor.role,
+                    target.role
+                )
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You cannot manage this user."
+                });
+
+            }
+
+
+            const {
+                error: updateError
+            } = await supabase
+                .from("profiles")
+                .update({
+                    kicked: false
+                })
+                .eq(
+                    "id",
+                    target.id
+                );
+
+
+            if (updateError) {
+
+                return res.status(500).json({
+                    error:
+                        updateError.message
+                });
+
+            }
+
+
+            res.json({
+                success: true
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "CLEAR KICK ERROR:",
+                error
+            );
+
+
+            res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// MODERATION STATUS
+// ==================================================
+//
+// THIS is what makes existing open pages
+// detect bans/kicks.
+//
+// Login system is NOT touched.
+// ==================================================
+
+app.get(
+    "/api/moderation/status",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            const userId =
+                req.session.user.id;
+
+
+            const {
+                data: profile,
+                error
+            } = await supabase
+                .from("profiles")
+                .select(
+                    "banned, kicked"
+                )
+                .eq(
+                    "id",
+                    userId
+                )
+                .maybeSingle();
+
+
+            if (error) {
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+
+            if (!profile) {
+
+                return res.status(404).json({
+                    error:
+                        "Profile not found."
+                });
+
+            }
+
+
+            res.json({
+                banned:
+                    profile.banned === true,
+
+                kicked:
+                    profile.kicked === true
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "MODERATION STATUS ERROR:",
+                error
+            );
+
 
             res.status(500).json({
                 error:
