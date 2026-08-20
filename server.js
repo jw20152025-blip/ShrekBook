@@ -1,36 +1,615 @@
+
 require("dotenv").config();
 
 const express = require("express");
 const path = require("path");
+const http = require("http");
 const session = require("express-session");
+const WebSocket = require("ws");
 const { createClient } = require("@supabase/supabase-js");
+
 
 const app = express();
 
-const PORT = process.env.PORT || 3000;
+const PORT =
+    process.env.PORT || 3000;
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
+
+// ==================================================
+// ENVIRONMENT VARIABLES
+// ==================================================
+
+const SUPABASE_URL =
+    process.env.SUPABASE_URL;
+
 const SUPABASE_SERVICE_ROLE_KEY =
     process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const SESSION_SECRET = process.env.SESSION_SECRET;
+const SESSION_SECRET =
+    process.env.SESSION_SECRET;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    console.error("❌ Missing Supabase environment variables.");
+
+// ==================================================
+// CHECK ENVIRONMENT
+// ==================================================
+
+if (
+    !SUPABASE_URL ||
+    !SUPABASE_SERVICE_ROLE_KEY
+) {
+
+    console.error(
+        "❌ Missing Supabase environment variables."
+    );
+
     process.exit(1);
+
 }
+
 
 if (!SESSION_SECRET) {
-    console.error("❌ Missing SESSION_SECRET.");
+
+    console.error(
+        "❌ Missing SESSION_SECRET."
+    );
+
     process.exit(1);
+
 }
 
-const supabase = createClient(
-    SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY
+
+// ==================================================
+// SUPABASE
+// ==================================================
+
+const supabase =
+    createClient(
+        SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY
+    );
+
+
+// ==================================================
+// SESSION STORE
+// ==================================================
+
+const sessionStore =
+    new session.MemoryStore();
+
+
+// ==================================================
+// EXPRESS SESSION
+// ==================================================
+
+app.use(
+    session({
+
+        secret:
+            SESSION_SECRET,
+
+        resave:
+            false,
+
+        saveUninitialized:
+            false,
+
+        store:
+            sessionStore,
+
+        cookie: {
+
+            secure:
+                false,
+
+            httpOnly:
+                true,
+
+            sameSite:
+                "lax"
+
+        }
+
+    })
 );
 
-const DEFAULT_AVATAR = "/default-avatar.png";
+
+// ==================================================
+// INSTANT MODERATION WEBSOCKET
+// ==================================================
+
+const server =
+    http.createServer(app);
+
+
+const wss =
+    new WebSocket.Server({
+
+        server,
+
+        path:
+            "/moderation"
+
+    });
+
+
+// ==================================================
+// CONNECTED USERS
+// ==================================================
+//
+// userId -> Set of WebSocket connections
+//
+// Multiple tabs are supported.
+//
+
+const moderationSockets =
+    new Map();
+
+
+// ==================================================
+// ADD SOCKET
+// ==================================================
+
+function addModerationSocket(
+    userId,
+    socket
+) {
+
+    if (
+        !moderationSockets.has(
+            userId
+        )
+    ) {
+
+        moderationSockets.set(
+            userId,
+            new Set()
+        );
+
+    }
+
+
+    moderationSockets
+        .get(userId)
+        .add(socket);
+
+}
+
+
+// ==================================================
+// REMOVE SOCKET
+// ==================================================
+
+function removeModerationSocket(
+    userId,
+    socket
+) {
+
+    const sockets =
+        moderationSockets.get(
+            userId
+        );
+
+
+    if (!sockets) {
+        return;
+    }
+
+
+    sockets.delete(
+        socket
+    );
+
+
+    if (
+        sockets.size === 0
+    ) {
+
+        moderationSockets.delete(
+            userId
+        );
+
+    }
+
+}
+
+
+// ==================================================
+// SEND MODERATION EVENT
+// ==================================================
+
+function sendModerationEvent(
+    userId,
+    type
+) {
+
+    const sockets =
+        moderationSockets.get(
+            userId
+        );
+
+
+    if (!sockets) {
+
+        console.log(
+            `⚠️ No active socket for user ${userId}`
+        );
+
+        return;
+
+    }
+
+
+    const message =
+        JSON.stringify({
+
+            type
+
+        });
+
+
+    for (
+        const socket
+        of sockets
+    ) {
+
+        if (
+            socket.readyState ===
+            WebSocket.OPEN
+        ) {
+
+            socket.send(
+                message
+            );
+
+            console.log(
+                `📡 Sent ${type} to ${userId}`
+            );
+
+        }
+
+    }
+
+}
+
+
+// ==================================================
+// WEBSOCKET CONNECTION
+// ==================================================
+
+wss.on(
+    "connection",
+    async (
+        socket,
+        req
+    ) => {
+
+        try {
+
+            console.log(
+                "🔌 Moderation WebSocket connected."
+            );
+
+
+            // ==========================================
+            // GET SESSION COOKIE
+            // ==========================================
+
+            const cookieHeader =
+                req.headers.cookie || "";
+
+
+            const sessionCookie =
+                cookieHeader
+                    .split(";")
+                    .map(
+                        item =>
+                            item.trim()
+                    )
+                    .find(
+                        item =>
+                            item.startsWith(
+                                "connect.sid="
+                            )
+                    );
+
+
+            if (!sessionCookie) {
+
+                console.log(
+                    "❌ WebSocket has no session cookie."
+                );
+
+
+                socket.close(
+                    1008,
+                    "Not logged in."
+                );
+
+                return;
+
+            }
+
+
+            // ==========================================
+            // EXTRACT SESSION ID
+            // ==========================================
+
+            const rawCookie =
+                decodeURIComponent(
+                    sessionCookie
+                        .substring(
+                            "connect.sid=".length
+                        )
+                );
+
+
+            let sessionValue =
+                rawCookie;
+
+
+            if (
+                sessionValue.startsWith(
+                    "s:"
+                )
+            ) {
+
+                sessionValue =
+                    sessionValue.substring(
+                        2
+                    );
+
+            }
+
+
+            const sessionId =
+                sessionValue.split(
+                    "."
+                )[0];
+
+
+            if (!sessionId) {
+
+                socket.close(
+                    1008,
+                    "Invalid session."
+                );
+
+                return;
+
+            }
+
+
+            // ==========================================
+            // LOAD EXPRESS SESSION
+            // ==========================================
+
+            sessionStore.get(
+                sessionId,
+                async (
+                    error,
+                    storedSession
+                ) => {
+
+                    if (error) {
+
+                        console.error(
+                            "SESSION LOOKUP ERROR:",
+                            error
+                        );
+
+
+                        socket.close(
+                            1011,
+                            "Session error."
+                        );
+
+                        return;
+
+                    }
+
+
+                    if (!storedSession) {
+
+                        console.log(
+                            "❌ WebSocket session not found."
+                        );
+
+
+                        socket.close(
+                            1008,
+                            "Invalid session."
+                        );
+
+                        return;
+
+                    }
+
+
+                    const userId =
+                        storedSession
+                            .user
+                            ?.id;
+
+
+                    if (!userId) {
+
+                        console.log(
+                            "❌ WebSocket session has no user."
+                        );
+
+
+                        socket.close(
+                            1008,
+                            "Not logged in."
+                        );
+
+                        return;
+
+                    }
+
+
+                    // ==================================
+                    // REGISTER SOCKET
+                    // ==================================
+
+                    socket.userId =
+                        userId;
+
+
+                    addModerationSocket(
+                        userId,
+                        socket
+                    );
+
+
+                    console.log(
+                        `🟢 Moderation connected for user ${userId}`
+                    );
+
+
+                    // ==================================
+                    // CHECK CURRENT MODERATION STATE
+                    // ==================================
+
+                    const {
+                        data: profile,
+                        error: profileError
+                    } =
+                        await supabase
+                            .from("profiles")
+                            .select(
+                                "banned, kicked"
+                            )
+                            .eq(
+                                "id",
+                                userId
+                            )
+                            .maybeSingle();
+
+
+                    if (profileError) {
+
+                        console.error(
+                            "MODERATION PROFILE ERROR:",
+                            profileError
+                        );
+
+                        return;
+
+                    }
+
+
+                    // ==================================
+                    // ALREADY BANNED
+                    // ==================================
+
+                    if (
+                        profile?.banned ===
+                        true
+                    ) {
+
+                        socket.send(
+                            JSON.stringify({
+                                type:
+                                    "BAN"
+                            })
+                        );
+
+                    }
+
+
+                    // ==================================
+                    // ALREADY KICKED
+                    // ==================================
+
+                    else if (
+                        profile?.kicked ===
+                        true
+                    ) {
+
+                        socket.send(
+                            JSON.stringify({
+                                type:
+                                    "KICK"
+                            })
+                        );
+
+                    }
+
+                }
+            );
+
+
+            // ==========================================
+            // SOCKET CLOSED
+            // ==========================================
+
+            socket.on(
+                "close",
+                () => {
+
+                    console.log(
+                        `🔌 Moderation disconnected for user ${socket.userId || "unknown"}`
+                    );
+
+
+                    if (
+                        socket.userId
+                    ) {
+
+                        removeModerationSocket(
+                            socket.userId,
+                            socket
+                        );
+
+                    }
+
+                }
+            );
+
+
+            socket.on(
+                "error",
+                error => {
+
+                    console.error(
+                        "MODERATION SOCKET ERROR:",
+                        error
+                    );
+
+                }
+            );
+
+
+        }
+
+        catch (error) {
+
+            console.error(
+                "MODERATION WEBSOCKET ERROR:",
+                error
+            );
+
+
+            socket.close(
+                1011,
+                "Server error."
+            );
+
+        }
+
+    }
+);
+
+
+// ==================================================
+// DEFAULT AVATAR
+// ==================================================
+
+const DEFAULT_AVATAR =
+    "/default-avatar.png";
+
+
 
 // ==================================================
 // EXPRESS
@@ -5015,6 +5594,55 @@ app.post(
                     "Server error."
             });
 
+        const {
+            error: updateError
+        } = await supabase
+            .from("profiles")
+            .update({
+                kicked: true
+            })
+            .eq(
+                "id",
+                target.id
+            );
+
+
+        if (updateError) {
+
+            console.error(
+                "KICK UPDATE ERROR:",
+                updateError
+            );
+
+            return res.status(500).json({
+                error:
+                    updateError.message
+            });
+
+        }
+
+
+        // ==================================================
+        // INSTANTLY NOTIFY USER
+        // ==================================================
+
+        sendModerationEvent(
+            target.id,
+            "KICK"
+        );
+
+
+        res.json({
+            success: true,
+            username:
+                target.username,
+            kicked: true,
+            message:
+                `${target.username} was kicked.`
+        });
+
+
+
         }
 
     }
@@ -5163,6 +5791,55 @@ app.post(
                 error:
                     "Server error."
             });
+
+    const {
+        error: updateError
+    } = await supabase
+        .from("profiles")
+        .update({
+            banned: true
+        })
+        .eq(
+            "id",
+            target.id
+        );
+
+
+    if (updateError) {
+
+        console.error(
+            "BAN UPDATE ERROR:",
+            updateError
+        );
+
+        return res.status(500).json({
+            error:
+                updateError.message
+        });
+
+    }
+
+
+    // ==================================================
+    // INSTANTLY NOTIFY USER
+    // ==================================================
+
+    sendModerationEvent(
+        target.id,
+        "BAN"
+    );
+
+
+    res.json({
+        success: true,
+        username:
+            target.username,
+        banned: true,
+        message:
+            `${target.username} has been banned.`
+    });
+
+
 
         }
 
@@ -5330,14 +6007,19 @@ app.post(
 // START
 // ==================================================
 
-app.listen(
+
+server.listen(
     PORT,
-    "0.0.0.0",
     () => {
 
         console.log(
-            `🧌 ShrekBook running on port ${PORT}`
+            `ShrekBook running on port ${PORT}`
+        );
+
+        console.log(
+            `Moderation WebSocket: /moderation`
         );
 
     }
 );
+

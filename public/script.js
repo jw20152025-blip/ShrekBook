@@ -461,205 +461,174 @@ async function signup() {
 let kickCheckRunning = false;
 
 
-
 // ==================================================
-// SHREKBOOK BAN + KICK WATCHER
+// SHREKBOOK INSTANT MODERATION
 // ==================================================
 
-(function startModerationWatcher() {
+(function startModerationSocket() {
 
     const path =
-        window.location.pathname.toLowerCase();
+        window.location.pathname
+            .toLowerCase();
 
 
-    // Don't run on these pages.
+    // Don't open a moderation connection
+    // on moderation destination pages.
 
     if (
         path.endsWith("/login.html") ||
         path.endsWith("/kicked.html")
     ) {
+
         return;
+
     }
 
 
-    let checkingBan = false;
-    let checkingKick = false;
+    // ==================================================
+    // CONNECT
+    // ==================================================
+
+    const protocol =
+        window.location.protocol === "https:"
+            ? "wss:"
+            : "ws:";
+
+
+    const socket =
+        new WebSocket(
+            `${protocol}//${window.location.host}/moderation`
+        );
 
 
     // ==================================================
-    // BAN CHECK
-    // EVERY 500ms
+    // CONNECTED
     // ==================================================
 
-    async function checkBan() {
+    socket.addEventListener(
+        "open",
+        () => {
 
-        if (checkingBan) {
-            return;
-        }
-
-        checkingBan = true;
-
-
-        try {
-
-            const response =
-                await fetch(
-                    "/api/me",
-                    {
-                        credentials: "include",
-                        cache: "no-store"
-                    }
-                );
-
-
-            if (!response.ok) {
-                return;
-            }
-
-
-            const data =
-                await response.json();
-
-
-            if (
-                data &&
-                data.loggedIn &&
-                data.banned === true
-            ) {
-
-                console.log(
-                    "🚫 BANNED — sending to login."
-                );
-
-
-                window.location.replace(
-                    "/login.html"
-                );
-
-            }
+            console.log(
+                "🛡️ Instant moderation connected."
+            );
 
         }
+    );
 
-        catch (error) {
+
+    // ==================================================
+    // MODERATION EVENT
+    // ==================================================
+
+    socket.addEventListener(
+        "message",
+        event => {
+
+            try {
+
+                const data =
+                    JSON.parse(
+                        event.data
+                    );
+
+
+                // ======================================
+                // BAN
+                // ======================================
+
+                if (
+                    data.type === "BAN"
+                ) {
+
+                    console.log(
+                        "🚫 BANNED"
+                    );
+
+
+                    window.location.replace(
+                        "/login.html"
+                    );
+
+
+                    return;
+
+                }
+
+
+                // ======================================
+                // KICK
+                // ======================================
+
+                if (
+                    data.type === "KICK"
+                ) {
+
+                    console.log(
+                        "🦵 KICKED"
+                    );
+
+
+                    window.location.replace(
+                        "/kicked.html"
+                    );
+
+
+                    return;
+
+                }
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "MODERATION MESSAGE ERROR:",
+                    error
+                );
+
+            }
+
+        }
+    );
+
+
+    // ==================================================
+    // CONNECTION CLOSED
+    // ==================================================
+
+    socket.addEventListener(
+        "close",
+        () => {
+
+            console.log(
+                "Moderation connection closed."
+            );
+
+        }
+    );
+
+
+    // ==================================================
+    // ERROR
+    // ==================================================
+
+    socket.addEventListener(
+        "error",
+        error => {
 
             console.error(
-                "BAN CHECK ERROR:",
+                "MODERATION WEBSOCKET ERROR:",
                 error
             );
 
         }
-
-        finally {
-
-            checkingBan = false;
-
-        }
-
-    }
-
-
-    // ==================================================
-    // KICK CHECK
-    // EVERY 2000ms
-    // ==================================================
-
-    async function checkKick() {
-
-        if (checkingKick) {
-            return;
-        }
-
-        checkingKick = true;
-
-
-        try {
-
-            const response =
-                await fetch(
-                    "/api/me",
-                    {
-                        credentials: "include",
-                        cache: "no-store"
-                    }
-                );
-
-
-            if (!response.ok) {
-                return;
-            }
-
-
-            const data =
-                await response.json();
-
-
-            if (
-                data &&
-                data.loggedIn &&
-                data.kicked === true
-            ) {
-
-                console.log(
-                    "🦵 KICKED — sending to kicked page."
-                );
-
-
-                window.location.replace(
-                    "/kicked.html"
-                );
-
-            }
-
-        }
-
-        catch (error) {
-
-            console.error(
-                "KICK CHECK ERROR:",
-                error
-            );
-
-        }
-
-        finally {
-
-            checkingKick = false;
-
-        }
-
-    }
-
-
-    // ==================================================
-    // INITIAL CHECK
-    // ==================================================
-
-    checkBan();
-    checkKick();
-
-
-    // ==================================================
-    // TIMERS
-    // ==================================================
-
-    setInterval(
-        checkBan,
-        500
-    );
-
-
-    setInterval(
-        checkKick,
-        2000
-    );
-
-
-    console.log(
-        "🛡️ Moderation watcher started."
     );
 
 
 })();
+
+
 
 
 
