@@ -3853,8 +3853,9 @@ app.post(
 );
 
 
+
 // ==================================================
-// ADMIN SYSTEM
+// SHREKBOOK ADMIN SYSTEM
 // ==================================================
 
 const ROLE_LEVELS = {
@@ -3880,20 +3881,30 @@ const VALID_ROLES = [
     "peasant"
 ];
 
+
+// ==================================================
+// ROLE HELPERS
+// ==================================================
+
 function canManageRole(actorRole, targetRole) {
+
     return (
         ROLE_LEVELS[actorRole] >
         ROLE_LEVELS[targetRole]
     );
+
 }
 
+
 function canUseAdminPanel(role) {
+
     return ADMIN_ROLES.includes(role);
+
 }
 
 
 // ==================================================
-// GET ACTOR
+// GET ADMIN ACTOR
 // ==================================================
 
 async function getAdminActor(req) {
@@ -3902,11 +3913,14 @@ async function getAdminActor(req) {
         req.session?.user?.id;
 
     if (!actorId) {
+
         return {
             actor: null,
             error: "Not logged in."
         };
+
     }
+
 
     const {
         data: actor,
@@ -3922,6 +3936,7 @@ async function getAdminActor(req) {
         )
         .maybeSingle();
 
+
     if (error) {
 
         console.error(
@@ -3933,19 +3948,25 @@ async function getAdminActor(req) {
             actor: null,
             error: error.message
         };
+
     }
 
+
     if (!actor) {
+
         return {
             actor: null,
             error: "Profile not found."
         };
+
     }
+
 
     return {
         actor,
         error: null
     };
+
 }
 
 
@@ -3960,24 +3981,34 @@ async function requireAdmin(req, res) {
         error
     } = await getAdminActor(req);
 
+
     if (!actor) {
 
-        return res.status(403).json({
+        res.status(403).json({
             error:
                 error ||
                 "Admin access required."
         });
+
+        return null;
+
     }
+
 
     if (!canUseAdminPanel(actor.role)) {
 
-        return res.status(403).json({
+        res.status(403).json({
             error:
                 "Admin access required."
         });
+
+        return null;
+
     }
 
+
     return actor;
+
 }
 
 
@@ -3998,15 +4029,18 @@ app.get(
                     res
                 );
 
+
             if (!actor) {
                 return;
             }
+
 
             res.json({
                 success: true,
                 authorized: true,
                 user: actor
             });
+
 
         } catch (error) {
 
@@ -4015,11 +4049,14 @@ app.get(
                 error
             );
 
+
             res.status(500).json({
                 error:
                     "Server error."
             });
+
         }
+
     }
 );
 
@@ -4041,9 +4078,11 @@ app.get(
                     res
                 );
 
+
             if (!actor) {
                 return;
             }
+
 
             const {
                 data: users,
@@ -4060,6 +4099,7 @@ app.get(
                     }
                 );
 
+
             if (error) {
 
                 console.error(
@@ -4067,15 +4107,19 @@ app.get(
                     error
                 );
 
+
                 return res.status(500).json({
                     error:
                         error.message
                 });
+
             }
+
 
             res.json(
                 users || []
             );
+
 
         } catch (error) {
 
@@ -4084,25 +4128,22 @@ app.get(
                 error
             );
 
+
             res.status(500).json({
                 error:
                     "Server error."
             });
+
         }
+
     }
 );
 
 
 // ==================================================
 // CHANGE ROLE
-//
-// FRONTEND:
 // PUT /api/admin/users/:id/role
-//
-// Body:
-// {
-//     "role": "administrator"
-// }
+// POST also supported for old frontend
 // ==================================================
 
 async function changeUserRole(req, res) {
@@ -4115,12 +4156,15 @@ async function changeUserRole(req, res) {
                 res
             );
 
+
         if (!actor) {
             return;
         }
 
+
         const targetId =
             req.params.id;
+
 
         const newRole =
             String(
@@ -4128,6 +4172,7 @@ async function changeUserRole(req, res) {
             )
             .trim()
             .toLowerCase();
+
 
         if (
             !VALID_ROLES.includes(
@@ -4139,7 +4184,9 @@ async function changeUserRole(req, res) {
                 error:
                     "Invalid role."
             });
+
         }
+
 
         const {
             data: target,
@@ -4155,6 +4202,7 @@ async function changeUserRole(req, res) {
             )
             .maybeSingle();
 
+
         if (targetError) {
 
             console.error(
@@ -4162,11 +4210,14 @@ async function changeUserRole(req, res) {
                 targetError
             );
 
+
             return res.status(500).json({
                 error:
                     targetError.message
             });
+
         }
+
 
         if (!target) {
 
@@ -4174,9 +4225,12 @@ async function changeUserRole(req, res) {
                 error:
                     "User not found."
             });
+
         }
 
+
         // Cannot modify yourself.
+
         if (
             actor.id === target.id
         ) {
@@ -4185,10 +4239,13 @@ async function changeUserRole(req, res) {
                 error:
                     "You cannot change your own role."
             });
+
         }
+
 
         // Cannot manage someone at or above
         // your own role.
+
         if (
             !canManageRole(
                 actor.role,
@@ -4200,9 +4257,12 @@ async function changeUserRole(req, res) {
                 error:
                     "You cannot manage this user."
             });
+
         }
 
+
         // Only owner can create another owner.
+
         if (
             newRole === "owner" &&
             actor.role !== "owner"
@@ -4212,10 +4272,13 @@ async function changeUserRole(req, res) {
                 error:
                     "Only the owner can assign owner."
             });
+
         }
 
-        // Non-owner cannot promote someone
-        // to their own level or higher.
+
+        // Non-owner cannot assign a role equal
+        // to or higher than their own.
+
         if (
             actor.role !== "owner" &&
             ROLE_LEVELS[newRole] >=
@@ -4226,7 +4289,9 @@ async function changeUserRole(req, res) {
                 error:
                     "You cannot assign a role equal to or above your own."
             });
+
         }
+
 
         const {
             error: updateError
@@ -4241,18 +4306,22 @@ async function changeUserRole(req, res) {
                 target.id
             );
 
+
         if (updateError) {
 
             console.error(
-                "ROLE UPDATE SUPABASE ERROR:",
+                "ROLE UPDATE ERROR:",
                 updateError
             );
+
 
             return res.status(500).json({
                 error:
                     updateError.message
             });
+
         }
+
 
         res.json({
             success: true,
@@ -4262,6 +4331,7 @@ async function changeUserRole(req, res) {
                 newRole
         });
 
+
     } catch (error) {
 
         console.error(
@@ -4269,26 +4339,23 @@ async function changeUserRole(req, res) {
             error
         );
 
+
         res.status(500).json({
             error:
                 "Server error."
         });
+
     }
+
 }
 
-
-// ==================================================
-// ROLE ROUTES
-//
-// Your current frontend uses PUT.
-// POST is kept as compatibility with older code.
-// ==================================================
 
 app.put(
     "/api/admin/users/:id/role",
     requireLogin,
     changeUserRole
 );
+
 
 app.post(
     "/api/admin/users/:id/role",
@@ -4299,14 +4366,6 @@ app.post(
 
 // ==================================================
 // REVOKE ROLE
-//
-// Sends target back to peasant.
-//
-// Your frontend can accomplish this through:
-// PUT /api/admin/users/:id/role
-// body: { role: "peasant" }
-//
-// This endpoint is also kept for older code.
 // ==================================================
 
 app.post(
@@ -4322,9 +4381,11 @@ app.post(
                     res
                 );
 
+
             if (!actor) {
                 return;
             }
+
 
             const {
                 data: target,
@@ -4340,13 +4401,16 @@ app.post(
                 )
                 .maybeSingle();
 
+
             if (error) {
 
                 return res.status(500).json({
                     error:
                         error.message
                 });
+
             }
+
 
             if (!target) {
 
@@ -4354,7 +4418,9 @@ app.post(
                     error:
                         "User not found."
                 });
+
             }
+
 
             if (
                 target.id === actor.id
@@ -4364,7 +4430,9 @@ app.post(
                     error:
                         "You cannot revoke yourself."
                 });
+
             }
+
 
             if (
                 !canManageRole(
@@ -4377,7 +4445,9 @@ app.post(
                     error:
                         "You cannot revoke this user."
                 });
+
             }
+
 
             const {
                 error: updateError
@@ -4392,13 +4462,16 @@ app.post(
                     target.id
                 );
 
+
             if (updateError) {
 
                 return res.status(500).json({
                     error:
                         updateError.message
                 });
+
             }
+
 
             res.json({
                 success: true,
@@ -4410,6 +4483,7 @@ app.post(
                     `${target.username} is now a peasant.`
             });
 
+
         } catch (error) {
 
             console.error(
@@ -4417,11 +4491,14 @@ app.post(
                 error
             );
 
+
             res.status(500).json({
                 error:
                     "Server error."
             });
+
         }
+
     }
 );
 
@@ -4429,8 +4506,8 @@ app.post(
 // ==================================================
 // KICK
 //
-// Sets is_active = false.
-// Does NOT set banned = true.
+// banned = false
+// is_active = false
 // ==================================================
 
 app.post(
@@ -4446,9 +4523,11 @@ app.post(
                     res
                 );
 
+
             if (!actor) {
                 return;
             }
+
 
             const {
                 data: target,
@@ -4456,7 +4535,7 @@ app.post(
             } = await supabase
                 .from("profiles")
                 .select(
-                    "id, username, role"
+                    "id, username, role, banned"
                 )
                 .eq(
                     "id",
@@ -4464,13 +4543,16 @@ app.post(
                 )
                 .maybeSingle();
 
+
             if (error) {
 
                 return res.status(500).json({
                     error:
                         error.message
                 });
+
             }
+
 
             if (!target) {
 
@@ -4478,7 +4560,9 @@ app.post(
                     error:
                         "User not found."
                 });
+
             }
+
 
             if (
                 target.id === actor.id
@@ -4488,7 +4572,9 @@ app.post(
                     error:
                         "You cannot kick yourself."
                 });
+
             }
+
 
             if (
                 !canManageRole(
@@ -4501,20 +4587,33 @@ app.post(
                     error:
                         "You cannot kick this user."
                 });
+
             }
+
+
+            if (target.banned) {
+
+                return res.status(403).json({
+                    error:
+                        "This user is already banned. Unban them first."
+                });
+
+            }
+
 
             const {
                 error: updateError
             } = await supabase
                 .from("profiles")
                 .update({
-                    is_active:
-                        false
+                    is_active: false,
+                    banned: false
                 })
                 .eq(
                     "id",
                     target.id
                 );
+
 
             if (updateError) {
 
@@ -4522,13 +4621,16 @@ app.post(
                     error:
                         updateError.message
                 });
+
             }
+
 
             res.json({
                 success: true,
                 message:
                     `${target.username} was kicked.`
             });
+
 
         } catch (error) {
 
@@ -4537,11 +4639,14 @@ app.post(
                 error
             );
 
+
             res.status(500).json({
                 error:
                     "Server error."
             });
+
         }
+
     }
 );
 
@@ -4549,11 +4654,8 @@ app.post(
 // ==================================================
 // REACTIVATE
 //
-// FRONTEND:
-// POST /api/admin/users/:id/reactivate
-//
-// This reverses a kick.
-// It does NOT remove a ban.
+// Only reverses a kick.
+// Banned users MUST be unbanned first.
 // ==================================================
 
 app.post(
@@ -4569,9 +4671,11 @@ app.post(
                     res
                 );
 
+
             if (!actor) {
                 return;
             }
+
 
             const {
                 data: target,
@@ -4579,7 +4683,7 @@ app.post(
             } = await supabase
                 .from("profiles")
                 .select(
-                    "id, username, role, banned"
+                    "id, username, role, banned, is_active"
                 )
                 .eq(
                     "id",
@@ -4587,13 +4691,16 @@ app.post(
                 )
                 .maybeSingle();
 
+
             if (error) {
 
                 return res.status(500).json({
                     error:
                         error.message
                 });
+
             }
+
 
             if (!target) {
 
@@ -4601,7 +4708,9 @@ app.post(
                     error:
                         "User not found."
                 });
+
             }
+
 
             if (
                 target.id === actor.id
@@ -4611,7 +4720,9 @@ app.post(
                     error:
                         "You cannot reactivate yourself."
                 });
+
             }
+
 
             if (
                 !canManageRole(
@@ -4624,30 +4735,32 @@ app.post(
                     error:
                         "You cannot manage this user."
                 });
+
             }
 
-            // A banned account stays inactive.
-            // Reactivate is only for kicks.
+
             if (target.banned) {
 
                 return res.status(403).json({
                     error:
                         "This user is banned. Unban them first."
                 });
+
             }
+
 
             const {
                 error: updateError
             } = await supabase
                 .from("profiles")
                 .update({
-                    is_active:
-                        true
+                    is_active: true
                 })
                 .eq(
                     "id",
                     target.id
                 );
+
 
             if (updateError) {
 
@@ -4655,15 +4768,20 @@ app.post(
                     error:
                         updateError.message
                 });
+
             }
+
 
             res.json({
                 success: true,
                 username:
                     target.username,
+                banned: false,
+                is_active: true,
                 message:
                     `${target.username} was reactivated.`
             });
+
 
         } catch (error) {
 
@@ -4672,19 +4790,20 @@ app.post(
                 error
             );
 
+
             res.status(500).json({
                 error:
                     "Server error."
             });
+
         }
+
     }
 );
 
 
 // ==================================================
 // OLD UNKICK ROUTE
-//
-// Kept so old frontend code doesn't break.
 // ==================================================
 
 app.post(
@@ -4692,11 +4811,6 @@ app.post(
     requireLogin,
     async (req, res) => {
 
-        req.url =
-            `/api/admin/users/${req.params.id}/reactivate`;
-
-        // Directly perform the same operation instead
-        // of redirecting through HTTP.
         try {
 
             const actor =
@@ -4705,9 +4819,11 @@ app.post(
                     res
                 );
 
+
             if (!actor) {
                 return;
             }
+
 
             const {
                 data: target,
@@ -4723,13 +4839,16 @@ app.post(
                 )
                 .maybeSingle();
 
+
             if (error) {
 
                 return res.status(500).json({
                     error:
                         error.message
                 });
+
             }
+
 
             if (!target) {
 
@@ -4737,7 +4856,9 @@ app.post(
                     error:
                         "User not found."
                 });
+
             }
+
 
             if (
                 target.id === actor.id
@@ -4747,7 +4868,9 @@ app.post(
                     error:
                         "You cannot do this to yourself."
                 });
+
             }
+
 
             if (
                 !canManageRole(
@@ -4760,7 +4883,9 @@ app.post(
                     error:
                         "You cannot manage this user."
                 });
+
             }
+
 
             if (target.banned) {
 
@@ -4768,20 +4893,22 @@ app.post(
                     error:
                         "This user is banned. Unban them first."
                 });
+
             }
+
 
             const {
                 error: updateError
             } = await supabase
                 .from("profiles")
                 .update({
-                    is_active:
-                        true
+                    is_active: true
                 })
                 .eq(
                     "id",
                     target.id
                 );
+
 
             if (updateError) {
 
@@ -4789,7 +4916,9 @@ app.post(
                     error:
                         updateError.message
                 });
+
             }
+
 
             res.json({
                 success: true,
@@ -4799,6 +4928,7 @@ app.post(
                     `${target.username} was restored.`
             });
 
+
         } catch (error) {
 
             console.error(
@@ -4806,11 +4936,14 @@ app.post(
                 error
             );
 
+
             res.status(500).json({
                 error:
                     "Server error."
             });
+
         }
+
     }
 );
 
@@ -4818,7 +4951,6 @@ app.post(
 // ==================================================
 // BAN
 //
-// Sets:
 // banned = true
 // is_active = false
 // ==================================================
@@ -4836,9 +4968,11 @@ app.post(
                     res
                 );
 
+
             if (!actor) {
                 return;
             }
+
 
             const {
                 data: target,
@@ -4854,13 +4988,16 @@ app.post(
                 )
                 .maybeSingle();
 
+
             if (error) {
 
                 return res.status(500).json({
                     error:
                         error.message
                 });
+
             }
+
 
             if (!target) {
 
@@ -4868,7 +5005,9 @@ app.post(
                     error:
                         "User not found."
                 });
+
             }
+
 
             if (
                 target.id === actor.id
@@ -4878,7 +5017,9 @@ app.post(
                     error:
                         "You cannot ban yourself."
                 });
+
             }
+
 
             if (
                 !canManageRole(
@@ -4891,47 +5032,50 @@ app.post(
                     error:
                         "You cannot ban this user."
                 });
+
             }
+
 
             const {
                 error: updateError
             } = await supabase
                 .from("profiles")
                 .update({
-                    banned:
-                        true,
-                    is_active:
-                        false
+                    banned: true,
+                    is_active: false
                 })
                 .eq(
                     "id",
                     target.id
                 );
 
+
             if (updateError) {
 
                 console.error(
-                    "BAN SUPABASE ERROR:",
+                    "BAN UPDATE ERROR:",
                     updateError
                 );
+
 
                 return res.status(500).json({
                     error:
                         updateError.message
                 });
+
             }
+
 
             res.json({
                 success: true,
                 username:
                     target.username,
-                banned:
-                    true,
-                is_active:
-                    false,
+                banned: true,
+                is_active: false,
                 message:
                     `${target.username} has been banned.`
             });
+
 
         } catch (error) {
 
@@ -4940,11 +5084,14 @@ app.post(
                 error
             );
 
+
             res.status(500).json({
                 error:
                     "Server error."
             });
+
         }
+
     }
 );
 
@@ -4952,7 +5099,6 @@ app.post(
 // ==================================================
 // UNBAN
 //
-// Sets:
 // banned = false
 // is_active = true
 // ==================================================
@@ -4970,9 +5116,11 @@ app.post(
                     res
                 );
 
+
             if (!actor) {
                 return;
             }
+
 
             const {
                 data: target,
@@ -4980,7 +5128,7 @@ app.post(
             } = await supabase
                 .from("profiles")
                 .select(
-                    "id, username, role, banned"
+                    "id, username, role, banned, is_active"
                 )
                 .eq(
                     "id",
@@ -4988,13 +5136,16 @@ app.post(
                 )
                 .maybeSingle();
 
+
             if (error) {
 
                 return res.status(500).json({
                     error:
                         error.message
                 });
+
             }
+
 
             if (!target) {
 
@@ -5002,7 +5153,9 @@ app.post(
                     error:
                         "User not found."
                 });
+
             }
+
 
             if (
                 target.id === actor.id
@@ -5012,7 +5165,9 @@ app.post(
                     error:
                         "You cannot unban yourself."
                 });
+
             }
+
 
             if (
                 !canManageRole(
@@ -5025,47 +5180,60 @@ app.post(
                     error:
                         "You cannot unban this user."
                 });
+
             }
+
+
+            if (!target.banned) {
+
+                return res.status(400).json({
+                    error:
+                        "This user is not banned."
+                });
+
+            }
+
 
             const {
                 error: updateError
             } = await supabase
                 .from("profiles")
                 .update({
-                    banned:
-                        false,
-                    is_active:
-                        true
+                    banned: false,
+                    is_active: true
                 })
                 .eq(
                     "id",
                     target.id
                 );
 
+
             if (updateError) {
 
                 console.error(
-                    "UNBAN SUPABASE ERROR:",
+                    "UNBAN UPDATE ERROR:",
                     updateError
                 );
+
 
                 return res.status(500).json({
                     error:
                         updateError.message
                 });
+
             }
+
 
             res.json({
                 success: true,
                 username:
                     target.username,
-                banned:
-                    false,
-                is_active:
-                    true,
+                banned: false,
+                is_active: true,
                 message:
                     `${target.username} has been unbanned.`
             });
+
 
         } catch (error) {
 
@@ -5074,13 +5242,18 @@ app.post(
                 error
             );
 
+
             res.status(500).json({
                 error:
                     "Server error."
             });
+
         }
+
     }
 );
+
+
 
 
 // ==================================================

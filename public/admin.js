@@ -13,28 +13,36 @@ let allUsers = [];
 
 async function api(url, options = {}) {
 
-    const response = await fetch(
-        url,
-        {
-            credentials: "include",
+    const response =
+        await fetch(
+            url,
+            {
+                credentials: "include",
 
-            headers: {
-                "Content-Type": "application/json",
+                headers: {
+                    "Content-Type":
+                        "application/json",
 
-                ...(options.headers || {})
-            },
+                    ...(options.headers || {})
+                },
 
-            ...options
-        }
-    );
+                ...options
+            }
+        );
 
 
     let data = null;
 
+
     try {
-        data = await response.json();
+
+        data =
+            await response.json();
+
     } catch {
+
         data = null;
+
     }
 
 
@@ -49,6 +57,7 @@ async function api(url, options = {}) {
 
 
     return data;
+
 }
 
 
@@ -79,10 +88,19 @@ const adminPanel =
 // STATUS
 // ==================================================
 
-function setStatus(message, error = false) {
+function setStatus(
+    message,
+    error = false
+) {
+
+    if (!statusElement) {
+        return;
+    }
+
 
     statusElement.textContent =
         message;
+
 
     statusElement.style.color =
         error
@@ -99,11 +117,26 @@ function setStatus(message, error = false) {
 function escapeHTML(value) {
 
     return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
 
 }
 
@@ -114,9 +147,14 @@ function escapeHTML(value) {
 
 function roleClass(role) {
 
-    return String(role || "peasant")
+    return String(
+        role || "peasant"
+    )
         .toLowerCase()
-        .replace(/\s+/g, "_");
+        .replace(
+            /\s+/g,
+            "_"
+        );
 
 }
 
@@ -135,7 +173,9 @@ async function checkAdmin() {
 
 
         const data =
-            await api("/api/admin/auth");
+            await api(
+                "/api/admin/auth"
+            );
 
 
         if (
@@ -154,13 +194,26 @@ async function checkAdmin() {
             data.user;
 
 
-        currentUserElement.textContent =
-            `👑 ${currentAdmin.display_name || currentAdmin.username} — ${currentAdmin.role}`;
+        if (currentUserElement) {
+
+            currentUserElement.textContent =
+                `👑 ${
+                    currentAdmin.display_name ||
+                    currentAdmin.username
+                } — ${
+                    currentAdmin.role
+                }`;
+
+        }
 
 
-        adminPanel.classList.remove(
-            "hidden"
-        );
+        if (adminPanel) {
+
+            adminPanel.classList.remove(
+                "hidden"
+            );
+
+        }
 
 
         setStatus(
@@ -179,8 +232,12 @@ async function checkAdmin() {
         );
 
 
-        currentUserElement.textContent =
-            "🚫 Access denied";
+        if (currentUserElement) {
+
+            currentUserElement.textContent =
+                "🚫 Access denied";
+
+        }
 
 
         setStatus(
@@ -207,7 +264,9 @@ async function loadUsers() {
 
 
         const data =
-            await api("/api/admin/users");
+            await api(
+                "/api/admin/users"
+            );
 
 
         allUsers =
@@ -248,42 +307,51 @@ async function loadUsers() {
 
 function renderUsers() {
 
+    if (!usersElement) {
+        return;
+    }
+
+
     const search =
-        searchElement.value
-            .trim()
-            .toLowerCase();
+        searchElement
+            ? searchElement.value
+                .trim()
+                .toLowerCase()
+            : "";
 
 
     const filtered =
-        allUsers.filter(user => {
+        allUsers.filter(
+            user => {
 
-            return (
+                return (
 
-                String(
-                    user.username || ""
-                )
-                    .toLowerCase()
-                    .includes(search)
+                    String(
+                        user.username || ""
+                    )
+                        .toLowerCase()
+                        .includes(search)
 
-                ||
+                    ||
 
-                String(
-                    user.display_name || ""
-                )
-                    .toLowerCase()
-                    .includes(search)
+                    String(
+                        user.display_name || ""
+                    )
+                        .toLowerCase()
+                        .includes(search)
 
-                ||
+                    ||
 
-                String(
-                    user.email || ""
-                )
-                    .toLowerCase()
-                    .includes(search)
+                    String(
+                        user.email || ""
+                    )
+                        .toLowerCase()
+                        .includes(search)
 
-            );
+                );
 
-        });
+            }
+        );
 
 
     if (!filtered.length) {
@@ -295,12 +363,15 @@ function renderUsers() {
         `;
 
         return;
+
     }
 
 
     usersElement.innerHTML =
         filtered
-            .map(renderUser)
+            .map(
+                renderUser
+            )
             .join("");
 
 }
@@ -313,15 +384,20 @@ function renderUsers() {
 function renderUser(user) {
 
     const role =
-        user.role || "peasant";
+        user.role ||
+        "peasant";
 
 
     const active =
         user.is_active !== false;
 
 
+    // IMPORTANT:
+    // Backend uses "banned".
+    // Do NOT use "is_banned".
+
     const banned =
-        user.is_banned === true;
+        user.banned === true;
 
 
     let statusHTML;
@@ -335,7 +411,9 @@ function renderUser(user) {
             </div>
         `;
 
-    } else if (!active) {
+    }
+
+    else if (!active) {
 
         statusHTML = `
             <div class="status inactive">
@@ -343,7 +421,9 @@ function renderUser(user) {
             </div>
         `;
 
-    } else {
+    }
+
+    else {
 
         statusHTML = `
             <div class="status active">
@@ -357,6 +437,76 @@ function renderUser(user) {
     const avatar =
         user.avatar ||
         "/default-avatar.png";
+
+
+    // ==================================================
+    // ACTION BUTTONS
+    //
+    // BANNED:
+    //     Unban only
+    //
+    // KICKED:
+    //     Reactivate + Ban
+    //
+    // ACTIVE:
+    //     Kick + Ban
+    // ==================================================
+
+    let moderationButtons = "";
+
+
+    if (banned) {
+
+        moderationButtons = `
+            <button
+                class="success unban-user"
+                data-id="${escapeHTML(user.id)}"
+            >
+                🔓 Unban
+            </button>
+        `;
+
+    }
+
+    else if (!active) {
+
+        moderationButtons = `
+            <button
+                class="success reactivate-user"
+                data-id="${escapeHTML(user.id)}"
+            >
+                ♻️ Reactivate
+            </button>
+
+            <button
+                class="danger ban-user"
+                data-id="${escapeHTML(user.id)}"
+            >
+                🚫 Ban
+            </button>
+        `;
+
+    }
+
+    else {
+
+        moderationButtons = `
+            <button
+                class="danger kick-user"
+                data-id="${escapeHTML(user.id)}"
+            >
+                🦵 Kick
+            </button>
+
+            <button
+                class="danger ban-user"
+                data-id="${escapeHTML(user.id)}"
+            >
+                🚫 Ban
+            </button>
+        `;
+
+    }
 
 
     return `
@@ -408,32 +558,57 @@ function renderUser(user) {
                     data-id="${escapeHTML(user.id)}"
                 >
 
-                    <option value="owner"
-                        ${role === "owner" ? "selected" : ""}
+                    <option
+                        value="owner"
+                        ${
+                            role === "owner"
+                                ? "selected"
+                                : ""
+                        }
                     >
                         👑 Owner
                     </option>
 
-                    <option value="administrator"
-                        ${role === "administrator" ? "selected" : ""}
+                    <option
+                        value="administrator"
+                        ${
+                            role === "administrator"
+                                ? "selected"
+                                : ""
+                        }
                     >
                         🛡️ Administrator
                     </option>
 
-                    <option value="senior_moderator"
-                        ${role === "senior_moderator" ? "selected" : ""}
+                    <option
+                        value="senior_moderator"
+                        ${
+                            role === "senior_moderator"
+                                ? "selected"
+                                : ""
+                        }
                     >
                         ⭐ Senior Moderator
                     </option>
 
-                    <option value="junior_moderator"
-                        ${role === "junior_moderator" ? "selected" : ""}
+                    <option
+                        value="junior_moderator"
+                        ${
+                            role === "junior_moderator"
+                                ? "selected"
+                                : ""
+                        }
                     >
                         🔨 Junior Moderator
                     </option>
 
-                    <option value="peasant"
-                        ${role === "peasant" ? "selected" : ""}
+                    <option
+                        value="peasant"
+                        ${
+                            role === "peasant"
+                                ? "selected"
+                                : ""
+                        }
                     >
                         🧌 Peasant
                     </option>
@@ -457,46 +632,7 @@ function renderUser(user) {
                 </button>
 
 
-                ${
-                    active && !banned
-                    ? `
-                        <button
-                            class="danger kick-user"
-                            data-id="${escapeHTML(user.id)}"
-                        >
-                            🦵 Kick
-                        </button>
-                    `
-                    : `
-                        <button
-                            class="success reactivate-user"
-                            data-id="${escapeHTML(user.id)}"
-                        >
-                            ♻️ Reactivate
-                        </button>
-                    `
-                }
-
-
-                ${
-                    banned
-                    ? `
-                        <button
-                            class="success unban-user"
-                            data-id="${escapeHTML(user.id)}"
-                        >
-                            🔓 Unban
-                        </button>
-                    `
-                    : `
-                        <button
-                            class="danger ban-user"
-                            data-id="${escapeHTML(user.id)}"
-                        >
-                            🚫 Ban
-                        </button>
-                    `
-                }
+                ${moderationButtons}
 
             </div>
 
@@ -545,9 +681,10 @@ async function changeRole(userId) {
             {
                 method: "PUT",
 
-                body: JSON.stringify({
-                    role
-                })
+                body:
+                    JSON.stringify({
+                        role
+                    })
             }
         );
 
@@ -602,9 +739,10 @@ async function revokeUser(userId) {
             {
                 method: "PUT",
 
-                body: JSON.stringify({
-                    role: "peasant"
-                })
+                body:
+                    JSON.stringify({
+                        role: "peasant"
+                    })
             }
         );
 
@@ -802,7 +940,7 @@ async function unbanUser(userId) {
 
     if (
         !confirm(
-            "Unban this user?"
+            "Unban this user? Their page will become active again."
         )
     ) {
 
@@ -822,7 +960,7 @@ async function unbanUser(userId) {
 
 
         setStatus(
-            "User has been unbanned."
+            "User has been unbanned and reactivated."
         );
 
 
@@ -856,7 +994,9 @@ document.addEventListener(
     event => {
 
         const button =
-            event.target.closest("button");
+            event.target.closest(
+                "button"
+            );
 
 
         if (!button) {
@@ -946,20 +1086,28 @@ document.addEventListener(
 // SEARCH
 // ==================================================
 
-searchElement.addEventListener(
-    "input",
-    renderUsers
-);
+if (searchElement) {
+
+    searchElement.addEventListener(
+        "input",
+        renderUsers
+    );
+
+}
 
 
 // ==================================================
 // REFRESH
 // ==================================================
 
-refreshButton.addEventListener(
-    "click",
-    loadUsers
-);
+if (refreshButton) {
+
+    refreshButton.addEventListener(
+        "click",
+        loadUsers
+    );
+
+}
 
 
 // ==================================================
@@ -967,4 +1115,3 @@ refreshButton.addEventListener(
 // ==================================================
 
 checkAdmin();
-
