@@ -13,38 +13,29 @@ let allUsers = [];
 
 async function api(url, options = {}) {
 
-    const response =
-        await fetch(
-            url,
-            {
-                credentials: "include",
+    const response = await fetch(
+        url,
+        {
+            credentials: "include",
 
-                headers: {
-                    "Content-Type":
-                        "application/json",
+            headers: {
+                "Content-Type":
+                    "application/json",
 
-                    ...(options.headers || {})
-                },
+                ...(options.headers || {})
+            },
 
-                ...options
-            }
-        );
-
+            ...options
+        }
+    );
 
     let data = null;
 
-
     try {
-
-        data =
-            await response.json();
-
+        data = await response.json();
     } catch {
-
         data = null;
-
     }
-
 
     if (!response.ok) {
 
@@ -55,9 +46,7 @@ async function api(url, options = {}) {
 
     }
 
-
     return data;
-
 }
 
 
@@ -97,16 +86,13 @@ function setStatus(
         return;
     }
 
-
     statusElement.textContent =
         message;
-
 
     statusElement.style.color =
         error
             ? "#dc2626"
             : "#15803d";
-
 }
 
 
@@ -171,12 +157,10 @@ async function checkAdmin() {
             "Checking admin access..."
         );
 
-
         const data =
             await api(
                 "/api/admin/auth"
             );
-
 
         if (
             !data ||
@@ -189,10 +173,8 @@ async function checkAdmin() {
 
         }
 
-
         currentAdmin =
             data.user;
-
 
         if (currentUserElement) {
 
@@ -206,7 +188,6 @@ async function checkAdmin() {
 
         }
 
-
         if (adminPanel) {
 
             adminPanel.classList.remove(
@@ -215,14 +196,11 @@ async function checkAdmin() {
 
         }
 
-
         setStatus(
             "Admin access granted."
         );
 
-
         await loadUsers();
-
 
     } catch (error) {
 
@@ -231,14 +209,12 @@ async function checkAdmin() {
             error
         );
 
-
         if (currentUserElement) {
 
             currentUserElement.textContent =
                 "🚫 Access denied";
 
         }
-
 
         setStatus(
             error.message,
@@ -262,26 +238,26 @@ async function loadUsers() {
             "Loading users..."
         );
 
-
         const data =
             await api(
                 "/api/admin/users"
             );
-
 
         allUsers =
             Array.isArray(data)
                 ? data
                 : data.users || [];
 
+        console.log(
+            "ADMIN USERS:",
+            allUsers
+        );
 
         renderUsers();
-
 
         setStatus(
             `Loaded ${allUsers.length} users.`
         );
-
 
     } catch (error) {
 
@@ -289,7 +265,6 @@ async function loadUsers() {
             "LOAD USERS ERROR:",
             error
         );
-
 
         setStatus(
             error.message,
@@ -311,14 +286,12 @@ function renderUsers() {
         return;
     }
 
-
     const search =
         searchElement
             ? searchElement.value
                 .trim()
                 .toLowerCase()
             : "";
-
 
     const filtered =
         allUsers.filter(
@@ -340,19 +313,10 @@ function renderUsers() {
                         .toLowerCase()
                         .includes(search)
 
-                    ||
-
-                    String(
-                        user.email || ""
-                    )
-                        .toLowerCase()
-                        .includes(search)
-
                 );
 
             }
         );
-
 
     if (!filtered.length) {
 
@@ -363,22 +327,18 @@ function renderUsers() {
         `;
 
         return;
-
     }
-
 
     usersElement.innerHTML =
         filtered
-            .map(
-                renderUser
-            )
+            .map(renderUser)
             .join("");
 
 }
 
 
 // ==================================================
-// RENDER SINGLE USER
+// RENDER USER
 // ==================================================
 
 function renderUser(user) {
@@ -387,20 +347,16 @@ function renderUser(user) {
         user.role ||
         "peasant";
 
-
     const active =
-        user.is_active !== false;
-
+        user.is_active === true;
 
     // IMPORTANT:
-    // Backend uses "banned".
-    // Do NOT use "is_banned".
-
+    // Backend field is "banned".
     const banned =
         user.banned === true;
 
 
-    let statusHTML;
+    let statusHTML = "";
 
 
     if (banned) {
@@ -440,25 +396,26 @@ function renderUser(user) {
 
 
     // ==================================================
-    // ACTION BUTTONS
+    // MODERATION BUTTONS
     //
-    // BANNED:
-    //     Unban only
+    // ACTIVE:
+    //     Kick + Ban
     //
     // KICKED:
     //     Reactivate + Ban
     //
-    // ACTIVE:
-    //     Kick + Ban
+    // BANNED:
+    //     Unban ONLY
     // ==================================================
 
     let moderationButtons = "";
 
 
-    if (banned) {
+    if (banned === true) {
 
         moderationButtons = `
             <button
+                type="button"
                 class="success unban-user"
                 data-id="${escapeHTML(user.id)}"
             >
@@ -468,10 +425,11 @@ function renderUser(user) {
 
     }
 
-    else if (!active) {
+    else if (active === false) {
 
         moderationButtons = `
             <button
+                type="button"
                 class="success reactivate-user"
                 data-id="${escapeHTML(user.id)}"
             >
@@ -479,6 +437,7 @@ function renderUser(user) {
             </button>
 
             <button
+                type="button"
                 class="danger ban-user"
                 data-id="${escapeHTML(user.id)}"
             >
@@ -492,6 +451,7 @@ function renderUser(user) {
 
         moderationButtons = `
             <button
+                type="button"
                 class="danger kick-user"
                 data-id="${escapeHTML(user.id)}"
             >
@@ -499,6 +459,7 @@ function renderUser(user) {
             </button>
 
             <button
+                type="button"
                 class="danger ban-user"
                 data-id="${escapeHTML(user.id)}"
             >
@@ -617,6 +578,7 @@ function renderUser(user) {
 
 
                 <button
+                    type="button"
                     class="success change-role"
                     data-id="${escapeHTML(user.id)}"
                 >
@@ -625,6 +587,7 @@ function renderUser(user) {
 
 
                 <button
+                    type="button"
                     class="warning revoke-user"
                     data-id="${escapeHTML(user.id)}"
                 >
@@ -653,26 +616,20 @@ async function changeRole(userId) {
             `.role-select[data-id="${CSS.escape(userId)}"]`
         );
 
-
     if (!select) {
         return;
     }
 
-
     const role =
         select.value;
-
 
     if (
         !confirm(
             `Change this user's role to "${role}"?`
         )
     ) {
-
         return;
-
     }
-
 
     try {
 
@@ -688,14 +645,11 @@ async function changeRole(userId) {
             }
         );
 
-
         setStatus(
             `Role changed to ${role}.`
         );
 
-
         await loadUsers();
-
 
     } catch (error) {
 
@@ -703,7 +657,6 @@ async function changeRole(userId) {
             "CHANGE ROLE ERROR:",
             error
         );
-
 
         setStatus(
             error.message,
@@ -726,11 +679,8 @@ async function revokeUser(userId) {
             "Revoke this user's staff privileges and make them a peasant?"
         )
     ) {
-
         return;
-
     }
-
 
     try {
 
@@ -746,14 +696,11 @@ async function revokeUser(userId) {
             }
         );
 
-
         setStatus(
-            "User has been revoked and made a peasant."
+            "User has been revoked."
         );
 
-
         await loadUsers();
-
 
     } catch (error) {
 
@@ -761,7 +708,6 @@ async function revokeUser(userId) {
             "REVOKE ERROR:",
             error
         );
-
 
         setStatus(
             error.message,
@@ -781,14 +727,11 @@ async function kickUser(userId) {
 
     if (
         !confirm(
-            "Kick this user? Their ShrekBook page will be deactivated, but their account/data will remain."
+            "Kick this user? Their page will be deactivated, but their account/data will remain."
         )
     ) {
-
         return;
-
     }
-
 
     try {
 
@@ -799,14 +742,11 @@ async function kickUser(userId) {
             }
         );
 
-
         setStatus(
-            "User's ShrekBook page has been deactivated."
+            "User has been kicked."
         );
 
-
         await loadUsers();
-
 
     } catch (error) {
 
@@ -814,7 +754,6 @@ async function kickUser(userId) {
             "KICK ERROR:",
             error
         );
-
 
         setStatus(
             error.message,
@@ -837,11 +776,8 @@ async function reactivateUser(userId) {
             "Reactivate this user's ShrekBook page?"
         )
     ) {
-
         return;
-
     }
-
 
     try {
 
@@ -852,14 +788,11 @@ async function reactivateUser(userId) {
             }
         );
 
-
         setStatus(
             "User's page has been reactivated."
         );
 
-
         await loadUsers();
-
 
     } catch (error) {
 
@@ -867,7 +800,6 @@ async function reactivateUser(userId) {
             "REACTIVATE ERROR:",
             error
         );
-
 
         setStatus(
             error.message,
@@ -890,11 +822,8 @@ async function banUser(userId) {
             "BAN this user? They will be prevented from using ShrekBook."
         )
     ) {
-
         return;
-
     }
-
 
     try {
 
@@ -905,14 +834,11 @@ async function banUser(userId) {
             }
         );
 
-
         setStatus(
             "User has been banned."
         );
 
-
         await loadUsers();
-
 
     } catch (error) {
 
@@ -920,7 +846,6 @@ async function banUser(userId) {
             "BAN ERROR:",
             error
         );
-
 
         setStatus(
             error.message,
@@ -943,11 +868,8 @@ async function unbanUser(userId) {
             "Unban this user? Their page will become active again."
         )
     ) {
-
         return;
-
     }
-
 
     try {
 
@@ -958,14 +880,11 @@ async function unbanUser(userId) {
             }
         );
 
-
         setStatus(
             "User has been unbanned and reactivated."
         );
 
-
         await loadUsers();
-
 
     } catch (error) {
 
@@ -973,7 +892,6 @@ async function unbanUser(userId) {
             "UNBAN ERROR:",
             error
         );
-
 
         setStatus(
             error.message,
@@ -998,20 +916,16 @@ document.addEventListener(
                 "button"
             );
 
-
         if (!button) {
             return;
         }
 
-
         const userId =
             button.dataset.id;
-
 
         if (!userId) {
             return;
         }
-
 
         if (
             button.classList.contains(
@@ -1023,7 +937,6 @@ document.addEventListener(
 
         }
 
-
         else if (
             button.classList.contains(
                 "revoke-user"
@@ -1033,7 +946,6 @@ document.addEventListener(
             revokeUser(userId);
 
         }
-
 
         else if (
             button.classList.contains(
@@ -1045,7 +957,6 @@ document.addEventListener(
 
         }
 
-
         else if (
             button.classList.contains(
                 "reactivate-user"
@@ -1056,7 +967,6 @@ document.addEventListener(
 
         }
 
-
         else if (
             button.classList.contains(
                 "ban-user"
@@ -1066,7 +976,6 @@ document.addEventListener(
             banUser(userId);
 
         }
-
 
         else if (
             button.classList.contains(
