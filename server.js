@@ -2990,46 +2990,85 @@ app.post(
    LEADERBOARD
    ================================================== */
 
+/* ==================================================
+   LEADERBOARD API
+================================================== */
+
 app.get("/api/leaderboard", async (req, res) => {
 
     try {
 
-        // ------------------------------------------
-        // GET USERS
-        // ------------------------------------------
+        const type =
+            req.query.type || "overall";
 
-        const { data: users, error: usersError } =
-            await supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar
-                `);
 
-        if (usersError) {
-            console.error(
-                "LEADERBOARD USERS ERROR:",
-                usersError
-            );
+        const validTypes = [
+            "overall",
+            "posts",
+            "comments",
+            "cat",
+            "gyatt",
+            "ogred"
+        ];
 
-            return res.status(500).json({
-                error: usersError.message
+
+        if (!validTypes.includes(type)) {
+
+            return res.status(400).json({
+                error: "Invalid leaderboard type."
             });
+
         }
 
 
-        // ------------------------------------------
-        // GET POSTS
-        // ------------------------------------------
+        /* ==================================================
+           GET ALL PROFILES
+        ================================================== */
 
-        const { data: posts, error: postsError } =
-            await supabase
-                .from("posts")
-                .select("user_id");
+        const {
+            data: profiles,
+            error: profilesError
+        } = await supabase
+            .from("profiles")
+            .select(`
+                id,
+                username,
+                display_name,
+                avatar,
+                cat,
+                gyatt,
+                ogred
+            `);
+
+
+        if (profilesError) {
+
+            console.error(
+                "LEADERBOARD PROFILES ERROR:",
+                profilesError
+            );
+
+            return res.status(500).json({
+                error: profilesError.message
+            });
+
+        }
+
+
+        /* ==================================================
+           GET POSTS
+        ================================================== */
+
+        const {
+            data: posts,
+            error: postsError
+        } = await supabase
+            .from("posts")
+            .select("user_id");
+
 
         if (postsError) {
+
             console.error(
                 "LEADERBOARD POSTS ERROR:",
                 postsError
@@ -3038,19 +3077,46 @@ app.get("/api/leaderboard", async (req, res) => {
             return res.status(500).json({
                 error: postsError.message
             });
+
         }
 
 
-        // ------------------------------------------
-        // GET COMMENTS
-        // ------------------------------------------
+        /* ==================================================
+           COUNT POSTS PER USER
+        ================================================== */
 
-        const { data: comments, error: commentsError } =
-            await supabase
-                .from("comments")
-                .select("user_id");
+        const postCounts = {};
+
+
+        for (const post of posts || []) {
+
+            if (!post.user_id) {
+                continue;
+            }
+
+            if (!postCounts[post.user_id]) {
+                postCounts[post.user_id] = 0;
+            }
+
+            postCounts[post.user_id]++;
+
+        }
+
+
+        /* ==================================================
+           GET COMMENTS
+        ================================================== */
+
+        const {
+            data: comments,
+            error: commentsError
+        } = await supabase
+            .from("comments")
+            .select("user_id");
+
 
         if (commentsError) {
+
             console.error(
                 "LEADERBOARD COMMENTS ERROR:",
                 commentsError
@@ -3059,203 +3125,363 @@ app.get("/api/leaderboard", async (req, res) => {
             return res.status(500).json({
                 error: commentsError.message
             });
-        }
-
-
-        // ------------------------------------------
-        // GET REACTIONS
-        // ------------------------------------------
-
-        const { data: reactions, error: reactionsError } =
-            await supabase
-                .from("reactions")
-                .select(`
-                    to_user_id,
-                    type
-                `);
-
-        if (reactionsError) {
-            console.error(
-                "LEADERBOARD REACTIONS ERROR:",
-                reactionsError
-            );
-
-            return res.status(500).json({
-                error: reactionsError.message
-            });
-        }
-
-
-        // ------------------------------------------
-        // CREATE USER STATS
-        // ------------------------------------------
-
-        const stats = {};
-
-
-        for (const user of users || []) {
-
-            stats[user.id] = {
-
-                id: user.id,
-
-                username:
-                    user.username ||
-                    "user",
-
-                display_name:
-                    user.display_name ||
-                    user.username ||
-                    "User",
-
-                avatar:
-                    user.avatar ||
-                    "/default-avatar.png",
-
-                posts: 0,
-
-                comments: 0,
-
-                cat: 0,
-
-                gyatt: 0,
-
-                ogred: 0,
-
-                score: 0
-
-            };
 
         }
 
 
-        // ------------------------------------------
-        // COUNT POSTS
-        // ------------------------------------------
+        /* ==================================================
+           COUNT COMMENTS PER USER
+        ================================================== */
 
-        for (const post of posts || []) {
+        const commentCounts = {};
 
-            if (!stats[post.user_id]) {
-                continue;
-            }
-
-            stats[post.user_id].posts++;
-
-        }
-
-
-        // ------------------------------------------
-        // COUNT COMMENTS
-        // ------------------------------------------
 
         for (const comment of comments || []) {
 
-            if (!stats[comment.user_id]) {
+            if (!comment.user_id) {
                 continue;
             }
 
-            stats[comment.user_id].comments++;
+            if (!commentCounts[comment.user_id]) {
+                commentCounts[comment.user_id] = 0;
+            }
+
+            commentCounts[comment.user_id]++;
 
         }
 
 
-        // ------------------------------------------
-        // COUNT REACTIONS
-        // ------------------------------------------
+        /* ==================================================
+           BUILD LEADERBOARD
+        ================================================== */
 
-        for (const reaction of reactions || []) {
+        let users = (profiles || []).map(profile => {
 
-            const userId =
-                reaction.to_user_id;
+            const postsCount =
+                postCounts[profile.id] || 0;
 
-            if (!stats[userId]) {
-                continue;
+            const commentsCount =
+                commentCounts[profile.id] || 0;
+
+            const cat =
+                Number(profile.cat) || 0;
+
+            const gyatt =
+                Number(profile.gyatt) || 0;
+
+            const ogred =
+                Number(profile.ogred) || 0;
+
+
+            /*
+             * Overall score:
+             *
+             * Posts     = 5 points
+             * Comments  = 2 points
+             * Reactions = 1 point each
+             */
+
+            const score =
+                (
+                    postsCount * 5
+                ) +
+                (
+                    commentsCount * 2
+                ) +
+                cat +
+                gyatt +
+                ogred;
+
+
+            let leaderboardScore = 0;
+
+
+            switch (type) {
+
+                case "posts":
+
+                    leaderboardScore =
+                        postsCount;
+
+                    break;
+
+
+                case "comments":
+
+                    leaderboardScore =
+                        commentsCount;
+
+                    break;
+
+
+                case "cat":
+
+                    leaderboardScore =
+                        cat;
+
+                    break;
+
+
+                case "gyatt":
+
+                    leaderboardScore =
+                        gyatt;
+
+                    break;
+
+
+                case "ogred":
+
+                    leaderboardScore =
+                        ogred;
+
+                    break;
+
+
+                case "overall":
+
+                default:
+
+                    leaderboardScore =
+                        score;
+
+                    break;
+
             }
 
 
-            if (reaction.type === "cat") {
+            return {
 
-                stats[userId].cat++;
+                id: profile.id,
+
+                username:
+                    profile.username,
+
+                display_name:
+                    profile.display_name,
+
+                avatar:
+                    profile.avatar,
+
+                posts:
+                    postsCount,
+
+                comments:
+                    commentsCount,
+
+                cat:
+                    cat,
+
+                gyatt:
+                    gyatt,
+
+                ogred:
+                    ogred,
+
+                score:
+                    score,
+
+                leaderboardScore:
+                    leaderboardScore
+
+            };
+
+        });
+
+
+        /* ==================================================
+           SORT
+        ================================================== */
+
+        users.sort(
+            (a, b) => {
+
+                /*
+                 * Highest score first.
+                 *
+                 * The ID is only used as a
+                 * deterministic tiebreaker for
+                 * ordering. It DOES NOT affect rank.
+                 */
+
+                if (
+                    b.leaderboardScore !==
+                    a.leaderboardScore
+                ) {
+
+                    return (
+                        b.leaderboardScore -
+                        a.leaderboardScore
+                    );
+
+                }
+
+                return String(a.id)
+                    .localeCompare(
+                        String(b.id)
+                    );
 
             }
+        );
 
 
-            else if (reaction.type === "gyatt") {
+        /* ==================================================
+           CALCULATE TIE-AWARE RANKS
+        ================================================== */
 
-                stats[userId].gyatt++;
-
-            }
-
-
-            else if (reaction.type === "ogred") {
-
-                stats[userId].ogred++;
-
-            }
-
-        }
+        let previousScore = null;
+        let previousRank = 0;
 
 
-        // ------------------------------------------
-        // CALCULATE OVERALL SCORE
-        // ------------------------------------------
-        //
-        // You can change these weights later.
-        //
-        // Posts     = 5 points
-        // Comments  = 3 points
-        // Cat       = 1 point
-        // Gyatt     = 1 point
-        // Ogred     = 1 point
-        //
-        // ------------------------------------------
-
-        for (const user of Object.values(stats)) {
-
-            user.score =
-                (user.posts * 5) +
-                (user.comments * 3) +
-                user.cat +
-                user.gyatt +
-                user.ogred;
-
-        }
-
-
-        // ------------------------------------------
-        // SORT BY SCORE
-        // ------------------------------------------
-
-        const leaderboard =
-            Object.values(stats)
-                .sort(
-                    (a, b) =>
-                        b.score - a.score
-                )
-                .slice(0, 5);
-
-
-        // ------------------------------------------
-        // ADD RANK
-        // ------------------------------------------
-
-        leaderboard.forEach(
+        users.forEach(
             (user, index) => {
 
-                user.rank =
-                    index + 1;
+                const score =
+                    user.leaderboardScore;
+
+
+                /*
+                 * Same score =
+                 * SAME rank.
+                 */
+
+                if (
+                    previousScore === score
+                ) {
+
+                    user.rank =
+                        previousRank;
+
+                }
+
+                else {
+
+                    /*
+                     * Competition ranking.
+                     *
+                     * Example:
+                     *
+                     * 1 = 100
+                     * 2 = 90
+                     * 2 = 90
+                     * 4 = 50
+                     */
+
+                    user.rank =
+                        index + 1;
+
+                    previousRank =
+                        user.rank;
+
+                    previousScore =
+                        score;
+
+                }
 
             }
         );
 
 
-        // ------------------------------------------
-        // SEND RESULT
-        // ------------------------------------------
+        /* ==================================================
+           TOP FIVE
+        ================================================== */
 
-        res.json(
-            leaderboard
-        );
+        const topFive =
+            users.slice(0, 5);
+
+
+        /* ==================================================
+           FIND CURRENT USER
+        ================================================== */
+
+        /*
+         * Your login system stores the logged-in
+         * user in req.session.user.
+         */
+
+        const currentUserId =
+            req.session &&
+            req.session.user
+                ? req.session.user.id
+                : null;
+
+
+        let currentUser = null;
+
+
+        if (currentUserId) {
+
+            const foundUser =
+                users.find(
+                    user =>
+                        String(user.id) ===
+                        String(currentUserId)
+                );
+
+
+            if (foundUser) {
+
+                currentUser = {
+
+                    id:
+                        foundUser.id,
+
+                    username:
+                        foundUser.username,
+
+                    display_name:
+                        foundUser.display_name,
+
+                    avatar:
+                        foundUser.avatar,
+
+                    posts:
+                        foundUser.posts,
+
+                    comments:
+                        foundUser.comments,
+
+                    cat:
+                        foundUser.cat,
+
+                    gyatt:
+                        foundUser.gyatt,
+
+                    ogred:
+                        foundUser.ogred,
+
+                    score:
+                        foundUser.score,
+
+                    leaderboardScore:
+                        foundUser.leaderboardScore,
+
+                    rank:
+                        foundUser.rank
+
+                };
+
+            }
+
+        }
+
+
+        /* ==================================================
+           RETURN RESULT
+        ================================================== */
+
+        return res.json({
+
+            leaderboard:
+                topFive,
+
+            currentUser:
+                currentUser,
+
+            totalUsers:
+                users.length
+
+        });
 
 
     } catch (error) {
@@ -3265,9 +3491,12 @@ app.get("/api/leaderboard", async (req, res) => {
             error
         );
 
-        res.status(500).json({
+
+        return res.status(500).json({
+
             error:
                 "Could not load leaderboard."
+
         });
 
     }
