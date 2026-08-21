@@ -3022,7 +3022,7 @@ app.get("/api/leaderboard", async (req, res) => {
 
 
         /* ==================================================
-           GET ALL PROFILES
+           GET PROFILES
         ================================================== */
 
         const {
@@ -3034,10 +3034,7 @@ app.get("/api/leaderboard", async (req, res) => {
                 id,
                 username,
                 display_name,
-                avatar,
-                cat,
-                gyatt,
-                ogred
+                avatar
             `);
 
 
@@ -3082,7 +3079,7 @@ app.get("/api/leaderboard", async (req, res) => {
 
 
         /* ==================================================
-           COUNT POSTS PER USER
+           COUNT POSTS
         ================================================== */
 
         const postCounts = {};
@@ -3094,11 +3091,8 @@ app.get("/api/leaderboard", async (req, res) => {
                 continue;
             }
 
-            if (!postCounts[post.user_id]) {
-                postCounts[post.user_id] = 0;
-            }
-
-            postCounts[post.user_id]++;
+            postCounts[post.user_id] =
+                (postCounts[post.user_id] || 0) + 1;
 
         }
 
@@ -3130,7 +3124,7 @@ app.get("/api/leaderboard", async (req, res) => {
 
 
         /* ==================================================
-           COUNT COMMENTS PER USER
+           COUNT COMMENTS
         ================================================== */
 
         const commentCounts = {};
@@ -3142,167 +3136,256 @@ app.get("/api/leaderboard", async (req, res) => {
                 continue;
             }
 
-            if (!commentCounts[comment.user_id]) {
-                commentCounts[comment.user_id] = 0;
-            }
-
-            commentCounts[comment.user_id]++;
+            commentCounts[comment.user_id] =
+                (commentCounts[comment.user_id] || 0) + 1;
 
         }
 
 
         /* ==================================================
-           BUILD LEADERBOARD
+           GET REACTIONS
         ================================================== */
 
-        let users = (profiles || []).map(profile => {
-
-            const postsCount =
-                postCounts[profile.id] || 0;
-
-            const commentsCount =
-                commentCounts[profile.id] || 0;
-
-            const cat =
-                Number(profile.cat) || 0;
-
-            const gyatt =
-                Number(profile.gyatt) || 0;
-
-            const ogred =
-                Number(profile.ogred) || 0;
+        const {
+            data: reactions,
+            error: reactionsError
+        } = await supabase
+            .from("reactions")
+            .select(`
+                to_user_id,
+                type
+            `);
 
 
-            /*
-             * Overall score:
-             *
-             * Posts     = 5 points
-             * Comments  = 2 points
-             * Reactions = 1 point each
-             */
+        if (reactionsError) {
 
-            const score =
-                (
-                    postsCount * 5
-                ) +
-                (
-                    commentsCount * 2
-                ) +
-                cat +
-                gyatt +
-                ogred;
+            console.error(
+                "LEADERBOARD REACTIONS ERROR:",
+                reactionsError
+            );
+
+            return res.status(500).json({
+                error: reactionsError.message
+            });
+
+        }
 
 
-            let leaderboardScore = 0;
+        /* ==================================================
+           COUNT REACTIONS PER USER
+        ================================================== */
+
+        const reactionCounts = {};
 
 
-            switch (type) {
+        for (const reaction of reactions || []) {
 
-                case "posts":
+            const userId =
+                reaction.to_user_id;
 
-                    leaderboardScore =
-                        postsCount;
-
-                    break;
-
-
-                case "comments":
-
-                    leaderboardScore =
-                        commentsCount;
-
-                    break;
+            const reactionType =
+                reaction.type;
 
 
-                case "cat":
-
-                    leaderboardScore =
-                        cat;
-
-                    break;
+            if (!userId) {
+                continue;
+            }
 
 
-                case "gyatt":
+            if (!reactionCounts[userId]) {
 
-                    leaderboardScore =
-                        gyatt;
+                reactionCounts[userId] = {
 
-                    break;
+                    cat: 0,
 
+                    gyatt: 0,
 
-                case "ogred":
+                    ogred: 0
 
-                    leaderboardScore =
-                        ogred;
-
-                    break;
-
-
-                case "overall":
-
-                default:
-
-                    leaderboardScore =
-                        score;
-
-                    break;
+                };
 
             }
 
 
-            return {
+            if (
+                reactionType === "cat" ||
+                reactionType === "gyatt" ||
+                reactionType === "ogred"
+            ) {
 
-                id: profile.id,
+                reactionCounts[userId][reactionType]++;
 
-                username:
-                    profile.username,
+            }
 
-                display_name:
-                    profile.display_name,
-
-                avatar:
-                    profile.avatar,
-
-                posts:
-                    postsCount,
-
-                comments:
-                    commentsCount,
-
-                cat:
-                    cat,
-
-                gyatt:
-                    gyatt,
-
-                ogred:
-                    ogred,
-
-                score:
-                    score,
-
-                leaderboardScore:
-                    leaderboardScore
-
-            };
-
-        });
+        }
 
 
         /* ==================================================
-           SORT
+           BUILD USERS
+        ================================================== */
+
+        let users =
+            (profiles || []).map(profile => {
+
+                const userId =
+                    profile.id;
+
+
+                const postsCount =
+                    postCounts[userId] || 0;
+
+
+                const commentsCount =
+                    commentCounts[userId] || 0;
+
+
+                const reactionsForUser =
+                    reactionCounts[userId] || {
+
+                        cat: 0,
+
+                        gyatt: 0,
+
+                        ogred: 0
+
+                    };
+
+
+                const cat =
+                    reactionsForUser.cat;
+
+
+                const gyatt =
+                    reactionsForUser.gyatt;
+
+
+                const ogred =
+                    reactionsForUser.ogred;
+
+
+                /* ==========================================
+                   OVERALL SCORE
+                   
+                   Posts     = 5 points
+                   Comments  = 2 points
+                   Reactions = 1 point
+                   ========================================== */
+
+                const score =
+                    (
+                        postsCount * 5
+                    ) +
+                    (
+                        commentsCount * 2
+                    ) +
+                    cat +
+                    gyatt +
+                    ogred;
+
+
+                let leaderboardScore;
+
+
+                switch (type) {
+
+                    case "posts":
+
+                        leaderboardScore =
+                            postsCount;
+
+                        break;
+
+
+                    case "comments":
+
+                        leaderboardScore =
+                            commentsCount;
+
+                        break;
+
+
+                    case "cat":
+
+                        leaderboardScore =
+                            cat;
+
+                        break;
+
+
+                    case "gyatt":
+
+                        leaderboardScore =
+                            gyatt;
+
+                        break;
+
+
+                    case "ogred":
+
+                        leaderboardScore =
+                            ogred;
+
+                        break;
+
+
+                    case "overall":
+
+                    default:
+
+                        leaderboardScore =
+                            score;
+
+                        break;
+
+                }
+
+
+                return {
+
+                    id:
+                        profile.id,
+
+                    username:
+                        profile.username,
+
+                    display_name:
+                        profile.display_name,
+
+                    avatar:
+                        profile.avatar,
+
+                    posts:
+                        postsCount,
+
+                    comments:
+                        commentsCount,
+
+                    cat:
+                        cat,
+
+                    gyatt:
+                        gyatt,
+
+                    ogred:
+                        ogred,
+
+                    score:
+                        score,
+
+                    leaderboardScore:
+                        leaderboardScore
+
+                };
+
+            });
+
+
+        /* ==================================================
+           SORT BY SCORE
         ================================================== */
 
         users.sort(
             (a, b) => {
-
-                /*
-                 * Highest score first.
-                 *
-                 * The ID is only used as a
-                 * deterministic tiebreaker for
-                 * ordering. It DOES NOT affect rank.
-                 */
 
                 if (
                     b.leaderboardScore !==
@@ -3316,6 +3399,13 @@ app.get("/api/leaderboard", async (req, res) => {
 
                 }
 
+
+                /*
+                 * Deterministic ordering for tied users.
+                 *
+                 * THIS DOES NOT AFFECT THEIR RANK.
+                 */
+
                 return String(a.id)
                     .localeCompare(
                         String(b.id)
@@ -3326,10 +3416,22 @@ app.get("/api/leaderboard", async (req, res) => {
 
 
         /* ==================================================
-           CALCULATE TIE-AWARE RANKS
+           TIE-AWARE RANKING
+           
+           Example:
+           
+           1 = 100
+           2 = 80
+           2 = 80
+           4 = 50
+           5 = 20
+           5 = 20
+           5 = 20
+           8 = 10
         ================================================== */
 
         let previousScore = null;
+
         let previousRank = 0;
 
 
@@ -3340,13 +3442,9 @@ app.get("/api/leaderboard", async (req, res) => {
                     user.leaderboardScore;
 
 
-                /*
-                 * Same score =
-                 * SAME rank.
-                 */
-
                 if (
-                    previousScore === score
+                    previousScore !== null &&
+                    score === previousScore
                 ) {
 
                     user.rank =
@@ -3355,17 +3453,6 @@ app.get("/api/leaderboard", async (req, res) => {
                 }
 
                 else {
-
-                    /*
-                     * Competition ranking.
-                     *
-                     * Example:
-                     *
-                     * 1 = 100
-                     * 2 = 90
-                     * 2 = 90
-                     * 4 = 50
-                     */
 
                     user.rank =
                         index + 1;
@@ -3383,7 +3470,7 @@ app.get("/api/leaderboard", async (req, res) => {
 
 
         /* ==================================================
-           TOP FIVE
+           TOP 5
         ================================================== */
 
         const topFive =
@@ -3391,22 +3478,14 @@ app.get("/api/leaderboard", async (req, res) => {
 
 
         /* ==================================================
-           FIND CURRENT USER
+           CURRENT LOGGED-IN USER
         ================================================== */
 
-        /*
-         * Your login system stores the logged-in
-         * user in req.session.user.
-         */
+        let currentUser = null;
+
 
         const currentUserId =
-            req.session &&
-            req.session.user
-                ? req.session.user.id
-                : null;
-
-
-        let currentUser = null;
+            req.session?.user?.id;
 
 
         if (currentUserId) {
@@ -3467,7 +3546,7 @@ app.get("/api/leaderboard", async (req, res) => {
 
 
         /* ==================================================
-           RETURN RESULT
+           RETURN
         ================================================== */
 
         return res.json({
