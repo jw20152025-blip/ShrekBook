@@ -1224,43 +1224,28 @@ function getLeaderboardScore(user, type) {
 async function loadLeaderboard(type = "overall") {
 
     const container =
-        document.getElementById(
-            "leaderboard"
-        );
+        document.getElementById("leaderboard");
 
     if (!container) {
         return;
     }
 
-    currentLeaderboard =
-        type;
+    currentLeaderboard = type;
 
     const title =
-        document.getElementById(
-            "leaderboard-title"
-        );
+        document.getElementById("leaderboard-title");
 
     if (title) {
-
         title.textContent =
             leaderboardTitles[type] ||
             "🏆 Leaderboard";
-
     }
 
-
     document
-        .querySelectorAll(
-            ".leaderboard-switcher button"
-        )
+        .querySelectorAll(".leaderboard-switcher button")
         .forEach(button => {
-
-            button.classList.remove(
-                "active"
-            );
-
+            button.classList.remove("active");
         });
-
 
     const activeButton =
         document.getElementById(
@@ -1268,89 +1253,69 @@ async function loadLeaderboard(type = "overall") {
         );
 
     if (activeButton) {
-
-        activeButton.classList.add(
-            "active"
-        );
-
+        activeButton.classList.add("active");
     }
 
-
     container.innerHTML = `
-
         <div class="leaderboard-loading">
-
             Loading leaderboard... 🧌
-
         </div>
-
     `;
-
 
     try {
 
-        /*
-         * Get leaderboard.
-         */
-
         const response =
             await fetch(
-                `/api/leaderboard?type=${encodeURIComponent(
-                    type
-                )}`,
+                `/api/leaderboard?type=${encodeURIComponent(type)}`,
                 {
                     method: "GET",
                     credentials: "include",
                     cache: "no-store",
                     headers: {
-                        "Accept":
-                            "application/json"
+                        "Accept": "application/json"
                     }
                 }
             );
 
-
         const data =
             await response.json();
 
+        console.log("LEADERBOARD DATA:", data);
 
         if (!response.ok) {
-
             throw new Error(
                 data.error ||
                 "Could not load leaderboard."
             );
-
         }
 
 
-        /*
-         * Get users from response.
-         */
+        /* ==================================================
+           GET LEADERBOARD + CURRENT USER
+        ================================================== */
 
         let users =
             Array.isArray(data)
                 ? data
                 : (
-                    Array.isArray(
-                        data.leaderboard
-                    )
+                    Array.isArray(data.leaderboard)
                         ? data.leaderboard
                         : []
                 );
 
+        const currentUser =
+            data.currentUser || null;
 
-        /*
-         * Calculate each user's score
-         * and sort the complete leaderboard.
-         */
+
+        /* ==================================================
+           CALCULATE SCORES
+        ================================================== */
 
         users =
             users
                 .map(user => {
 
                     return {
-
                         ...user,
 
                         leaderboardScore:
@@ -1363,199 +1328,252 @@ async function loadLeaderboard(type = "overall") {
 
                 })
                 .sort(
-                    (
-                        a,
-                        b
-                    ) =>
+                    (a, b) =>
                         b.leaderboardScore -
                         a.leaderboardScore
                 );
 
 
-        /*
-         * No users.
-         */
-
-        if (!users.length) {
-
-            container.innerHTML = `
-
-                <div class="leaderboard-empty">
-
-                    🧌 No leaderboard data yet.
-
-                </div>
-
-            `;
-
-            return;
-
-        }
-
-
-        /*
-         * Get the currently logged-in user.
-         */
-
-        let currentUser = null;
-
-        try {
-
-            const meResponse =
-                await fetch(
-                    "/api/me",
-                    {
-                        method: "GET",
-                        credentials: "include",
-                        cache: "no-store",
-                        headers: {
-                            "Accept":
-                                "application/json"
-                        }
-                    }
-                );
-
-
-            const meData =
-                await meResponse.json();
-
-
-            if (
-                meResponse.ok &&
-                meData.loggedIn &&
-                meData.user
-            ) {
-
-                currentUser =
-                    meData.user;
-
-            }
-
-        } catch (error) {
-
-            console.error(
-                "CURRENT USER ERROR:",
-                error
-            );
-
-        }
-
-
-        /*
-         * Find current user's position
-         * in the COMPLETE leaderboard.
-         */
-
-        let currentUserIndex = -1;
-
-        if (currentUser) {
-
-            currentUserIndex =
-                users.findIndex(
-                    user =>
-                        String(user.id) ===
-                        String(currentUser.id)
-                );
-
-        }
-
-
-        /*
-         * Top five users.
-         */
+        /* ==================================================
+           TOP FIVE
+        ================================================== */
 
         const topFive =
             users.slice(0, 5);
 
 
-        /*
-         * Render top five.
-         */
-
-        let leaderboardHTML =
-            topFive.map(
-                (user, index) => {
-
-                    const rank =
-                        index + 1;
+        let html = "";
 
 
-                    let medal = "";
+        if (!topFive.length) {
+
+            html = `
+                <div class="leaderboard-empty">
+                    🧌 No leaderboard data yet.
+                </div>
+            `;
+
+        } else {
+
+            html =
+                topFive.map(
+                    (user, index) => {
+
+                        const rank =
+                            user.rank ||
+                            index + 1;
+
+                        let medal = "";
+
+                        if (rank === 1) {
+                            medal = "🥇";
+                        }
+
+                        else if (rank === 2) {
+                            medal = "🥈";
+                        }
+
+                        else if (rank === 3) {
+                            medal = "🥉";
+                        }
+
+                        else {
+                            medal = `${rank}`;
+                        }
 
 
-                    if (rank === 1) {
+                        const avatar =
+                            user.avatar ||
+                            "/default-avatar.png";
 
-                        medal = "🥇";
+
+                        const displayName =
+                            user.display_name ||
+                            user.username ||
+                            "User";
+
+
+                        const username =
+                            user.username ||
+                            "user";
+
+
+                        const score =
+                            user.leaderboardScore;
+
+
+                        return `
+
+                            <a
+                                href="/profile.html?id=${encodeURIComponent(
+                                    user.id
+                                )}"
+                                style="
+                                    text-decoration:none;
+                                    color:inherit;
+                                "
+                            >
+
+                                <div
+                                    class="leaderboard-user"
+                                >
+
+                                    <div
+                                        class="leaderboard-rank"
+                                    >
+
+                                        <span
+                                            class="leaderboard-medal"
+                                        >
+
+                                            ${medal}
+
+                                        </span>
+
+                                    </div>
+
+
+                                    <img
+                                        class="leaderboard-avatar"
+                                        src="${escapeHtml(
+                                            avatar
+                                        )}"
+                                        alt="${escapeHtml(
+                                            displayName
+                                        )} avatar"
+                                        onerror="
+                                            this.src='/default-avatar.png';
+                                        "
+                                    >
+
+
+                                    <div
+                                        class="leaderboard-info"
+                                    >
+
+                                        <div
+                                            class="leaderboard-name"
+                                        >
+
+                                            ${escapeHtml(
+                                                displayName
+                                            )}
+
+                                        </div>
+
+                                        <div
+                                            class="leaderboard-username"
+                                        >
+
+                                            @${escapeHtml(
+                                                username
+                                            )}
+
+                                        </div>
+
+                                    </div>
+
+
+                                    <div
+                                        class="leaderboard-score"
+                                    >
+
+                                        ${Number(score)
+                                            .toLocaleString()}
+
+                                    </div>
+
+                                </div>
+
+                            </a>
+
+                        `;
 
                     }
+                ).join("");
 
-                    else if (rank === 2) {
-
-                        medal = "🥈";
-
-                    }
-
-                    else if (rank === 3) {
-
-                        medal = "🥉";
-
-                    }
-
-                    else {
-
-                        medal = `${rank}`;
-
-                    }
+        }
 
 
-                    const avatar =
-                        user.avatar ||
-                        "/default-avatar.png";
+        /* ==================================================
+           CURRENT USER
+        ================================================== */
+
+        if (currentUser) {
+
+            const currentRank =
+                currentUser.rank;
+
+            const currentScore =
+                Number(
+                    currentUser.leaderboardScore ?? 0
+                );
 
 
-                    const displayName =
-                        user.display_name ||
-                        user.username ||
-                        "User";
+            /*
+             * Check whether the current user
+             * is already in the displayed top 5.
+             */
+
+            const alreadyVisible =
+                topFive.some(
+                    user =>
+                        String(user.id) ===
+                        String(currentUser.id)
+                );
 
 
-                    const username =
-                        user.username ||
-                        "user";
+            /*
+             * Only show the "your position"
+             * box if they aren't already visible.
+             */
 
+            if (!alreadyVisible) {
 
-                    const score =
-                        user.leaderboardScore;
+                html += `
 
+                    <div
+                        style="
+                            margin-top:18px;
+                            padding-top:18px;
+                            border-top:2px solid #ddd;
+                        "
+                    >
 
-                    const formattedScore =
-                        Number(score)
-                            .toLocaleString();
+                        <div
+                            style="
+                                font-weight:bold;
+                                margin-bottom:8px;
+                            "
+                        >
 
+                            🧌 Your position
 
-                    return `
+                        </div>
+
 
                         <a
                             href="/profile.html?id=${encodeURIComponent(
-                                user.id
+                                currentUser.id
                             )}"
                             style="
                                 text-decoration:none;
                                 color:inherit;
-                            ">
+                            "
+                        >
 
                             <div
-                                class="leaderboard-user">
+                                class="leaderboard-user"
+                                style="
+                                    border:2px solid #333;
+                                "
+                            >
 
                                 <div
-                                    class="leaderboard-rank">
+                                    class="leaderboard-rank"
+                                >
 
-                                    <span
-                                        class="leaderboard-medal">
-
-                                        ${medal}
-
-                                    </span>
+                                    #${currentRank}
 
                                 </div>
 
@@ -1563,34 +1581,44 @@ async function loadLeaderboard(type = "overall") {
                                 <img
                                     class="leaderboard-avatar"
                                     src="${escapeHtml(
-                                        avatar
+                                        currentUser.avatar ||
+                                        "/default-avatar.png"
                                     )}"
                                     alt="${escapeHtml(
-                                        displayName
+                                        currentUser.display_name ||
+                                        currentUser.username ||
+                                        "You"
                                     )} avatar"
                                     onerror="
                                         this.src='/default-avatar.png';
-                                    ">
+                                    "
+                                >
 
 
                                 <div
-                                    class="leaderboard-info">
+                                    class="leaderboard-info"
+                                >
 
                                     <div
-                                        class="leaderboard-name">
+                                        class="leaderboard-name"
+                                    >
 
                                         ${escapeHtml(
-                                            displayName
+                                            currentUser.display_name ||
+                                            currentUser.username ||
+                                            "You"
                                         )}
 
                                     </div>
 
 
                                     <div
-                                        class="leaderboard-username">
+                                        class="leaderboard-username"
+                                    >
 
                                         @${escapeHtml(
-                                            username
+                                            currentUser.username ||
+                                            "user"
                                         )}
 
                                     </div>
@@ -1599,9 +1627,11 @@ async function loadLeaderboard(type = "overall") {
 
 
                                 <div
-                                    class="leaderboard-score">
+                                    class="leaderboard-score"
+                                >
 
-                                    ${formattedScore}
+                                    ${currentScore
+                                        .toLocaleString()}
 
                                 </div>
 
@@ -1609,171 +1639,29 @@ async function loadLeaderboard(type = "overall") {
 
                         </a>
 
-                    `;
-
-                }
-            ).join("");
-
-
-        /*
-         * If the logged-in user exists and is
-         * outside the top five, show their rank.
-         */
-
-        if (
-            currentUserIndex >= 5
-        ) {
-
-            const user =
-                users[currentUserIndex];
-
-
-            const rank =
-                currentUserIndex + 1;
-
-
-            const avatar =
-                user.avatar ||
-                currentUser.avatar ||
-                "/default-avatar.png";
-
-
-            const displayName =
-                user.display_name ||
-                currentUser.display_name ||
-                user.username ||
-                currentUser.username ||
-                "User";
-
-
-            const username =
-                user.username ||
-                currentUser.username ||
-                "user";
-
-
-            const score =
-                user.leaderboardScore;
-
-
-            const formattedScore =
-                Number(score)
-                    .toLocaleString();
-
-
-            leaderboardHTML += `
-
-                <div
-                    style="
-                        text-align:center;
-                        padding:10px;
-                        color:#777;
-                        font-size:20px;
-                    ">
-
-                    ⋮
-
-                </div>
-
-
-                <a
-                    href="/profile.html?id=${encodeURIComponent(
-                        user.id
-                    )}"
-                    style="
-                        text-decoration:none;
-                        color:inherit;
-                    ">
-
-                    <div
-                        class="leaderboard-user"
-                        style="
-                            border:2px solid #333;
-                        ">
-
-                        <div
-                            class="leaderboard-rank">
-
-                            <strong>
-
-                                #${rank}
-
-                            </strong>
-
-                        </div>
-
-
-                        <img
-                            class="leaderboard-avatar"
-                            src="${escapeHtml(
-                                avatar
-                            )}"
-                            alt="${escapeHtml(
-                                displayName
-                            )} avatar"
-                            onerror="
-                                this.src='/default-avatar.png';
-                            ">
-
-
-                        <div
-                            class="leaderboard-info">
-
-                            <div
-                                class="leaderboard-name">
-
-                                ${escapeHtml(
-                                    displayName
-                                )}
-
-                                <span
-                                    style="
-                                        margin-left:6px;
-                                        font-size:12px;
-                                        color:#777;
-                                    ">
-
-                                    You
-
-                                </span>
-
-                            </div>
-
-
-                            <div
-                                class="leaderboard-username">
-
-                                @${escapeHtml(
-                                    username
-                                )}
-
-                            </div>
-
-                        </div>
-
-
-                        <div
-                            class="leaderboard-score">
-
-                            ${formattedScore}
-
-                        </div>
-
                     </div>
 
-                </a>
+                `;
 
-            `;
+            }
 
         }
 
 
-        /*
-         * Display leaderboard.
-         */
+        /* ==================================================
+           NO CURRENT USER
+        ================================================== */
 
-        container.innerHTML =
-            leaderboardHTML;
+        else {
+
+            console.log(
+                "No currentUser was returned by leaderboard API."
+            );
+
+        }
+
+
+        container.innerHTML = html;
 
 
     } catch (error) {
@@ -1783,11 +1671,11 @@ async function loadLeaderboard(type = "overall") {
             error
         );
 
-
         container.innerHTML = `
 
             <div
-                class="leaderboard-empty">
+                class="leaderboard-empty"
+            >
 
                 ❌ ${escapeHtml(
                     error.message
@@ -1800,8 +1688,6 @@ async function loadLeaderboard(type = "overall") {
     }
 
 }
-
-
 /* ==================================================
    SHOW APP
 ================================================== */
