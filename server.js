@@ -2986,7 +2986,293 @@ app.post(
 
     }
 );
+/* ==================================================
+   LEADERBOARD
+   ================================================== */
 
+app.get("/api/leaderboard", async (req, res) => {
+
+    try {
+
+        // ------------------------------------------
+        // GET USERS
+        // ------------------------------------------
+
+        const { data: users, error: usersError } =
+            await supabase
+                .from("profiles")
+                .select(`
+                    id,
+                    username,
+                    display_name,
+                    avatar
+                `);
+
+        if (usersError) {
+            console.error(
+                "LEADERBOARD USERS ERROR:",
+                usersError
+            );
+
+            return res.status(500).json({
+                error: usersError.message
+            });
+        }
+
+
+        // ------------------------------------------
+        // GET POSTS
+        // ------------------------------------------
+
+        const { data: posts, error: postsError } =
+            await supabase
+                .from("posts")
+                .select("user_id");
+
+        if (postsError) {
+            console.error(
+                "LEADERBOARD POSTS ERROR:",
+                postsError
+            );
+
+            return res.status(500).json({
+                error: postsError.message
+            });
+        }
+
+
+        // ------------------------------------------
+        // GET COMMENTS
+        // ------------------------------------------
+
+        const { data: comments, error: commentsError } =
+            await supabase
+                .from("comments")
+                .select("user_id");
+
+        if (commentsError) {
+            console.error(
+                "LEADERBOARD COMMENTS ERROR:",
+                commentsError
+            );
+
+            return res.status(500).json({
+                error: commentsError.message
+            });
+        }
+
+
+        // ------------------------------------------
+        // GET REACTIONS
+        // ------------------------------------------
+
+        const { data: reactions, error: reactionsError } =
+            await supabase
+                .from("reactions")
+                .select(`
+                    to_user_id,
+                    type
+                `);
+
+        if (reactionsError) {
+            console.error(
+                "LEADERBOARD REACTIONS ERROR:",
+                reactionsError
+            );
+
+            return res.status(500).json({
+                error: reactionsError.message
+            });
+        }
+
+
+        // ------------------------------------------
+        // CREATE USER STATS
+        // ------------------------------------------
+
+        const stats = {};
+
+
+        for (const user of users || []) {
+
+            stats[user.id] = {
+
+                id: user.id,
+
+                username:
+                    user.username ||
+                    "user",
+
+                display_name:
+                    user.display_name ||
+                    user.username ||
+                    "User",
+
+                avatar:
+                    user.avatar ||
+                    "/default-avatar.png",
+
+                posts: 0,
+
+                comments: 0,
+
+                cat: 0,
+
+                gyatt: 0,
+
+                ogred: 0,
+
+                score: 0
+
+            };
+
+        }
+
+
+        // ------------------------------------------
+        // COUNT POSTS
+        // ------------------------------------------
+
+        for (const post of posts || []) {
+
+            if (!stats[post.user_id]) {
+                continue;
+            }
+
+            stats[post.user_id].posts++;
+
+        }
+
+
+        // ------------------------------------------
+        // COUNT COMMENTS
+        // ------------------------------------------
+
+        for (const comment of comments || []) {
+
+            if (!stats[comment.user_id]) {
+                continue;
+            }
+
+            stats[comment.user_id].comments++;
+
+        }
+
+
+        // ------------------------------------------
+        // COUNT REACTIONS
+        // ------------------------------------------
+
+        for (const reaction of reactions || []) {
+
+            const userId =
+                reaction.to_user_id;
+
+            if (!stats[userId]) {
+                continue;
+            }
+
+
+            if (reaction.type === "cat") {
+
+                stats[userId].cat++;
+
+            }
+
+
+            else if (reaction.type === "gyatt") {
+
+                stats[userId].gyatt++;
+
+            }
+
+
+            else if (reaction.type === "ogred") {
+
+                stats[userId].ogred++;
+
+            }
+
+        }
+
+
+        // ------------------------------------------
+        // CALCULATE OVERALL SCORE
+        // ------------------------------------------
+        //
+        // You can change these weights later.
+        //
+        // Posts     = 5 points
+        // Comments  = 3 points
+        // Cat       = 1 point
+        // Gyatt     = 1 point
+        // Ogred     = 1 point
+        //
+        // ------------------------------------------
+
+        for (const user of Object.values(stats)) {
+
+            user.score =
+                (user.posts * 5) +
+                (user.comments * 3) +
+                user.cat +
+                user.gyatt +
+                user.ogred;
+
+        }
+
+
+        // ------------------------------------------
+        // SORT BY SCORE
+        // ------------------------------------------
+
+        const leaderboard =
+            Object.values(stats)
+                .sort(
+                    (a, b) =>
+                        b.score - a.score
+                )
+                .slice(0, 5);
+
+
+        // ------------------------------------------
+        // ADD RANK
+        // ------------------------------------------
+
+        leaderboard.forEach(
+            (user, index) => {
+
+                user.rank =
+                    index + 1;
+
+            }
+        );
+
+
+        // ------------------------------------------
+        // SEND RESULT
+        // ------------------------------------------
+
+        res.json(
+            leaderboard
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "LEADERBOARD ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error:
+                "Could not load leaderboard."
+        });
+
+    }
+
+});
 // ==================================================
 // COMMENTS
 // ==================================================

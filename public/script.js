@@ -1,10 +1,10 @@
 /* ==================================================
-SHREKBOOK CLIENT SCRIPT
+   SHREKBOOK CLIENT SCRIPT
 ================================================== */
 
 
 /* ==================================================
-ESCAPE HTML
+   ESCAPE HTML
 ================================================== */
 
 function escapeHtml(text) {
@@ -20,7 +20,7 @@ function escapeHtml(text) {
 
 
 /* ==================================================
-WARNING
+   WARNING
 ================================================== */
 
 function warn() {
@@ -41,7 +41,7 @@ function warn() {
 
 
 /* ==================================================
-FILE -> BASE64
+   FILE -> BASE64
 ================================================== */
 
 function fileToBase64(file) {
@@ -81,7 +81,7 @@ function fileToBase64(file) {
 
 
 /* ==================================================
-REACTIONS
+   REACTIONS
 ================================================== */
 
 async function giveReaction(type) {
@@ -184,7 +184,7 @@ async function giveReaction(type) {
 
 
 /* ==================================================
-MAKE IMAGE OBJECT
+   MAKE IMAGE OBJECT
 ================================================== */
 
 async function prepareImage(file) {
@@ -228,7 +228,7 @@ async function prepareImage(file) {
 
 
 /* ==================================================
-LOGIN
+   LOGIN
 ================================================== */
 
 async function login() {
@@ -325,7 +325,7 @@ async function login() {
 
 
 /* ==================================================
-SIGNUP
+   SIGNUP
 ================================================== */
 
 async function signup() {
@@ -443,14 +443,14 @@ async function signup() {
 
 
 /* ==================================================
-SHREKBOOK KICK DETECTOR
+   KICK DETECTOR
 ================================================== */
 
 let kickCheckRunning = false;
 
 
 /* ==================================================
-SHREKBOOK INSTANT MODERATION
+   INSTANT MODERATION
 ================================================== */
 
 (function startModerationSocket() {
@@ -573,7 +573,7 @@ SHREKBOOK INSTANT MODERATION
 
 
 /* ==================================================
-CHECK KICK STATUS
+   CHECK KICK STATUS
 ================================================== */
 
 async function checkKickStatus() {
@@ -591,8 +591,11 @@ async function checkKickStatus() {
                 "/api/me",
                 {
                     method: "GET",
+
                     credentials: "include",
+
                     cache: "no-store",
+
                     headers: {
                         "Accept":
                             "application/json"
@@ -654,7 +657,7 @@ async function checkKickStatus() {
 
 
 /* ==================================================
-START KICK MONITOR
+   START KICK MONITOR
 ================================================== */
 
 if (
@@ -675,7 +678,7 @@ if (
 
 
 /* ==================================================
-AUTH UI
+   AUTH UI
 ================================================== */
 
 function showSignup() {
@@ -737,7 +740,7 @@ function showLogin() {
 
 
 /* ==================================================
-ADMIN NAVIGATION
+   ADMIN NAVIGATION
 ================================================== */
 
 function setupAdminNav(user) {
@@ -878,7 +881,7 @@ function setupAdminNav(user) {
 
 
 /* ==================================================
-SESSION CHECK
+   SESSION CHECK
 ================================================== */
 
 async function checkLogin() {
@@ -926,7 +929,7 @@ async function checkLogin() {
 
 
 /* ==================================================
-SHOW AUTH
+   SHOW AUTH
 ================================================== */
 
 function showAuth() {
@@ -983,7 +986,7 @@ function showAuth() {
 
 
 /* ==================================================
-ADMIN BUTTON
+   ADMIN BUTTON
 ================================================== */
 
 async function checkAdmin() {
@@ -1041,7 +1044,7 @@ async function checkAdmin() {
 
 
 /* ==================================================
-SHOW APP
+   SHOW APP
 ================================================== */
 
 function showApp() {
@@ -1086,7 +1089,13 @@ function showApp() {
 
     loadPeople();
 
-    loadLeaderboard();
+    /*
+     * Load leaderboard.
+     */
+
+    loadLeaderboard(
+        "overall"
+    );
 
     updateOnlineStatus();
 
@@ -1096,7 +1105,7 @@ function showApp() {
 
 
 /* ==================================================
-LOGOUT
+   LOGOUT
 ================================================== */
 
 async function logout() {
@@ -1126,7 +1135,7 @@ async function logout() {
 
 
 /* ==================================================
-LOAD POSTS
+   LOAD POSTS
 ================================================== */
 
 async function loadPosts() {
@@ -1499,7 +1508,7 @@ async function loadPosts() {
 
 
 /* ==================================================
-CREATE POST
+   CREATE POST
 ================================================== */
 
 async function createPost() {
@@ -1626,10 +1635,12 @@ async function createPost() {
 
         /*
          * Refresh leaderboard because
-         * the user now has another post.
+         * the user's post count changed.
          */
 
-        loadLeaderboard();
+        loadLeaderboard(
+            "overall"
+        );
 
     } catch (error) {
 
@@ -1648,7 +1659,7 @@ async function createPost() {
 
 
 /* ==================================================
-TOGGLE COMMENTS
+   TOGGLE COMMENTS
 ================================================== */
 
 async function toggleComments(postId) {
@@ -1685,7 +1696,7 @@ async function toggleComments(postId) {
 
 
 /* ==================================================
-LOAD COMMENTS
+   LOAD COMMENTS
 ================================================== */
 
 async function loadComments(postId) {
@@ -1847,7 +1858,7 @@ async function loadComments(postId) {
 
 
 /* ==================================================
-SUBMIT COMMENT
+   SUBMIT COMMENT
 ================================================== */
 
 async function submitComment(postId) {
@@ -1940,10 +1951,12 @@ async function submitComment(postId) {
 
         /*
          * Refresh leaderboard because
-         * the user has made another comment.
+         * comments changed.
          */
 
-        loadLeaderboard();
+        loadLeaderboard(
+            "overall"
+        );
 
     } catch (error) {
 
@@ -1963,7 +1976,7 @@ async function submitComment(postId) {
 
 
 /* ==================================================
-CLEAR COMMENT IMAGE
+   CLEAR COMMENT IMAGE
 ================================================== */
 
 function clearCommentImage(postId) {
@@ -2008,7 +2021,7 @@ function clearCommentImage(postId) {
 
 
 /* ==================================================
-PEOPLE
+   PEOPLE
 ================================================== */
 
 async function loadPeople() {
@@ -2176,343 +2189,421 @@ async function loadPeople() {
 
 
 /* ==================================================
-LEADERBOARD
+   LEADERBOARD
 ================================================== */
 
-let leaderboardData = [];
+/*
+ * Current leaderboard category.
+ */
 
-let currentLeaderboardCategory =
+let currentLeaderboard =
     "overall";
 
 
-/* ==================================================
-SCROLL TO SECTION
-================================================== */
+/*
+ * Category titles.
+ */
 
-function scrollToSection(id) {
+const leaderboardTitles = {
 
-    const element =
-        document.getElementById(id);
+    overall:
+        "🏆 Overall",
 
-    if (!element) {
-        return;
-    }
+    posts:
+        "📝 Posts",
 
-    element.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-    });
+    comments:
+        "💬 Comments",
 
-}
+    cat:
+        "🐱 Cat",
 
+    gyatt:
+        "🍑 Gyatt",
 
-/* ==================================================
-GET REACTION COUNT
-================================================== */
+    ogred:
+        "🧌 Ogred"
 
-function getReactionCount(user, type) {
-
-    /*
-     * Your current /api/users endpoint may expose
-     * reactionCounts, while some older versions
-     * exposed the values directly on the user.
-     *
-     * Support both formats.
-     */
-
-    if (
-        user.reactionCounts &&
-        typeof user.reactionCounts === "object"
-    ) {
-
-        const value =
-            Number(
-                user.reactionCounts[type]
-            );
-
-        if (Number.isFinite(value)) {
-            return value;
-        }
-
-    }
-
-    const direct =
-        Number(
-            user[type]
-        );
-
-    if (Number.isFinite(direct)) {
-        return direct;
-    }
-
-    return 0;
-
-}
+};
 
 
-/* ==================================================
-LOAD LEADERBOARD
-================================================== */
+/*
+ * Load leaderboard.
+ *
+ * Expected backend endpoint:
+ *
+ * GET /api/leaderboard?type=overall
+ *
+ */
 
-async function loadLeaderboard() {
+async function loadLeaderboard(type = "overall") {
 
     const container =
         document.getElementById(
-            "leaderboard-list"
+            "leaderboard"
         );
 
     if (!container) {
         return;
     }
 
-    container.innerHTML =
-        `<div class="leaderboard-loading">
+
+    currentLeaderboard =
+        type;
+
+
+    /*
+     * Update title.
+     */
+
+    const title =
+        document.getElementById(
+            "leaderboard-title"
+        );
+
+    if (title) {
+
+        title.textContent =
+            leaderboardTitles[type] ||
+            "🏆 Leaderboard";
+
+    }
+
+
+    /*
+     * Update active button.
+     */
+
+    document
+        .querySelectorAll(
+            ".leaderboard-switcher button"
+        )
+        .forEach(button => {
+
+            button.classList.remove(
+                "active"
+            );
+
+        });
+
+
+    const activeButton =
+        document.getElementById(
+            `leaderboard-button-${type}`
+        );
+
+    if (activeButton) {
+
+        activeButton.classList.add(
+            "active"
+        );
+
+    }
+
+
+    /*
+     * Loading state.
+     */
+
+    container.innerHTML = `
+
+        <div class="leaderboard-loading">
+
             Loading leaderboard... 🧌
-        </div>`;
+
+        </div>
+
+    `;
+
 
     try {
 
-        /*
-         * Load users and posts at the same time.
-         */
+        const response =
+            await fetch(
+                `/api/leaderboard?type=${encodeURIComponent(
+                    type
+                )}`,
+                {
+                    method: "GET",
 
-        const [
-            usersResponse,
-            postsResponse
-        ] = await Promise.all([
+                    credentials: "include",
 
-            fetch("/api/users"),
+                    cache: "no-store",
 
-            fetch("/api/posts")
+                    headers: {
 
-        ]);
-
-        const users =
-            await usersResponse.json();
-
-        const posts =
-            await postsResponse.json();
-
-        if (!usersResponse.ok) {
-
-            throw new Error(
-                users.error ||
-                "Could not load users."
-            );
-
-        }
-
-        if (!postsResponse.ok) {
-
-            throw new Error(
-                posts.error ||
-                "Could not load posts."
-            );
-
-        }
-
-
-        /*
-         * Create a statistics object for
-         * every user.
-         */
-
-        const stats =
-            users.map(user => {
-
-                const cat =
-                    getReactionCount(
-                        user,
-                        "cat"
-                    );
-
-                const gyatt =
-                    getReactionCount(
-                        user,
-                        "gyatt"
-                    );
-
-                const ogred =
-                    getReactionCount(
-                        user,
-                        "ogred"
-                    );
-
-                const reactions =
-                    getReactionCount(
-                        user,
-                        "reactions"
-                    ) ||
-                    (
-                        cat +
-                        gyatt +
-                        ogred
-                    );
-
-                const userPosts =
-                    posts.filter(
-                        post =>
-                            String(
-                                post.user_id
-                            ) ===
-                            String(
-                                user.id
-                            )
-                    ).length;
-
-                return {
-
-                    id:
-                        user.id,
-
-                    username:
-                        user.username,
-
-                    display_name:
-                        user.display_name ||
-                        user.username ||
-                        "User",
-
-                    avatar:
-                        user.avatar ||
-                        "/default-avatar.png",
-
-                    posts:
-                        userPosts,
-
-                    comments:
-                        0,
-
-                    reactions:
-                        reactions,
-
-                    cat:
-                        cat,
-
-                    gyatt:
-                        gyatt,
-
-                    ogred:
-                        ogred,
-
-                    overall:
-                        (
-                            userPosts * 10
-                        ) +
-                        (
-                            0 * 5
-                        ) +
-                        (
-                            reactions * 2
-                        )
-
-                };
-
-            });
-
-
-        /*
-         * Count comments.
-         *
-         * Each post's comments are fetched so we
-         * can determine who made them.
-         */
-
-        await Promise.all(
-
-            posts.map(
-                async post => {
-
-                    try {
-
-                        const response =
-                            await fetch(
-                                `/api/posts/${post.id}/comments`
-                            );
-
-                        if (!response.ok) {
-                            return;
-                        }
-
-                        const comments =
-                            await response.json();
-
-                        if (!Array.isArray(
-                            comments
-                        )) {
-                            return;
-                        }
-
-                        comments.forEach(
-                            comment => {
-
-                                const authorId =
-                                    comment.user_id;
-
-                                const userStats =
-                                    stats.find(
-                                        user =>
-                                            String(
-                                                user.id
-                                            ) ===
-                                            String(
-                                                authorId
-                                            )
-                                    );
-
-                                if (
-                                    userStats
-                                ) {
-
-                                    userStats.comments++;
-
-                                }
-
-                            }
-                        );
-
-                    } catch (error) {
-
-                        console.warn(
-                            "Could not load comments for post:",
-                            post.id
-                        );
+                        "Accept":
+                            "application/json"
 
                     }
 
                 }
-            )
+            );
 
-        );
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not load leaderboard."
+            );
+
+        }
 
 
         /*
-         * Recalculate overall after comments
-         * have been counted.
+         * Support either:
+         *
+         * [
+         *   {...}
+         * ]
+         *
+         * OR:
+         *
+         * {
+         *   leaderboard: [...]
+         * }
          */
 
-        stats.forEach(
-            user => {
-
-                user.overall =
-                    (
-                        user.posts * 10
-                    ) +
-                    (
-                        user.comments * 5
-                    ) +
-                    (
-                        user.reactions * 2
-                    );
-
-            }
-        );
+        const users =
+            Array.isArray(data)
+                ? data
+                : (
+                    Array.isArray(
+                        data.leaderboard
+                    )
+                        ? data.leaderboard
+                        : []
+                );
 
 
-        leaderboardData =
-            stats;
+        if (!users.length) {
 
-        renderLeaderboard();
+            container.innerHTML = `
+
+                <div class="leaderboard-empty">
+
+                    🧌 No leaderboard data yet.
+
+                </div>
+
+            `;
+
+            return;
+
+        }
+
+
+        /*
+         * Only show top five.
+         */
+
+        const topFive =
+            users.slice(0, 5);
+
+
+        container.innerHTML =
+            topFive.map(
+                (user, index) => {
+
+                    const rank =
+                        index + 1;
+
+
+                    /*
+                     * Medal for top three.
+                     */
+
+                    let medal =
+                        "";
+
+                    if (rank === 1) {
+                        medal = "🥇";
+                    }
+
+                    else if (rank === 2) {
+                        medal = "🥈";
+                    }
+
+                    else if (rank === 3) {
+                        medal = "🥉";
+                    }
+
+                    else {
+                        medal =
+                            `${rank}`;
+                    }
+
+
+                    const avatar =
+                        user.avatar ||
+                        "/default-avatar.png";
+
+
+                    const displayName =
+                        user.display_name ||
+                        user.username ||
+                        "User";
+
+
+                    const username =
+                        user.username ||
+                        "user";
+
+
+                    /*
+                     * Backend may call the score:
+                     *
+                     * score
+                     * count
+                     * total
+                     * value
+                     *
+                     * Support all of them.
+                     */
+
+                    let score =
+                        user.score;
+
+
+                    if (
+                        score === undefined ||
+                        score === null
+                    ) {
+
+                        score =
+                            user.count;
+
+                    }
+
+
+                    if (
+                        score === undefined ||
+                        score === null
+                    ) {
+
+                        score =
+                            user.total;
+
+                    }
+
+
+                    if (
+                        score === undefined ||
+                        score === null
+                    ) {
+
+                        score =
+                            user.value;
+
+                    }
+
+
+                    if (
+                        score === undefined ||
+                        score === null
+                    ) {
+
+                        score = 0;
+
+                    }
+
+
+                    /*
+                     * Format score.
+                     */
+
+                    const formattedScore =
+                        Number(score).toLocaleString();
+
+
+                    return `
+
+                        <a
+                            href="/profile.html?id=${encodeURIComponent(
+                                user.id
+                            )}"
+                            style="
+                                text-decoration:none;
+                                color:inherit;
+                            ">
+
+                            <div
+                                class="leaderboard-user">
+
+
+                                <div
+                                    class="leaderboard-rank">
+
+                                    <span
+                                        class="leaderboard-medal">
+
+                                        ${medal}
+
+                                    </span>
+
+                                </div>
+
+
+                                <img
+                                    class="leaderboard-avatar"
+                                    src="${escapeHtml(
+                                        avatar
+                                    )}"
+                                    alt="${escapeHtml(
+                                        displayName
+                                    )} avatar"
+                                    onerror="
+                                        this.src='/default-avatar.png';
+                                    ">
+
+
+                                <div
+                                    class="leaderboard-info">
+
+                                    <div
+                                        class="leaderboard-name">
+
+                                        ${escapeHtml(
+                                            displayName
+                                        )}
+
+                                    </div>
+
+
+                                    <div
+                                        class="leaderboard-username">
+
+                                        @${escapeHtml(
+                                            username
+                                        )}
+
+                                    </div>
+
+                                </div>
+
+
+                                <div
+                                    class="leaderboard-score">
+
+                                    ${formattedScore}
+
+                                </div>
+
+
+                            </div>
+
+                        </a>
+
+                    `;
+
+                }
+            ).join("");
+
 
     } catch (error) {
 
@@ -2521,12 +2612,19 @@ async function loadLeaderboard() {
             error
         );
 
-        container.innerHTML =
-            `<p>
+
+        container.innerHTML = `
+
+            <div
+                class="leaderboard-empty">
+
                 ❌ ${escapeHtml(
                     error.message
                 )}
-            </p>`;
+
+            </div>
+
+        `;
 
     }
 
@@ -2534,247 +2632,7 @@ async function loadLeaderboard() {
 
 
 /* ==================================================
-SWITCH LEADERBOARD
-================================================== */
-
-function switchLeaderboard(category) {
-
-    currentLeaderboardCategory =
-        category;
-
-    /*
-     * Update active button.
-     */
-
-    document
-        .querySelectorAll(
-            ".leaderboard-switch"
-        )
-        .forEach(button => {
-
-            button.classList.toggle(
-                "active",
-                button.dataset.category ===
-                category
-            );
-
-        });
-
-    renderLeaderboard();
-
-}
-
-
-/* ==================================================
-RENDER LEADERBOARD
-================================================== */
-
-function renderLeaderboard() {
-
-    const container =
-        document.getElementById(
-            "leaderboard-list"
-        );
-
-    if (!container) {
-        return;
-    }
-
-    if (!leaderboardData.length) {
-
-        container.innerHTML =
-            "<p>No leaderboard data yet. 🧌</p>";
-
-        return;
-
-    }
-
-    /*
-     * Sort a copy so the original statistics
-     * aren't destroyed.
-     */
-
-    const sorted =
-        [...leaderboardData].sort(
-            (a, b) => {
-
-                const difference =
-                    Number(
-                        b[
-                            currentLeaderboardCategory
-                        ]
-                    ) -
-                    Number(
-                        a[
-                            currentLeaderboardCategory
-                        ]
-                    );
-
-                /*
-                 * If tied, use username as a
-                 * consistent secondary sort.
-                 */
-
-                if (difference !== 0) {
-                    return difference;
-                }
-
-                return String(
-                    a.username || ""
-                ).localeCompare(
-                    String(
-                        b.username || ""
-                    )
-                );
-
-            }
-        );
-
-
-    /*
-     * TOP FIVE ONLY.
-     */
-
-    const topFive =
-        sorted.slice(0, 5);
-
-
-    container.innerHTML =
-        topFive.map(
-            (user, index) => {
-
-                const rank =
-                    index + 1;
-
-                let medal =
-                    `${rank}.`;
-
-                let positionClass =
-                    "";
-
-                if (rank === 1) {
-
-                    medal =
-                        "🥇";
-
-                    positionClass =
-                        "first";
-
-                }
-
-                if (rank === 2) {
-
-                    medal =
-                        "🥈";
-
-                    positionClass =
-                        "second";
-
-                }
-
-                if (rank === 3) {
-
-                    medal =
-                        "🥉";
-
-                    positionClass =
-                        "third";
-
-                }
-
-                const score =
-                    Number(
-                        user[
-                            currentLeaderboardCategory
-                        ]
-                    ) || 0;
-
-                return `
-
-                    <a
-                        href="/profile.html?id=${encodeURIComponent(
-                            user.id
-                        )}"
-                        class="
-                            leaderboard-entry
-                            ${positionClass}
-                        "
-                        style="
-                            text-decoration:none;
-                            color:inherit;
-                        ">
-
-                        <div
-                            class="leaderboard-rank">
-
-                            ${medal}
-
-                        </div>
-
-                        <img
-                            src="${escapeHtml(
-                                user.avatar
-                            )}"
-                            alt="Avatar"
-                            style="
-                                width:50px;
-                                height:50px;
-                                border-radius:50%;
-                                object-fit:cover;
-                                flex-shrink:0;
-                            "
-                            onerror="
-                                this.src='/default-avatar.png';
-                            ">
-
-                        <div
-                            class="leaderboard-user">
-
-                            <div
-                                class="leaderboard-name">
-
-                                ${escapeHtml(
-                                    user.display_name
-                                )}
-
-                            </div>
-
-                            <div
-                                style="
-                                    color:#777;
-                                    font-size:13px;
-                                ">
-
-                                @${escapeHtml(
-                                    user.username ||
-                                    "user"
-                                )}
-
-                            </div>
-
-                        </div>
-
-                        <div
-                            class="leaderboard-score">
-
-                            <strong>
-                                ${score}
-                            </strong>
-
-                        </div>
-
-                    </a>
-
-                `;
-
-            }
-        ).join("");
-
-}
-
-
-/* ==================================================
-ENTER KEY FOR COMMENTS
+   ENTER KEY FOR COMMENTS
 ================================================== */
 
 document.addEventListener(
@@ -2820,7 +2678,7 @@ document.addEventListener(
 
 
 /* ==================================================
-ONLINE STATUS
+   ONLINE STATUS
 ================================================== */
 
 async function updateOnlineStatus() {
@@ -2847,7 +2705,9 @@ async function updateOnlineStatus() {
 
         if (!response.ok) {
 
-            if (response.status !== 404) {
+            if (
+                response.status !== 404
+            ) {
 
                 console.warn(
                     "Online status request failed:",
@@ -2872,7 +2732,7 @@ async function updateOnlineStatus() {
 
 
 /* ==================================================
-START
+   START
 ================================================== */
 
 document.addEventListener(
@@ -2886,7 +2746,7 @@ document.addEventListener(
 
 
 /* ==================================================
-ONLINE HEARTBEAT
+   ONLINE HEARTBEAT
 ================================================== */
 
 setTimeout(
