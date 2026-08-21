@@ -9,13 +9,12 @@
 
 function escapeHtml(text) {
 
-    const div =
-        document.createElement("div");
+    const div = document.createElement("div");
 
-    div.textContent =
-        text ?? "";
+    div.textContent = text ?? "";
 
     return div.innerHTML;
+
 }
 
 
@@ -26,9 +25,7 @@ function escapeHtml(text) {
 function warn() {
 
     const element =
-        document.getElementById(
-            "upload-avatar-button-warn"
-        );
+        document.getElementById("upload-avatar-button-warn");
 
     if (element) {
 
@@ -48,16 +45,13 @@ function fileToBase64(file) {
 
     return new Promise((resolve, reject) => {
 
-        const reader =
-            new FileReader();
+        const reader = new FileReader();
 
         reader.onload = () => {
 
-            const result =
-                reader.result;
+            const result = reader.result;
 
-            const base64 =
-                result.split(",")[1];
+            const base64 = result.split(",")[1];
 
             resolve(base64);
 
@@ -66,9 +60,7 @@ function fileToBase64(file) {
         reader.onerror = () => {
 
             reject(
-                new Error(
-                    "Could not read image."
-                )
+                new Error("Could not read image.")
             );
 
         };
@@ -110,10 +102,7 @@ async function giveReaction(type) {
 
         if (!response.ok) {
 
-            alert(
-                "❌ " +
-                data.error
-            );
+            alert("❌ " + data.error);
 
             return;
 
@@ -122,15 +111,10 @@ async function giveReaction(type) {
         if (type === "gyatt") {
 
             const element =
-                document.getElementById(
-                    "gyatt-count"
-                );
+                document.getElementById("gyatt-count");
 
             if (element) {
-
-                element.textContent =
-                    data.gyatt;
-
+                element.textContent = data.gyatt;
             }
 
         }
@@ -138,15 +122,10 @@ async function giveReaction(type) {
         if (type === "cat") {
 
             const element =
-                document.getElementById(
-                    "cat-count"
-                );
+                document.getElementById("cat-count");
 
             if (element) {
-
-                element.textContent =
-                    data.cat;
-
+                element.textContent = data.cat;
             }
 
         }
@@ -154,18 +133,20 @@ async function giveReaction(type) {
         if (type === "ogred") {
 
             const element =
-                document.getElementById(
-                    "ogred-count"
-                );
+                document.getElementById("ogred-count");
 
             if (element) {
-
-                element.textContent =
-                    data.ogred;
-
+                element.textContent = data.ogred;
             }
 
         }
+
+        /*
+         * Reaction changes can affect
+         * the overall leaderboard.
+         */
+
+        loadLeaderboard(currentLeaderboard);
 
     } catch (error) {
 
@@ -174,9 +155,7 @@ async function giveReaction(type) {
             error
         );
 
-        alert(
-            "❌ Could not react."
-        );
+        alert("❌ Could not react.");
 
     }
 
@@ -216,11 +195,9 @@ async function prepareImage(file) {
 
         data: data,
 
-        type:
-            file.type,
+        type: file.type,
 
-        name:
-            file.name
+        name: file.name
 
     };
 
@@ -267,24 +244,21 @@ async function login() {
                 "/api/login",
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
+
+                    credentials: "include",
 
                     body:
                         JSON.stringify({
 
-                            email:
-                                email,
+                            email: email,
 
-                            password:
-                                password
+                            password: password
 
                         })
 
@@ -316,8 +290,7 @@ async function login() {
         );
 
         status.textContent =
-            "❌ " +
-            error.message;
+            "❌ " + error.message;
 
     }
 
@@ -378,31 +351,27 @@ async function signup() {
                 "/api/signup",
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
+
+                    credentials: "include",
 
                     body:
                         JSON.stringify({
 
-                            username:
-                                username,
+                            username: username,
 
                             display_name:
                                 displayName ||
                                 username,
 
-                            email:
-                                email,
+                            email: email,
 
-                            password:
-                                password
+                            password: password
 
                         })
 
@@ -434,8 +403,7 @@ async function signup() {
         );
 
         status.textContent =
-            "❌ " +
-            error.message;
+            "❌ " + error.message;
 
     }
 
@@ -456,118 +424,114 @@ let kickCheckRunning = false;
 (function startModerationSocket() {
 
     const path =
-        window.location.pathname
-            .toLowerCase();
+        window.location.pathname.toLowerCase();
 
     if (
         path.endsWith("/login.html") ||
         path.endsWith("/kicked.html")
     ) {
-
         return;
-
     }
 
-    const protocol =
-        window.location.protocol === "https:"
-            ? "wss:"
-            : "ws:";
+    try {
 
-    const socket =
-        new WebSocket(
-            `${protocol}//${window.location.host}/moderation`
-        );
+        const protocol =
+            window.location.protocol === "https:"
+                ? "wss:"
+                : "ws:";
 
-    socket.addEventListener(
-        "open",
-        () => {
-
-            console.log(
-                "🛡️ Instant moderation connected."
+        const socket =
+            new WebSocket(
+                `${protocol}//${window.location.host}/moderation`
             );
 
-        }
-    );
+        socket.addEventListener(
+            "open",
+            () => {
 
-    socket.addEventListener(
-        "message",
-        event => {
+                console.log(
+                    "🛡️ Instant moderation connected."
+                );
 
-            try {
+            }
+        );
 
-                const data =
-                    JSON.parse(
-                        event.data
+        socket.addEventListener(
+            "message",
+            event => {
+
+                try {
+
+                    const data =
+                        JSON.parse(event.data);
+
+                    if (data.type === "BAN") {
+
+                        console.log("🚫 BANNED");
+
+                        window.location.replace(
+                            "/login.html"
+                        );
+
+                        return;
+
+                    }
+
+                    if (data.type === "KICK") {
+
+                        console.log("🦵 KICKED");
+
+                        window.location.replace(
+                            "/kicked.html"
+                        );
+
+                        return;
+
+                    }
+
+                } catch (error) {
+
+                    console.error(
+                        "MODERATION MESSAGE ERROR:",
+                        error
                     );
-
-                if (
-                    data.type === "BAN"
-                ) {
-
-                    console.log(
-                        "🚫 BANNED"
-                    );
-
-                    window.location.replace(
-                        "/login.html"
-                    );
-
-                    return;
-
-                }
-
-                if (
-                    data.type === "KICK"
-                ) {
-
-                    console.log(
-                        "🦵 KICKED"
-                    );
-
-                    window.location.replace(
-                        "/kicked.html"
-                    );
-
-                    return;
 
                 }
 
             }
+        );
 
-            catch (error) {
+        socket.addEventListener(
+            "close",
+            () => {
+
+                console.log(
+                    "Moderation connection closed."
+                );
+
+            }
+        );
+
+        socket.addEventListener(
+            "error",
+            error => {
 
                 console.error(
-                    "MODERATION MESSAGE ERROR:",
+                    "MODERATION WEBSOCKET ERROR:",
                     error
                 );
 
             }
+        );
 
-        }
-    );
+    } catch (error) {
 
-    socket.addEventListener(
-        "close",
-        () => {
+        console.error(
+            "MODERATION SOCKET ERROR:",
+            error
+        );
 
-            console.log(
-                "Moderation connection closed."
-            );
-
-        }
-    );
-
-    socket.addEventListener(
-        "error",
-        error => {
-
-            console.error(
-                "MODERATION WEBSOCKET ERROR:",
-                error
-            );
-
-        }
-    );
+    }
 
 })();
 
@@ -591,11 +555,8 @@ async function checkKickStatus() {
                 "/api/me",
                 {
                     method: "GET",
-
                     credentials: "include",
-
                     cache: "no-store",
-
                     headers: {
                         "Accept":
                             "application/json"
@@ -619,9 +580,6 @@ async function checkKickStatus() {
                 "🚪 User has been kicked."
             );
 
-            kickCheckRunning =
-                true;
-
             window.location.replace(
                 "/kicked.html"
             );
@@ -641,13 +599,10 @@ async function checkKickStatus() {
 
         if (
             !window.location.pathname
-                .endsWith(
-                    "/kicked.html"
-                )
+                .endsWith("/kicked.html")
         ) {
 
-            kickCheckRunning =
-                false;
+            kickCheckRunning = false;
 
         }
 
@@ -662,9 +617,7 @@ async function checkKickStatus() {
 
 if (
     !window.location.pathname
-        .endsWith(
-            "/kicked.html"
-        )
+        .endsWith("/kicked.html")
 ) {
 
     checkKickStatus();
@@ -684,27 +637,17 @@ if (
 function showSignup() {
 
     const loginBox =
-        document.getElementById(
-            "login-box"
-        );
+        document.getElementById("login-box");
 
     const signupBox =
-        document.getElementById(
-            "signup-box"
-        );
+        document.getElementById("signup-box");
 
     if (loginBox) {
-
-        loginBox.style.display =
-            "none";
-
+        loginBox.style.display = "none";
     }
 
     if (signupBox) {
-
-        signupBox.style.display =
-            "block";
-
+        signupBox.style.display = "block";
     }
 
 }
@@ -713,27 +656,17 @@ function showSignup() {
 function showLogin() {
 
     const loginBox =
-        document.getElementById(
-            "login-box"
-        );
+        document.getElementById("login-box");
 
     const signupBox =
-        document.getElementById(
-            "signup-box"
-        );
+        document.getElementById("signup-box");
 
     if (loginBox) {
-
-        loginBox.style.display =
-            "block";
-
+        loginBox.style.display = "block";
     }
 
     if (signupBox) {
-
-        signupBox.style.display =
-            "none";
-
+        signupBox.style.display = "none";
     }
 
 }
@@ -753,28 +686,20 @@ function setupAdminNav(user) {
         user.is_admin === true ||
         user.is_admin === 1 ||
         user.is_admin === "true" ||
-
         user.admin === true ||
         user.admin === 1 ||
         user.admin === "true" ||
-
         user.isAdmin === true ||
         user.isAdmin === 1 ||
-
         user.role === "admin";
 
     let adminNav =
-        document.getElementById(
-            "admin-nav"
-        );
+        document.getElementById("admin-nav");
 
     if (!isAdmin) {
 
         if (adminNav) {
-
-            adminNav.style.display =
-                "none";
-
+            adminNav.style.display = "none";
         }
 
         return;
@@ -783,20 +708,16 @@ function setupAdminNav(user) {
 
     if (adminNav) {
 
-        adminNav.style.display =
-            "flex";
+        adminNav.style.display = "flex";
 
         return;
 
     }
 
     adminNav =
-        document.createElement(
-            "nav"
-        );
+        document.createElement("nav");
 
-    adminNav.id =
-        "admin-nav";
+    adminNav.id = "admin-nav";
 
     adminNav.style.cssText = `
         display:flex;
@@ -835,13 +756,8 @@ function setupAdminNav(user) {
 
         </a>
 
-        <span
-            style="
-                opacity:0.5;
-            ">
-
+        <span style="opacity:0.5;">
             |
-
         </span>
 
         <a
@@ -858,9 +774,7 @@ function setupAdminNav(user) {
     `;
 
     const app =
-        document.getElementById(
-            "app-section"
-        );
+        document.getElementById("app-section");
 
     if (app) {
 
@@ -871,9 +785,7 @@ function setupAdminNav(user) {
 
     } else {
 
-        document.body.prepend(
-            adminNav
-        );
+        document.body.prepend(adminNav);
 
     }
 
@@ -890,7 +802,11 @@ async function checkLogin() {
 
         const response =
             await fetch(
-                "/api/me"
+                "/api/me",
+                {
+                    credentials: "include",
+                    cache: "no-store"
+                }
             );
 
         const data =
@@ -902,9 +818,7 @@ async function checkLogin() {
             data.user
         ) {
 
-            setupAdminNav(
-                data.user
-            );
+            setupAdminNav(data.user);
 
             showApp();
 
@@ -935,51 +849,31 @@ async function checkLogin() {
 function showAuth() {
 
     const auth =
-        document.getElementById(
-            "auth-section"
-        );
+        document.getElementById("auth-section");
 
     const app =
-        document.getElementById(
-            "app-section"
-        );
+        document.getElementById("app-section");
 
     const logoutButton =
-        document.getElementById(
-            "logout-button"
-        );
+        document.getElementById("logout-button");
 
     const adminNav =
-        document.getElementById(
-            "admin-nav"
-        );
+        document.getElementById("admin-nav");
 
     if (auth) {
-
-        auth.style.display =
-            "block";
-
+        auth.style.display = "block";
     }
 
     if (app) {
-
-        app.style.display =
-            "none";
-
+        app.style.display = "none";
     }
 
     if (logoutButton) {
-
-        logoutButton.style.display =
-            "none";
-
+        logoutButton.style.display = "none";
     }
 
     if (adminNav) {
-
-        adminNav.style.display =
-            "none";
-
+        adminNav.style.display = "none";
     }
 
 }
@@ -992,22 +886,22 @@ function showAuth() {
 async function checkAdmin() {
 
     const adminButton =
-        document.getElementById(
-            "admin-button"
-        );
+        document.getElementById("admin-button");
 
     if (!adminButton) {
         return;
     }
 
-    adminButton.style.display =
-        "none";
+    adminButton.style.display = "none";
 
     try {
 
         const response =
             await fetch(
-                "/api/admin/check"
+                "/api/admin/check",
+                {
+                    credentials: "include"
+                }
             );
 
         const data =
@@ -1035,8 +929,628 @@ async function checkAdmin() {
             error
         );
 
-        adminButton.style.display =
-            "none";
+        adminButton.style.display = "none";
+
+    }
+
+}
+
+
+/* ==================================================
+   CREATE LEADERBOARD UI
+================================================== */
+
+/*
+ * Your exact index.html does not currently contain
+ * a leaderboard element.
+ *
+ * Therefore we create it dynamically.
+ */
+
+function createLeaderboardUI() {
+
+    if (
+        document.getElementById(
+            "leaderboard-section"
+        )
+    ) {
+        return;
+    }
+
+    const app =
+        document.getElementById(
+            "app-section"
+        );
+
+    if (!app) {
+        return;
+    }
+
+    const section =
+        document.createElement("section");
+
+    section.id =
+        "leaderboard-section";
+
+    section.className =
+        "leaderboard-section";
+
+    section.innerHTML = `
+
+        <h2 id="leaderboard-title">
+            🏆 Overall
+        </h2>
+
+        <div
+            class="leaderboard-switcher"
+            style="
+                display:flex;
+                gap:8px;
+                flex-wrap:wrap;
+                margin-bottom:15px;
+            ">
+
+            <button
+                id="leaderboard-button-overall"
+                onclick="loadLeaderboard('overall')">
+
+                🏆 Overall
+
+            </button>
+
+            <button
+                id="leaderboard-button-posts"
+                onclick="loadLeaderboard('posts')">
+
+                📝 Posts
+
+            </button>
+
+            <button
+                id="leaderboard-button-comments"
+                onclick="loadLeaderboard('comments')">
+
+                💬 Comments
+
+            </button>
+
+            <button
+                id="leaderboard-button-cat"
+                onclick="loadLeaderboard('cat')">
+
+                🐱 Cat
+
+            </button>
+
+            <button
+                id="leaderboard-button-gyatt"
+                onclick="loadLeaderboard('gyatt')">
+
+                🍑 Gyatt
+
+            </button>
+
+            <button
+                id="leaderboard-button-ogred"
+                onclick="loadLeaderboard('ogred')">
+
+                🧌 Ogred
+
+            </button>
+
+        </div>
+
+        <div id="leaderboard">
+
+            Loading leaderboard... 🧌
+
+        </div>
+
+    `;
+
+    /*
+     * Put leaderboard before People.
+     */
+
+    const peopleSection =
+        app.querySelector(
+            ".people-section"
+        );
+
+    if (peopleSection) {
+
+        app.insertBefore(
+            section,
+            peopleSection
+        );
+
+    } else {
+
+        app.appendChild(section);
+
+    }
+
+}
+
+
+/* ==================================================
+   LEADERBOARD
+================================================== */
+
+/*
+ * IMPORTANT:
+ *
+ * Only ONE declaration exists here.
+ *
+ * This prevents:
+ *
+ * Identifier 'currentLeaderboard'
+ * has already been declared
+ */
+
+let currentLeaderboard = "overall";
+
+
+const leaderboardTitles = {
+
+    overall:
+        "🏆 Overall",
+
+    posts:
+        "📝 Posts",
+
+    comments:
+        "💬 Comments",
+
+    cat:
+        "🐱 Cat",
+
+    gyatt:
+        "🍑 Gyatt",
+
+    ogred:
+        "🧌 Ogred"
+
+};
+
+
+/*
+ * Get score from backend.
+ *
+ * Supports:
+ *
+ * score
+ * count
+ * total
+ * value
+ */
+
+function getLeaderboardScore(user, type) {
+
+    if (!user) {
+        return 0;
+    }
+
+    /*
+     * Overall score.
+     *
+     * If the backend already calculates score,
+     * use it.
+     */
+
+    if (
+        type === "overall" &&
+        user.score !== undefined &&
+        user.score !== null
+    ) {
+
+        return Number(user.score) || 0;
+
+    }
+
+    /*
+     * Specific leaderboard values.
+     */
+
+    const possibleFields = {
+
+        posts: [
+            "posts",
+            "post_count",
+            "posts_count",
+            "count"
+        ],
+
+        comments: [
+            "comments",
+            "comment_count",
+            "comments_count",
+            "count"
+        ],
+
+        cat: [
+            "cat",
+            "cat_count",
+            "count"
+        ],
+
+        gyatt: [
+            "gyatt",
+            "gyatt_count",
+            "count"
+        ],
+
+        ogred: [
+            "ogred",
+            "ogred_count",
+            "count"
+        ]
+
+    };
+
+
+    const fields =
+        possibleFields[type] || [
+            "score",
+            "count",
+            "total",
+            "value"
+        ];
+
+
+    for (const field of fields) {
+
+        if (
+            user[field] !== undefined &&
+            user[field] !== null
+        ) {
+
+            return Number(user[field]) || 0;
+
+        }
+
+    }
+
+
+    return 0;
+
+}
+
+
+/*
+ * Load leaderboard.
+ */
+
+async function loadLeaderboard(type = "overall") {
+
+    const container =
+        document.getElementById(
+            "leaderboard"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    currentLeaderboard =
+        type;
+
+    const title =
+        document.getElementById(
+            "leaderboard-title"
+        );
+
+    if (title) {
+
+        title.textContent =
+            leaderboardTitles[type] ||
+            "🏆 Leaderboard";
+
+    }
+
+
+    document
+        .querySelectorAll(
+            ".leaderboard-switcher button"
+        )
+        .forEach(button => {
+
+            button.classList.remove(
+                "active"
+            );
+
+        });
+
+
+    const activeButton =
+        document.getElementById(
+            `leaderboard-button-${type}`
+        );
+
+    if (activeButton) {
+
+        activeButton.classList.add(
+            "active"
+        );
+
+    }
+
+
+    container.innerHTML = `
+
+        <div class="leaderboard-loading">
+
+            Loading leaderboard... 🧌
+
+        </div>
+
+    `;
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/leaderboard?type=${encodeURIComponent(
+                    type
+                )}`,
+                {
+                    method: "GET",
+                    credentials: "include",
+                    cache: "no-store",
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not load leaderboard."
+            );
+
+        }
+
+
+        let users =
+            Array.isArray(data)
+                ? data
+                : (
+                    Array.isArray(
+                        data.leaderboard
+                    )
+                        ? data.leaderboard
+                        : []
+                );
+
+
+        /*
+         * If the server doesn't sort the users,
+         * sort them here.
+         */
+
+        users =
+            users
+                .map(user => {
+
+                    return {
+
+                        ...user,
+
+                        leaderboardScore:
+                            getLeaderboardScore(
+                                user,
+                                type
+                            )
+
+                    };
+
+                })
+                .sort(
+                    (
+                        a,
+                        b
+                    ) =>
+                        b.leaderboardScore -
+                        a.leaderboardScore
+                );
+
+
+        if (!users.length) {
+
+            container.innerHTML = `
+
+                <div class="leaderboard-empty">
+
+                    🧌 No leaderboard data yet.
+
+                </div>
+
+            `;
+
+            return;
+
+        }
+
+
+        /*
+         * Top five.
+         */
+
+        const topFive =
+            users.slice(0, 5);
+
+
+        container.innerHTML =
+            topFive.map(
+                (user, index) => {
+
+                    const rank =
+                        index + 1;
+
+
+                    let medal = "";
+
+
+                    if (rank === 1) {
+
+                        medal = "🥇";
+
+                    }
+
+                    else if (rank === 2) {
+
+                        medal = "🥈";
+
+                    }
+
+                    else if (rank === 3) {
+
+                        medal = "🥉";
+
+                    }
+
+                    else {
+
+                        medal = `${rank}`;
+
+                    }
+
+
+                    const avatar =
+                        user.avatar ||
+                        "/default-avatar.png";
+
+
+                    const displayName =
+                        user.display_name ||
+                        user.username ||
+                        "User";
+
+
+                    const username =
+                        user.username ||
+                        "user";
+
+
+                    const score =
+                        user.leaderboardScore;
+
+
+                    const formattedScore =
+                        Number(score)
+                            .toLocaleString();
+
+
+                    return `
+
+                        <a
+                            href="/profile.html?id=${encodeURIComponent(
+                                user.id
+                            )}"
+                            style="
+                                text-decoration:none;
+                                color:inherit;
+                            ">
+
+                            <div
+                                class="leaderboard-user">
+
+                                <div
+                                    class="leaderboard-rank">
+
+                                    <span
+                                        class="leaderboard-medal">
+
+                                        ${medal}
+
+                                    </span>
+
+                                </div>
+
+
+                                <img
+                                    class="leaderboard-avatar"
+                                    src="${escapeHtml(
+                                        avatar
+                                    )}"
+                                    alt="${escapeHtml(
+                                        displayName
+                                    )} avatar"
+                                    onerror="
+                                        this.src='/default-avatar.png';
+                                    ">
+
+
+                                <div
+                                    class="leaderboard-info">
+
+                                    <div
+                                        class="leaderboard-name">
+
+                                        ${escapeHtml(
+                                            displayName
+                                        )}
+
+                                    </div>
+
+                                    <div
+                                        class="leaderboard-username">
+
+                                        @${escapeHtml(
+                                            username
+                                        )}
+
+                                    </div>
+
+                                </div>
+
+
+                                <div
+                                    class="leaderboard-score">
+
+                                    ${formattedScore}
+
+                                </div>
+
+                            </div>
+
+                        </a>
+
+                    `;
+
+                }
+            ).join("");
+
+
+    } catch (error) {
+
+        console.error(
+            "LEADERBOARD ERROR:",
+            error
+        );
+
+
+        container.innerHTML = `
+
+            <div
+                class="leaderboard-empty">
+
+                ❌ ${escapeHtml(
+                    error.message
+                )}
+
+            </div>
+
+        `;
 
     }
 
@@ -1064,19 +1578,20 @@ function showApp() {
             "logout-button"
         );
 
+
     if (auth) {
 
-        auth.style.display =
-            "none";
+        auth.style.display = "none";
 
     }
+
 
     if (app) {
 
-        app.style.display =
-            "block";
+        app.style.display = "block";
 
     }
+
 
     if (logoutButton) {
 
@@ -1085,13 +1600,18 @@ function showApp() {
 
     }
 
+
+    /*
+     * Create leaderboard because the supplied
+     * index.html doesn't contain one.
+     */
+
+    createLeaderboardUI();
+
+
     loadPosts();
 
     loadPeople();
-
-    /*
-     * Load leaderboard.
-     */
 
     loadLeaderboard(
         "overall"
@@ -1115,8 +1635,8 @@ async function logout() {
         await fetch(
             "/api/logout",
             {
-                method:
-                    "POST"
+                method: "POST",
+                credentials: "include"
             }
         );
 
@@ -1189,8 +1709,7 @@ async function loadPosts() {
                     post.username ||
                     "User";
 
-                let imageHTML =
-                    "";
+                let imageHTML = "";
 
                 if (post.image_url) {
 
@@ -1444,8 +1963,7 @@ async function loadPosts() {
                             "❌ Please choose an image."
                         );
 
-                        input.value =
-                            "";
+                        input.value = "";
 
                         return;
 
@@ -1460,8 +1978,7 @@ async function loadPosts() {
                             "❌ Image must be under 5MB."
                         );
 
-                        input.value =
-                            "";
+                        input.value = "";
 
                         return;
 
@@ -1481,9 +1998,7 @@ async function loadPosts() {
 
                         };
 
-                    reader.readAsDataURL(
-                        file
-                    );
+                    reader.readAsDataURL(file);
 
                 }
             );
@@ -1529,12 +2044,10 @@ async function createPost() {
         );
 
     const content =
-        input?.value.trim() ||
-        "";
+        input?.value.trim() || "";
 
     const file =
-        imageInput?.files?.[0] ||
-        null;
+        imageInput?.files?.[0] || null;
 
     if (!content && !file) {
 
@@ -1558,24 +2071,21 @@ async function createPost() {
                 "/api/posts",
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
+
+                    credentials: "include",
 
                     body:
                         JSON.stringify({
 
-                            content:
-                                content,
+                            content: content,
 
-                            image:
-                                image
+                            image: image
 
                         })
 
@@ -1594,14 +2104,10 @@ async function createPost() {
 
         }
 
-        input.value =
-            "";
+        input.value = "";
 
         if (imageInput) {
-
-            imageInput.value =
-                "";
-
+            imageInput.value = "";
         }
 
         const preview =
@@ -1615,17 +2121,11 @@ async function createPost() {
             );
 
         if (preview) {
-
-            preview.style.display =
-                "none";
-
+            preview.style.display = "none";
         }
 
         if (previewImage) {
-
-            previewImage.src =
-                "";
-
+            previewImage.src = "";
         }
 
         status.textContent =
@@ -1633,13 +2133,8 @@ async function createPost() {
 
         loadPosts();
 
-        /*
-         * Refresh leaderboard because
-         * the user's post count changed.
-         */
-
         loadLeaderboard(
-            "overall"
+            currentLeaderboard
         );
 
     } catch (error) {
@@ -1650,8 +2145,7 @@ async function createPost() {
         );
 
         status.textContent =
-            "❌ " +
-            error.message;
+            "❌ " + error.message;
 
     }
 
@@ -1673,22 +2167,15 @@ async function toggleComments(postId) {
         return;
     }
 
-    if (
-        box.style.display ===
-        "none"
-    ) {
+    if (box.style.display === "none") {
 
-        box.style.display =
-            "block";
+        box.style.display = "block";
 
-        loadComments(
-            postId
-        );
+        loadComments(postId);
 
     } else {
 
-        box.style.display =
-            "none";
+        box.style.display = "none";
 
     }
 
@@ -1750,8 +2237,7 @@ async function loadComments(postId) {
                     comment.username ||
                     "User";
 
-                let imageHTML =
-                    "";
+                let imageHTML = "";
 
                 if (comment.image_url) {
 
@@ -1874,12 +2360,10 @@ async function submitComment(postId) {
         );
 
     const content =
-        input?.value.trim() ||
-        "";
+        input?.value.trim() || "";
 
     const file =
-        imageInput?.files?.[0] ||
-        null;
+        imageInput?.files?.[0] || null;
 
     if (!content && !file) {
         return;
@@ -1895,24 +2379,21 @@ async function submitComment(postId) {
                 `/api/posts/${postId}/comments`,
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
+
+                    credentials: "include",
 
                     body:
                         JSON.stringify({
 
-                            content:
-                                content,
+                            content: content,
 
-                            image:
-                                image
+                            image: image
 
                         })
 
@@ -1931,31 +2412,18 @@ async function submitComment(postId) {
 
         }
 
-        input.value =
-            "";
+        input.value = "";
 
         if (imageInput) {
-
-            imageInput.value =
-                "";
-
+            imageInput.value = "";
         }
 
-        clearCommentImage(
-            postId
-        );
+        clearCommentImage(postId);
 
-        loadComments(
-            postId
-        );
-
-        /*
-         * Refresh leaderboard because
-         * comments changed.
-         */
+        loadComments(postId);
 
         loadLeaderboard(
-            "overall"
+            currentLeaderboard
         );
 
     } catch (error) {
@@ -1966,8 +2434,7 @@ async function submitComment(postId) {
         );
 
         alert(
-            "❌ " +
-            error.message
+            "❌ " + error.message
         );
 
     }
@@ -1997,24 +2464,51 @@ function clearCommentImage(postId) {
         );
 
     if (input) {
-
-        input.value =
-            "";
-
+        input.value = "";
     }
 
     if (previewImage) {
-
-        previewImage.src =
-            "";
-
+        previewImage.src = "";
     }
 
     if (preview) {
+        preview.style.display = "none";
+    }
 
-        preview.style.display =
-            "none";
+}
 
+
+/* ==================================================
+   CLEAR POST IMAGE
+================================================== */
+
+function clearPostImage() {
+
+    const input =
+        document.getElementById(
+            "post-image"
+        );
+
+    const preview =
+        document.getElementById(
+            "post-image-preview"
+        );
+
+    const previewImage =
+        document.getElementById(
+            "post-preview-image"
+        );
+
+    if (input) {
+        input.value = "";
+    }
+
+    if (previewImage) {
+        previewImage.src = "";
+    }
+
+    if (preview) {
+        preview.style.display = "none";
     }
 
 }
@@ -2189,449 +2683,6 @@ async function loadPeople() {
 
 
 /* ==================================================
-   LEADERBOARD
-================================================== */
-
-/*
- * Current leaderboard category.
- */
-
-let currentLeaderboard =
-    "overall";
-
-
-/*
- * Category titles.
- */
-
-const leaderboardTitles = {
-
-    overall:
-        "🏆 Overall",
-
-    posts:
-        "📝 Posts",
-
-    comments:
-        "💬 Comments",
-
-    cat:
-        "🐱 Cat",
-
-    gyatt:
-        "🍑 Gyatt",
-
-    ogred:
-        "🧌 Ogred"
-
-};
-
-
-/*
- * Load leaderboard.
- *
- * Expected backend endpoint:
- *
- * GET /api/leaderboard?type=overall
- *
- */
-
-async function loadLeaderboard(type = "overall") {
-
-    const container =
-        document.getElementById(
-            "leaderboard"
-        );
-
-    if (!container) {
-        return;
-    }
-
-
-    currentLeaderboard =
-        type;
-
-
-    /*
-     * Update title.
-     */
-
-    const title =
-        document.getElementById(
-            "leaderboard-title"
-        );
-
-    if (title) {
-
-        title.textContent =
-            leaderboardTitles[type] ||
-            "🏆 Leaderboard";
-
-    }
-
-
-    /*
-     * Update active button.
-     */
-
-    document
-        .querySelectorAll(
-            ".leaderboard-switcher button"
-        )
-        .forEach(button => {
-
-            button.classList.remove(
-                "active"
-            );
-
-        });
-
-
-    const activeButton =
-        document.getElementById(
-            `leaderboard-button-${type}`
-        );
-
-    if (activeButton) {
-
-        activeButton.classList.add(
-            "active"
-        );
-
-    }
-
-
-    /*
-     * Loading state.
-     */
-
-    container.innerHTML = `
-
-        <div class="leaderboard-loading">
-
-            Loading leaderboard... 🧌
-
-        </div>
-
-    `;
-
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/leaderboard?type=${encodeURIComponent(
-                    type
-                )}`,
-                {
-                    method: "GET",
-
-                    credentials: "include",
-
-                    cache: "no-store",
-
-                    headers: {
-
-                        "Accept":
-                            "application/json"
-
-                    }
-
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Could not load leaderboard."
-            );
-
-        }
-
-
-        /*
-         * Support either:
-         *
-         * [
-         *   {...}
-         * ]
-         *
-         * OR:
-         *
-         * {
-         *   leaderboard: [...]
-         * }
-         */
-
-        const users =
-            Array.isArray(data)
-                ? data
-                : (
-                    Array.isArray(
-                        data.leaderboard
-                    )
-                        ? data.leaderboard
-                        : []
-                );
-
-
-        if (!users.length) {
-
-            container.innerHTML = `
-
-                <div class="leaderboard-empty">
-
-                    🧌 No leaderboard data yet.
-
-                </div>
-
-            `;
-
-            return;
-
-        }
-
-
-        /*
-         * Only show top five.
-         */
-
-        const topFive =
-            users.slice(0, 5);
-
-
-        container.innerHTML =
-            topFive.map(
-                (user, index) => {
-
-                    const rank =
-                        index + 1;
-
-
-                    /*
-                     * Medal for top three.
-                     */
-
-                    let medal =
-                        "";
-
-                    if (rank === 1) {
-                        medal = "🥇";
-                    }
-
-                    else if (rank === 2) {
-                        medal = "🥈";
-                    }
-
-                    else if (rank === 3) {
-                        medal = "🥉";
-                    }
-
-                    else {
-                        medal =
-                            `${rank}`;
-                    }
-
-
-                    const avatar =
-                        user.avatar ||
-                        "/default-avatar.png";
-
-
-                    const displayName =
-                        user.display_name ||
-                        user.username ||
-                        "User";
-
-
-                    const username =
-                        user.username ||
-                        "user";
-
-
-                    /*
-                     * Backend may call the score:
-                     *
-                     * score
-                     * count
-                     * total
-                     * value
-                     *
-                     * Support all of them.
-                     */
-
-                    let score =
-                        user.score;
-
-
-                    if (
-                        score === undefined ||
-                        score === null
-                    ) {
-
-                        score =
-                            user.count;
-
-                    }
-
-
-                    if (
-                        score === undefined ||
-                        score === null
-                    ) {
-
-                        score =
-                            user.total;
-
-                    }
-
-
-                    if (
-                        score === undefined ||
-                        score === null
-                    ) {
-
-                        score =
-                            user.value;
-
-                    }
-
-
-                    if (
-                        score === undefined ||
-                        score === null
-                    ) {
-
-                        score = 0;
-
-                    }
-
-
-                    /*
-                     * Format score.
-                     */
-
-                    const formattedScore =
-                        Number(score).toLocaleString();
-
-
-                    return `
-
-                        <a
-                            href="/profile.html?id=${encodeURIComponent(
-                                user.id
-                            )}"
-                            style="
-                                text-decoration:none;
-                                color:inherit;
-                            ">
-
-                            <div
-                                class="leaderboard-user">
-
-
-                                <div
-                                    class="leaderboard-rank">
-
-                                    <span
-                                        class="leaderboard-medal">
-
-                                        ${medal}
-
-                                    </span>
-
-                                </div>
-
-
-                                <img
-                                    class="leaderboard-avatar"
-                                    src="${escapeHtml(
-                                        avatar
-                                    )}"
-                                    alt="${escapeHtml(
-                                        displayName
-                                    )} avatar"
-                                    onerror="
-                                        this.src='/default-avatar.png';
-                                    ">
-
-
-                                <div
-                                    class="leaderboard-info">
-
-                                    <div
-                                        class="leaderboard-name">
-
-                                        ${escapeHtml(
-                                            displayName
-                                        )}
-
-                                    </div>
-
-
-                                    <div
-                                        class="leaderboard-username">
-
-                                        @${escapeHtml(
-                                            username
-                                        )}
-
-                                    </div>
-
-                                </div>
-
-
-                                <div
-                                    class="leaderboard-score">
-
-                                    ${formattedScore}
-
-                                </div>
-
-
-                            </div>
-
-                        </a>
-
-                    `;
-
-                }
-            ).join("");
-
-
-    } catch (error) {
-
-        console.error(
-            "LEADERBOARD ERROR:",
-            error
-        );
-
-
-        container.innerHTML = `
-
-            <div
-                class="leaderboard-empty">
-
-                ❌ ${escapeHtml(
-                    error.message
-                )}
-
-            </div>
-
-        `;
-
-    }
-
-}
-
-
-/* ==================================================
    ENTER KEY FOR COMMENTS
 ================================================== */
 
@@ -2667,9 +2718,7 @@ document.addEventListener(
                     ""
                 );
 
-            submitComment(
-                postId
-            );
+            submitComment(postId);
 
         }
 
@@ -2690,14 +2739,13 @@ async function updateOnlineStatus() {
                 "/api/online",
                 {
 
-                    method:
-                        "POST",
+                    method: "POST",
+
+                    credentials: "include",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     }
 
                 }
@@ -2705,9 +2753,7 @@ async function updateOnlineStatus() {
 
         if (!response.ok) {
 
-            if (
-                response.status !== 404
-            ) {
+            if (response.status !== 404) {
 
                 console.warn(
                     "Online status request failed:",
