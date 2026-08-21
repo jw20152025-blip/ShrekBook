@@ -306,11 +306,6 @@ async function login() {
         status.textContent =
             "✅ Logged in!";
 
-        /*
-         * Refresh session data after login
-         * so admin status is detected.
-         */
-
         await checkLogin();
 
     } catch (error) {
@@ -447,33 +442,22 @@ async function signup() {
 }
 
 
-// ==================================================
-// SHREKBOOK KICK DETECTOR
-// ==================================================
-//
-// Checks the server every second.
-// If the currently logged-in user has been kicked,
-// immediately send this page to kicked.html.
-//
-// No refresh required.
-// ==================================================
+/* ==================================================
+SHREKBOOK KICK DETECTOR
+================================================== */
 
 let kickCheckRunning = false;
 
 
-// ==================================================
-// SHREKBOOK INSTANT MODERATION
-// ==================================================
+/* ==================================================
+SHREKBOOK INSTANT MODERATION
+================================================== */
 
 (function startModerationSocket() {
 
     const path =
         window.location.pathname
             .toLowerCase();
-
-
-    // Don't open a moderation connection
-    // on moderation destination pages.
 
     if (
         path.endsWith("/login.html") ||
@@ -484,26 +468,15 @@ let kickCheckRunning = false;
 
     }
 
-
-    // ==================================================
-    // CONNECT
-    // ==================================================
-
     const protocol =
         window.location.protocol === "https:"
             ? "wss:"
             : "ws:";
 
-
     const socket =
         new WebSocket(
             `${protocol}//${window.location.host}/moderation`
         );
-
-
-    // ==================================================
-    // CONNECTED
-    // ==================================================
 
     socket.addEventListener(
         "open",
@@ -516,11 +489,6 @@ let kickCheckRunning = false;
         }
     );
 
-
-    // ==================================================
-    // MODERATION EVENT
-    // ==================================================
-
     socket.addEventListener(
         "message",
         event => {
@@ -532,11 +500,6 @@ let kickCheckRunning = false;
                         event.data
                     );
 
-
-                // ======================================
-                // BAN
-                // ======================================
-
                 if (
                     data.type === "BAN"
                 ) {
@@ -545,20 +508,13 @@ let kickCheckRunning = false;
                         "🚫 BANNED"
                     );
 
-
                     window.location.replace(
                         "/login.html"
                     );
 
-
                     return;
 
                 }
-
-
-                // ======================================
-                // KICK
-                // ======================================
 
                 if (
                     data.type === "KICK"
@@ -568,11 +524,9 @@ let kickCheckRunning = false;
                         "🦵 KICKED"
                     );
 
-
                     window.location.replace(
                         "/kicked.html"
                     );
-
 
                     return;
 
@@ -592,11 +546,6 @@ let kickCheckRunning = false;
         }
     );
 
-
-    // ==================================================
-    // CONNECTION CLOSED
-    // ==================================================
-
     socket.addEventListener(
         "close",
         () => {
@@ -607,11 +556,6 @@ let kickCheckRunning = false;
 
         }
     );
-
-
-    // ==================================================
-    // ERROR
-    // ==================================================
 
     socket.addEventListener(
         "error",
@@ -625,16 +569,12 @@ let kickCheckRunning = false;
         }
     );
 
-
 })();
 
 
-
-
-
-// ==================================================
-// CHECK KICK STATUS
-// ==================================================
+/* ==================================================
+CHECK KICK STATUS
+================================================== */
 
 async function checkKickStatus() {
 
@@ -642,9 +582,7 @@ async function checkKickStatus() {
         return;
     }
 
-
     kickCheckRunning = true;
-
 
     try {
 
@@ -653,11 +591,8 @@ async function checkKickStatus() {
                 "/api/me",
                 {
                     method: "GET",
-
                     credentials: "include",
-
                     cache: "no-store",
-
                     headers: {
                         "Accept":
                             "application/json"
@@ -665,19 +600,12 @@ async function checkKickStatus() {
                 }
             );
 
-
         if (!response.ok) {
             return;
         }
 
-
         const data =
             await response.json();
-
-
-        // ------------------------------------------
-        // USER HAS BEEN KICKED
-        // ------------------------------------------
 
         if (
             data &&
@@ -688,24 +616,16 @@ async function checkKickStatus() {
                 "🚪 User has been kicked."
             );
 
-
-            // Stop checking.
-
             kickCheckRunning =
                 true;
-
-
-            // Send them to the kicked dimension. 👹
 
             window.location.replace(
                 "/kicked.html"
             );
 
-
             return;
 
         }
-
 
     } catch (error) {
 
@@ -715,8 +635,6 @@ async function checkKickStatus() {
         );
 
     } finally {
-
-        // Don't unlock after redirect.
 
         if (
             !window.location.pathname
@@ -735,9 +653,9 @@ async function checkKickStatus() {
 }
 
 
-// ==================================================
-// START KICK MONITOR
-// ==================================================
+/* ==================================================
+START KICK MONITOR
+================================================== */
 
 if (
     !window.location.pathname
@@ -746,12 +664,7 @@ if (
         )
 ) {
 
-    // Check immediately.
-
     checkKickStatus();
-
-
-    // Then check every second.
 
     setInterval(
         checkKickStatus,
@@ -833,8 +746,6 @@ function setupAdminNav(user) {
         return;
     }
 
-
-
     const isAdmin =
         user.is_admin === true ||
         user.is_admin === 1 ||
@@ -849,20 +760,10 @@ function setupAdminNav(user) {
 
         user.role === "admin";
 
-    /*
-     * Look for an admin navigation element
-     * that already exists in the HTML.
-     */
-
     let adminNav =
         document.getElementById(
             "admin-nav"
         );
-
-    /*
-     * If the user isn't an admin,
-     * hide the existing admin navigation.
-     */
 
     if (!isAdmin) {
 
@@ -877,11 +778,6 @@ function setupAdminNav(user) {
 
     }
 
-    /*
-     * If the HTML already contains the
-     * admin navigation, just show it.
-     */
-
     if (adminNav) {
 
         adminNav.style.display =
@@ -890,10 +786,6 @@ function setupAdminNav(user) {
         return;
 
     }
-
-    /*
-     * Create the admin navbar automatically.
-     */
 
     adminNav =
         document.createElement(
@@ -962,10 +854,6 @@ function setupAdminNav(user) {
 
     `;
 
-    /*
-     * Put navbar at the top of the app.
-     */
-
     const app =
         document.getElementById(
             "app-section"
@@ -1010,10 +898,6 @@ async function checkLogin() {
             data.loggedIn &&
             data.user
         ) {
-
-            /*
-             * Detect admin status.
-             */
 
             setupAdminNav(
                 data.user
@@ -1096,6 +980,8 @@ function showAuth() {
     }
 
 }
+
+
 /* ==================================================
 ADMIN BUTTON
 ================================================== */
@@ -1111,7 +997,6 @@ async function checkAdmin() {
         return;
     }
 
-    // Keep hidden until confirmed
     adminButton.style.display =
         "none";
 
@@ -1153,6 +1038,7 @@ async function checkAdmin() {
     }
 
 }
+
 
 /* ==================================================
 SHOW APP
@@ -1199,6 +1085,8 @@ function showApp() {
     loadPosts();
 
     loadPeople();
+
+    loadLeaderboard();
 
     updateOnlineStatus();
 
@@ -1736,6 +1624,13 @@ async function createPost() {
 
         loadPosts();
 
+        /*
+         * Refresh leaderboard because
+         * the user now has another post.
+         */
+
+        loadLeaderboard();
+
     } catch (error) {
 
         console.error(
@@ -2043,6 +1938,13 @@ async function submitComment(postId) {
             postId
         );
 
+        /*
+         * Refresh leaderboard because
+         * the user has made another comment.
+         */
+
+        loadLeaderboard();
+
     } catch (error) {
 
         console.error(
@@ -2160,11 +2062,6 @@ async function loadPeople() {
                     user.username ||
                     "User";
 
-                /*
-                 * Online if last_seen is less
-                 * than 2 minutes old.
-                 */
-
                 const isOnline =
                     user.last_seen &&
                     (
@@ -2279,6 +2176,604 @@ async function loadPeople() {
 
 
 /* ==================================================
+LEADERBOARD
+================================================== */
+
+let leaderboardData = [];
+
+let currentLeaderboardCategory =
+    "overall";
+
+
+/* ==================================================
+SCROLL TO SECTION
+================================================== */
+
+function scrollToSection(id) {
+
+    const element =
+        document.getElementById(id);
+
+    if (!element) {
+        return;
+    }
+
+    element.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+
+}
+
+
+/* ==================================================
+GET REACTION COUNT
+================================================== */
+
+function getReactionCount(user, type) {
+
+    /*
+     * Your current /api/users endpoint may expose
+     * reactionCounts, while some older versions
+     * exposed the values directly on the user.
+     *
+     * Support both formats.
+     */
+
+    if (
+        user.reactionCounts &&
+        typeof user.reactionCounts === "object"
+    ) {
+
+        const value =
+            Number(
+                user.reactionCounts[type]
+            );
+
+        if (Number.isFinite(value)) {
+            return value;
+        }
+
+    }
+
+    const direct =
+        Number(
+            user[type]
+        );
+
+    if (Number.isFinite(direct)) {
+        return direct;
+    }
+
+    return 0;
+
+}
+
+
+/* ==================================================
+LOAD LEADERBOARD
+================================================== */
+
+async function loadLeaderboard() {
+
+    const container =
+        document.getElementById(
+            "leaderboard-list"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    container.innerHTML =
+        `<div class="leaderboard-loading">
+            Loading leaderboard... 🧌
+        </div>`;
+
+    try {
+
+        /*
+         * Load users and posts at the same time.
+         */
+
+        const [
+            usersResponse,
+            postsResponse
+        ] = await Promise.all([
+
+            fetch("/api/users"),
+
+            fetch("/api/posts")
+
+        ]);
+
+        const users =
+            await usersResponse.json();
+
+        const posts =
+            await postsResponse.json();
+
+        if (!usersResponse.ok) {
+
+            throw new Error(
+                users.error ||
+                "Could not load users."
+            );
+
+        }
+
+        if (!postsResponse.ok) {
+
+            throw new Error(
+                posts.error ||
+                "Could not load posts."
+            );
+
+        }
+
+
+        /*
+         * Create a statistics object for
+         * every user.
+         */
+
+        const stats =
+            users.map(user => {
+
+                const cat =
+                    getReactionCount(
+                        user,
+                        "cat"
+                    );
+
+                const gyatt =
+                    getReactionCount(
+                        user,
+                        "gyatt"
+                    );
+
+                const ogred =
+                    getReactionCount(
+                        user,
+                        "ogred"
+                    );
+
+                const reactions =
+                    getReactionCount(
+                        user,
+                        "reactions"
+                    ) ||
+                    (
+                        cat +
+                        gyatt +
+                        ogred
+                    );
+
+                const userPosts =
+                    posts.filter(
+                        post =>
+                            String(
+                                post.user_id
+                            ) ===
+                            String(
+                                user.id
+                            )
+                    ).length;
+
+                return {
+
+                    id:
+                        user.id,
+
+                    username:
+                        user.username,
+
+                    display_name:
+                        user.display_name ||
+                        user.username ||
+                        "User",
+
+                    avatar:
+                        user.avatar ||
+                        "/default-avatar.png",
+
+                    posts:
+                        userPosts,
+
+                    comments:
+                        0,
+
+                    reactions:
+                        reactions,
+
+                    cat:
+                        cat,
+
+                    gyatt:
+                        gyatt,
+
+                    ogred:
+                        ogred,
+
+                    overall:
+                        (
+                            userPosts * 10
+                        ) +
+                        (
+                            0 * 5
+                        ) +
+                        (
+                            reactions * 2
+                        )
+
+                };
+
+            });
+
+
+        /*
+         * Count comments.
+         *
+         * Each post's comments are fetched so we
+         * can determine who made them.
+         */
+
+        await Promise.all(
+
+            posts.map(
+                async post => {
+
+                    try {
+
+                        const response =
+                            await fetch(
+                                `/api/posts/${post.id}/comments`
+                            );
+
+                        if (!response.ok) {
+                            return;
+                        }
+
+                        const comments =
+                            await response.json();
+
+                        if (!Array.isArray(
+                            comments
+                        )) {
+                            return;
+                        }
+
+                        comments.forEach(
+                            comment => {
+
+                                const authorId =
+                                    comment.user_id;
+
+                                const userStats =
+                                    stats.find(
+                                        user =>
+                                            String(
+                                                user.id
+                                            ) ===
+                                            String(
+                                                authorId
+                                            )
+                                    );
+
+                                if (
+                                    userStats
+                                ) {
+
+                                    userStats.comments++;
+
+                                }
+
+                            }
+                        );
+
+                    } catch (error) {
+
+                        console.warn(
+                            "Could not load comments for post:",
+                            post.id
+                        );
+
+                    }
+
+                }
+            )
+
+        );
+
+
+        /*
+         * Recalculate overall after comments
+         * have been counted.
+         */
+
+        stats.forEach(
+            user => {
+
+                user.overall =
+                    (
+                        user.posts * 10
+                    ) +
+                    (
+                        user.comments * 5
+                    ) +
+                    (
+                        user.reactions * 2
+                    );
+
+            }
+        );
+
+
+        leaderboardData =
+            stats;
+
+        renderLeaderboard();
+
+    } catch (error) {
+
+        console.error(
+            "LEADERBOARD ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            `<p>
+                ❌ ${escapeHtml(
+                    error.message
+                )}
+            </p>`;
+
+    }
+
+}
+
+
+/* ==================================================
+SWITCH LEADERBOARD
+================================================== */
+
+function switchLeaderboard(category) {
+
+    currentLeaderboardCategory =
+        category;
+
+    /*
+     * Update active button.
+     */
+
+    document
+        .querySelectorAll(
+            ".leaderboard-switch"
+        )
+        .forEach(button => {
+
+            button.classList.toggle(
+                "active",
+                button.dataset.category ===
+                category
+            );
+
+        });
+
+    renderLeaderboard();
+
+}
+
+
+/* ==================================================
+RENDER LEADERBOARD
+================================================== */
+
+function renderLeaderboard() {
+
+    const container =
+        document.getElementById(
+            "leaderboard-list"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    if (!leaderboardData.length) {
+
+        container.innerHTML =
+            "<p>No leaderboard data yet. 🧌</p>";
+
+        return;
+
+    }
+
+    /*
+     * Sort a copy so the original statistics
+     * aren't destroyed.
+     */
+
+    const sorted =
+        [...leaderboardData].sort(
+            (a, b) => {
+
+                const difference =
+                    Number(
+                        b[
+                            currentLeaderboardCategory
+                        ]
+                    ) -
+                    Number(
+                        a[
+                            currentLeaderboardCategory
+                        ]
+                    );
+
+                /*
+                 * If tied, use username as a
+                 * consistent secondary sort.
+                 */
+
+                if (difference !== 0) {
+                    return difference;
+                }
+
+                return String(
+                    a.username || ""
+                ).localeCompare(
+                    String(
+                        b.username || ""
+                    )
+                );
+
+            }
+        );
+
+
+    /*
+     * TOP FIVE ONLY.
+     */
+
+    const topFive =
+        sorted.slice(0, 5);
+
+
+    container.innerHTML =
+        topFive.map(
+            (user, index) => {
+
+                const rank =
+                    index + 1;
+
+                let medal =
+                    `${rank}.`;
+
+                let positionClass =
+                    "";
+
+                if (rank === 1) {
+
+                    medal =
+                        "🥇";
+
+                    positionClass =
+                        "first";
+
+                }
+
+                if (rank === 2) {
+
+                    medal =
+                        "🥈";
+
+                    positionClass =
+                        "second";
+
+                }
+
+                if (rank === 3) {
+
+                    medal =
+                        "🥉";
+
+                    positionClass =
+                        "third";
+
+                }
+
+                const score =
+                    Number(
+                        user[
+                            currentLeaderboardCategory
+                        ]
+                    ) || 0;
+
+                return `
+
+                    <a
+                        href="/profile.html?id=${encodeURIComponent(
+                            user.id
+                        )}"
+                        class="
+                            leaderboard-entry
+                            ${positionClass}
+                        "
+                        style="
+                            text-decoration:none;
+                            color:inherit;
+                        ">
+
+                        <div
+                            class="leaderboard-rank">
+
+                            ${medal}
+
+                        </div>
+
+                        <img
+                            src="${escapeHtml(
+                                user.avatar
+                            )}"
+                            alt="Avatar"
+                            style="
+                                width:50px;
+                                height:50px;
+                                border-radius:50%;
+                                object-fit:cover;
+                                flex-shrink:0;
+                            "
+                            onerror="
+                                this.src='/default-avatar.png';
+                            ">
+
+                        <div
+                            class="leaderboard-user">
+
+                            <div
+                                class="leaderboard-name">
+
+                                ${escapeHtml(
+                                    user.display_name
+                                )}
+
+                            </div>
+
+                            <div
+                                style="
+                                    color:#777;
+                                    font-size:13px;
+                                ">
+
+                                @${escapeHtml(
+                                    user.username ||
+                                    "user"
+                                )}
+
+                            </div>
+
+                        </div>
+
+                        <div
+                            class="leaderboard-score">
+
+                            <strong>
+                                ${score}
+                            </strong>
+
+                        </div>
+
+                    </a>
+
+                `;
+
+            }
+        ).join("");
+
+}
+
+
+/* ==================================================
 ENTER KEY FOR COMMENTS
 ================================================== */
 
@@ -2351,11 +2846,6 @@ async function updateOnlineStatus() {
             );
 
         if (!response.ok) {
-
-            /*
-             * Don't spam the console if the
-             * backend route doesn't exist.
-             */
 
             if (response.status !== 404) {
 
