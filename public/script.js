@@ -1289,6 +1289,10 @@ async function loadLeaderboard(type = "overall") {
 
     try {
 
+        /*
+         * Get leaderboard.
+         */
+
         const response =
             await fetch(
                 `/api/leaderboard?type=${encodeURIComponent(
@@ -1320,6 +1324,10 @@ async function loadLeaderboard(type = "overall") {
         }
 
 
+        /*
+         * Get users from response.
+         */
+
         let users =
             Array.isArray(data)
                 ? data
@@ -1333,8 +1341,8 @@ async function loadLeaderboard(type = "overall") {
 
 
         /*
-         * If the server doesn't sort the users,
-         * sort them here.
+         * Calculate each user's score
+         * and sort the complete leaderboard.
          */
 
         users =
@@ -1364,6 +1372,10 @@ async function loadLeaderboard(type = "overall") {
                 );
 
 
+        /*
+         * No users.
+         */
+
         if (!users.length) {
 
             container.innerHTML = `
@@ -1382,14 +1394,85 @@ async function loadLeaderboard(type = "overall") {
 
 
         /*
-         * Top five.
+         * Get the currently logged-in user.
+         */
+
+        let currentUser = null;
+
+        try {
+
+            const meResponse =
+                await fetch(
+                    "/api/me",
+                    {
+                        method: "GET",
+                        credentials: "include",
+                        cache: "no-store",
+                        headers: {
+                            "Accept":
+                                "application/json"
+                        }
+                    }
+                );
+
+
+            const meData =
+                await meResponse.json();
+
+
+            if (
+                meResponse.ok &&
+                meData.loggedIn &&
+                meData.user
+            ) {
+
+                currentUser =
+                    meData.user;
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "CURRENT USER ERROR:",
+                error
+            );
+
+        }
+
+
+        /*
+         * Find current user's position
+         * in the COMPLETE leaderboard.
+         */
+
+        let currentUserIndex = -1;
+
+        if (currentUser) {
+
+            currentUserIndex =
+                users.findIndex(
+                    user =>
+                        String(user.id) ===
+                        String(currentUser.id)
+                );
+
+        }
+
+
+        /*
+         * Top five users.
          */
 
         const topFive =
             users.slice(0, 5);
 
 
-        container.innerHTML =
+        /*
+         * Render top five.
+         */
+
+        let leaderboardHTML =
             topFive.map(
                 (user, index) => {
 
@@ -1502,6 +1585,7 @@ async function loadLeaderboard(type = "overall") {
 
                                     </div>
 
+
                                     <div
                                         class="leaderboard-username">
 
@@ -1529,6 +1613,167 @@ async function loadLeaderboard(type = "overall") {
 
                 }
             ).join("");
+
+
+        /*
+         * If the logged-in user exists and is
+         * outside the top five, show their rank.
+         */
+
+        if (
+            currentUserIndex >= 5
+        ) {
+
+            const user =
+                users[currentUserIndex];
+
+
+            const rank =
+                currentUserIndex + 1;
+
+
+            const avatar =
+                user.avatar ||
+                currentUser.avatar ||
+                "/default-avatar.png";
+
+
+            const displayName =
+                user.display_name ||
+                currentUser.display_name ||
+                user.username ||
+                currentUser.username ||
+                "User";
+
+
+            const username =
+                user.username ||
+                currentUser.username ||
+                "user";
+
+
+            const score =
+                user.leaderboardScore;
+
+
+            const formattedScore =
+                Number(score)
+                    .toLocaleString();
+
+
+            leaderboardHTML += `
+
+                <div
+                    style="
+                        text-align:center;
+                        padding:10px;
+                        color:#777;
+                        font-size:20px;
+                    ">
+
+                    ⋮
+
+                </div>
+
+
+                <a
+                    href="/profile.html?id=${encodeURIComponent(
+                        user.id
+                    )}"
+                    style="
+                        text-decoration:none;
+                        color:inherit;
+                    ">
+
+                    <div
+                        class="leaderboard-user"
+                        style="
+                            border:2px solid #333;
+                        ">
+
+                        <div
+                            class="leaderboard-rank">
+
+                            <strong>
+
+                                #${rank}
+
+                            </strong>
+
+                        </div>
+
+
+                        <img
+                            class="leaderboard-avatar"
+                            src="${escapeHtml(
+                                avatar
+                            )}"
+                            alt="${escapeHtml(
+                                displayName
+                            )} avatar"
+                            onerror="
+                                this.src='/default-avatar.png';
+                            ">
+
+
+                        <div
+                            class="leaderboard-info">
+
+                            <div
+                                class="leaderboard-name">
+
+                                ${escapeHtml(
+                                    displayName
+                                )}
+
+                                <span
+                                    style="
+                                        margin-left:6px;
+                                        font-size:12px;
+                                        color:#777;
+                                    ">
+
+                                    You
+
+                                </span>
+
+                            </div>
+
+
+                            <div
+                                class="leaderboard-username">
+
+                                @${escapeHtml(
+                                    username
+                                )}
+
+                            </div>
+
+                        </div>
+
+
+                        <div
+                            class="leaderboard-score">
+
+                            ${formattedScore}
+
+                        </div>
+
+                    </div>
+
+                </a>
+
+            `;
+
+        }
+
+
+        /*
+         * Display leaderboard.
+         */
+
+        container.innerHTML =
+            leaderboardHTML;
 
 
     } catch (error) {
