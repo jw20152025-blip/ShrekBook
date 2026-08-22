@@ -1783,7 +1783,264 @@ async function logout() {
     showAuth();
 
 }
+/* ==================================================
+   SHREKBOOK POST FORMATTER
+================================================== */
 
+let mentionUsers = null;
+
+
+/*
+ * Load users for @mentions.
+ * Cached so we don't request them every time.
+ */
+
+async function loadMentionUsers() {
+
+    if (mentionUsers !== null) {
+        return mentionUsers;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/users",
+                {
+                    credentials: "include",
+                    cache: "no-store"
+                }
+            );
+
+        if (!response.ok) {
+            mentionUsers = [];
+            return mentionUsers;
+        }
+
+        const users =
+            await response.json();
+
+        if (!Array.isArray(users)) {
+            mentionUsers = [];
+            return mentionUsers;
+        }
+
+        mentionUsers = users;
+
+        return mentionUsers;
+
+    } catch (error) {
+
+        console.error(
+            "MENTION USERS ERROR:",
+            error
+        );
+
+        mentionUsers = [];
+
+        return mentionUsers;
+
+    }
+
+}
+
+
+/*
+ * Format a post safely.
+ *
+ * Supports:
+ *
+ * # Heading
+ * ## Heading
+ * ### Heading
+ *
+ * @username
+ */
+
+async function formatPostContent(content) {
+
+    if (!content) {
+        return "";
+    }
+
+    const users =
+        await loadMentionUsers();
+
+
+    /*
+     * Escape everything first.
+     * This prevents users from injecting HTML.
+     */
+
+    const escaped =
+        escapeHtml(content);
+
+
+    /*
+     * Process line-by-line so # only works
+     * when it is at the beginning of a line.
+     */
+
+    const lines =
+        escaped.split("\n");
+
+
+    return lines.map(line => {
+
+        /*
+         * ### Heading
+         */
+
+        if (
+            line.startsWith("### ")
+        ) {
+
+            return `
+                <h4 class="post-heading post-heading-3">
+                    ${formatMentions(
+                        line.substring(4),
+                        users
+                    )}
+                </h4>
+            `;
+
+        }
+
+
+        /*
+         * ## Heading
+         */
+
+        if (
+            line.startsWith("## ")
+        ) {
+
+            return `
+                <h3 class="post-heading post-heading-2">
+                    ${formatMentions(
+                        line.substring(3),
+                        users
+                    )}
+                </h3>
+            `;
+
+        }
+
+
+        /*
+         * # Heading
+         */
+
+        if (
+            line.startsWith("# ")
+        ) {
+
+            return `
+                <h2 class="post-heading post-heading-1">
+                    ${formatMentions(
+                        line.substring(2),
+                        users
+                    )}
+                </h2>
+            `;
+
+        }
+
+
+        /*
+         * Empty line.
+         */
+
+        if (line.trim() === "") {
+
+            return `
+                <div class="post-line-break"></div>
+            `;
+
+        }
+
+
+        /*
+         * Normal text.
+         */
+
+        return `
+            <div class="post-line">
+                ${formatMentions(line, users)}
+            </div>
+        `;
+
+    }).join("");
+
+}
+
+
+/*
+ * Convert @username into a profile link.
+ */
+
+function formatMentions(text, users) {
+
+    /*
+     * Match @ followed by a username.
+     *
+     * Example:
+     *
+     * @OliveTree
+     * @sigma
+     * @testbot
+     */
+
+    return text.replace(
+        /(^|[\s])@([A-Za-z0-9_.-]+)/g,
+        (match, before, username) => {
+
+            const normalizedUsername =
+                username.toLowerCase();
+
+
+            const user =
+                users.find(
+                    candidate =>
+                        String(
+                            candidate.username || ""
+                        ).toLowerCase() ===
+                        normalizedUsername
+                );
+
+
+            /*
+             * If the user doesn't exist,
+             * leave the @username as normal text.
+             */
+
+            if (!user) {
+
+                return match;
+
+            }
+
+
+            /*
+             * Found the user.
+             */
+
+            return `
+                ${before}<a
+                    class="post-mention"
+                    href="/profile.html?id=${encodeURIComponent(
+                        user.id
+                    )}">
+                    @${escapeHtml(
+                        user.username
+                    )}
+                </a>
+            `;
+
+        }
+    );
+
+}
 
 /* ==================================================
    LOAD POSTS
@@ -1829,7 +2086,8 @@ async function loadPosts() {
         }
 
         container.innerHTML =
-            posts.map(post => {
+            await Promise.all(
+            posts.map(async (post) => {
 
                 const avatar =
                     post.avatar ||
@@ -1925,25 +2183,25 @@ async function loadPosts() {
 
                         </div>
 
-                        ${
-                            post.content
-                                ? `
+                            ${
+                                post.content
+                                    ? `
 
-                                    <div
-                                        class="post-content"
-                                        style="
-                                            margin-top:10px;
-                                        ">
+                                        <div
+                                            class="post-content"
+                                            style="
+                                                margin-top:10px;
+                                            ">
 
-                                        ${escapeHtml(
-                                            post.content
-                                        )}
+                                            ${await formatPostContent(
+                                                post.content
+                                            )}
 
-                                    </div>
+                                        </div>
 
-                                  `
-                                : ""
-                        }
+                                    `
+                                    : ""
+                            }
 
                         ${imageHTML}
 
@@ -2044,7 +2302,7 @@ async function loadPosts() {
 
                 `;
 
-            }).join("");
+            })).join("");
 
 
         posts.forEach(post => {
@@ -2357,6 +2615,7 @@ async function loadComments(postId) {
         }
 
         list.innerHTML =
+        (await Promise.all(  
             comments.map(comment => {
 
                 const avatar =
@@ -2440,7 +2699,7 @@ async function loadComments(postId) {
                                 ? `
 
                                     <p>
-                                        ${escapeHtml(
+                                        ${await formatPostContent(
                                             comment.content
                                         )}
                                     </p>
@@ -2455,7 +2714,7 @@ async function loadComments(postId) {
 
                 `;
 
-            }).join("");
+            }))).join("");
 
     } catch (error) {
 
