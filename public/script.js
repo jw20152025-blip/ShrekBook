@@ -2614,110 +2614,99 @@ async function loadComments(postId) {
 
         }
 
-list.innerHTML =
-    (await Promise.all(
-        comments.map(async comment => {
+const commentHTML = await Promise.all(
+    comments.map(async comment => {
 
-            const avatar =
-                comment.avatar ||
-                "/default-avatar.png";
+        const avatar =
+            comment.avatar ||
+            "/default-avatar.png";
 
-            const displayName =
-                comment.display_name ||
-                comment.username ||
-                "User";
+        const displayName =
+            comment.display_name ||
+            comment.username ||
+            "User";
 
-            let imageHTML = "";
+        let imageHTML = "";
 
-            if (comment.image_url) {
+        if (comment.image_url) {
 
-                imageHTML = `
+            imageHTML = `
+                <img
+                    src="${escapeHtml(comment.image_url)}"
+                    alt="Comment image"
+                    style="
+                        max-width:300px;
+                        max-height:300px;
+                        border-radius:10px;
+                        margin-top:8px;
+                        display:block;
+                    "
+                    onerror="
+                        this.style.display='none';
+                    "
+                >
+            `;
 
-                    <img
-                        src="${escapeHtml(
-                            comment.image_url
-                        )}"
-                        alt="Comment image"
-                        style="
-                            max-width:300px;
-                            max-height:300px;
-                            border-radius:10px;
-                            margin-top:8px;
-                            display:block;
-                        "
-                        onerror="
-                            this.style.display='none';
-                        ">
+        }
 
-                `;
-
-            }
-
-            return `
+        return `
+            <div
+                class="comment"
+                style="
+                    padding:10px;
+                    margin-bottom:10px;
+                "
+            >
 
                 <div
-                    class="comment"
                     style="
-                        padding:10px;
-                        margin-bottom:10px;
-                    ">
+                        display:flex;
+                        align-items:center;
+                        gap:8px;
+                    "
+                >
 
-                    <div
+                    <img
+                        src="${escapeHtml(avatar)}"
+                        alt="Avatar"
                         style="
-                            display:flex;
-                            align-items:center;
-                            gap:8px;
-                        ">
+                            width:35px;
+                            height:35px;
+                            border-radius:50%;
+                            object-fit:cover;
+                        "
+                        onerror="
+                            this.src='/default-avatar.png';
+                        "
+                    >
 
-                        <img
-                            src="${escapeHtml(
-                                avatar
-                            )}"
-                            alt="Avatar"
-                            style="
-                                width:35px;
-                                height:35px;
-                                border-radius:50%;
-                                object-fit:cover;
-                            "
-                            onerror="
-                                this.src='/default-avatar.png';
-                            ">
-
-                        <strong>
-
-                            ${escapeHtml(
-                                displayName
-                            )}
-
-                        </strong>
-
-                    </div>
-
-                    ${
-                        comment.content
-                            ? `
-
-                                <div class="comment-content">
-
-                                    ${await formatPostContent(
-                                        comment.content
-                                    )}
-
-                                </div>
-
-                              `
-                            : ""
-                    }
-
-                    ${imageHTML}
+                    <strong>
+                        ${escapeHtml(displayName)}
+                    </strong>
 
                 </div>
 
-            `;
+                ${
+                    comment.content
+                        ? `
+                            <div class="comment-content">
+                                ${await formatPostContent(
+                                    comment.content
+                                )}
+                            </div>
+                          `
+                        : ""
+                }
 
-        })
-    )).join("");
+                ${imageHTML}
+
+            </div>
+        `;
+
+    })
+);
+
+list.innerHTML = commentHTML.join("");
 
     } catch (error) {
 
