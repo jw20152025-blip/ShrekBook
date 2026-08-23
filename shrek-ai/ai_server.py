@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from model import summarize
+from model import generate
 
 
 app = FastAPI(
@@ -9,9 +9,8 @@ app = FastAPI(
 )
 
 
-class SummaryRequest(BaseModel):
-
-    text: str
+class GenerateRequest(BaseModel):
+    prompt: str
 
 
 @app.get("/")
@@ -19,37 +18,38 @@ def home():
 
     return {
         "name": "ShrekAI",
-        "status": "online"
+        "status": "online",
+        "model": "Qwen/Qwen2.5-3B-Instruct"
     }
 
 
-@app.post("/summarize")
-def make_summary(request: SummaryRequest):
+@app.post("/generate")
+def make_response(request: GenerateRequest):
 
-    if not request.text.strip():
+    if not request.prompt.strip():
 
         return {
-            "error": "No text provided."
+            "error": "No prompt provided."
         }
 
     try:
 
-        result = summarize(
-            request.text
+        result = generate(
+            request.prompt
         )
 
         return {
-            "summary": result
+            "response": result
         }
 
     except Exception as error:
 
         print(
-            "SUMMARY ERROR:",
+            "AI GENERATION ERROR:",
             error
         )
 
         return {
             "error":
-                "AI summarization failed."
+                "AI generation failed."
         }

@@ -1,48 +1,102 @@
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
+print("================================")
+print("SHREK AI - QWEN MODEL")
+print("================================")
 
-MODEL_NAME = "sshleifer/distilbart-cnn-12-6"
+MODEL_NAME = "Qwen/Qwen2.5-3B-Instruct"
 
+print("Loading tokenizer...")
 
-print("Loading AI model...")
-
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-
-model = AutoModelForSeq2SeqLM.from_pretrained(
+tokenizer = AutoTokenizer.from_pretrained(
     MODEL_NAME
 )
 
-print("AI model loaded!")
+print("Loading model...")
+
+model = AutoModelForCausalLM.from_pretrained(
+    MODEL_NAME,
+    torch_dtype=torch.float32
+)
+
+model.eval()
+
+print("================================")
+print("SHREK AI MODEL LOADED")
+print("================================")
 
 
-def summarize(text):
+def generate(prompt):
 
-    if not text:
-        return "No text provided."
+    if not prompt or not prompt.strip():
+        return "Please say something."
 
-    text = str(text).strip()
+    prompt = prompt.strip()
 
-    if len(text) > 4000:
-        text = text[:4000]
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are Shrek AI, a helpful and friendly general-purpose "
+                "AI assistant. Answer questions naturally and accurately. "
+                "Be polite and conversational. "
+                "Do not repeat yourself. "
+                "Do not invent facts. "
+                "Never threaten the user. "
+                "Never claim that you want to hurt or kill someone. "
+                "Keep responses reasonably concise."
+            )
+        },
+        {
+            "role": "user",
+            "content": prompt
+        }
+    ]
+
+    text = tokenizer.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=True
+    )
 
     inputs = tokenizer(
         text,
         return_tensors="pt",
         truncation=True,
-        max_length=1024
+        max_length=2048
     )
 
-    output = model.generate(
-        **inputs,
-        max_length=120,
-        min_length=30,
-        num_beams=4,
-        early_stopping=True
-    )
+    with torch.no_grad():
 
-    result = tokenizer.decode(
-        output[0],
+        output = model.generate(
+            **inputs,
+
+            max_new_tokens=80,
+
+            do_sample=True,
+
+            temperature=0.7,
+
+            top_p=0.9,
+
+            repetition_penalty=1.1,
+
+            no_repeat_ngram_size=3,
+
+            eos_token_id=tokenizer.eos_token_id,
+
+            pad_token_id=tokenizer.eos_token_id
+        )
+
+    generated_tokens = output[
+        0,
+        inputs["input_ids"].shape[1]:
+    ]
+
+    response = tokenizer.decode(
+        generated_tokens,
         skip_special_tokens=True
     )
 
-    return result.strip()
+    return response.strip()
