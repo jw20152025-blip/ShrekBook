@@ -1792,7 +1792,7 @@ function formatMentions(text, users = []) {
     }
 
     return String(text).replace(
-        /(^|[\s.,!?;:()[\]{}"'`<>])@([A-Za-z0-9_.-]+)/g,
+        /(^|[\s.,!?;:()[\]{}"'`<>])@([A-Za-z0-9_.-@]+)/g,
         (match, before, username) => {
 
             const normalized =
