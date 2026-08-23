@@ -1785,62 +1785,184 @@ async function loadMentionUsers() {
    FORMAT MENTIONS
 ================================================== */
 
-function formatMentions(text, users) {
+function formatMentions(text, users = []) {
 
     if (!text) {
         return "";
     }
 
-    return text.replace(
+    return String(text).replace(
         /(^|[\s.,!?;:()[\]{}"'`<>])@([A-Za-z0-9_.-]+)/g,
-        (
-            match,
-            before,
-            username
-        ) => {
+        (match, before, username) => {
 
-            const normalizedUsername =
-                String(username).toLowerCase();
+            const normalized =
+                username.toLowerCase();
 
             const user =
-                users.find(
-                    candidate =>
-                        String(
-                            candidate.username || ""
-                        ).toLowerCase() ===
-                        normalizedUsername
+                users.find(u =>
+                    String(u.username || "")
+                        .toLowerCase() === normalized
                 );
 
             /*
-             * Unknown username:
-             * Keep it as normal text.
+             * Unknown @username:
+             * keep it as text.
              */
 
             if (!user) {
                 return match;
             }
 
-            /*
-             * Known username:
-             * Turn it into a profile link.
-             */
-
-            return `
-                ${before}<a
+            return (
+                before +
+                `<a
                     class="post-mention"
-                    href="/profile.html?id=${encodeURIComponent(
-                        user.id
-                    )}"
-                    title="View @${escapeHtml(
-                        user.username
-                    )}"
-                >@${escapeHtml(
-                    user.username
-                )}</a>
-            `;
+                    href="/profile.html?id=${encodeURIComponent(user.id)}"
+                >@${escapeHtml(user.username)}</a>`
+            );
 
         }
     );
+
+}
+
+
+/* ==================================================
+   FORMAT POST CONTENT
+================================================== */
+
+async function formatPostContent(content) {
+
+    if (content === null || content === undefined) {
+        return "";
+    }
+
+    const users =
+        await loadMentionUsers();
+
+    /*
+     * Convert to string.
+     */
+    let text =
+        String(content);
+
+    /*
+     * Normalize line endings.
+     */
+    text =
+        text.replace(/\r\n/g, "\n")
+            .replace(/\r/g, "\n");
+
+    /*
+     * Escape HTML BEFORE creating our own HTML.
+     */
+    text =
+        escapeHtml(text);
+
+    /*
+     * Split into individual lines.
+     */
+    const lines =
+        text.split("\n");
+
+    return lines.map(line => {
+
+        /*
+         * ==========================================
+         * ### SMALL
+         * ==========================================
+         */
+
+        if (
+            line.startsWith("### ")
+        ) {
+
+            const value =
+                line.substring(4);
+
+            return `
+                <div class="post-heading post-heading-small">
+                    ${formatMentions(value, users)}
+                </div>
+            `;
+
+        }
+
+
+        /*
+         * ==========================================
+         * ## MEDIUM
+         * ==========================================
+         */
+
+        if (
+            line.startsWith("## ")
+        ) {
+
+            const value =
+                line.substring(3);
+
+            return `
+                <div class="post-heading post-heading-medium">
+                    ${formatMentions(value, users)}
+                </div>
+            `;
+
+        }
+
+
+        /*
+         * ==========================================
+         * # LARGE
+         * ==========================================
+         */
+
+        if (
+            line.startsWith("# ")
+        ) {
+
+            const value =
+                line.substring(2);
+
+            return `
+                <div class="post-heading post-heading-large">
+                    ${formatMentions(value, users)}
+                </div>
+            `;
+
+        }
+
+
+        /*
+         * ==========================================
+         * EMPTY LINE
+         * ==========================================
+         */
+
+        if (
+            line.trim() === ""
+        ) {
+
+            return `
+                <div class="post-line-break"></div>
+            `;
+
+        }
+
+
+        /*
+         * ==========================================
+         * NORMAL LINE
+         * ==========================================
+         */
+
+        return `
+            <div class="post-line">
+                ${formatMentions(line, users)}
+            </div>
+        `;
+
+    }).join("");
 
 }
 

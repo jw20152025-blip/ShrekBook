@@ -13,7 +13,33 @@ a {
     color: inherit;
     text-decoration: none;
 }
+.post-heading {
+    font-weight: bold;
+    margin: 8px 0;
+    line-height: 1.25;
+}
 
+.post-heading-large {
+    font-size: 2em;
+}
+
+.post-heading-medium {
+    font-size: 1.5em;
+}
+
+.post-heading-small {
+    font-size: 1.2em;
+}
+
+.post-mention {
+    color: #2563eb;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.post-mention:hover {
+    text-decoration: underline;
+}
 button {
     border: none;
     border-radius: 10px;
