@@ -271,7 +271,68 @@ function sendModerationEvent(
 
 }
 
+/* ==================================================
+   ONLINE STATUS
+================================================== */
 
+app.post("/api/online", async (req, res) => {
+
+    try {
+
+        if (!req.session || !req.session.userId) {
+
+            return res.status(401).json({
+                error: "Not logged in."
+            });
+
+        }
+
+        const userId =
+            req.session.userId;
+
+
+        const { error } =
+            await supabase
+                .from("profiles")
+                .update({
+                    last_seen: new Date().toISOString()
+                })
+                .eq("id", userId);
+
+
+        if (error) {
+
+            console.error(
+                "ONLINE STATUS SUPABASE ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error: "Could not update online status."
+            });
+
+        }
+
+
+        res.json({
+            success: true
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "ONLINE STATUS ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Could not update online status."
+        });
+
+    }
+
+});
 // ==================================================
 // WEBSOCKET CONNECTION
 // ==================================================
