@@ -1841,173 +1841,266 @@ function formatMentions(text, users) {
 
 
 /* ==================================================
+   SHREKBOOK POST FORMATTER
+================================================== */
+
+let mentionUsers = null;
+
+
+/* ==================================================
+   LOAD USERS FOR MENTIONS
+================================================== */
+
+async function loadMentionUsers() {
+
+    if (mentionUsers !== null) {
+        return mentionUsers;
+    }
+
+    try {
+
+        const response = await fetch(
+            "/api/users",
+            {
+                credentials: "include",
+                cache: "no-store"
+            }
+        );
+
+        if (!response.ok) {
+            mentionUsers = [];
+            return mentionUsers;
+        }
+
+        const data = await response.json();
+
+        if (!Array.isArray(data)) {
+            mentionUsers = [];
+            return mentionUsers;
+        }
+
+        mentionUsers = data;
+
+        return mentionUsers;
+
+    } catch (error) {
+
+        console.error(
+            "MENTION USERS ERROR:",
+            error
+        );
+
+        mentionUsers = [];
+
+        return mentionUsers;
+
+    }
+
+}
+
+
+/* ==================================================
    FORMAT POST CONTENT
 ================================================== */
 
-/*
- * POST / COMMENT FORMAT:
- *
- * # Large
- *
- * ## Medium
- *
- * ### Small
- *
- * Normal text
- *
- * @mentions
- *
- *
- * IMPORTANT:
- *
- * We escape the original content BEFORE
- * turning mentions into links.
- *
- * This keeps the formatting safe.
- */
-
 async function formatPostContent(content) {
 
-    if (!content) {
+    if (content === null || content === undefined) {
         return "";
     }
 
-    const users =
-        await loadMentionUsers();
+    content = String(content);
+
+    const users = await loadMentionUsers();
 
     /*
-     * Escape everything first.
+     * Process the RAW text first.
+     *
+     * This is important because we want to detect
+     * #, ##, ### and @mentions before converting
+     * anything into HTML.
      */
 
-    const escaped =
-        escapeHtml(content);
-
-    /*
-     * Split into individual lines.
-     */
-
-    const lines =
-        escaped.split(/\r?\n/);
+    const lines = content.split(/\r?\n/);
 
     return lines.map(line => {
 
-        /*
-         * ==========================================
-         * LARGE TEXT
-         *
-         * # Text
-         * ==========================================
-         */
+        /* ------------------------------------------
+           EMPTY LINE
+        ------------------------------------------ */
 
-        if (
-            line.startsWith("# ") &&
-            !line.startsWith("## ")
-        ) {
+        if (line.trim() === "") {
 
             return `
-                <h2
-                    class="post-heading post-heading-1"
-                >
+                <div class="post-line-break"></div>
+            `;
+
+        }
+
+
+        /* ------------------------------------------
+           ### SMALL HEADING
+        ------------------------------------------ */
+
+        if (line.startsWith("### ")) {
+
+            const headingText =
+                line.substring(4);
+
+            return `
+                <div class="post-heading post-heading-3">
                     ${formatMentions(
-                        line.substring(2),
+                        escapeHtml(headingText),
                         users
                     )}
-                </h2>
+                </div>
             `;
 
         }
 
 
-        /*
-         * ==========================================
-         * MEDIUM TEXT
-         *
-         * ## Text
-         * ==========================================
-         */
+        /* ------------------------------------------
+           ## MEDIUM HEADING
+        ------------------------------------------ */
 
-        if (
-            line.startsWith("## ") &&
-            !line.startsWith("### ")
-        ) {
+        if (line.startsWith("## ")) {
+
+            const headingText =
+                line.substring(3);
 
             return `
-                <h3
-                    class="post-heading post-heading-2"
-                >
+                <div class="post-heading post-heading-2">
                     ${formatMentions(
-                        line.substring(3),
+                        escapeHtml(headingText),
                         users
                     )}
-                </h3>
+                </div>
             `;
 
         }
 
 
-        /*
-         * ==========================================
-         * SMALL TEXT
-         *
-         * ### Text
-         * ==========================================
-         */
+        /* ------------------------------------------
+           # LARGE HEADING
+        ------------------------------------------ */
 
-        if (
-            line.startsWith("### ")
-        ) {
+        if (line.startsWith("# ")) {
+
+            const headingText =
+                line.substring(2);
 
             return `
-                <h4
-                    class="post-heading post-heading-3"
-                >
+                <div class="post-heading post-heading-1">
                     ${formatMentions(
-                        line.substring(4),
+                        escapeHtml(headingText),
                         users
                     )}
-                </h4>
+                </div>
             `;
 
         }
 
 
-        /*
-         * ==========================================
-         * EMPTY LINE
-         * ==========================================
-         */
-
-        if (
-            line.trim() === ""
-        ) {
-
-            return `
-                <div
-                    class="post-line-break"
-                ></div>
-            `;
-
-        }
-
-
-        /*
-         * ==========================================
-         * NORMAL TEXT
-         * ==========================================
-         */
+        /* ------------------------------------------
+           NORMAL TEXT
+        ------------------------------------------ */
 
         return `
-            <div
-                class="post-line"
-            >
+            <div class="post-line">
                 ${formatMentions(
-                    line,
+                    escapeHtml(line),
                     users
                 )}
             </div>
         `;
 
     }).join("");
+
+}
+
+
+/* ==================================================
+   FORMAT MENTIONS
+================================================== */
+
+function formatMentions(text, users) {
+
+    if (!text) {
+        return "";
+    }
+
+    /*
+     * Match:
+     *
+     * @username
+     *
+     * Usernames can contain:
+     *
+     * letters
+     * numbers
+     * _
+     * .
+     * -
+     */
+
+    return text.replace(
+        /(^|[\s(])@([A-Za-z0-9_.-]+)/g,
+        (match, before, username) => {
+
+            const normalizedUsername =
+                username.toLowerCase();
+
+
+            const user =
+                users.find(
+                    candidate =>
+                        String(
+                            candidate.username || ""
+                        ).toLowerCase() ===
+                        normalizedUsername
+                );
+
+
+            /*
+             * Unknown username:
+             *
+             * Leave it as normal text.
+             */
+
+            if (!user) {
+                return match;
+            }
+
+
+            /*
+             * Make the mention clickable.
+             */
+
+            return `
+                ${before}<a
+                    class="post-mention"
+                    href="/profile.html?id=${encodeURIComponent(
+                        user.id
+                    )}"
+                    onclick="event.stopPropagation();"
+                >@${escapeHtml(
+                    user.username
+                )}</a>
+            `;
+
+        }
+    );
+
+}
+
+
+/* ==================================================
+   MENTION USER CACHE REFRESH
+================================================== */
+
+function clearMentionCache() {
+
+    mentionUsers = null;
 
 }
 
