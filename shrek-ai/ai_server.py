@@ -4,27 +4,43 @@ from pydantic import BaseModel
 from model import generate
 
 
+# ============================================================
+# SHREK AI API
+# ============================================================
+
 app = FastAPI(
-    title="ShrekAI"
+    title="ShrekAI",
+    version="1.0.0"
 )
 
 
-class GenerateRequest(BaseModel):
+# ============================================================
+# REQUEST MODEL
+# ============================================================
+
+class ChatRequest(BaseModel):
     prompt: str
 
+
+# ============================================================
+# HOME
+# ============================================================
 
 @app.get("/")
 def home():
 
     return {
         "name": "ShrekAI",
-        "status": "online",
-        "model": "Qwen/Qwen2.5-3B-Instruct"
+        "status": "online"
     }
 
 
+# ============================================================
+# CHAT
+# ============================================================
+
 @app.post("/generate")
-def make_response(request: GenerateRequest):
+def make_response(request: ChatRequest):
 
     if not request.prompt.strip():
 
@@ -45,11 +61,10 @@ def make_response(request: GenerateRequest):
     except Exception as error:
 
         print(
-            "AI GENERATION ERROR:",
+            "AI ERROR:",
             error
         )
 
         return {
-            "error":
-                "AI generation failed."
+            "error": "AI generation failed."
         }
