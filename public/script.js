@@ -93,7 +93,8 @@ async function giveReaction(type) {
             await fetch(
                 `/api/users/${userId}/${type}`,
                 {
-                    method: "POST"
+                    method: "POST",
+                    credentials: "include"
                 }
             );
 
@@ -102,7 +103,7 @@ async function giveReaction(type) {
 
         if (!response.ok) {
 
-            alert("❌ " + data.error);
+            alert("❌ " + (data.error || "Could not react."));
 
             return;
 
@@ -1636,7 +1637,7 @@ function showApp() {
         "overall"
     );
 
-    updateOnlineStatus();
+    startOnlineHeartbeat();
 
     checkAdmin();
 
@@ -1679,176 +1680,6 @@ async function logout() {
 
 let mentionUsers = null;
 
-
-/*
- * Load all users once.
- *
- * This is cached so every post/comment
- * doesn't make another /api/users request.
- */
-
-async function loadMentionUsers() {
-
-    if (mentionUsers !== null) {
-        return mentionUsers;
-    }
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/users",
-                {
-                    credentials: "include",
-                    cache: "no-store"
-                }
-            );
-
-        if (!response.ok) {
-
-            mentionUsers = [];
-
-            return mentionUsers;
-
-        }
-
-        const users =
-            await response.json();
-
-        if (!Array.isArray(users)) {
-
-            mentionUsers = [];
-
-            return mentionUsers;
-
-        }
-
-        mentionUsers = users;
-
-        return mentionUsers;
-
-    } catch (error) {
-
-        console.error(
-            "MENTION USERS ERROR:",
-            error
-        );
-
-        mentionUsers = [];
-
-        return mentionUsers;
-
-    }
-
-}
-
-
-/* ==================================================
-   FORMAT MENTIONS
-================================================== */
-
-/*
- * Converts:
- *
- * @username
- *
- * into:
- *
- * <a href="/profile.html?id=...">
- *     @username
- * </a>
- *
- * Works after:
- *
- * beginning of text
- * spaces
- * punctuation
- * parentheses
- * brackets
- * commas
- * periods
- * etc.
- *
- * Example:
- *
- * Hello @jayden
- * Hey, @jayden!
- * (@jayden)
- * @jayden is here
- */
-
-function formatMentions(text, users) {
-
-    if (!text) {
-        return "";
-    }
-
-    return text.replace(
-        /(^|[\s.,!?;:()[\]{}"'`<>])@([A-Za-z0-9_.-]+)/g,
-        (
-            match,
-            before,
-            username
-        ) => {
-
-            const normalizedUsername =
-                username.toLowerCase();
-
-            const user =
-                users.find(
-                    candidate =>
-                        String(
-                            candidate.username || ""
-                        ).toLowerCase() ===
-                        normalizedUsername
-                );
-
-            /*
-             * Unknown username:
-             *
-             * Keep it as normal text.
-             */
-
-            if (!user) {
-
-                return match;
-
-            }
-
-            /*
-             * Known username:
-             *
-             * Turn it into a profile link.
-             */
-
-            return `
-                ${before}<a
-                    class="post-mention"
-                    href="/profile.html?id=${encodeURIComponent(
-                        user.id
-                    )}"
-                >
-                    @${escapeHtml(
-                        user.username
-                    )}
-                </a>
-            `;
-
-        }
-    );
-
-}
-
-
-
-
-
-
-/* ==================================================
-   SHREKBOOK POST FORMATTER
-================================================== */
-
-
 let mentionUsersPromise = null;
 
 
@@ -1858,18 +1689,20 @@ let mentionUsersPromise = null;
 
 async function loadMentionUsers() {
 
-    /* Already loaded */
+    /*
+     * Already loaded.
+     */
+
     if (mentionUsers !== null) {
         return mentionUsers;
     }
 
     /*
-     * If several posts are being formatted at once,
-     * make them all wait for the SAME request.
+     * Another request is already running.
      *
-     * This prevents the 24-user request from being
-     * fired over and over again.
+     * Reuse it instead of making another request.
      */
+
     if (mentionUsersPromise) {
         return mentionUsersPromise;
     }
@@ -1885,7 +1718,8 @@ async function loadMentionUsers() {
                         credentials: "include",
                         cache: "no-store",
                         headers: {
-                            "Accept": "application/json"
+                            "Accept":
+                                "application/json"
                         }
                     }
                 );
@@ -1948,7 +1782,71 @@ async function loadMentionUsers() {
 
 
 /* ==================================================
-   FORMAT POST CONTENT
+   FORMAT MENTIONS
+================================================== */
+
+function formatMentions(text, users) {
+
+    if (!text) {
+        return "";
+    }
+
+    return text.replace(
+        /(^|[\s.,!?;:()[\]{}"'`<>])@([A-Za-z0-9_.-]+)/g,
+        (
+            match,
+            before,
+            username
+        ) => {
+
+            const normalizedUsername =
+                String(username).toLowerCase();
+
+            const user =
+                users.find(
+                    candidate =>
+                        String(
+                            candidate.username || ""
+                        ).toLowerCase() ===
+                        normalizedUsername
+                );
+
+            /*
+             * Unknown username:
+             * Keep it as normal text.
+             */
+
+            if (!user) {
+                return match;
+            }
+
+            /*
+             * Known username:
+             * Turn it into a profile link.
+             */
+
+            return `
+                ${before}<a
+                    class="post-mention"
+                    href="/profile.html?id=${encodeURIComponent(
+                        user.id
+                    )}"
+                    title="View @${escapeHtml(
+                        user.username
+                    )}"
+                >@${escapeHtml(
+                    user.username
+                )}</a>
+            `;
+
+        }
+    );
+
+}
+
+
+/* ==================================================
+   SHREKBOOK POST FORMATTER
 ================================================== */
 
 async function formatPostContent(content) {
@@ -1960,29 +1858,24 @@ async function formatPostContent(content) {
     const users =
         await loadMentionUsers();
 
-
     /*
-     * IMPORTANT:
-     *
-     * Escape the user's text BEFORE turning
-     * mentions/headings into HTML.
+     * Escape user text BEFORE creating HTML.
      *
      * This prevents HTML injection.
      */
+
     const escaped =
         escapeHtml(String(content));
-
 
     /*
      * Normalize Windows line endings.
      */
+
     const normalized =
         escaped.replace(/\r\n/g, "\n");
 
-
     const lines =
         normalized.split("\n");
-
 
     return lines.map(line => {
 
@@ -1990,8 +1883,6 @@ async function formatPostContent(content) {
          * ==============================================
          * ### SMALL HEADING
          * ==============================================
-         *
-         * Must be checked BEFORE ## and #.
          */
 
         if (
@@ -2003,13 +1894,12 @@ async function formatPostContent(content) {
 
             return `
                 <div
-                    class="post-heading post-heading-small">
-
+                    class="post-heading post-heading-small"
+                >
                     ${formatMentions(
                         headingText,
                         users
                     )}
-
                 </div>
             `;
 
@@ -2031,13 +1921,12 @@ async function formatPostContent(content) {
 
             return `
                 <div
-                    class="post-heading post-heading-medium">
-
+                    class="post-heading post-heading-medium"
+                >
                     ${formatMentions(
                         headingText,
                         users
                     )}
-
                 </div>
             `;
 
@@ -2059,13 +1948,12 @@ async function formatPostContent(content) {
 
             return `
                 <div
-                    class="post-heading post-heading-large">
-
+                    class="post-heading post-heading-large"
+                >
                     ${formatMentions(
                         headingText,
                         users
                     )}
-
                 </div>
             `;
 
@@ -2084,8 +1972,8 @@ async function formatPostContent(content) {
 
             return `
                 <div
-                    class="post-line-break">
-                </div>
+                    class="post-line-break"
+                ></div>
             `;
 
         }
@@ -2099,13 +1987,12 @@ async function formatPostContent(content) {
 
         return `
             <div
-                class="post-line">
-
+                class="post-line"
+            >
                 ${formatMentions(
                     line,
                     users
                 )}
-
             </div>
         `;
 
@@ -2114,86 +2001,6 @@ async function formatPostContent(content) {
 }
 
 
-/* ==================================================
-   FORMAT MENTIONS
-================================================== */
-
-function formatMentions(text, users) {
-
-    if (!text) {
-        return "";
-    }
-
-    /*
-     * Matches:
-     *
-     * @username
-     * @OliveTree
-     * @test_bot
-     * @user-name
-     * @user.name
-     *
-     * It also works at the beginning of a line.
-     */
-
-    return text.replace(
-        /(^|[\s])@([A-Za-z0-9_.-]+)/g,
-        (match, before, username) => {
-
-            const normalizedUsername =
-                String(username).toLowerCase();
-
-
-            const user =
-                users.find(
-                    candidate =>
-                        String(
-                            candidate.username || ""
-                        ).toLowerCase() ===
-                        normalizedUsername
-                );
-
-
-            /*
-             * User doesn't exist.
-             *
-             * Leave it as normal text.
-             */
-
-            if (!user) {
-
-                return match;
-
-            }
-
-
-            /*
-             * User exists.
-             *
-             * Turn @username into a clickable
-             * profile link.
-             */
-
-            return `
-                ${before}<a
-                    class="post-mention"
-                    href="/profile.html?id=${encodeURIComponent(
-                        user.id
-                    )}"
-                    title="View @${escapeHtml(
-                        user.username
-                    )}"
-                >
-                    @${escapeHtml(
-                        user.username
-                    )}
-                </a>
-            `;
-
-        }
-    );
-
-}
 /* ==================================================
    LOAD POSTS
 ================================================== */
@@ -2213,7 +2020,10 @@ async function loadPosts() {
 
         const response =
             await fetch(
-                "/api/posts"
+                "/api/posts",
+                {
+                    credentials: "include"
+                }
             );
 
         const posts =
@@ -2790,7 +2600,10 @@ async function loadComments(postId) {
 
         const response =
             await fetch(
-                `/api/posts/${postId}/comments`
+                `/api/posts/${postId}/comments`,
+                {
+                    credentials: "include"
+                }
             );
 
         const comments =
@@ -3137,7 +2950,10 @@ async function loadPeople() {
 
         const response =
             await fetch(
-                "/api/users"
+                "/api/users",
+                {
+                    credentials: "include"
+                }
             );
 
         const users =
@@ -3361,18 +3177,24 @@ async function updateOnlineStatus() {
                 }
             );
 
+        /*
+         * 401 means the session has expired.
+         *
+         * Don't spam the console.
+         */
+
+        if (response.status === 401) {
+
+            return;
+
+        }
+
         if (!response.ok) {
 
-            if (
-                response.status !== 404
-            ) {
-
-                console.warn(
-                    "Online status request failed:",
-                    response.status
-                );
-
-            }
+            console.warn(
+                "Online status request failed:",
+                response.status
+            );
 
             return;
 
@@ -3390,6 +3212,38 @@ async function updateOnlineStatus() {
 
 
 /* ==================================================
+   ONLINE HEARTBEAT
+================================================== */
+
+let onlineHeartbeatStarted = false;
+
+function startOnlineHeartbeat() {
+
+    if (onlineHeartbeatStarted) {
+        return;
+    }
+
+    onlineHeartbeatStarted = true;
+
+    /*
+     * Send immediately after login.
+     */
+
+    updateOnlineStatus();
+
+    /*
+     * Then every 30 seconds.
+     */
+
+    setInterval(
+        updateOnlineStatus,
+        30000
+    );
+
+}
+
+
+/* ==================================================
    START
 ================================================== */
 
@@ -3400,19 +3254,4 @@ document.addEventListener(
         checkLogin();
 
     }
-);
-
-
-/* ==================================================
-   ONLINE HEARTBEAT
-================================================== */
-
-setTimeout(
-    updateOnlineStatus,
-    1000
-);
-
-setInterval(
-    updateOnlineStatus,
-    30000
 );
