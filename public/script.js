@@ -1840,9 +1840,6 @@ function formatMentions(text, users) {
 }
 
 
-/* ==================================================
-   SHREKBOOK POST FORMATTER
-================================================== */
 
 
 
@@ -1852,6 +1849,7 @@ function formatMentions(text, users) {
 ================================================== */
 
 
+let mentionUsersPromise = null;
 
 
 /* ==================================================
@@ -1860,64 +1858,91 @@ function formatMentions(text, users) {
 
 async function loadMentionUsers() {
 
+    /* Already loaded */
     if (mentionUsers !== null) {
         return mentionUsers;
     }
 
-    try {
+    /*
+     * If several posts are being formatted at once,
+     * make them all wait for the SAME request.
+     *
+     * This prevents the 24-user request from being
+     * fired over and over again.
+     */
+    if (mentionUsersPromise) {
+        return mentionUsersPromise;
+    }
 
-        const response = await fetch(
-            "/api/users",
-            {
-                credentials: "include",
-                cache: "no-store"
+    mentionUsersPromise = (async () => {
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/users",
+                    {
+                        credentials: "include",
+                        cache: "no-store",
+                        headers: {
+                            "Accept": "application/json"
+                        }
+                    }
+                );
+
+            if (!response.ok) {
+
+                console.error(
+                    "MENTION USERS REQUEST FAILED:",
+                    response.status
+                );
+
+                mentionUsers = [];
+
+                return mentionUsers;
+
             }
-        );
 
-        if (!response.ok) {
+            const users =
+                await response.json();
+
+            if (!Array.isArray(users)) {
+
+                mentionUsers = [];
+
+                return mentionUsers;
+
+            }
+
+            console.log(
+                "MENTION USERS:",
+                users
+            );
+
+            mentionUsers = users;
+
+            return mentionUsers;
+
+        } catch (error) {
 
             console.error(
-                "Could not load mention users:",
-                response.status
+                "MENTION USERS ERROR:",
+                error
             );
 
             mentionUsers = [];
 
             return mentionUsers;
 
-        }
+        } finally {
 
-        const users = await response.json();
-
-        if (!Array.isArray(users)) {
-
-            mentionUsers = [];
-
-            return mentionUsers;
+            mentionUsersPromise = null;
 
         }
 
-        mentionUsers = users;
+    })();
 
-        console.log(
-            "MENTION USERS:",
-            mentionUsers
-        );
-
-        return mentionUsers;
-
-    } catch (error) {
-
-        console.error(
-            "MENTION USERS ERROR:",
-            error
-        );
-
-        mentionUsers = [];
-
-        return mentionUsers;
-
-    }
+    return mentionUsersPromise;
 
 }
 
@@ -1928,110 +1953,159 @@ async function loadMentionUsers() {
 
 async function formatPostContent(content) {
 
-    if (
-        content === null ||
-        content === undefined
-    ) {
-
+    if (!content) {
         return "";
-
     }
 
     const users =
         await loadMentionUsers();
 
+
+    /*
+     * IMPORTANT:
+     *
+     * Escape the user's text BEFORE turning
+     * mentions/headings into HTML.
+     *
+     * This prevents HTML injection.
+     */
+    const escaped =
+        escapeHtml(String(content));
+
+
+    /*
+     * Normalize Windows line endings.
+     */
+    const normalized =
+        escaped.replace(/\r\n/g, "\n");
+
+
     const lines =
-        String(content).split(/\r?\n/);
+        normalized.split("\n");
 
 
     return lines.map(line => {
 
-        /* ==========================================
-           EMPTY LINE
-        ========================================== */
+        /*
+         * ==============================================
+         * ### SMALL HEADING
+         * ==============================================
+         *
+         * Must be checked BEFORE ## and #.
+         */
 
-        if (line.trim() === "") {
+        if (
+            line.startsWith("### ")
+        ) {
 
-            return `
-                <div class="post-line-break"></div>
-            `;
-
-        }
-
-
-        /* ==========================================
-           ### SMALL
-        ========================================== */
-
-        if (line.startsWith("### ")) {
-
-            const text =
+            const headingText =
                 line.substring(4);
 
             return `
-                <div class="post-heading post-heading-3">
+                <div
+                    class="post-heading post-heading-small">
+
                     ${formatMentions(
-                        escapeHtml(text),
+                        headingText,
                         users
                     )}
+
                 </div>
             `;
 
         }
 
 
-        /* ==========================================
-           ## MEDIUM
-        ========================================== */
+        /*
+         * ==============================================
+         * ## MEDIUM HEADING
+         * ==============================================
+         */
 
-        if (line.startsWith("## ")) {
+        if (
+            line.startsWith("## ")
+        ) {
 
-            const text =
+            const headingText =
                 line.substring(3);
 
             return `
-                <div class="post-heading post-heading-2">
+                <div
+                    class="post-heading post-heading-medium">
+
                     ${formatMentions(
-                        escapeHtml(text),
+                        headingText,
                         users
                     )}
+
                 </div>
             `;
 
         }
 
 
-        /* ==========================================
-           # LARGE
-        ========================================== */
+        /*
+         * ==============================================
+         * # LARGE HEADING
+         * ==============================================
+         */
 
-        if (line.startsWith("# ")) {
+        if (
+            line.startsWith("# ")
+        ) {
 
-            const text =
+            const headingText =
                 line.substring(2);
 
             return `
-                <div class="post-heading post-heading-1">
+                <div
+                    class="post-heading post-heading-large">
+
                     ${formatMentions(
-                        escapeHtml(text),
+                        headingText,
                         users
                     )}
+
                 </div>
             `;
 
         }
 
 
-        /* ==========================================
-           NORMAL TEXT
-        ========================================== */
+        /*
+         * ==============================================
+         * EMPTY LINE
+         * ==============================================
+         */
+
+        if (
+            line.trim() === ""
+        ) {
+
+            return `
+                <div
+                    class="post-line-break">
+                </div>
+            `;
+
+        }
+
+
+        /*
+         * ==============================================
+         * NORMAL TEXT
+         * ==============================================
+         */
 
         return `
-            <div class="post-line">
+            <div
+                class="post-line">
+
                 ${formatMentions(
-                    escapeHtml(line),
+                    line,
                     users
                 )}
+
             </div>
         `;
 
@@ -2041,7 +2115,7 @@ async function formatPostContent(content) {
 
 
 /* ==================================================
-   FORMAT @MENTIONS
+   FORMAT MENTIONS
 ================================================== */
 
 function formatMentions(text, users) {
@@ -2050,16 +2124,24 @@ function formatMentions(text, users) {
         return "";
     }
 
-    return text.replace(
-        /(^|[\s(])@([A-Za-z0-9_.-]+)/g,
-        function(
-            match,
-            before,
-            username
-        ) {
+    /*
+     * Matches:
+     *
+     * @username
+     * @OliveTree
+     * @test_bot
+     * @user-name
+     * @user.name
+     *
+     * It also works at the beginning of a line.
+     */
 
-            const normalized =
-                username.toLowerCase();
+    return text.replace(
+        /(^|[\s])@([A-Za-z0-9_.-]+)/g,
+        (match, before, username) => {
+
+            const normalizedUsername =
+                String(username).toLowerCase();
 
 
             const user =
@@ -2068,12 +2150,14 @@ function formatMentions(text, users) {
                         String(
                             candidate.username || ""
                         ).toLowerCase() ===
-                        normalized
+                        normalizedUsername
                 );
 
 
             /*
              * User doesn't exist.
+             *
+             * Leave it as normal text.
              */
 
             if (!user) {
@@ -2085,6 +2169,9 @@ function formatMentions(text, users) {
 
             /*
              * User exists.
+             *
+             * Turn @username into a clickable
+             * profile link.
              */
 
             return `
@@ -2093,17 +2180,20 @@ function formatMentions(text, users) {
                     href="/profile.html?id=${encodeURIComponent(
                         user.id
                     )}"
-                    onclick="event.stopPropagation();"
-                >@${escapeHtml(
-                    user.username
-                )}</a>
+                    title="View @${escapeHtml(
+                        user.username
+                    )}"
+                >
+                    @${escapeHtml(
+                        user.username
+                    )}
+                </a>
             `;
 
         }
     );
 
 }
-
 /* ==================================================
    LOAD POSTS
 ================================================== */
