@@ -1848,6 +1848,13 @@ function formatMentions(text, users) {
 
 
 /* ==================================================
+   SHREKBOOK POST FORMATTER
+================================================== */
+
+let mentionUsers = null;
+
+
+/* ==================================================
    LOAD USERS FOR MENTIONS
 ================================================== */
 
@@ -1868,18 +1875,34 @@ async function loadMentionUsers() {
         );
 
         if (!response.ok) {
+
+            console.error(
+                "Could not load mention users:",
+                response.status
+            );
+
             mentionUsers = [];
+
             return mentionUsers;
+
         }
 
-        const data = await response.json();
+        const users = await response.json();
 
-        if (!Array.isArray(data)) {
+        if (!Array.isArray(users)) {
+
             mentionUsers = [];
+
             return mentionUsers;
+
         }
 
-        mentionUsers = data;
+        mentionUsers = users;
+
+        console.log(
+            "MENTION USERS:",
+            mentionUsers
+        );
 
         return mentionUsers;
 
@@ -1905,29 +1928,27 @@ async function loadMentionUsers() {
 
 async function formatPostContent(content) {
 
-    if (content === null || content === undefined) {
+    if (
+        content === null ||
+        content === undefined
+    ) {
+
         return "";
+
     }
 
-    content = String(content);
+    const users =
+        await loadMentionUsers();
 
-    const users = await loadMentionUsers();
+    const lines =
+        String(content).split(/\r?\n/);
 
-    /*
-     * Process the RAW text first.
-     *
-     * This is important because we want to detect
-     * #, ##, ### and @mentions before converting
-     * anything into HTML.
-     */
-
-    const lines = content.split(/\r?\n/);
 
     return lines.map(line => {
 
-        /* ------------------------------------------
+        /* ==========================================
            EMPTY LINE
-        ------------------------------------------ */
+        ========================================== */
 
         if (line.trim() === "") {
 
@@ -1938,19 +1959,19 @@ async function formatPostContent(content) {
         }
 
 
-        /* ------------------------------------------
-           ### SMALL HEADING
-        ------------------------------------------ */
+        /* ==========================================
+           ### SMALL
+        ========================================== */
 
         if (line.startsWith("### ")) {
 
-            const headingText =
+            const text =
                 line.substring(4);
 
             return `
                 <div class="post-heading post-heading-3">
                     ${formatMentions(
-                        escapeHtml(headingText),
+                        escapeHtml(text),
                         users
                     )}
                 </div>
@@ -1959,19 +1980,19 @@ async function formatPostContent(content) {
         }
 
 
-        /* ------------------------------------------
-           ## MEDIUM HEADING
-        ------------------------------------------ */
+        /* ==========================================
+           ## MEDIUM
+        ========================================== */
 
         if (line.startsWith("## ")) {
 
-            const headingText =
+            const text =
                 line.substring(3);
 
             return `
                 <div class="post-heading post-heading-2">
                     ${formatMentions(
-                        escapeHtml(headingText),
+                        escapeHtml(text),
                         users
                     )}
                 </div>
@@ -1980,19 +2001,19 @@ async function formatPostContent(content) {
         }
 
 
-        /* ------------------------------------------
-           # LARGE HEADING
-        ------------------------------------------ */
+        /* ==========================================
+           # LARGE
+        ========================================== */
 
         if (line.startsWith("# ")) {
 
-            const headingText =
+            const text =
                 line.substring(2);
 
             return `
                 <div class="post-heading post-heading-1">
                     ${formatMentions(
-                        escapeHtml(headingText),
+                        escapeHtml(text),
                         users
                     )}
                 </div>
@@ -2001,9 +2022,9 @@ async function formatPostContent(content) {
         }
 
 
-        /* ------------------------------------------
+        /* ==========================================
            NORMAL TEXT
-        ------------------------------------------ */
+        ========================================== */
 
         return `
             <div class="post-line">
@@ -2020,7 +2041,7 @@ async function formatPostContent(content) {
 
 
 /* ==================================================
-   FORMAT MENTIONS
+   FORMAT @MENTIONS
 ================================================== */
 
 function formatMentions(text, users) {
@@ -2029,25 +2050,15 @@ function formatMentions(text, users) {
         return "";
     }
 
-    /*
-     * Match:
-     *
-     * @username
-     *
-     * Usernames can contain:
-     *
-     * letters
-     * numbers
-     * _
-     * .
-     * -
-     */
-
     return text.replace(
         /(^|[\s(])@([A-Za-z0-9_.-]+)/g,
-        (match, before, username) => {
+        function(
+            match,
+            before,
+            username
+        ) {
 
-            const normalizedUsername =
+            const normalized =
                 username.toLowerCase();
 
 
@@ -2057,23 +2068,23 @@ function formatMentions(text, users) {
                         String(
                             candidate.username || ""
                         ).toLowerCase() ===
-                        normalizedUsername
+                        normalized
                 );
 
 
             /*
-             * Unknown username:
-             *
-             * Leave it as normal text.
+             * User doesn't exist.
              */
 
             if (!user) {
+
                 return match;
+
             }
 
 
             /*
-             * Make the mention clickable.
+             * User exists.
              */
 
             return `
@@ -2092,18 +2103,6 @@ function formatMentions(text, users) {
     );
 
 }
-
-
-/* ==================================================
-   MENTION USER CACHE REFRESH
-================================================== */
-
-function clearMentionCache() {
-
-    mentionUsers = null;
-
-}
-
 
 /* ==================================================
    LOAD POSTS
