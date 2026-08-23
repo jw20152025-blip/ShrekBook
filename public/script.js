@@ -1851,7 +1851,7 @@ function formatMentions(text, users) {
    SHREKBOOK POST FORMATTER
 ================================================== */
 
-let mentionUsers = null;
+
 
 
 /* ==================================================
