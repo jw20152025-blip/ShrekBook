@@ -337,7 +337,7 @@ app.post("/api/online", async (req, res) => {
 // WEBSOCKET CONNECTION
 // ==================================================
 
-was.on(
+wss.on(
     "connection",
     async (
         socket,
