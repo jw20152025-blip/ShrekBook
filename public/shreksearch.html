@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>ShrekSearch</title>
+
+    <style>
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f2f2f2;
+            color: #222;
+        }
+
+        .header {
+            background: #222;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 32px;
+        }
+
+        .header p {
+            margin: 6px 0 0;
+            opacity: 0.75;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .search-box {
+            background: white;
+            padding: 20px;
+            border-radius: 14px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+        }
+
+        .search-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        #search-input {
+            flex: 1;
+            padding: 13px;
+            font-size: 17px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        #search-button {
+            padding: 13px 22px;
+            border: none;
+            border-radius: 8px;
+            background: #333;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        #search-button:hover {
+            opacity: 0.85;
+        }
+
+        .result {
+            margin-top: 25px;
+        }
+
+        .result-card {
+            background: white;
+            padding: 25px;
+            border-radius: 14px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+        }
+
+        .result-card h2 {
+            margin-top: 0;
+        }
+
+        .section-title {
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .wiki-text,
+        .ai-text {
+            line-height: 1.7;
+            white-space: pre-wrap;
+        }
+
+        .ai-box {
+            background: #f7f7f7;
+            border-left: 4px solid #333;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .wiki-link {
+            display: inline-block;
+            margin-top: 15px;
+            text-decoration: none;
+            font-weight: bold;
+            color: #3366cc;
+        }
+
+        .error {
+            background: #ffe5e5;
+            color: #a00000;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 25px;
+            font-size: 18px;
+        }
+
+        .back-button {
+            display: inline-block;
+            margin-top: 15px;
+            color: white;
+            text-decoration: none;
+        }
+
+        @media (max-width: 600px) {
+
+            .search-row {
+                flex-direction: column;
+            }
+
+            #search-button {
+                width: 100%;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="header">
+
+        <h1>🧌 ShrekSearch</h1>
+
+        <p>Search Wikipedia, but ShrekBook-style.</p>
+
+        <a
+            href="/"
+            class="back-button"
+        >
+            ← Back to ShrekBook
+        </a>
+
+    </div>
+
+
+    <main class="container">
+
+        <div class="search-box">
+
+            <div class="search-row">
+
+                <input
+                    id="search-input"
+                    type="text"
+                    placeholder="Search for anything..."
+                    autocomplete="off"
+                >
+
+                <button
+                    id="search-button"
+                    type="button"
+                >
+                    🔎 Search
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <div
+            id="result"
+            class="result"
+        ></div>
+
+    </main>
+
+
+    <script>
+
+        const searchInput =
+            document.getElementById(
+                "search-input"
+            );
+
+        const searchButton =
+            document.getElementById(
+                "search-button"
+            );
+
+        const result =
+            document.getElementById(
+                "result"
+            );
+
+
+        async function searchShrekSearch() {
+
+            const query =
+                searchInput.value.trim();
+
+            if (!query) {
+
+                result.innerHTML = `
+                    <div class="error">
+                        ❌ Enter something to search for.
+                    </div>
+                `;
+
+                return;
+
+            }
+
+
+            result.innerHTML = `
+                <div class="loading">
+                    🧌 ShrekSearch is searching...
+                </div>
+            `;
+
+            searchButton.disabled = true;
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        "/api/shreksearch?q=" +
+                        encodeURIComponent(query),
+                        {
+                            method: "GET",
+                            credentials: "include",
+                            headers: {
+                                "Accept":
+                                    "application/json"
+                            }
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        data.error ||
+                        "Search failed."
+                    );
+
+                }
+
+
+                result.innerHTML = `
+
+                    <div class="result-card">
+
+                        <h2>
+                            📖 ${escapeHtml(
+                                data.title
+                            )}
+                        </h2>
+
+                        <h3 class="section-title">
+                            Wikipedia
+                        </h3>
+
+                        <div class="wiki-text">
+                            ${escapeHtml(
+                                data.wikipedia
+                            )}
+                        </div>
+
+                        <a
+                            class="wiki-link"
+                            href="${escapeHtml(
+                                data.wikipediaUrl
+                            )}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Read the full Wikipedia article →
+                        </a>
+
+
+                        <h3 class="section-title">
+                            🤖 AI Summary
+                        </h3>
+
+                        <div class="ai-box">
+
+                            <div class="ai-text">
+                                ${escapeHtml(
+                                    data.aiSummary
+                                )}
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                `;
+
+
+            } catch (error) {
+
+                console.error(
+                    "SHREKSEARCH ERROR:",
+                    error
+                );
+
+                result.innerHTML = `
+
+                    <div class="error">
+
+                        ❌ ${escapeHtml(
+                            error.message
+                        )}
+
+                    </div>
+
+                `;
+
+            } finally {
+
+                searchButton.disabled = false;
+
+            }
+
+        }
+
+
+        function escapeHtml(text) {
+
+            const div =
+                document.createElement(
+                    "div"
+                );
+
+            div.textContent =
+                text ?? "";
+
+            return div.innerHTML;
+
+        }
+
+
+        searchButton.addEventListener(
+            "click",
+            searchShrekSearch
+        );
+
+
+        searchInput.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Enter"
+                ) {
+
+                    searchShrekSearch();
+
+                }
+
+            }
+        );
+
+    </script>
+
+</body>
+
+</html>

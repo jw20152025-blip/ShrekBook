@@ -8,13 +8,218 @@ const session = require("express-session");
 const WebSocket = require("ws");
 const { createClient } = require("@supabase/supabase-js");
 
-
+const OpenAI = require("openai");
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+});
 const app = express();
 
 const PORT =
     process.env.PORT || 3000;
 
+/* ==================================================
+   SHREKSEARCH
+================================================== */
 
+app.get("/api/shreksearch", async (req, res) => {
+
+    try {
+
+        const query =
+            String(req.query.q || "").trim();
+
+
+        if (!query) {
+
+            return res.status(400).json({
+                error: "Search query is required."
+            });
+
+        }
+
+
+        if (query.length > 200) {
+
+            return res.status(400).json({
+                error: "Search query is too long."
+            });
+
+        }
+
+
+        /*
+         * ==============================================
+         * SEARCH WIKIPEDIA
+         * ==============================================
+         */
+
+        const searchUrl =
+            "https://en.wikipedia.org/w/rest.php/v1/search/page?q=" +
+            encodeURIComponent(query) +
+            "&limit=1";
+
+
+        const searchResponse =
+            await fetch(searchUrl);
+
+
+        if (!searchResponse.ok) {
+
+            throw new Error(
+                "Wikipedia search failed."
+            );
+
+        }
+
+
+        const searchData =
+            await searchResponse.json();
+
+
+        if (
+            !searchData.pages ||
+            !searchData.pages.length
+        ) {
+
+            return res.status(404).json({
+                error:
+                    "No Wikipedia article was found."
+            });
+
+        }
+
+
+        const page =
+            searchData.pages[0];
+
+
+        const title =
+            page.title;
+
+
+        /*
+         * ==============================================
+         * GET WIKIPEDIA FIRST PARAGRAPH
+         * ==============================================
+         */
+
+        const summaryUrl =
+            "https://en.wikipedia.org/api/rest_v1/page/summary/" +
+            encodeURIComponent(
+                title.replace(/ /g, "_")
+            );
+
+
+        const summaryResponse =
+            await fetch(summaryUrl);
+
+
+        if (!summaryResponse.ok) {
+
+            throw new Error(
+                "Could not retrieve Wikipedia article."
+            );
+
+        }
+
+
+        const summaryData =
+            await summaryResponse.json();
+
+
+        const wikipediaText =
+            summaryData.extract ||
+            page.excerpt ||
+            "No Wikipedia summary available.";
+
+
+        const wikipediaUrl =
+            summaryData.content_urls?.desktop?.page ||
+            `https://en.wikipedia.org/wiki/${encodeURIComponent(
+                title.replace(/ /g, "_")
+            )}`;
+
+
+        /*
+         * ==============================================
+         * AI SUMMARY
+         * ==============================================
+         */
+
+        let aiSummary =
+            "AI summary unavailable.";
+
+
+        if (process.env.OPENAI_API_KEY) {
+
+            const aiResponse =
+                await openai.responses.create({
+
+                    model: "gpt-5.6",
+
+                    input: `
+You are ShrekSearch's summarizer.
+
+Summarize the following Wikipedia introduction
+in simple, accurate language.
+
+Do not invent information.
+
+Keep it to 2-4 sentences.
+
+Wikipedia introduction:
+
+${wikipediaText}
+                    `.trim()
+
+                });
+
+
+            aiSummary =
+                aiResponse.output_text ||
+                "AI summary unavailable.";
+
+        }
+
+
+        /*
+         * ==============================================
+         * SEND RESULT
+         * ==============================================
+         */
+
+        res.json({
+
+            title: title,
+
+            wikipedia: wikipediaText,
+
+            wikipediaUrl: wikipediaUrl,
+
+            aiSummary: aiSummary
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "SHREKSEARCH ERROR:",
+            error
+        );
+
+
+        res.status(500).json({
+
+            error:
+                error.message ||
+                "ShrekSearch failed."
+
+        });
+
+    }
+
+});
 // ==================================================
 // ENVIRONMENT VARIABLES
 // ==================================================
