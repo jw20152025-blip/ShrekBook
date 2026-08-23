@@ -49,9 +49,7 @@ app.get("/api/shreksearch", async (req, res) => {
             "&srsearch=" +
             encodeURIComponent(query) +
             "&srlimit=1" +
-            "&format=json" +
-            "&origin=*";
-
+            "&format=json";
 
         const searchResponse =
             await fetch(
@@ -63,7 +61,6 @@ app.get("/api/shreksearch", async (req, res) => {
                     }
                 }
             );
-
 
         if (!searchResponse.ok) {
 
@@ -82,26 +79,20 @@ app.get("/api/shreksearch", async (req, res) => {
 
         }
 
-
         const searchData =
             await searchResponse.json();
-
 
         const results =
             searchData?.query?.search || [];
 
-
         if (!results.length) {
 
             return res.status(404).json({
-
                 error:
                     "No Wikipedia article was found."
-
             });
 
         }
-
 
         const title =
             results[0].title;
@@ -117,7 +108,6 @@ app.get("/api/shreksearch", async (req, res) => {
                 title.replace(/ /g, "_")
             );
 
-
         const summaryResponse =
             await fetch(
                 summaryUrl,
@@ -128,7 +118,6 @@ app.get("/api/shreksearch", async (req, res) => {
                     }
                 }
             );
-
 
         if (!summaryResponse.ok) {
 
@@ -147,15 +136,12 @@ app.get("/api/shreksearch", async (req, res) => {
 
         }
 
-
         const summaryData =
             await summaryResponse.json();
-
 
         const wikipediaText =
             summaryData.extract ||
             "No Wikipedia summary available.";
-
 
         const wikipediaUrl =
             summaryData.content_urls?.desktop?.page ||
@@ -171,11 +157,13 @@ app.get("/api/shreksearch", async (req, res) => {
         let aiSummary =
             "AI summary unavailable.";
 
+        const hfToken =
+            process.env.HF_TOKEN;
 
-        if (!process.env.HF_TOKEN) {
+        if (!hfToken) {
 
             console.error(
-                "HF_TOKEN is missing from Render environment variables."
+                "❌ HF_TOKEN is missing."
             );
 
         } else {
@@ -192,7 +180,7 @@ app.get("/api/shreksearch", async (req, res) => {
                             headers: {
 
                                 "Authorization":
-                                    `Bearer ${process.env.HF_TOKEN}`,
+                                    `Bearer ${hfToken}`,
 
                                 "Content-Type":
                                     "application/json"
@@ -201,32 +189,23 @@ app.get("/api/shreksearch", async (req, res) => {
 
                             body: JSON.stringify({
 
-                                /*
-                                 * Qwen is a good small
-                                 * instruction-following model.
-                                 */
-
                                 model:
                                     "Qwen/Qwen2.5-7B-Instruct",
 
                                 messages: [
 
                                     {
-
                                         role: "system",
 
                                         content:
-                                            "You are ShrekSearch's AI summarizer. Summarize the provided Wikipedia introduction accurately. Never invent facts. Use simple language. Give a concise 2-4 sentence summary."
-
+                                            "You are ShrekSearch's AI summarizer. Summarize Wikipedia introductions accurately. Never invent facts. Use simple language. Give 2 to 4 concise sentences."
                                     },
 
                                     {
-
                                         role: "user",
 
                                         content:
                                             `Summarize this Wikipedia introduction:\n\n${wikipediaText}`
-
                                     }
 
                                 ],
@@ -241,8 +220,8 @@ app.get("/api/shreksearch", async (req, res) => {
                     );
 
 
-                const hfData =
-                    await hfResponse.json();
+                const rawHF =
+                    await hfResponse.text();
 
 
                 console.log(
@@ -254,11 +233,30 @@ app.get("/api/shreksearch", async (req, res) => {
                 if (!hfResponse.ok) {
 
                     console.error(
-                        "HUGGING FACE ERROR:",
-                        hfData
+                        "❌ HUGGING FACE ERROR:",
+                        rawHF
                     );
 
                 } else {
+
+                    let hfData;
+
+                    try {
+
+                        hfData =
+                            JSON.parse(rawHF);
+
+                    } catch {
+
+                        console.error(
+                            "❌ Hugging Face returned invalid JSON:",
+                            rawHF
+                        );
+
+                        hfData = null;
+
+                    }
+
 
                     aiSummary =
                         hfData
@@ -272,7 +270,7 @@ app.get("/api/shreksearch", async (req, res) => {
             } catch (aiError) {
 
                 console.error(
-                    "HUGGING FACE REQUEST ERROR:",
+                    "❌ HUGGING FACE REQUEST ERROR:",
                     aiError
                 );
 
@@ -285,22 +283,18 @@ app.get("/api/shreksearch", async (req, res) => {
            RETURN RESULT
         ================================================== */
 
-        res.json({
+        return res.json({
 
             title:
-
                 title,
 
             wikipedia:
-
                 wikipediaText,
 
             wikipediaUrl:
-
                 wikipediaUrl,
 
             aiSummary:
-
                 aiSummary
 
         });
@@ -309,12 +303,11 @@ app.get("/api/shreksearch", async (req, res) => {
     } catch (error) {
 
         console.error(
-            "SHREKSEARCH ERROR:",
+            "❌ SHREKSEARCH ERROR:",
             error
         );
 
-
-        res.status(500).json({
+        return res.status(500).json({
 
             error:
                 error.message ||
