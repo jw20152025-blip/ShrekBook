@@ -25,42 +25,56 @@ app.get("/api/shreksearch", async (req, res) => {
         const query =
             String(req.query.q || "").trim();
 
-
         if (!query) {
-
             return res.status(400).json({
                 error: "Search query is required."
             });
-
         }
 
-
         if (query.length > 200) {
-
             return res.status(400).json({
                 error: "Search query is too long."
             });
-
         }
 
 
-        /*
-         * ==============================================
-         * SEARCH WIKIPEDIA
-         * ==============================================
-         */
+        /* ==================================================
+           SEARCH WIKIPEDIA
+        ================================================== */
 
         const searchUrl =
-            "https://en.wikipedia.org/w/rest.php/v1/search/page?q=" +
+            "https://en.wikipedia.org/w/api.php" +
+            "?action=query" +
+            "&list=search" +
+            "&srsearch=" +
             encodeURIComponent(query) +
-            "&limit=1";
+            "&srlimit=1" +
+            "&format=json" +
+            "&origin=*";
 
 
         const searchResponse =
-            await fetch(searchUrl);
+            await fetch(
+                searchUrl,
+                {
+                    headers: {
+                        "User-Agent":
+                            "ShrekSearch/1.0 (ShrekBook)"
+                    }
+                }
+            );
 
 
         if (!searchResponse.ok) {
+
+            const errorText =
+                await searchResponse.text();
+
+            console.error(
+                "WIKIPEDIA SEARCH STATUS:",
+                searchResponse.status,
+                errorText
+            );
 
             throw new Error(
                 "Wikipedia search failed."
@@ -73,32 +87,29 @@ app.get("/api/shreksearch", async (req, res) => {
             await searchResponse.json();
 
 
-        if (
-            !searchData.pages ||
-            !searchData.pages.length
-        ) {
+        const results =
+            searchData?.query?.search || [];
+
+
+        if (!results.length) {
 
             return res.status(404).json({
+
                 error:
                     "No Wikipedia article was found."
+
             });
 
         }
 
 
-        const page =
-            searchData.pages[0];
-
-
         const title =
-            page.title;
+            results[0].title;
 
 
-        /*
-         * ==============================================
-         * GET WIKIPEDIA FIRST PARAGRAPH
-         * ==============================================
-         */
+        /* ==================================================
+           GET WIKIPEDIA ARTICLE
+        ================================================== */
 
         const summaryUrl =
             "https://en.wikipedia.org/api/rest_v1/page/summary/" +
@@ -108,10 +119,27 @@ app.get("/api/shreksearch", async (req, res) => {
 
 
         const summaryResponse =
-            await fetch(summaryUrl);
+            await fetch(
+                summaryUrl,
+                {
+                    headers: {
+                        "User-Agent":
+                            "ShrekSearch/1.0 (ShrekBook)"
+                    }
+                }
+            );
 
 
         if (!summaryResponse.ok) {
+
+            const errorText =
+                await summaryResponse.text();
+
+            console.error(
+                "WIKIPEDIA ARTICLE STATUS:",
+                summaryResponse.status,
+                errorText
+            );
 
             throw new Error(
                 "Could not retrieve Wikipedia article."
@@ -126,7 +154,6 @@ app.get("/api/shreksearch", async (req, res) => {
 
         const wikipediaText =
             summaryData.extract ||
-            page.excerpt ||
             "No Wikipedia summary available.";
 
 
@@ -137,17 +164,21 @@ app.get("/api/shreksearch", async (req, res) => {
             )}`;
 
 
-        /*
-         * ==============================================
-         * HUGGING FACE AI SUMMARY
-         * ==============================================
-         */
+        /* ==================================================
+           HUGGING FACE AI SUMMARY
+        ================================================== */
 
         let aiSummary =
             "AI summary unavailable.";
 
 
-        if (process.env.HF_TOKEN) {
+        if (!process.env.HF_TOKEN) {
+
+            console.error(
+                "HF_TOKEN is missing from Render environment variables."
+            );
+
+        } else {
 
             try {
 
@@ -170,8 +201,13 @@ app.get("/api/shreksearch", async (req, res) => {
 
                             body: JSON.stringify({
 
+                                /*
+                                 * Qwen is a good small
+                                 * instruction-following model.
+                                 */
+
                                 model:
-                                    "google/gemma-2-2b-it",
+                                    "Qwen/Qwen2.5-7B-Instruct",
 
                                 messages: [
 
@@ -180,7 +216,7 @@ app.get("/api/shreksearch", async (req, res) => {
                                         role: "system",
 
                                         content:
-                                            "You are ShrekSearch's summarizer. Summarize Wikipedia introductions accurately and simply. Never invent information. Keep the answer to 5-6 sentences. Do not adress the user directly. Be formal."
+                                            "You are ShrekSearch's AI summarizer. Summarize the provided Wikipedia introduction accurately. Never invent facts. Use simple language. Give a concise 2-4 sentence summary."
 
                                     },
 
@@ -209,6 +245,12 @@ app.get("/api/shreksearch", async (req, res) => {
                     await hfResponse.json();
 
 
+                console.log(
+                    "HUGGING FACE STATUS:",
+                    hfResponse.status
+                );
+
+
                 if (!hfResponse.ok) {
 
                     console.error(
@@ -221,8 +263,7 @@ app.get("/api/shreksearch", async (req, res) => {
                     aiSummary =
                         hfData
                             ?.choices?.[0]
-                            ?.message
-                            ?.content
+                            ?.message?.content
                             ?.trim() ||
                         "AI summary unavailable.";
 
@@ -235,29 +276,32 @@ app.get("/api/shreksearch", async (req, res) => {
                     aiError
                 );
 
-                aiSummary =
-                    "AI summary unavailable.";
-
             }
 
         }
 
 
-        /*
-         * ==============================================
-         * SEND RESULT
-         * ==============================================
-         */
+        /* ==================================================
+           RETURN RESULT
+        ================================================== */
 
         res.json({
 
-            title: title,
+            title:
 
-            wikipedia: wikipediaText,
+                title,
 
-            wikipediaUrl: wikipediaUrl,
+            wikipedia:
 
-            aiSummary: aiSummary
+                wikipediaText,
+
+            wikipediaUrl:
+
+                wikipediaUrl,
+
+            aiSummary:
+
+                aiSummary
 
         });
 
