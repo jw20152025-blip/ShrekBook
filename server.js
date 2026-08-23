@@ -8,18 +8,15 @@ const session = require("express-session");
 const WebSocket = require("ws");
 const { createClient } = require("@supabase/supabase-js");
 
-const OpenAI = require("openai");
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
+const { InferenceClient } = require("@huggingface/inference");
+
+const hf = new InferenceClient(
+    process.env.HF_TOKEN
+);
 const app = express();
 
 const PORT =
     process.env.PORT || 3000;
-
-/* ==================================================
-   SHREKSEARCH
-================================================== */
 
 app.get("/api/shreksearch", async (req, res) => {
 
@@ -142,7 +139,7 @@ app.get("/api/shreksearch", async (req, res) => {
 
         /*
          * ==============================================
-         * AI SUMMARY
+         * HUGGING FACE AI SUMMARY
          * ==============================================
          */
 
@@ -150,34 +147,98 @@ app.get("/api/shreksearch", async (req, res) => {
             "AI summary unavailable.";
 
 
-        if (process.env.OPENAI_API_KEY) {
+        if (process.env.HF_TOKEN) {
 
-            const aiResponse =
-                await openai.responses.create({
+            try {
 
-                    model: "gpt-5.6",
+                const hfResponse =
+                    await fetch(
+                        "https://router.huggingface.co/v1/chat/completions",
+                        {
 
-                    input: `
-You are ShrekSearch's summarizer.
+                            method: "POST",
 
-Summarize the following Wikipedia introduction
-in simple, accurate language.
+                            headers: {
 
-Do not invent information.
+                                "Authorization":
+                                    `Bearer ${process.env.HF_TOKEN}`,
 
-Keep it to 2-4 sentences.
+                                "Content-Type":
+                                    "application/json"
 
-Wikipedia introduction:
+                            },
 
-${wikipediaText}
-                    `.trim()
+                            body: JSON.stringify({
 
-                });
+                                model:
+                                    "google/gemma-2-2b-it",
+
+                                messages: [
+
+                                    {
+
+                                        role: "system",
+
+                                        content:
+                                            "You are ShrekSearch's summarizer. Summarize Wikipedia introductions accurately and simply. Never invent information. Keep the answer to 5-6 sentences. Do not adress the user directly. Be formal."
+
+                                    },
+
+                                    {
+
+                                        role: "user",
+
+                                        content:
+                                            `Summarize this Wikipedia introduction:\n\n${wikipediaText}`
+
+                                    }
+
+                                ],
+
+                                max_tokens: 150,
+
+                                temperature: 0.2
+
+                            })
+
+                        }
+                    );
 
 
-            aiSummary =
-                aiResponse.output_text ||
-                "AI summary unavailable.";
+                const hfData =
+                    await hfResponse.json();
+
+
+                if (!hfResponse.ok) {
+
+                    console.error(
+                        "HUGGING FACE ERROR:",
+                        hfData
+                    );
+
+                } else {
+
+                    aiSummary =
+                        hfData
+                            ?.choices?.[0]
+                            ?.message
+                            ?.content
+                            ?.trim() ||
+                        "AI summary unavailable.";
+
+                }
+
+            } catch (aiError) {
+
+                console.error(
+                    "HUGGING FACE REQUEST ERROR:",
+                    aiError
+                );
+
+                aiSummary =
+                    "AI summary unavailable.";
+
+            }
 
         }
 
