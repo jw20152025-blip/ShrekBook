@@ -66,48 +66,7 @@ if (!SESSION_SECRET) {
 ============================================================ */
 
 
-wss.on("connection", async (socket, request) => {
 
-    console.log("🔌 Moderation WebSocket connection received.");
-
-    try {
-
-        const userId = request.session?.userId;
-
-        if (!userId) {
-
-            console.log(
-                "⚠️ WebSocket connection has no logged-in user."
-            );
-
-            socket.close();
-
-            return;
-        }
-
-        registerModerationSocket(
-            String(userId),
-            socket
-        );
-
-        socket.send(
-            JSON.stringify({
-                type: "CONNECTED"
-            })
-        );
-
-    } catch (error) {
-
-        console.error(
-            "❌ Moderation WebSocket error:",
-            error
-        );
-
-        socket.close();
-
-    }
-
-});
 // ==================================================
 // SUPABASE
 // ==================================================
