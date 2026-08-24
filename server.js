@@ -1,6 +1,6 @@
 
 require("dotenv").config();
-
+const { processResults } = require("./postprocess");
 const express = require("express");
 const path = require("path");
 const http = require("http");
@@ -116,7 +116,111 @@ app.use(
     })
 );
 
+// ============================================================
+// SHREKSEARCH API
+// ============================================================
 
+const axios = require("axios");
+
+const {
+    processResults
+} = require("./postprocess");
+
+// ------------------------------------------------------------
+// GET /api/search?q=...
+// ------------------------------------------------------------
+
+app.get("/api/search", async (req, res) => {
+    try {
+        const query = String(req.query.q || "").trim();
+
+        if (!query) {
+            return res.status(400).json({
+                error: "Missing search query"
+            });
+        }
+
+        const apiKey = process.env.BRAVE_SEARCH_API_KEY;
+
+        if (!apiKey) {
+            return res.status(500).json({
+                error: "BRAVE_SEARCH_API_KEY is not configured"
+            });
+        }
+
+        // ----------------------------------------------------
+        // Search the web
+        // ----------------------------------------------------
+
+        const response = await axios.get(
+            "https://api.search.brave.com/res/v1/web/search",
+            {
+                params: {
+                    q: query,
+                    count: 10,
+                    text_decorations: false,
+                    safesearch: "moderate"
+                },
+
+                headers: {
+                    "Accept": "application/json",
+                    "X-Subscription-Token": apiKey
+                },
+
+                timeout: 10000
+            }
+        );
+
+        const webResults =
+            response.data &&
+            response.data.web &&
+            response.data.web.results
+                ? response.data.web.results
+                : [];
+
+        // ----------------------------------------------------
+        // Convert Brave results into ShrekSearch results
+        // ----------------------------------------------------
+
+        const results = webResults.map(result => ({
+            title: result.title || "",
+            url: result.url || "",
+            description: result.description || "",
+            text: result.description || "",
+            content: result.description || ""
+        }));
+
+        // ----------------------------------------------------
+        // Run your post-generation processor
+        // ----------------------------------------------------
+
+        const processed = processResults(
+            results,
+            query
+        );
+
+        // ----------------------------------------------------
+        // Return to ShrekSearch frontend
+        // ----------------------------------------------------
+
+        res.json({
+            query,
+            results: processed,
+            count: processed.length
+        });
+
+    } catch (error) {
+
+        console.error(
+            "ShrekSearch error:",
+            error.response?.data || error.message
+        );
+
+        res.status(500).json({
+            error: "Search failed"
+        });
+    }
+});
 // ==================================================
 // INSTANT MODERATION WEBSOCKET
 // ==================================================
