@@ -1763,6 +1763,22 @@ app.get("/api/me", async (req, res) => {
         });
 
     }
+    if (data.kicked === true) {
+
+    // Clear the kick immediately after detecting it
+    await supabase
+        .from("profiles")
+        .update({
+            kicked: false
+        })
+        .eq("id", data.id);
+
+    return res.json({
+        loggedIn: true,
+        kicked: true,
+        banned: false
+    });
+}
 
 });
 app.post("/api/admin/kick", async (req, res) => {
