@@ -625,7 +625,12 @@ async function requireAdmin(req, res, next) {
 }
 app.post("/api/admin/ban", async (req, res) => {
     const { userId } = req.body;
-
+    const {
+        data: authResult,
+        error: authError
+    } = await supabase.auth.admin.getUserById(
+        userId
+    );
     const { error } = await supabase
         .from("profiles")
         .update({
@@ -1417,7 +1422,41 @@ app.post("/api/login", async (req, res) => {
 
         }
 
+        const normalizedEmail =
+            String(email || "")
+                .trim()
+                .toLowerCase();
 
+        const {
+            error: emailBanError
+        } = await supabase
+            .from("bans")
+            .select("id, email, reason")
+            .eq("email", normalizedEmail)
+            .maybeSingle();
+
+        if (emailBanError) {
+
+            console.error(
+                "LOGIN EMAIL BAN CHECK ERROR:",
+                emailBanError
+            );
+
+            return res.status(500).json({
+                error:
+                    "Unable to verify ban status."
+            });
+
+        }
+
+        if (emailBan) {
+
+            return res.status(403).json({
+                error:
+                    "This email address is banned."
+            });
+
+        }
         // ==========================================
         // SUPABASE AUTH LOGIN
         // ==========================================
@@ -1805,6 +1844,10 @@ app.get("/api/me", async (req, res) => {
 
     try {
 
+        /* =========================================
+           NOT LOGGED IN
+        ========================================= */
+
         if (!req.session.user) {
 
             return res.json({
@@ -1812,6 +1855,11 @@ app.get("/api/me", async (req, res) => {
             });
 
         }
+
+
+        /* =========================================
+           GET PROFILE
+        ========================================= */
 
         const {
             data,
@@ -1825,6 +1873,7 @@ app.get("/api/me", async (req, res) => {
             )
             .single();
 
+
         if (error || !data) {
 
             return res.json({
@@ -1833,21 +1882,56 @@ app.get("/api/me", async (req, res) => {
 
         }
 
+
+        /* =========================================
+           REACTIONS
+        ========================================= */
+
         const reactions =
             await getReactionCounts(
                 data.id
             );
+
+
+        /* =========================================
+           ADMIN STATUS
+        ========================================= */
 
         const admin =
             await isAdmin(
                 data.id
             );
 
-        res.json({
+
+        /* =========================================
+           MODERATION FLAGS
+        ========================================= */
+
+        const kicked =
+            data.kicked === true;
+
+        const banned =
+            data.banned === true;
+
+        const warned =
+            data.warned === true;
+
+
+        /* =========================================
+           RESPONSE
+        ========================================= */
+
+        return res.json({
 
             loggedIn: true,
 
             isAdmin: admin,
+
+            kicked: kicked,
+
+            banned: banned,
+
+            warned: warned,
 
             user: {
 
@@ -1878,7 +1962,7 @@ app.get("/api/me", async (req, res) => {
             error
         );
 
-        res.status(500).json({
+        return res.status(500).json({
             error:
                 "Server error."
         });

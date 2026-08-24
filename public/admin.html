@@ -1,8 +1,9 @@
-
+```html
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
 
     <meta
@@ -10,9 +11,8 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>ShrekBook Admin</title>
-    <meta name="description" content="ShrekBook administration panel.">
-    <meta name="robots" content="noindex, nofollow">
+    <title>ShrekBook Admin Panel</title>
+
     <style>
 
         * {
@@ -21,212 +21,210 @@
 
         body {
             margin: 0;
-            padding: 30px;
-
-            background: #f4f4f4;
-
             font-family:
                 Arial,
                 Helvetica,
                 sans-serif;
-
-            color: #222;
+            background: #111;
+            color: #eee;
         }
 
-        .container {
-            max-width: 1100px;
-            margin: auto;
-        }
-
-        h1 {
-            margin-bottom: 5px;
-        }
-
-        #admin-info {
-            color: #666;
-            margin-bottom: 25px;
-        }
-
-        #message {
-            display: none;
-
-            padding: 12px 15px;
-
-            border-radius: 8px;
-
-            margin-bottom: 20px;
-        }
-
-        #message.success {
-            display: block;
-            background: #d9f7df;
-            color: #146b2d;
-        }
-
-        #message.error {
-            display: block;
-            background: #ffdede;
-            color: #9b1c1c;
-        }
-
-        .toolbar {
+        header {
+            padding: 20px;
+            background: #1b1b1b;
+            border-bottom: 1px solid #333;
             display: flex;
-
-            gap: 10px;
-
-            margin-bottom: 20px;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
         }
 
-        #search {
-            flex: 1;
-
-            padding: 12px;
-
-            border: 1px solid #ccc;
-
-            border-radius: 8px;
-
-            font-size: 16px;
+        header h1 {
+            margin: 0;
+            font-size: 24px;
         }
 
-        button,
-        select {
+        header span {
+            opacity: 0.7;
+        }
 
-            padding: 9px 12px;
-
+        button {
             border: 0;
-
-            border-radius: 7px;
-
+            border-radius: 8px;
+            padding: 10px 15px;
             cursor: pointer;
-
-            font-size: 14px;
-
-        }
-
-        button:hover {
-            opacity: .85;
-        }
-
-        .refresh {
+            font-weight: bold;
             background: #333;
             color: white;
         }
 
-        .users {
-            display: flex;
-
-            flex-direction: column;
-
-            gap: 12px;
+        button:hover {
+            background: #444;
         }
 
-        .user-card {
+        .danger {
+            background: #8b2222;
+        }
 
-            background: white;
+        .danger:hover {
+            background: #aa2929;
+        }
 
+        .warning {
+            background: #8b6500;
+        }
+
+        .success {
+            background: #236b35;
+        }
+
+        .container {
+            width: min(1200px, 95%);
+            margin: 25px auto;
+        }
+
+        .panel {
+            background: #1b1b1b;
+            border: 1px solid #333;
             border-radius: 12px;
-
-            padding: 18px;
-
-            box-shadow:
-                0 2px 8px
-                rgba(0, 0, 0, .08);
-
+            padding: 20px;
+            margin-bottom: 20px;
         }
 
-        .user-top {
+        .panel h2 {
+            margin-top: 0;
+        }
 
+        .user-info {
             display: flex;
-
-            justify-content: space-between;
-
             align-items: center;
-
             gap: 15px;
-
+            padding: 15px;
+            background: #242424;
+            border-radius: 10px;
         }
 
-        .user-name {
-            font-size: 18px;
-            font-weight: bold;
+        .avatar {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #333;
         }
 
-        .username {
-            color: #777;
-            margin-top: 3px;
-        }
-
-        .badges {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-            margin-top: 8px;
-        }
-
-        .badge {
-
+        .role {
+            display: inline-block;
             padding: 4px 8px;
-
-            border-radius: 20px;
-
-            background: #eee;
-
+            border-radius: 6px;
+            background: #333;
             font-size: 12px;
-
+            margin-top: 4px;
         }
 
-        .badge.banned {
-            background: #ffcccc;
-            color: #8a0000;
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 11px;
+            margin-top: 6px;
+            margin-bottom: 12px;
+            background: #111;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 7px;
         }
 
-        .badge.kicked {
-            background: #ffe5b3;
-            color: #7a4a00;
+        textarea {
+            resize: vertical;
+            min-height: 80px;
         }
 
         .actions {
-
             display: flex;
-
-            gap: 8px;
-
             flex-wrap: wrap;
-
-            margin-top: 15px;
-
+            gap: 8px;
         }
 
-        .role-button {
-            background: #4d6cff;
-            color: white;
+        .user-card {
+            padding: 15px;
+            background: #242424;
+            border-radius: 10px;
+            margin-bottom: 10px;
         }
 
-        .ban-button {
-            background: #d93025;
-            color: white;
+        .user-card strong {
+            font-size: 17px;
         }
 
-        .unban-button {
-            background: #188038;
-            color: white;
+        .user-meta {
+            opacity: 0.7;
+            font-size: 13px;
+            margin-top: 4px;
         }
 
-        .kick-button {
-            background: #f29900;
-            color: white;
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 7px;
+            display: none;
         }
 
-        .clear-kick-button {
-            background: #777;
-            color: white;
+        .status.show {
+            display: block;
         }
 
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #777;
+        .status.error {
+            background: #5c2020;
+        }
+
+        .status.ok {
+            background: #205c30;
+        }
+
+        .ban {
+            border-left: 4px solid #a52a2a;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns:
+                repeat(
+                    auto-fit,
+                    minmax(280px, 1fr)
+                );
+            gap: 15px;
+        }
+
+        .stat {
+            background: #242424;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .stat-number {
+            font-size: 30px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            opacity: 0.65;
+        }
+
+        @media (max-width: 600px) {
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .actions button {
+                width: 100%;
+            }
+
         }
 
     </style>
@@ -235,49 +233,1341 @@
 
 <body>
 
-<div class="container">
+<header>
 
-    <h1>🛡️ ShrekBook Admin Panel</h1>
+    <div>
 
-    <div id="admin-info">
-        Checking administrator access...
+        <h1>
+            🛡️ ShrekBook Admin Panel
+        </h1>
+
+        <span>
+            Moderation Center
+        </span>
+
     </div>
 
-    <div id="message"></div>
+    <div class="actions">
 
-    <div class="toolbar">
+        <button onclick="location.href='/'">
+            🏠 Home
+        </button>
 
-        <input
-            id="search"
-            type="text"
-            placeholder="Search users..."
-        >
-
-        <button
-            class="refresh"
-            onclick="loadUsers()"
-        >
-            Refresh
+        <button onclick="logout()">
+            Logout
         </button>
 
     </div>
 
-    <div
-        id="users"
-        class="users"
+</header>
+
+
+<main class="container">
+
+    <!-- =========================================
+         AUTHORIZATION
+    ========================================== -->
+
+    <section
+        id="loading"
+        class="panel"
     >
 
-        <div class="loading">
-            Loading users...
-        </div>
+        Checking administrator permissions...
+
+    </section>
+
+
+    <section
+        id="denied"
+        class="panel hidden"
+    >
+
+        <h2>🚫 Access Denied</h2>
+
+        <p>
+            You do not have permission to access
+            the ShrekBook moderation panel.
+        </p>
+
+        <button onclick="location.href='/'">
+            Return Home
+        </button>
+
+    </section>
+
+
+    <div id="admin-content" class="hidden">
+
+        <!-- =====================================
+             CURRENT MODERATOR
+        ====================================== -->
+
+        <section class="panel">
+
+            <h2>👤 Your Account</h2>
+
+            <div
+                id="current-user"
+                class="user-info"
+            ></div>
+
+        </section>
+
+
+        <!-- =====================================
+             STATISTICS
+        ====================================== -->
+
+        <section class="panel">
+
+            <h2>📊 Moderation Statistics</h2>
+
+            <div class="grid">
+
+                <div class="stat">
+
+                    <div
+                        id="user-count"
+                        class="stat-number"
+                    >
+                        0
+                    </div>
+
+                    <div class="stat-label">
+                        Users
+                    </div>
+
+                </div>
+
+                <div class="stat">
+
+                    <div
+                        id="ban-count"
+                        class="stat-number"
+                    >
+                        0
+                    </div>
+
+                    <div class="stat-label">
+                        Bans
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================
+             USER MODERATION
+        ====================================== -->
+
+        <section class="panel">
+
+            <h2>🔎 Find User</h2>
+
+            <input
+                id="user-search"
+                type="text"
+                placeholder="Username or user ID..."
+            >
+
+            <button
+                onclick="searchUsers()"
+            >
+                Search
+            </button>
+
+            <div
+                id="user-results"
+                style="margin-top:15px;"
+            ></div>
+
+        </section>
+
+
+        <!-- =====================================
+             SELECTED USER
+        ====================================== -->
+
+        <section
+            id="selected-panel"
+            class="panel hidden"
+        >
+
+            <h2>🎯 Selected User</h2>
+
+            <div
+                id="selected-user"
+                class="user-info"
+            ></div>
+
+            <label>
+                Moderation reason
+            </label>
+
+            <textarea
+                id="reason"
+                placeholder="Why are you taking this action?"
+            ></textarea>
+
+            <div class="actions">
+
+                <button
+                    class="warning"
+                    onclick="warnUser()"
+                >
+                    ⚠️ Warn
+                </button>
+
+                <button
+                    onclick="kickUser()"
+                >
+                    🦵 Kick
+                </button>
+
+                <button
+                    class="danger"
+                    onclick="banUser()"
+                >
+                    🔨 Ban
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================
+             BANS
+        ====================================== -->
+
+        <section class="panel">
+
+            <h2>🔨 Active Bans</h2>
+
+            <button
+                onclick="loadBans()"
+            >
+                🔄 Refresh
+            </button>
+
+            <div
+                id="ban-list"
+                style="margin-top:15px;"
+            ></div>
+
+        </section>
 
     </div>
 
-</div>
+</main>
 
-<script src="/admin.js"></script>
+
+<script>
+
+/* ==================================================
+   GLOBAL STATE
+================================================== */
+
+let currentUser = null;
+
+let selectedUser = null;
+
+
+/* ==================================================
+   ROLE SYSTEM
+================================================== */
+
+function hasRole(user, role) {
+
+    if (!user) {
+        return false;
+    }
+
+    return user.role === role;
+
+}
+
+
+function canAccessAdmin(user) {
+
+    return (
+        hasRole(user, "owner") ||
+        hasRole(user, "administrator") ||
+        hasRole(user, "senior_moderator") ||
+        hasRole(user, "junior_moderator")
+    );
+
+}
+
+
+/* ==================================================
+   STATUS
+================================================== */
+
+function showStatus(message, error = false) {
+
+    alert(message);
+
+}
+
+
+/* ==================================================
+   ADMIN AUTH
+================================================== */
+
+async function checkAdminAccess() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/auth",
+                {
+                    credentials: "include",
+                    cache: "no-store"
+                }
+            );
+
+        if (!response.ok) {
+
+            document
+                .getElementById("loading")
+                .classList.add("hidden");
+
+            document
+                .getElementById("denied")
+                .classList.remove("hidden");
+
+            return;
+
+        }
+
+        const data =
+            await response.json();
+
+        if (
+            !data.authorized ||
+            !data.user
+        ) {
+
+            document
+                .getElementById("loading")
+                .classList.add("hidden");
+
+            document
+                .getElementById("denied")
+                .classList.remove("hidden");
+
+            return;
+
+        }
+
+        currentUser = data.user;
+
+        if (!canAccessAdmin(currentUser)) {
+
+            console.log(
+                "Admin access denied:",
+                currentUser.role
+            );
+
+            document
+                .getElementById("loading")
+                .classList.add("hidden");
+
+            document
+                .getElementById("denied")
+                .classList.remove("hidden");
+
+            return;
+
+        }
+
+        document
+            .getElementById("loading")
+            .classList.add("hidden");
+
+        document
+            .getElementById("admin-content")
+            .classList.remove("hidden");
+
+        renderCurrentUser();
+
+        loadUsers();
+
+        loadBans();
+
+    } catch (error) {
+
+        console.error(
+            "ADMIN AUTH ERROR:",
+            error
+        );
+
+        document
+            .getElementById("loading")
+            .classList.add("hidden");
+
+        document
+            .getElementById("denied")
+            .classList.remove("hidden");
+
+    }
+
+}
+
+
+/* ==================================================
+   CURRENT USER
+================================================== */
+
+function renderCurrentUser() {
+
+    const box =
+        document.getElementById(
+            "current-user"
+        );
+
+    const avatar =
+        currentUser.avatar ||
+        "/default-avatar.png";
+
+    box.innerHTML = `
+
+        <img
+            class="avatar"
+            src="${escapeHtml(avatar)}"
+            alt="Avatar"
+        >
+
+        <div>
+
+            <strong>
+                ${escapeHtml(
+                    currentUser.display_name ||
+                    currentUser.username ||
+                    "User"
+                )}
+            </strong>
+
+            <div class="user-meta">
+
+                @${escapeHtml(
+                    currentUser.username ||
+                    ""
+                )}
+
+            </div>
+
+            <span class="role">
+
+                ${escapeHtml(
+                    currentUser.role
+                )}
+
+            </span>
+
+        </div>
+
+    `;
+
+}
+
+
+/* ==================================================
+   LOAD USERS
+================================================== */
+
+async function loadUsers() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/users",
+                {
+                    credentials: "include"
+                }
+            );
+
+        if (!response.ok) {
+            return;
+        }
+
+        const data =
+            await response.json();
+
+        const users =
+            Array.isArray(data)
+                ? data
+                : data.users || [];
+
+        document
+            .getElementById(
+                "user-count"
+            )
+            .textContent =
+                users.length;
+
+    } catch (error) {
+
+        console.error(
+            "USER LOAD ERROR:",
+            error
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   SEARCH USERS
+================================================== */
+
+async function searchUsers() {
+
+    const query =
+        document
+            .getElementById(
+                "user-search"
+            )
+            .value
+            .trim()
+            .toLowerCase();
+
+    if (!query) {
+
+        return;
+
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/users",
+                {
+                    credentials: "include"
+                }
+            );
+
+        const data =
+            await response.json();
+
+        const users =
+            Array.isArray(data)
+                ? data
+                : data.users || [];
+
+        const matches =
+            users.filter(user => {
+
+                const username =
+                    String(
+                        user.username || ""
+                    ).toLowerCase();
+
+                const displayName =
+                    String(
+                        user.display_name || ""
+                    ).toLowerCase();
+
+                const id =
+                    String(
+                        user.id || ""
+                    ).toLowerCase();
+
+                return (
+                    username.includes(query) ||
+                    displayName.includes(query) ||
+                    id.includes(query)
+                );
+
+            });
+
+        renderSearchResults(matches);
+
+    } catch (error) {
+
+        console.error(
+            "SEARCH ERROR:",
+            error
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   SEARCH RESULTS
+================================================== */
+
+function renderSearchResults(users) {
+
+    const container =
+        document.getElementById(
+            "user-results"
+        );
+
+    container.innerHTML = "";
+
+    if (!users.length) {
+
+        container.innerHTML =
+            "<p>No users found.</p>";
+
+        return;
+
+    }
+
+    users.forEach(user => {
+
+        const card =
+            document.createElement(
+                "div"
+            );
+
+        card.className =
+            "user-card";
+
+        card.innerHTML = `
+
+            <strong>
+                ${escapeHtml(
+                    user.display_name ||
+                    user.username ||
+                    "User"
+                )}
+            </strong>
+
+            <div class="user-meta">
+
+                @${escapeHtml(
+                    user.username || ""
+                )}
+
+                <br>
+
+                Role:
+                ${escapeHtml(
+                    user.role ||
+                    "peasant"
+                )}
+
+            </div>
+
+            <div style="margin-top:10px;">
+
+                <button
+                    onclick="selectUser('${escapeHtml(user.id)}')"
+                >
+                    Select
+                </button>
+
+            </div>
+
+        `;
+
+        container.appendChild(card);
+
+    });
+
+}
+
+
+/* ==================================================
+   SELECT USER
+================================================== */
+
+async function selectUser(userId) {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/users/" +
+                encodeURIComponent(userId),
+                {
+                    credentials: "include"
+                }
+            );
+
+        if (!response.ok) {
+
+            alert(
+                "Could not load user."
+            );
+
+            return;
+
+        }
+
+        const data =
+            await response.json();
+
+        selectedUser =
+            data.user || data;
+
+        renderSelectedUser();
+
+    } catch (error) {
+
+        console.error(
+            "SELECT USER ERROR:",
+            error
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   SELECTED USER UI
+================================================== */
+
+function renderSelectedUser() {
+
+    if (!selectedUser) {
+        return;
+    }
+
+    document
+        .getElementById(
+            "selected-panel"
+        )
+        .classList.remove("hidden");
+
+    const box =
+        document.getElementById(
+            "selected-user"
+        );
+
+    box.innerHTML = `
+
+        <img
+            class="avatar"
+            src="${escapeHtml(
+                selectedUser.avatar ||
+                "/default-avatar.png"
+            )}"
+            alt="Avatar"
+        >
+
+        <div>
+
+            <strong>
+                ${escapeHtml(
+                    selectedUser.display_name ||
+                    selectedUser.username ||
+                    "User"
+                )}
+            </strong>
+
+            <div class="user-meta">
+
+                @${escapeHtml(
+                    selectedUser.username ||
+                    ""
+                )}
+
+                <br>
+
+                Role:
+                ${escapeHtml(
+                    selectedUser.role ||
+                    "peasant"
+                )}
+
+            </div>
+
+        </div>
+
+    `;
+
+}
+
+
+/* ==================================================
+   KICK
+================================================== */
+
+async function kickUser() {
+
+    if (!selectedUser) {
+        return;
+    }
+
+    const reason =
+        document
+            .getElementById("reason")
+            .value
+            .trim();
+
+    if (
+        !confirm(
+            "Kick this user?"
+        )
+    ) {
+
+        return;
+
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/kick",
+                {
+                    method: "POST",
+
+                    credentials: "include",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                        userId:
+                            selectedUser.id,
+
+                        reason:
+                            reason ||
+                            "Kicked by moderator"
+
+                    })
+
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            alert(
+                data.error ||
+                "Kick failed."
+            );
+
+            return;
+
+        }
+
+        alert(
+            "🦵 User kicked."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "KICK ERROR:",
+            error
+        );
+
+        alert(
+            "Kick failed."
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   BAN
+================================================== */
+
+async function banUser() {
+
+    if (!selectedUser) {
+        return;
+    }
+
+    const reason =
+        document
+            .getElementById("reason")
+            .value
+            .trim();
+
+    if (
+        !confirm(
+            "BAN this user?\n\n" +
+            "Their account and email " +
+            "will be blocked."
+        )
+    ) {
+
+        return;
+
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/ban",
+                {
+                    method: "POST",
+
+                    credentials: "include",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                        userId:
+                            selectedUser.id,
+
+                        reason:
+                            reason ||
+                            "Banned by moderator"
+
+                    })
+
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            alert(
+                data.error ||
+                "Ban failed."
+            );
+
+            return;
+
+        }
+
+        alert(
+            "🔨 User banned."
+        );
+
+        loadBans();
+
+    } catch (error) {
+
+        console.error(
+            "BAN ERROR:",
+            error
+        );
+
+        alert(
+            "Ban failed."
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   WARNING
+================================================== */
+
+async function warnUser() {
+
+    if (!selectedUser) {
+        return;
+    }
+
+    const reason =
+        document
+            .getElementById("reason")
+            .value
+            .trim();
+
+    if (!reason) {
+
+        alert(
+            "Enter a warning reason."
+        );
+
+        return;
+
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/warn",
+                {
+                    method: "POST",
+
+                    credentials: "include",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                        userId:
+                            selectedUser.id,
+
+                        reason:
+                            reason
+
+                    })
+
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            alert(
+                data.error ||
+                "Warning failed."
+            );
+
+            return;
+
+        }
+
+        alert(
+            "⚠️ Warning issued."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "WARNING ERROR:",
+            error
+        );
+
+        alert(
+            "Warning failed."
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   LOAD BANS
+================================================== */
+
+async function loadBans() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/bans",
+                {
+                    credentials: "include"
+                }
+            );
+
+        if (!response.ok) {
+
+            document
+                .getElementById(
+                    "ban-list"
+                )
+                .innerHTML =
+                    "<p>Could not load bans.</p>";
+
+            return;
+
+        }
+
+        const data =
+            await response.json();
+
+        const bans =
+            Array.isArray(data)
+                ? data
+                : data.bans || [];
+
+        document
+            .getElementById(
+                "ban-count"
+            )
+            .textContent =
+                bans.length;
+
+        renderBans(bans);
+
+    } catch (error) {
+
+        console.error(
+            "BAN LOAD ERROR:",
+            error
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   RENDER BANS
+================================================== */
+
+function renderBans(bans) {
+
+    const container =
+        document.getElementById(
+            "ban-list"
+        );
+
+    container.innerHTML = "";
+
+    if (!bans.length) {
+
+        container.innerHTML =
+            "<p>No active bans.</p>";
+
+        return;
+
+    }
+
+    bans.forEach(ban => {
+
+        const card =
+            document.createElement(
+                "div"
+            );
+
+        card.className =
+            "user-card ban";
+
+        card.innerHTML = `
+
+            <strong>
+                🔨 Banned User
+            </strong>
+
+            <div class="user-meta">
+
+                User ID:
+                ${escapeHtml(
+                    ban.user_id ||
+                    "Unknown"
+                )}
+
+                <br>
+
+                Email:
+                ${escapeHtml(
+                    ban.email ||
+                    "Not recorded"
+                )}
+
+                <br>
+
+                Reason:
+                ${escapeHtml(
+                    ban.reason ||
+                    "No reason provided"
+                )}
+
+            </div>
+
+            <div
+                style="margin-top:10px;"
+            >
+
+                <button
+                    onclick="unbanUser('${escapeHtml(
+                        ban.user_id || ""
+                    )}')"
+                >
+                    🔓 Unban
+                </button>
+
+            </div>
+
+        `;
+
+        container.appendChild(card);
+
+    });
+
+}
+
+
+/* ==================================================
+   UNBAN
+================================================== */
+
+async function unbanUser(userId) {
+
+    if (!userId) {
+
+        alert(
+            "No user ID available."
+        );
+
+        return;
+
+    }
+
+    if (
+        !confirm(
+            "Remove this user's ban?"
+        )
+    ) {
+
+        return;
+
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/unban",
+                {
+                    method: "POST",
+
+                    credentials: "include",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        userId: userId
+                    })
+
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            alert(
+                data.error ||
+                "Unban failed."
+            );
+
+            return;
+
+        }
+
+        alert(
+            "🔓 User unbanned."
+        );
+
+        loadBans();
+
+    } catch (error) {
+
+        console.error(
+            "UNBAN ERROR:",
+            error
+        );
+
+        alert(
+            "Unban failed."
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   LOGOUT
+================================================== */
+
+async function logout() {
+
+    try {
+
+        await fetch(
+            "/api/logout",
+            {
+                method: "POST",
+                credentials: "include"
+            }
+        );
+
+    } finally {
+
+        window.location.href =
+            "/login.html";
+
+    }
+
+}
+
+
+/* ==================================================
+   HTML ESCAPE
+================================================== */
+
+function escapeHtml(value) {
+
+    return String(value ?? "")
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+}
+
+
+/* ==================================================
+   START
+================================================== */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        checkAdminAccess();
+
+    }
+);
+
+</script>
 
 </body>
 
 </html>
+```
 
+**One important caveat:** this frontend does **not** grant permissions by itself. Your `/api/admin/auth`, `/api/admin/ban`, `/api/admin/kick`, etc. must enforce the roles on the server too. Otherwise somebody could bypass the UI and call the API directly.
