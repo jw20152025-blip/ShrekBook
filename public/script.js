@@ -2903,6 +2903,14 @@ function hasRole(user, requiredRole) {
         admin: 3,
         owner: 4
     };
+        console.log(
+        "ROLE CHECK:",
+        {
+            user: user,
+            requestedRole: role,
+            userRole: user?.role
+        }
+    );
 
     const userRole =
         getUserRole(user);
