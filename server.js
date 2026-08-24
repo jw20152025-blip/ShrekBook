@@ -1718,28 +1718,22 @@ app.get("/api/me", async (req, res) => {
             await isAdmin(
                 data.id
             );
-
         res.json({
 
             loggedIn: true,
 
-            banned:
-                data.banned === true,
+            banned: data.banned === true,
 
-            kicked:
-                data.kicked === true,
+            kicked: data.kicked === true,
 
-            isAdmin:
-                admin,
+            isAdmin: admin,
 
             user: {
 
                 ...data,
 
                 avatar:
-                    getAvatar(
-                        data.avatar
-                    ),
+                    getAvatar(data.avatar),
 
                 gyatt:
                     reactions.gyatt,
@@ -1769,39 +1763,92 @@ app.get("/api/me", async (req, res) => {
     }
 
 });
-app.post("/api/clear-kick", async (req, res) => {
+app.post("/api/admin/kick", async (req, res) => {
 
     try {
 
-        if (!req.session.user) {
-            return res.status(401).json({
-                error: "Not logged in"
+        const { userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({
+                error: "Missing userId"
             });
         }
 
-        await supabase
+        const { error } = await supabase
             .from("profiles")
             .update({
-                kicked: false
+                kicked: true
             })
-            .eq(
-                "id",
-                req.session.user.id
+            .eq("id", userId);
+
+        if (error) {
+
+            console.error(
+                "KICK DATABASE ERROR:",
+                error
             );
 
+            return res.status(500).json({
+                error: "Failed to kick user"
+            });
+        }
+
+        // Tell the client indirectly through /api/me,
+        // then clear the flag after 1 second.
+        setTimeout(async () => {
+
+            try {
+
+                const { error: clearError } =
+                    await supabase
+                        .from("profiles")
+                        .update({
+                            kicked: false
+                        })
+                        .eq("id", userId);
+
+                if (clearError) {
+
+                    console.error(
+                        "CLEAR KICK ERROR:",
+                        clearError
+                    );
+
+                } else {
+
+                    console.log(
+                        `🦵 Kick cleared for ${userId}`
+                    );
+
+                }
+
+            } catch (error) {
+
+                console.error(
+                    "CLEAR KICK EXCEPTION:",
+                    error
+                );
+
+            }
+
+        }, 1000);
+
+
         res.json({
-            success: true
+            success: true,
+            kicked: true
         });
 
     } catch (error) {
 
         console.error(
-            "CLEAR KICK ERROR:",
+            "KICK ERROR:",
             error
         );
 
         res.status(500).json({
-            error: "Failed to clear kick"
+            error: "Server error"
         });
 
     }

@@ -3158,30 +3158,25 @@ async function checkModerationStatus() {
 
     try {
 
-        const response =
-            await fetch(
-                "/api/me",
-                {
-                    credentials: "include",
-                    cache: "no-store"
-                }
-            );
+        const response = await fetch(
+            "/api/me",
+            {
+                credentials: "include",
+                cache: "no-store"
+            }
+        );
 
         if (!response.ok) {
             return;
         }
 
-        const data =
-            await response.json();
+        const data = await response.json();
 
 
-        /* BAN */
-
+        // BAN
         if (data.banned === true) {
 
-            console.log(
-                "🚫 BANNED"
-            );
+            console.log("🚫 BAN DETECTED");
 
             window.location.replace(
                 "/login.html"
@@ -3191,13 +3186,10 @@ async function checkModerationStatus() {
         }
 
 
-        /* KICK */
-
+        // KICK
         if (data.kicked === true) {
 
-            console.log(
-                "🦵 KICKED"
-            );
+            console.log("🦵 KICK DETECTED");
 
             window.location.replace(
                 "/kicked.html"
@@ -3217,12 +3209,10 @@ async function checkModerationStatus() {
 
 }
 
-
 if (
     !window.location.pathname
         .toLowerCase()
         .endsWith("/login.html") &&
-
     !window.location.pathname
         .toLowerCase()
         .endsWith("/kicked.html")
@@ -3232,7 +3222,7 @@ if (
 
     setInterval(
         checkModerationStatus,
-        2000
+        500
     );
 
 }
