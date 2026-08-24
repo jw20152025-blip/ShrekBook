@@ -4,6 +4,7 @@ require("dotenv").config();
 const express = require("express");
 const path = require("path");
 const http = require("http");
+const WebSocket = require("ws");
 const session = require("express-session");
 const WebSocket = require("ws");
 const { createClient } = require("@supabase/supabase-js");
@@ -206,15 +207,7 @@ const server =
     http.createServer(app);
 
 
-const wss =
-    new WebSocket.Server({
 
-        server,
-
-        path:
-            "/moderation"
-
-    });
 
 
 // ==================================================
@@ -569,330 +562,53 @@ app.post("/api/online", async (req, res) => {
 // WEBSOCKET CONNECTION
 // ==================================================
 
-wss.on(
-    "connection",
-    async (
-        socket,
-        req
-    ) => {
 
-        try {
+
+const wss = new WebSocket.Server({
+    server,
+    path: "/moderation"
+});
+
+wss.on("connection", (socket, request) => {
+
+    console.log("🔌 Moderation WebSocket connected.");
+
+    // Get the Express session from the WebSocket request
+    sessionMiddleware(
+        request,
+        {},
+        () => {
+
+            const userId =
+                request.session?.userId ||
+                request.session?.user?.id;
+
+            if (!userId) {
+                console.log(
+                    "⚠️ WebSocket user is not logged in."
+                );
+
+                socket.close();
+                return;
+            }
 
             console.log(
-                "🔌 Moderation WebSocket connected."
+                `🛡️ Moderation socket registered for ${userId}`
             );
 
-
-            // ==========================================
-            // GET SESSION COOKIE
-            // ==========================================
-
-            const cookieHeader =
-                req.headers.cookie || "";
-
-
-            const sessionCookie =
-                cookieHeader
-                    .split(";")
-                    .map(
-                        item =>
-                            item.trim()
-                    )
-                    .find(
-                        item =>
-                            item.startsWith(
-                                "connect.sid="
-                            )
-                    );
-
-
-            if (!sessionCookie) {
-
-                console.log(
-                    "❌ WebSocket has no session cookie."
-                );
-
-
-                socket.close(
-                    1008,
-                    "Not logged in."
-                );
-
-                return;
-
-            }
-
-
-            // ==========================================
-            // EXTRACT SESSION ID
-            // ==========================================
-
-            const rawCookie =
-                decodeURIComponent(
-                    sessionCookie
-                        .substring(
-                            "connect.sid=".length
-                        )
-                );
-
-
-            let sessionValue =
-                rawCookie;
-
-
-            if (
-                sessionValue.startsWith(
-                    "s:"
-                )
-            ) {
-
-                sessionValue =
-                    sessionValue.substring(
-                        2
-                    );
-
-            }
-
-
-            const sessionId =
-                sessionValue.split(
-                    "."
-                )[0];
-
-
-            if (!sessionId) {
-
-                socket.close(
-                    1008,
-                    "Invalid session."
-                );
-
-                return;
-
-            }
-
-
-            // ==========================================
-            // LOAD EXPRESS SESSION
-            // ==========================================
-
-            sessionStore.get(
-                sessionId,
-                async (
-                    error,
-                    storedSession
-                ) => {
-
-                    if (error) {
-
-                        console.error(
-                            "SESSION LOOKUP ERROR:",
-                            error
-                        );
-
-
-                        socket.close(
-                            1011,
-                            "Session error."
-                        );
-
-                        return;
-
-                    }
-
-
-                    if (!storedSession) {
-
-                        console.log(
-                            "❌ WebSocket session not found."
-                        );
-
-
-                        socket.close(
-                            1008,
-                            "Invalid session."
-                        );
-
-                        return;
-
-                    }
-
-
-                    const userId =
-                        storedSession
-                            .user
-                            ?.id;
-
-
-                    if (!userId) {
-
-                        console.log(
-                            "❌ WebSocket session has no user."
-                        );
-
-
-                        socket.close(
-                            1008,
-                            "Not logged in."
-                        );
-
-                        return;
-
-                    }
-
-
-                    // ==================================
-                    // REGISTER SOCKET
-                    // ==================================
-
-                    socket.userId =
-                        userId;
-
-
-                    addModerationSocket(
-                        userId,
-                        socket
-                    );
-
-
-                    console.log(
-                        `🟢 Moderation connected for user ${userId}`
-                    );
-
-
-                    // ==================================
-                    // CHECK CURRENT MODERATION STATE
-                    // ==================================
-
-                    const {
-                        data: profile,
-                        error: profileError
-                    } =
-                        await supabase
-                            .from("profiles")
-                            .select(
-                                "banned, kicked"
-                            )
-                            .eq(
-                                "id",
-                                userId
-                            )
-                            .maybeSingle();
-
-
-                    if (profileError) {
-
-                        console.error(
-                            "MODERATION PROFILE ERROR:",
-                            profileError
-                        );
-
-                        return;
-
-                    }
-
-
-                    // ==================================
-                    // ALREADY BANNED
-                    // ==================================
-
-                    if (
-                        profile?.banned ===
-                        true
-                    ) {
-
-                        socket.send(
-                            JSON.stringify({
-                                type:
-                                    "BAN"
-                            })
-                        );
-
-                    }
-
-
-                    // ==================================
-                    // ALREADY KICKED
-                    // ==================================
-
-                    else if (
-                        profile?.kicked ===
-                        true
-                    ) {
-
-                        socket.send(
-                            JSON.stringify({
-                                type:
-                                    "KICK"
-                            })
-                        );
-
-                    }
-
-                }
+            registerModerationSocket(
+                userId,
+                socket
             );
 
-
-            // ==========================================
-            // SOCKET CLOSED
-            // ==========================================
-
-            socket.on(
-                "close",
-                () => {
-
-                    console.log(
-                        `🔌 Moderation disconnected for user ${socket.userId || "unknown"}`
-                    );
-
-
-                    if (
-                        socket.userId
-                    ) {
-
-                        removeModerationSocket(
-                            socket.userId,
-                            socket
-                        );
-
-                    }
-
-                }
+            socket.send(
+                JSON.stringify({
+                    type: "CONNECTED"
+                })
             );
-
-
-            socket.on(
-                "error",
-                error => {
-
-                    console.error(
-                        "MODERATION SOCKET ERROR:",
-                        error
-                    );
-
-                }
-            );
-
-
         }
-
-        catch (error) {
-
-            console.error(
-                "MODERATION WEBSOCKET ERROR:",
-                error
-            );
-
-
-            socket.close(
-                1011,
-                "Server error."
-            );
-
-        }
-
-    }
-);
+    );
+});
 
 
 // ==================================================
