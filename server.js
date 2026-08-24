@@ -388,7 +388,63 @@ function normalizeEmail(email) {
 // ==================================================
 // ADMIN / BAN HELPERS
 // ==================================================
+/* ==================================================
+   BAN HELPERS
+================================================== */
 
+async function getNormalizedEmail(email) {
+
+    return String(email || "")
+        .trim()
+        .toLowerCase();
+
+}
+
+
+/* ==================================================
+   CHECK IF EMAIL IS BANNED
+================================================== */
+
+async function isEmailBanned(email) {
+
+    const normalizedEmail =
+        await getNormalizedEmail(email);
+
+    if (!normalizedEmail) {
+        return false;
+    }
+
+    const {
+        data,
+        error
+    } = await supabase
+        .from("bans")
+        .select("id, email, reason")
+        .eq("email", normalizedEmail)
+        .maybeSingle();
+
+    if (error) {
+
+        console.error(
+            "EMAIL BAN CHECK ERROR:",
+            error
+        );
+
+        /*
+            Fail closed here.
+
+            If the ban database cannot be checked,
+            don't accidentally allow a banned email
+            through.
+        */
+
+        throw error;
+
+    }
+
+    return !!data;
+
+}
 async function isAdmin(userId) {
     if (!userId) {
         return false;
@@ -591,6 +647,38 @@ app.post("/api/admin/ban", async (req, res) => {
     res.json({
         success: true
     });
+    const normalizedEmail =
+    String(targetEmail || "")
+        .trim()
+        .toLowerCase();
+
+    const {
+        data: ban,
+        error: banError
+    } = await supabase
+        .from("bans")
+        .insert({
+            user_id: targetUserId,
+            email: normalizedEmail,
+            reason: reason || "Banned",
+            banned_by: req.session.user.id
+        })
+        .select()
+        .single();
+
+    if (banError) {
+
+        console.error(
+            "BAN INSERT ERROR:",
+            banError
+        );
+
+        return res.status(500).json({
+            error:
+                "Failed to create ban."
+        });
+
+    }
 });
 // ==================================================
 // ADMIN AUTH
@@ -1111,16 +1199,51 @@ app.post("/api/signup", async (req, res) => {
         }
 
         // Check banned email BEFORE creating account
-        const emailBan =
-            await getActiveBanByEmail(
-                email
+/* ==================================================
+   EMAIL BAN CHECK
+================================================== */
+
+const normalizedEmail =
+    String(email || "")
+        .trim()
+        .toLowerCase();
+
+if (!normalizedEmail) {
+
+    return res.status(400).json({
+        error: "Email is required."
+    });
+
+}
+
+        try {
+
+            const banned =
+                await isEmailBanned(
+                    normalizedEmail
+                );
+
+            if (banned) {
+
+                return res.status(403).json({
+                    error:
+                        "This email address is banned."
+                });
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "SIGNUP EMAIL BAN ERROR:",
+                error
             );
 
-        if (emailBan) {
-            return res.status(403).json({
+            return res.status(500).json({
                 error:
-                    "This email address is banned from ShrekBook."
+                    "Unable to verify email."
             });
+
         }
 
         const {
