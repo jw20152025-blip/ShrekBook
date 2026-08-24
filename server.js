@@ -1769,7 +1769,44 @@ app.get("/api/me", async (req, res) => {
     }
 
 });
+app.post("/api/clear-kick", async (req, res) => {
 
+    try {
+
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "Not logged in"
+            });
+        }
+
+        await supabase
+            .from("profiles")
+            .update({
+                kicked: false
+            })
+            .eq(
+                "id",
+                req.session.user.id
+            );
+
+        res.json({
+            success: true
+        });
+
+    } catch (error) {
+
+        console.error(
+            "CLEAR KICK ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Failed to clear kick"
+        });
+
+    }
+
+});
 
 app.get("/api/admin/check", async (req, res) => {
 

@@ -105,7 +105,30 @@
         </p>
 
     </div>
+    <script>
+        setTimeout(async () => {
 
+            try {
+
+                await fetch(
+                    "/api/clear-kick",
+                    {
+                        method: "POST",
+                        credentials: "include"
+                    }
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Failed to clear kick:",
+                    error
+                );
+
+            }
+
+        }, 1000);
+    </script>
 </body>
 
 </html>
