@@ -3292,7 +3292,8 @@ async function checkAdmin() {
         const canAccessAdminPanel =
             role === "owner" ||
             role === "administrator" ||
-            role === "admin" ||
+            role === "senior_moderator"
+            role === "junior_moderator"
             user.is_admin === true ||
             user.is_admin === 1 ||
             user.is_admin === "true";
