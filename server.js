@@ -1765,20 +1765,27 @@ app.get("/api/me", async (req, res) => {
     }
     if (data.kicked === true) {
 
-    // Clear the kick immediately after detecting it
-    await supabase
-        .from("profiles")
-        .update({
-            kicked: false
-        })
-        .eq("id", data.id);
+        res.json({
+            loggedIn: true,
+            kicked: true,
+            banned: false
+        });
 
-    return res.json({
-        loggedIn: true,
-        kicked: true,
-        banned: false
-    });
-}
+        // Clear after sending the response
+        setTimeout(async () => {
+
+            await supabase
+                .from("profiles")
+                .update({
+                    kicked: false
+                })
+                .eq("id", data.id);
+
+        }, 1000);
+
+        return;
+    }
+
 
 });
 app.post("/api/admin/kick", async (req, res) => {
