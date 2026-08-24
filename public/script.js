@@ -405,761 +405,10 @@ async function signup() {
 
 }
 
-/* ==================================================
-   KICK DETECTOR
-================================================== */
 
-let kickCheckRunning = false;
 
 
-/* ==================================================
-   ROLE / PERMISSION SYSTEM
-================================================== */
 
-const ROLE_LEVELS = {
-    peasant: 0,
-    moderator: 1,
-    "senior moderator": 2,
-    administrator: 3,
-    admin: 3,
-    owner: 4
-};
-
-
-function normalizeRole(role) {
-
-    return String(role || "peasant")
-        .trim()
-        .toLowerCase();
-
-}
-
-
-function getRoleLevel(role) {
-
-    return ROLE_LEVELS[
-        normalizeRole(role)
-    ] ?? 0;
-
-}
-
-
-function hasRole(user, minimumRole) {
-
-    if (!user) {
-        return false;
-    }
-
-    return (
-        getRoleLevel(user.role) >=
-        getRoleLevel(minimumRole)
-    );
-
-}
-
-
-function canModerate(user) {
-
-    return hasRole(
-        user,
-        "moderator"
-    );
-
-}
-
-
-function canKick(user) {
-
-    return hasRole(
-        user,
-        "moderator"
-    );
-
-}
-
-
-function canBan(user) {
-
-    return hasRole(
-        user,
-        "senior moderator"
-    );
-
-}
-
-
-function canManageStaff(user) {
-
-    return hasRole(
-        user,
-        "administrator"
-    );
-
-}
-
-
-function isOwner(user) {
-
-    return hasRole(
-        user,
-        "owner"
-    );
-
-}
-
-
-/* ==================================================
-   ROLE DISPLAY NAME
-================================================== */
-
-function getRoleDisplayName(role) {
-
-    const names = {
-
-        peasant:
-            "Peasant",
-
-        moderator:
-            "Moderator",
-
-        "senior moderator":
-            "Senior Moderator",
-
-        administrator:
-            "Administrator",
-
-        admin:
-            "Administrator",
-
-        owner:
-            "Owner"
-
-    };
-
-    return (
-        names[
-            normalizeRole(role)
-        ] || "Peasant"
-    );
-
-}
-
-
-/* ==================================================
-   INSTANT MODERATION
-================================================== */
-
-(function startModerationSocket() {
-
-    const path =
-        window.location.pathname.toLowerCase();
-
-    if (
-        path.endsWith("/login.html") ||
-        path.endsWith("/kicked.html")
-    ) {
-        return;
-    }
-
-    try {
-
-        const protocol =
-            window.location.protocol === "https:"
-                ? "wss:"
-                : "ws:";
-
-        const socket =
-            new WebSocket(
-                `${protocol}//${window.location.host}/moderation`
-            );
-
-        socket.addEventListener(
-            "open",
-            () => {
-
-                console.log(
-                    "🛡️ Instant moderation connected."
-                );
-
-            }
-        );
-
-        socket.addEventListener(
-            "message",
-            event => {
-
-                try {
-
-                    const data =
-                        JSON.parse(event.data);
-
-                    if (data.type === "BAN") {
-
-                        console.log(
-                            "🚫 BANNED"
-                        );
-
-                        window.location.replace(
-                            "/login.html"
-                        );
-
-                        return;
-
-                    }
-
-                    if (data.type === "KICK") {
-
-                        console.log(
-                            "🦵 KICKED"
-                        );
-
-                        window.location.replace(
-                            "/kicked.html"
-                        );
-
-                        return;
-
-                    }
-
-                } catch (error) {
-
-                    console.error(
-                        "MODERATION MESSAGE ERROR:",
-                        error
-                    );
-
-                }
-
-            }
-        );
-
-        socket.addEventListener(
-            "close",
-            () => {
-
-                console.log(
-                    "Moderation connection closed."
-                );
-
-            }
-        );
-
-        socket.addEventListener(
-            "error",
-            error => {
-
-                console.error(
-                    "MODERATION WEBSOCKET ERROR:",
-                    error
-                );
-
-            }
-        );
-
-    } catch (error) {
-
-        console.error(
-            "MODERATION SOCKET ERROR:",
-            error
-        );
-
-    }
-
-})();
-
-
-/* ==================================================
-   CHECK KICK STATUS
-================================================== */
-
-async function checkKickStatus() {
-
-    if (kickCheckRunning) {
-        return;
-    }
-
-    kickCheckRunning = true;
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/me",
-                {
-                    method: "GET",
-                    credentials: "include",
-                    cache: "no-store",
-                    headers: {
-                        "Accept":
-                            "application/json"
-                    }
-                }
-            );
-
-        if (!response.ok) {
-            return;
-        }
-
-        const data =
-            await response.json();
-
-        if (
-            data &&
-            data.kicked === true
-        ) {
-
-            console.log(
-                "🚪 User has been kicked."
-            );
-
-            window.location.replace(
-                "/kicked.html"
-            );
-
-            return;
-
-        }
-
-    } catch (error) {
-
-        console.error(
-            "KICK STATUS ERROR:",
-            error
-        );
-
-    } finally {
-
-        if (
-            !window.location.pathname
-                .endsWith("/kicked.html")
-        ) {
-
-            kickCheckRunning = false;
-
-        }
-
-    }
-
-}
-
-
-/* ==================================================
-   START KICK MONITOR
-================================================== */
-
-if (
-    !window.location.pathname
-        .endsWith("/kicked.html")
-) {
-
-    checkKickStatus();
-
-    setInterval(
-        checkKickStatus,
-        1000
-    );
-
-}
-
-
-/* ==================================================
-   AUTH UI
-================================================== */
-
-function showSignup() {
-
-    const loginBox =
-        document.getElementById("login-box");
-
-    const signupBox =
-        document.getElementById("signup-box");
-
-    if (loginBox) {
-        loginBox.style.display = "none";
-    }
-
-    if (signupBox) {
-        signupBox.style.display = "block";
-    }
-
-}
-
-
-function showLogin() {
-
-    const loginBox =
-        document.getElementById("login-box");
-
-    const signupBox =
-        document.getElementById("signup-box");
-
-    if (loginBox) {
-        loginBox.style.display = "block";
-    }
-
-    if (signupBox) {
-        signupBox.style.display = "none";
-    }
-
-}
-
-
-/* ==================================================
-   ADMIN NAVIGATION
-================================================== */
-
-function setupAdminNav(user) {
-
-    if (!user) {
-        return;
-    }
-
-    /*
-       Keep compatibility with your
-       existing admin flags.
-    */
-
-    const legacyAdmin =
-        user.is_admin === true ||
-        user.is_admin === 1 ||
-        user.is_admin === "true" ||
-        user.admin === true ||
-        user.admin === 1 ||
-        user.admin === "true" ||
-        user.isAdmin === true ||
-        user.isAdmin === 1;
-
-    const role =
-        normalizeRole(user.role);
-
-    /*
-       Moderator and above can see
-       the Admin navigation.
-    */
-
-    const hasStaffRole =
-        getRoleLevel(role) >=
-        getRoleLevel("moderator");
-
-    const canSeeAdminNav =
-        legacyAdmin ||
-        hasStaffRole;
-
-    let adminNav =
-        document.getElementById(
-            "admin-nav"
-        );
-
-    if (!canSeeAdminNav) {
-
-        if (adminNav) {
-
-            adminNav.style.display =
-                "none";
-
-        }
-
-        return;
-
-    }
-
-    if (adminNav) {
-
-        adminNav.style.display =
-            "flex";
-
-        return;
-
-    }
-
-    adminNav =
-        document.createElement("nav");
-
-    adminNav.id =
-        "admin-nav";
-
-    adminNav.style.cssText = `
-        display:flex;
-        align-items:center;
-        gap:12px;
-        padding:10px 15px;
-        margin-bottom:15px;
-        background:#222;
-        border:1px solid #444;
-        border-radius:10px;
-        box-sizing:border-box;
-        width:100%;
-    `;
-
-    const displayRole =
-        getRoleDisplayName(
-            role
-        );
-
-    adminNav.innerHTML = `
-
-        <strong
-            style="
-                color:#ffcc00;
-                white-space:nowrap;
-            ">
-
-            🛡️ Admin
-
-        </strong>
-
-        <span
-            style="
-                opacity:0.7;
-                white-space:nowrap;
-            ">
-
-            ${displayRole}
-
-        </span>
-
-        <a
-            href="/admin.html"
-            style="
-                color:inherit;
-                text-decoration:none;
-                font-weight:bold;
-            ">
-
-            Admin Panel
-
-        </a>
-
-        <span style="opacity:0.5;">
-            |
-        </span>
-
-        <a
-            href="/"
-            style="
-                color:inherit;
-                text-decoration:none;
-            ">
-
-            Home
-
-        </a>
-
-    `;
-
-    const app =
-        document.getElementById(
-            "app-section"
-        );
-
-    if (app) {
-
-        app.insertBefore(
-            adminNav,
-            app.firstChild
-        );
-
-    } else {
-
-        document.body.prepend(
-            adminNav
-        );
-
-    }
-
-}
-
-
-/* ==================================================
-   SESSION CHECK
-================================================== */
-
-async function checkLogin() {
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/me",
-                {
-                    credentials: "include",
-                    cache: "no-store",
-                    headers: {
-                        "Accept":
-                            "application/json"
-                    }
-                }
-            );
-
-        const data =
-            await response.json();
-
-        if (
-            response.ok &&
-            data.loggedIn &&
-            data.user
-        ) {
-
-            console.log(
-                "👤 Logged in as:",
-                data.user.username
-            );
-
-            console.log(
-                "🛡️ Role:",
-                getRoleDisplayName(
-                    data.user.role
-                )
-            );
-
-            setupAdminNav(
-                data.user
-            );
-
-            showApp();
-
-        } else {
-
-            showAuth();
-
-        }
-
-    } catch (error) {
-
-        console.error(
-            "SESSION ERROR:",
-            error
-        );
-
-        showAuth();
-
-    }
-
-}
-
-
-/* ==================================================
-   SHOW AUTH
-================================================== */
-
-function showAuth() {
-
-    const auth =
-        document.getElementById(
-            "auth-section"
-        );
-
-    const app =
-        document.getElementById(
-            "app-section"
-        );
-
-    const logoutButton =
-        document.getElementById(
-            "logout-button"
-        );
-
-    const adminNav =
-        document.getElementById(
-            "admin-nav"
-        );
-
-    if (auth) {
-        auth.style.display =
-            "block";
-    }
-
-    if (app) {
-        app.style.display =
-            "none";
-    }
-
-    if (logoutButton) {
-        logoutButton.style.display =
-            "none";
-    }
-
-    if (adminNav) {
-        adminNav.style.display =
-            "none";
-    }
-
-}
-
-
-/* ==================================================
-   ADMIN BUTTON
-================================================== */
-
-async function checkAdmin() {
-
-    const adminButton =
-        document.getElementById(
-            "admin-button"
-        );
-
-    if (!adminButton) {
-        return;
-    }
-
-    adminButton.style.display =
-        "none";
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/admin/check",
-                {
-                    credentials: "include",
-                    cache: "no-store",
-                    headers: {
-                        "Accept":
-                            "application/json"
-                    }
-                }
-            );
-
-        const data =
-            await response.json();
-
-        /*
-           Admin button is now available
-           to Moderator and above.
-        */
-
-        if (
-            response.ok &&
-            (
-                data.isAdmin === true ||
-                data.canModerate === true ||
-                data.roleLevel >= 1
-            )
-        ) {
-
-            adminButton.style.display =
-                "inline-block";
-
-        } else {
-
-            adminButton.style.display =
-                "none";
-
-        }
-
-    } catch (error) {
-
-        console.error(
-            "ADMIN BUTTON ERROR:",
-            error
-        );
-
-        adminButton.style.display =
-            "none";
-
-    }
-
-}
 
 
 /* ==================================================
@@ -3594,7 +2843,782 @@ function startOnlineHeartbeat() {
 
 }
 
+/* ==================================================
+   ROLE SYSTEM
+================================================== */
 
+function getUserRole(user) {
+
+    if (!user) {
+        return "peasant";
+    }
+
+    /*
+        Supported roles:
+
+        owner
+        admin
+        senior_moderator
+        moderator
+        peasant
+    */
+
+    let role =
+        user.role ||
+        user.user_role ||
+        user.rank ||
+        "peasant";
+
+    role = String(role)
+        .toLowerCase()
+        .trim()
+        .replace(/[\s-]+/g, "_");
+
+    const validRoles = [
+        "owner",
+        "admin",
+        "senior_moderator",
+        "moderator",
+        "peasant"
+    ];
+
+    if (!validRoles.includes(role)) {
+        return "peasant";
+    }
+
+    return role;
+}
+
+
+/* ==================================================
+   ROLE PERMISSIONS
+================================================== */
+
+function hasRole(user, requiredRole) {
+
+    const roleLevels = {
+        peasant: 0,
+        moderator: 1,
+        senior_moderator: 2,
+        admin: 3,
+        owner: 4
+    };
+
+    const userRole =
+        getUserRole(user);
+
+    const userLevel =
+        roleLevels[userRole] ?? 0;
+
+    const requiredLevel =
+        roleLevels[requiredRole] ?? 0;
+
+    return userLevel >= requiredLevel;
+}
+
+
+/* ==================================================
+   INDIVIDUAL ROLE CHECKS
+================================================== */
+
+function isOwner(user) {
+    return hasRole(user, "owner");
+}
+
+
+function isAdmin(user) {
+    return hasRole(user, "admin");
+}
+
+
+function isSeniorModerator(user) {
+    return hasRole(user, "senior_moderator");
+}
+
+
+function isModerator(user) {
+    return hasRole(user, "moderator");
+}
+
+
+/* ==================================================
+   CAN ACCESS ADMIN PANEL
+================================================== */
+
+function canAccessAdminPanel(user) {
+
+    if (!user) {
+        return false;
+    }
+
+    /*
+        Admin panel is available to:
+
+        OWNER
+        ADMIN
+
+        Moderators do NOT get the admin panel.
+    */
+
+    return (
+        getUserRole(user) === "owner" ||
+        getUserRole(user) === "admin"
+    );
+
+}
+
+
+/* ==================================================
+   CAN ACCESS MODERATION
+================================================== */
+
+function canModerate(user) {
+
+    if (!user) {
+        return false;
+    }
+
+    return hasRole(
+        user,
+        "moderator"
+    );
+
+}
+
+
+/* ==================================================
+   ADMIN NAVIGATION
+================================================== */
+
+function setupAdminNav(user) {
+
+    let adminNav =
+        document.getElementById("admin-nav");
+
+    /*
+        Remove/hide the nav if there is
+        no logged-in user.
+    */
+
+    if (!user) {
+
+        if (adminNav) {
+            adminNav.style.display = "none";
+        }
+
+        return;
+
+    }
+
+
+    const role =
+        getUserRole(user);
+
+
+    /*
+        ONLY owner/admin get Admin Panel.
+
+        Moderator and Senior Moderator
+        do NOT get this button.
+    */
+
+    const allowed =
+        canAccessAdminPanel(user);
+
+
+    if (!allowed) {
+
+        if (adminNav) {
+            adminNav.style.display = "none";
+        }
+
+        return;
+
+    }
+
+
+    /*
+        If the nav already exists,
+        simply show it.
+    */
+
+    if (adminNav) {
+
+        adminNav.style.display = "flex";
+
+        return;
+
+    }
+
+
+    /*
+        Create Admin Navigation
+    */
+
+    adminNav =
+        document.createElement("nav");
+
+    adminNav.id =
+        "admin-nav";
+
+    adminNav.style.cssText = `
+        display:flex;
+        align-items:center;
+        gap:12px;
+        padding:10px 15px;
+        margin-bottom:15px;
+        background:#222;
+        border:1px solid #444;
+        border-radius:10px;
+        box-sizing:border-box;
+        width:100%;
+    `;
+
+
+    /*
+        Different label depending
+        on the user's actual role.
+    */
+
+    let roleLabel =
+        "Admin";
+
+    if (role === "owner") {
+        roleLabel = "Owner";
+    }
+
+    if (role === "admin") {
+        roleLabel = "Admin";
+    }
+
+
+    adminNav.innerHTML = `
+
+        <strong
+            style="
+                color:#ffcc00;
+                white-space:nowrap;
+            "
+        >
+            🛡️ ${roleLabel}
+        </strong>
+
+        <a
+            href="/admin.html"
+            style="
+                color:inherit;
+                text-decoration:none;
+                font-weight:bold;
+            "
+        >
+            Admin Panel
+        </a>
+
+        <span style="opacity:0.5;">
+            |
+        </span>
+
+        <a
+            href="/"
+            style="
+                color:inherit;
+                text-decoration:none;
+            "
+        >
+            Home
+        </a>
+
+    `;
+
+
+    const app =
+        document.getElementById(
+            "app-section"
+        );
+
+
+    if (app) {
+
+        app.insertBefore(
+            adminNav,
+            app.firstChild
+        );
+
+    } else {
+
+        document.body.prepend(
+            adminNav
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   ADMIN BUTTON
+================================================== */
+
+async function checkAdmin() {
+
+    const adminButton =
+        document.getElementById(
+            "admin-button"
+        );
+
+
+    if (!adminButton) {
+        return;
+    }
+
+
+    /*
+        Hide it by default.
+    */
+
+    adminButton.style.display =
+        "none";
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/me",
+                {
+                    method: "GET",
+                    credentials: "include",
+                    cache: "no-store",
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
+                }
+            );
+
+
+        if (!response.ok) {
+
+            adminButton.style.display =
+                "none";
+
+            return;
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        if (
+            !data ||
+            !data.loggedIn ||
+            !data.user
+        ) {
+
+            adminButton.style.display =
+                "none";
+
+            return;
+
+        }
+
+
+        /*
+            Get actual role.
+        */
+
+        const role =
+            getUserRole(
+                data.user
+            );
+
+
+        /*
+            ONLY OWNER + ADMIN.
+
+            Senior moderators and moderators
+            will NOT see this button.
+        */
+
+        if (
+            role === "owner" ||
+            role === "admin"
+        ) {
+
+            adminButton.style.display =
+                "inline-block";
+
+        } else {
+
+            adminButton.style.display =
+                "none";
+
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "ADMIN BUTTON ERROR:",
+            error
+        );
+
+        adminButton.style.display =
+            "none";
+
+    }
+
+}
+
+
+/* ==================================================
+   MODERATION UI
+================================================== */
+
+function setupModerationUI(user) {
+
+    if (!user) {
+        return;
+    }
+
+
+    const moderationElements =
+        document.querySelectorAll(
+            "[data-moderator-only]"
+        );
+
+
+    /*
+        Moderator+
+        can see moderation controls.
+    */
+
+    const allowed =
+        canModerate(user);
+
+
+    moderationElements.forEach(
+        element => {
+
+            element.style.display =
+                allowed
+                    ? ""
+                    : "none";
+
+        }
+    );
+
+}
+
+
+/* ==================================================
+   ROLE UI
+================================================== */
+
+function setupRoleUI(user) {
+
+    if (!user) {
+        return;
+    }
+
+
+    const role =
+        getUserRole(user);
+
+
+    /*
+        Put the role into elements
+        using data-role-display.
+    */
+
+    document
+        .querySelectorAll(
+            "[data-role-display]"
+        )
+        .forEach(
+            element => {
+
+                element.textContent =
+                    role
+                        .replace(/_/g, " ")
+                        .replace(/\b\w/g, c =>
+                            c.toUpperCase()
+                        );
+
+            }
+        );
+
+
+    /*
+        Owner-only elements
+    */
+
+    document
+        .querySelectorAll(
+            "[data-owner-only]"
+        )
+        .forEach(
+            element => {
+
+                element.style.display =
+                    role === "owner"
+                        ? ""
+                        : "none";
+
+            }
+        );
+
+
+    /*
+        Admin+ elements
+    */
+
+    document
+        .querySelectorAll(
+            "[data-admin-only]"
+        )
+        .forEach(
+            element => {
+
+                element.style.display =
+                    canAccessAdminPanel(user)
+                        ? ""
+                        : "none";
+
+            }
+        );
+
+
+    /*
+        Moderator+ elements
+    */
+
+    document
+        .querySelectorAll(
+            "[data-moderator-only]"
+        )
+        .forEach(
+            element => {
+
+                element.style.display =
+                    canModerate(user)
+                        ? ""
+                        : "none";
+
+            }
+        );
+
+}
+
+
+/* ==================================================
+   SESSION CHECK
+================================================== */
+
+async function checkLogin() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/me",
+                {
+                    credentials: "include",
+                    cache: "no-store",
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (
+            response.ok &&
+            data.loggedIn &&
+            data.user
+        ) {
+
+            /*
+                Set up ALL role systems.
+            */
+
+            setupAdminNav(
+                data.user
+            );
+
+            setupModerationUI(
+                data.user
+            );
+
+            setupRoleUI(
+                data.user
+            );
+
+            checkAdmin();
+
+            showApp();
+
+        } else {
+
+            showAuth();
+
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "SESSION ERROR:",
+            error
+        );
+
+        showAuth();
+
+    }
+
+}
+
+
+/* ==================================================
+   SHOW AUTH
+================================================== */
+
+function showAuth() {
+
+    const auth =
+        document.getElementById(
+            "auth-section"
+        );
+
+    const app =
+        document.getElementById(
+            "app-section"
+        );
+
+    const logoutButton =
+        document.getElementById(
+            "logout-button"
+        );
+
+    const adminNav =
+        document.getElementById(
+            "admin-nav"
+        );
+
+    const adminButton =
+        document.getElementById(
+            "admin-button"
+        );
+
+
+    if (auth) {
+        auth.style.display = "block";
+    }
+
+
+    if (app) {
+        app.style.display = "none";
+    }
+
+
+    if (logoutButton) {
+        logoutButton.style.display =
+            "none";
+    }
+
+
+    if (adminNav) {
+        adminNav.style.display =
+            "none";
+    }
+
+
+    if (adminButton) {
+        adminButton.style.display =
+            "none";
+    }
+
+}
+
+
+/* ==================================================
+   ROLE DEBUG
+================================================== */
+
+function debugUserRole(user) {
+
+    if (!user) {
+
+        console.log(
+            "👤 No user logged in."
+        );
+
+        return;
+
+    }
+
+
+    const role =
+        getUserRole(user);
+
+
+    console.log(
+        "👤 User:",
+        user.username ||
+        user.display_name ||
+        user.id
+    );
+
+
+    console.log(
+        "🎖️ Role:",
+        role
+    );
+
+
+    console.log(
+        "👑 Owner:",
+        isOwner(user)
+    );
+
+
+    console.log(
+        "🛡️ Admin:",
+        isAdmin(user)
+    );
+
+
+    console.log(
+        "⭐ Senior Moderator:",
+        isSeniorModerator(user)
+    );
+
+
+    console.log(
+        "🔨 Moderator:",
+        isModerator(user)
+    );
+
+
+    console.log(
+        "📋 Admin Panel:",
+        canAccessAdminPanel(user)
+    );
+
+
+    console.log(
+        "🔨 Moderation:",
+        canModerate(user)
+    );
+
+}
 /* ==================================================
    START
 ================================================== */
