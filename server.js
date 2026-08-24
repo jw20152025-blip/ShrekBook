@@ -117,16 +117,10 @@ app.use(
 );
 
 // ============================================================
-// SHREKSEARCH - TAVILY SEARCH API
+// SHREKSEARCH API
 // ============================================================
 
-const axios = require("axios");
-
-const {
-    processResults
-} = require("./postprocess");
-
-app.get("/api/search", async (req, res) => {
+app.get("/api/shreksearch", async (req, res) => {
     try {
         const query = String(req.query.q || "").trim();
 
@@ -142,41 +136,45 @@ app.get("/api/search", async (req, res) => {
             console.error("TAVILY_API_KEY is missing");
 
             return res.status(500).json({
-                error: "TAVILY_API_KEY is not configured"
+                error: "TAVILY_API_KEY missing"
             });
         }
 
-        console.log("ShrekSearch query:", query);
+        console.log("ShrekSearch:", query);
 
-        // ----------------------------------------------------
-        // Search Tavily
-        // ----------------------------------------------------
-
-        const response = await axios.post(
+        const response = await fetch(
             "https://api.tavily.com/search",
             {
-                api_key: apiKey,
-                query: query,
-                search_depth: "basic",
-                max_results: 10,
-                include_answer: false
-            },
-            {
+                method: "POST",
+
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${apiKey}`
                 },
-                timeout: 15000
+
+                body: JSON.stringify({
+                    query: query,
+                    search_depth: "basic",
+                    max_results: 10,
+                    include_answer: false
+                })
             }
         );
 
-        // ----------------------------------------------------
-        // Convert Tavily results
-        // ----------------------------------------------------
+        const data = await response.json();
 
-        const tavilyResults =
-            response.data?.results || [];
+        console.log("Tavily status:", response.status);
 
-        const results = tavilyResults.map(result => ({
+        if (!response.ok) {
+            console.error("Tavily error:", data);
+
+            return res.status(response.status).json({
+                error: "Tavily API error",
+                details: data
+            });
+        }
+
+        const results = (data.results || []).map(result => ({
             title: result.title || "",
             url: result.url || "",
             description: result.content || "",
@@ -184,38 +182,19 @@ app.get("/api/search", async (req, res) => {
             content: result.content || ""
         }));
 
-        // ----------------------------------------------------
-        // Process with postprocess.js
-        // ----------------------------------------------------
-
-        const processed = processResults(
-            results,
-            query
-        );
-
-        // ----------------------------------------------------
-        // Return JSON
-        // ----------------------------------------------------
-
         res.json({
             query: query,
-            count: processed.length,
-            results: processed
+            count: results.length,
+            results: results
         });
 
     } catch (error) {
 
-        console.error(
-            "Tavily search error:",
-            error.response?.data || error.message
-        );
+        console.error("ShrekSearch error:", error);
 
         res.status(500).json({
             error: "Search failed",
-            details:
-                error.response?.data?.message ||
-                error.response?.data ||
-                error.message
+            details: error.message
         });
     }
 });
