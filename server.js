@@ -6,7 +6,7 @@ const path = require("path");
 const http = require("http");
 const WebSocket = require("ws");
 const session = require("express-session");
-const WebSocket = require("ws");
+;
 const { createClient } = require("@supabase/supabase-js");
 
 const { InferenceClient } = require("@huggingface/inference");
