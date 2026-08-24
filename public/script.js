@@ -3156,29 +3156,20 @@ function setupAdminNav(user) {
 
 
 /* ==================================================
-   ADMIN BUTTON
+   ADMIN BUTTON / ROLE CHECK
 ================================================== */
 
 async function checkAdmin() {
 
     const adminButton =
-        document.getElementById(
-            "admin-button"
-        );
-
+        document.getElementById("admin-button");
 
     if (!adminButton) {
         return;
     }
 
-
-    /*
-        Hide it by default.
-    */
-
-    adminButton.style.display =
-        "none";
-
+    // Hide by default
+    adminButton.style.display = "none";
 
     try {
 
@@ -3190,73 +3181,72 @@ async function checkAdmin() {
                     credentials: "include",
                     cache: "no-store",
                     headers: {
-                        "Accept":
-                            "application/json"
+                        "Accept": "application/json"
                     }
                 }
             );
 
-
         if (!response.ok) {
-
-            adminButton.style.display =
-                "none";
-
             return;
-
         }
-
 
         const data =
             await response.json();
 
+        const user =
+            data.user || data;
 
-        if (
-            !data ||
-            !data.loggedIn ||
-            !data.user
-        ) {
-
-            adminButton.style.display =
-                "none";
-
+        if (!user) {
             return;
-
         }
 
-
-        /*
-            Get actual role.
-        */
-
         const role =
-            getUserRole(
-                data.user
-            );
-
+            String(
+                user.role ||
+                user.user_role ||
+                "peasant"
+            ).toLowerCase().trim();
 
         /*
-            ONLY OWNER + ADMIN.
+            ADMIN PANEL ACCESS
 
-            Senior moderators and moderators
-            will NOT see this button.
+            owner
+            administrator
+            admin
+
+            Moderators DO NOT get the
+            Admin Panel from this check.
         */
 
-        if (
+        const canAccessAdminPanel =
             role === "owner" ||
-            role === "admin"
-        ) {
+            role === "administrator" ||
+            role === "admin" ||
+            user.is_admin === true ||
+            user.is_admin === 1 ||
+            user.is_admin === "true";
+
+        if (canAccessAdminPanel) {
 
             adminButton.style.display =
                 "inline-block";
+
+            console.log(
+                "🛡️ Admin Panel access granted:",
+                role
+            );
 
         } else {
 
             adminButton.style.display =
                 "none";
 
-        }
+            console.log(
+                "👤 Admin Panel access denied:",
+                role
+            );
 
+        }
 
     } catch (error) {
 
@@ -3267,12 +3257,8 @@ async function checkAdmin() {
 
         adminButton.style.display =
             "none";
-
     }
-
 }
-
-
 /* ==================================================
    MODERATION UI
 ================================================== */
