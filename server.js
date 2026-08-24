@@ -4,7 +4,7 @@ require("dotenv").config();
 const express = require("express");
 const path = require("path");
 const http = require("http");
-const WebSocket = require("ws");
+
 const session = require("express-session");
 ;
 const { createClient } = require("@supabase/supabase-js");
@@ -206,292 +206,66 @@ app.get("/api/shreksearch", async (req, res) => {
 const server =
     http.createServer(app);
 
-
-
-
-
-// ==================================================
-// CONNECTED USERS
-// ==================================================
-//
-// userId -> Set of WebSocket connections
-//
-// Multiple tabs are supported.
-//
-
-const moderationSockets =
-    new Map();
-
-
-// ==================================================
-// ADD SOCKET
-// ==================================================
-
-function addModerationSocket(
-    userId,
-    socket
-) {
-
-    if (
-        !moderationSockets.has(
-            userId
-        )
-    ) {
-
-        moderationSockets.set(
-            userId,
-            new Set()
-        );
-
-    }
-
-
-    moderationSockets
-        .get(userId)
-        .add(socket);
-
-}
-
-
-// ==================================================
-// REMOVE SOCKET
-// ==================================================
-
-function removeModerationSocket(
-    userId,
-    socket
-) {
-
-    const sockets =
-        moderationSockets.get(
-            userId
-        );
-
-
-    if (!sockets) {
-        return;
-    }
-
-
-    sockets.delete(
-        socket
-    );
-
-
-    if (
-        sockets.size === 0
-    ) {
-
-        moderationSockets.delete(
-            userId
-        );
-
-    }
-
-}
-/* ============================================================
-   LIVE MODERATION WEBSOCKET
-============================================================ */
-
-
-
-function registerModerationSocket(userId, socket) {
-
-    userId = String(userId);
-
-    moderationSockets.set(userId, socket);
-
-    console.log(
-        `🟢 MODERATION SOCKET REGISTERED: ${userId}`
-    );
-
-    socket.send(
-        JSON.stringify({
-            type: "CONNECTED"
-        })
-    );
-
-    socket.on("close", () => {
-
-        console.log(
-            `🔴 MODERATION SOCKET CLOSED: ${userId}`
-        );
-
-        if (
-            moderationSockets.get(userId) === socket
-        ) {
-            moderationSockets.delete(userId);
-        }
-
-    });
-
-    socket.on("error", error => {
-
-        console.error(
-            `❌ SOCKET ERROR FOR ${userId}:`,
-            error
-        );
-
-    });
-}
-/* ============================================================
-   SEND LIVE MODERATION EVENT
-============================================================ */
-
-function sendModerationEvent(userId, type) {
-
-    if (!userId) {
-        console.log(
-            "⚠️ No user ID supplied for moderation event."
-        );
-
-        return false;
-    }
-
-    userId = String(userId);
-
-    const sockets =
-        moderationClients.get(userId);
-
-    if (!sockets || sockets.size === 0) {
-
-        console.log(
-            `ℹ️ User ${userId} is not connected to moderation WebSocket.`
-        );
-
-        return false;
-    }
-
-    const message =
-        JSON.stringify({
-            type: type
-        });
-
-    let sent = false;
-
-    for (const socket of sockets) {
-
-        if (
-            socket.readyState ===
-            WebSocket.OPEN
-        ) {
-
-            try {
-
-                socket.send(message);
-
-                sent = true;
-
-                console.log(
-                    `📡 Sent ${type} to user ${userId}`
-                );
-
-            } catch (error) {
-
-                console.error(
-                    `❌ Failed sending ${type} to ${userId}:`,
-                    error
-                );
-
-            }
-
-        }
-
-    }
-
-    return sent;
-}
-
-
-/* ============================================================
-   KICK USER LIVE
-============================================================ */
-
-function liveKickUser(userId) {
-
-    return sendModerationEvent(
-        userId,
-        "KICK"
-    );
-
-}
-
-
-/* ============================================================
-   BAN USER LIVE
-============================================================ */
-
-function liveBanUser(userId) {
-
-    return sendModerationEvent(
-        userId,
-        "BAN"
-    );
-
-}
-
-// ==================================================
-// SEND MODERATION EVENT
-// ==================================================
-
-function sendModerationEvent(
-    userId,
-    type
-) {
-
-    const sockets =
-        moderationSockets.get(
-            userId
-        );
-
-
-    if (!sockets) {
-
-        console.log(
-            `⚠️ No active socket for user ${userId}`
-        );
-
-        return;
-
-    }
-
-
-    const message =
-        JSON.stringify({
-
-            type
-
-        });
-
-
-    for (
-        const socket
-        of sockets
-    ) {
-
-        if (
-            socket.readyState ===
-            WebSocket.OPEN
-        ) {
-
-            socket.send(
-                message
-            );
-
-            console.log(
-                `📡 Sent ${type} to ${userId}`
-            );
-
-        }
-
-    }
-
-}
-
 /* ==================================================
    ONLINE STATUS
 ================================================== */
+app.get("/api/moderation/status", async (req, res) => {
 
+    try {
+
+        if (!req.session || !req.session.userId) {
+
+            return res.json({
+                loggedIn: false,
+                banned: false,
+                kicked: false
+            });
+
+        }
+
+        const userId =
+            req.session.userId;
+
+        const { data: user, error } =
+            await supabase
+                .from("profiles")
+                .select("id, banned, kicked")
+                .eq("id", userId)
+                .single();
+
+        if (error) {
+
+            console.error(
+                "Moderation status error:",
+                error
+            );
+
+            return res.status(500).json({
+                error: "Failed to check moderation status"
+            });
+
+        }
+
+        res.json({
+            loggedIn: true,
+            banned: user?.banned === true,
+            kicked: user?.kicked === true
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Moderation status error:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Server error"
+        });
+
+    }
+
+});
 app.post("/api/online", async (req, res) => {
 
     try {
@@ -550,122 +324,6 @@ app.post("/api/online", async (req, res) => {
     }
 
 });
-// ==================================================
-// WEBSOCKET CONNECTION
-// ==================================================
-
-
-
-const wss = new WebSocket.Server({
-    server,
-    path: "/moderation"
-});
-
-wss.on("connection", (socket, request) => {
-
-    console.log("🔌 Moderation WebSocket connected.");
-
-    // Get the Express session from the WebSocket request
-    sessionMiddleware(
-        request,
-        {},
-        () => {
-
-            const userId =
-                request.session?.userId ||
-                request.session?.user?.id;
-
-            if (!userId) {
-                console.log(
-                    "⚠️ WebSocket user is not logged in."
-                );
-
-                socket.close();
-                return;
-            }
-
-            console.log(
-                `🛡️ Moderation socket registered for ${userId}`
-            );
-
-            registerModerationSocket(
-                userId,
-                socket
-            );
-
-            socket.send(
-                JSON.stringify({
-                    type: "CONNECTED"
-                })
-            );
-        }
-    );
-});
-
-
-function registerModerationSocket(userId, socket) {
-
-    moderationSockets.set(
-        String(userId),
-        socket
-    );
-
-    console.log(
-        `🛡️ Registered moderation socket for ${userId}`
-    );
-
-    socket.on("close", () => {
-
-        if (
-            moderationSockets.get(String(userId))
-            === socket
-        ) {
-            moderationSockets.delete(
-                String(userId)
-            );
-        }
-
-    });
-}
-
-
-function sendModerationAction(userId, type) {
-
-    const socket =
-        moderationSockets.get(String(userId));
-
-    if (!socket) {
-
-        console.log(
-            `⚠️ No live socket for ${userId}`
-        );
-
-        return false;
-    }
-
-    if (
-        socket.readyState !== WebSocket.OPEN
-    ) {
-
-        moderationSockets.delete(
-            String(userId)
-        );
-
-        return false;
-    }
-
-    socket.send(
-        JSON.stringify({
-            type: type
-        })
-    );
-
-    console.log(
-        `📡 Sent ${type} to ${userId}`
-    );
-
-    return true;
-}
 
 // ==================================================
 // DEFAULT AVATAR
@@ -2008,9 +1666,12 @@ app.post("/api/login", async (req, res) => {
 
 
 
-// ==================================================
-// CURRENT USER
-// ==================================================
+/* ==================================================
+   BAN / KICK MONITOR
+================================================== */
+
+let moderationCheckRunning = false;
+
 
 app.get("/api/me", async (req, res) => {
 
@@ -2019,7 +1680,9 @@ app.get("/api/me", async (req, res) => {
         if (!req.session.user) {
 
             return res.json({
-                loggedIn: false
+                loggedIn: false,
+                banned: false,
+                kicked: false
             });
 
         }
@@ -2039,7 +1702,9 @@ app.get("/api/me", async (req, res) => {
         if (error || !data) {
 
             return res.json({
-                loggedIn: false
+                loggedIn: false,
+                banned: false,
+                kicked: false
             });
 
         }
@@ -2058,7 +1723,14 @@ app.get("/api/me", async (req, res) => {
 
             loggedIn: true,
 
-            isAdmin: admin,
+            banned:
+                data.banned === true,
+
+            kicked:
+                data.kicked === true,
+
+            isAdmin:
+                admin,
 
             user: {
 
@@ -2097,6 +1769,8 @@ app.get("/api/me", async (req, res) => {
     }
 
 });
+
+
 app.get("/api/admin/check", async (req, res) => {
 
     try {

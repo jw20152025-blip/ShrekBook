@@ -3154,7 +3154,88 @@ function setupAdminNav(user) {
 
 }
 
+async function checkModerationStatus() {
 
+    try {
+
+        const response =
+            await fetch(
+                "/api/me",
+                {
+                    credentials: "include",
+                    cache: "no-store"
+                }
+            );
+
+        if (!response.ok) {
+            return;
+        }
+
+        const data =
+            await response.json();
+
+
+        /* BAN */
+
+        if (data.banned === true) {
+
+            console.log(
+                "🚫 BANNED"
+            );
+
+            window.location.replace(
+                "/login.html"
+            );
+
+            return;
+        }
+
+
+        /* KICK */
+
+        if (data.kicked === true) {
+
+            console.log(
+                "🦵 KICKED"
+            );
+
+            window.location.replace(
+                "/kicked.html"
+            );
+
+            return;
+        }
+
+    } catch (error) {
+
+        console.error(
+            "MODERATION CHECK ERROR:",
+            error
+        );
+
+    }
+
+}
+
+
+if (
+    !window.location.pathname
+        .toLowerCase()
+        .endsWith("/login.html") &&
+
+    !window.location.pathname
+        .toLowerCase()
+        .endsWith("/kicked.html")
+) {
+
+    checkModerationStatus();
+
+    setInterval(
+        checkModerationStatus,
+        2000
+    );
+
+}
 /* ==================================================
    ADMIN BUTTON / ROLE CHECK
 ================================================== */
@@ -3259,6 +3340,7 @@ async function checkAdmin() {
             "none";
     }
 }
+
 /* ==================================================
    MODERATION UI
 ================================================== */
@@ -3398,7 +3480,134 @@ function setupRoleUI(user) {
 
 }
 
+/* ==================================================
+   BAN / KICK MONITOR
+================================================== */
 
+let moderationCheckRunning = false;
+
+
+async function checkModerationStatus() {
+
+    if (moderationCheckRunning) {
+        return;
+    }
+
+    moderationCheckRunning = true;
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/me",
+                {
+                    method: "GET",
+                    credentials: "include",
+                    cache: "no-store",
+
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
+                }
+            );
+
+
+        if (!response.ok) {
+            return;
+        }
+
+
+        const data =
+            await response.json();
+
+
+        /* ==========================================
+           BAN
+        ========================================== */
+
+        if (
+            data.banned === true ||
+            (
+                data.user &&
+                data.user.banned === true
+            )
+        ) {
+
+            console.log(
+                "🚫 BAN DETECTED"
+            );
+
+            window.location.replace(
+                "/login.html"
+            );
+
+            return;
+        }
+
+
+        /* ==========================================
+           KICK
+        ========================================== */
+
+        if (
+            data.kicked === true ||
+            (
+                data.user &&
+                data.user.kicked === true
+            )
+        ) {
+
+            console.log(
+                "🦵 KICK DETECTED"
+            );
+
+            window.location.replace(
+                "/kicked.html"
+            );
+
+            return;
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "MODERATION CHECK ERROR:",
+            error
+        );
+
+    } finally {
+
+        moderationCheckRunning = false;
+
+    }
+
+}
+
+
+/* ==================================================
+   START MONITOR
+================================================== */
+
+if (
+    !window.location.pathname
+        .toLowerCase()
+        .endsWith("/login.html") &&
+
+    !window.location.pathname
+        .toLowerCase()
+        .endsWith("/kicked.html")
+) {
+
+    checkModerationStatus();
+
+    setInterval(
+        checkModerationStatus,
+        2000
+    );
+
+}
 /* ==================================================
    SESSION CHECK
 ================================================== */
