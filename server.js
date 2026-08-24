@@ -115,85 +115,154 @@ app.use(
 
     })
 );
-
-// ============================================================
-// SHREKSEARCH API
-// ============================================================
-
 app.get("/api/shreksearch", async (req, res) => {
     try {
         const query = String(req.query.q || "").trim();
 
         if (!query) {
             return res.status(400).json({
-                error: "Missing search query"
+                error: "Missing query"
             });
         }
 
-        const apiKey = process.env.TAVILY_API_KEY;
+        const tavilyKey = process.env.TAVILY_API_KEY;
+        const aiKey = process.env.OPENAI_API_KEY;
 
-        if (!apiKey) {
-            console.error("TAVILY_API_KEY is missing");
-
+        if (!tavilyKey) {
             return res.status(500).json({
                 error: "TAVILY_API_KEY missing"
             });
         }
 
-        console.log("ShrekSearch:", query);
+        if (!aiKey) {
+            return res.status(500).json({
+                error: "OPENAI_API_KEY missing"
+            });
+        }
 
-        const response = await fetch(
+        // ================================
+        // 1. SEARCH WEB
+        // ================================
+
+        const searchResponse = await fetch(
             "https://api.tavily.com/search",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${tavilyKey}`
+                },
+                body: JSON.stringify({
+                    query,
+                    search_depth: "basic",
+                    max_results: 5
+                })
+            }
+        );
+
+        const searchData = await searchResponse.json();
+
+        if (!searchResponse.ok) {
+            return res.status(500).json({
+                error: "Tavily search failed",
+                details: searchData
+            });
+        }
+
+        const results = searchData.results || [];
+
+        // ================================
+        // 2. PREPARE SOURCES FOR AI
+        // ================================
+
+        const sources = results.map((result, index) => {
+            return `
+SOURCE ${index + 1}
+Title: ${result.title || ""}
+URL: ${result.url || ""}
+Content: ${result.content || ""}
+`;
+        }).join("\n");
+
+        // ================================
+        // 3. ASK AI
+        // ================================
+
+        const aiResponse = await fetch(
+            "https://api.openai.com/v1/responses",
             {
                 method: "POST",
 
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${apiKey}`
+                    "Authorization": `Bearer ${aiKey}`
                 },
 
                 body: JSON.stringify({
-                    query: query,
-                    search_depth: "basic",
-                    max_results: 10,
-                    include_answer: false
+                    model: "gpt-5-mini",
+
+                    input: `
+You are ShrekAI, the AI answer engine for ShrekSearch.
+
+Answer the user's question using ONLY the search
+results provided below.
+
+If the sources do not contain enough information,
+say that you couldn't find enough information.
+
+Do not invent facts.
+
+User question:
+${query}
+
+Search results:
+${sources}
+`
                 })
             }
         );
 
-        const data = await response.json();
+        const aiData = await aiResponse.json();
 
-        console.log("Tavily status:", response.status);
+        if (!aiResponse.ok) {
+            console.error("AI ERROR:", aiData);
 
-        if (!response.ok) {
-            console.error("Tavily error:", data);
-
-            return res.status(response.status).json({
-                error: "Tavily API error",
-                details: data
+            return res.status(500).json({
+                error: "AI generation failed",
+                details: aiData
             });
         }
 
-        const results = (data.results || []).map(result => ({
-            title: result.title || "",
-            url: result.url || "",
-            description: result.content || "",
-            text: result.content || "",
-            content: result.content || ""
-        }));
+        // ================================
+        // 4. GET AI TEXT
+        // ================================
+
+        const answer =
+            aiData.output_text ||
+            aiData.output?.[0]?.content?.[0]?.text ||
+            "No AI answer was generated.";
+
+        // ================================
+        // 5. RETURN EVERYTHING
+        // ================================
 
         res.json({
-            query: query,
-            count: results.length,
-            results: results
+            query,
+            answer,
+
+            results: results.map(result => ({
+                title: result.title || "",
+                url: result.url || "",
+                description: result.content || ""
+            }))
         });
 
     } catch (error) {
 
-        console.error("ShrekSearch error:", error);
+        console.error("SHREKSEARCH ERROR:", error);
 
         res.status(500).json({
-            error: "Search failed",
+            error: "ShrekSearch failed",
             details: error.message
         });
     }
