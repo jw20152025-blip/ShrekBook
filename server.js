@@ -117,7 +117,7 @@ app.use(
 );
 
 // ============================================================
-// SHREKSEARCH API
+// SHREKSEARCH - TAVILY SEARCH API
 // ============================================================
 
 const axios = require("axios");
@@ -125,10 +125,6 @@ const axios = require("axios");
 const {
     processResults
 } = require("./postprocess");
-
-// ------------------------------------------------------------
-// GET /api/search?q=...
-// ------------------------------------------------------------
 
 app.get("/api/search", async (req, res) => {
     try {
@@ -140,58 +136,56 @@ app.get("/api/search", async (req, res) => {
             });
         }
 
-        const apiKey = process.env.BRAVE_SEARCH_API_KEY;
+        const apiKey = process.env.TAVILY_API_KEY;
 
         if (!apiKey) {
+            console.error("TAVILY_API_KEY is missing");
+
             return res.status(500).json({
-                error: "BRAVE_SEARCH_API_KEY is not configured"
+                error: "TAVILY_API_KEY is not configured"
             });
         }
 
+        console.log("ShrekSearch query:", query);
+
         // ----------------------------------------------------
-        // Search the web
+        // Search Tavily
         // ----------------------------------------------------
 
-        const response = await axios.get(
-            "https://api.search.brave.com/res/v1/web/search",
+        const response = await axios.post(
+            "https://api.tavily.com/search",
             {
-                params: {
-                    q: query,
-                    count: 10,
-                    text_decorations: false,
-                    safesearch: "moderate"
-                },
-
+                api_key: apiKey,
+                query: query,
+                search_depth: "basic",
+                max_results: 10,
+                include_answer: false
+            },
+            {
                 headers: {
-                    "Accept": "application/json",
-                    "X-Subscription-Token": apiKey
+                    "Content-Type": "application/json"
                 },
-
-                timeout: 10000
+                timeout: 15000
             }
         );
 
-        const webResults =
-            response.data &&
-            response.data.web &&
-            response.data.web.results
-                ? response.data.web.results
-                : [];
-
         // ----------------------------------------------------
-        // Convert Brave results into ShrekSearch results
+        // Convert Tavily results
         // ----------------------------------------------------
 
-        const results = webResults.map(result => ({
+        const tavilyResults =
+            response.data?.results || [];
+
+        const results = tavilyResults.map(result => ({
             title: result.title || "",
             url: result.url || "",
-            description: result.description || "",
-            text: result.description || "",
-            content: result.description || ""
+            description: result.content || "",
+            text: result.content || "",
+            content: result.content || ""
         }));
 
         // ----------------------------------------------------
-        // Run your post-generation processor
+        // Process with postprocess.js
         // ----------------------------------------------------
 
         const processed = processResults(
@@ -200,24 +194,28 @@ app.get("/api/search", async (req, res) => {
         );
 
         // ----------------------------------------------------
-        // Return to ShrekSearch frontend
+        // Return JSON
         // ----------------------------------------------------
 
         res.json({
-            query,
-            results: processed,
-            count: processed.length
+            query: query,
+            count: processed.length,
+            results: processed
         });
 
     } catch (error) {
 
         console.error(
-            "ShrekSearch error:",
+            "Tavily search error:",
             error.response?.data || error.message
         );
 
         res.status(500).json({
-            error: "Search failed"
+            error: "Search failed",
+            details:
+                error.response?.data?.message ||
+                error.response?.data ||
+                error.message
         });
     }
 });
