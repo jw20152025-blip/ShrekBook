@@ -615,7 +615,9 @@ app.post("/api/admin/kick", async (req, res) => {
 
     // 🔥 Tell the user's browser immediately
     liveKickUser(userId);
-
+    setTimeout(() => {
+        clearKick(userId);
+    }, 1000);
     res.json({
         success: true
     });

@@ -3469,7 +3469,38 @@ function setupRoleUI(user) {
         );
 
 }
+async function clearKick(userId) {
 
+    try {
+
+        const { error } = await supabase
+            .from("profiles")
+            .update({
+                kicked: false
+            })
+            .eq("id", userId);
+
+        if (error) {
+            console.error(
+                "CLEAR KICK ERROR:",
+                error
+            );
+            return;
+        }
+
+        console.log(
+            `🦵 Kick cleared for ${userId}`
+        );
+
+    } catch (error) {
+
+        console.error(
+            "CLEAR KICK ERROR:",
+            error
+        );
+
+    }
+}
 /* ==================================================
    BAN / KICK MONITOR
 ================================================== */
