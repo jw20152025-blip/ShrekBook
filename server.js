@@ -61,7 +61,53 @@ if (!SESSION_SECRET) {
 
 }
 
+/* ============================================================
+   MODERATION WEBSOCKET SERVER
+============================================================ */
 
+
+wss.on("connection", async (socket, request) => {
+
+    console.log("🔌 Moderation WebSocket connection received.");
+
+    try {
+
+        const userId = request.session?.userId;
+
+        if (!userId) {
+
+            console.log(
+                "⚠️ WebSocket connection has no logged-in user."
+            );
+
+            socket.close();
+
+            return;
+        }
+
+        registerModerationSocket(
+            String(userId),
+            socket
+        );
+
+        socket.send(
+            JSON.stringify({
+                type: "CONNECTED"
+            })
+        );
+
+    } catch (error) {
+
+        console.error(
+            "❌ Moderation WebSocket error:",
+            error
+        );
+
+        socket.close();
+
+    }
+
+});
 // ==================================================
 // SUPABASE
 // ==================================================
@@ -291,7 +337,154 @@ function removeModerationSocket(
     }
 
 }
+/* ============================================================
+   LIVE MODERATION WEBSOCKET
+============================================================ */
 
+const moderationClients = new Map();
+
+/*
+    userId -> Set of WebSocket connections
+
+    A user can have multiple tabs open, so we use a Set.
+*/
+
+function registerModerationSocket(userId, socket) {
+
+    if (!userId || !socket) {
+        return;
+    }
+
+    userId = String(userId);
+
+    if (!moderationClients.has(userId)) {
+        moderationClients.set(userId, new Set());
+    }
+
+    moderationClients.get(userId).add(socket);
+
+    console.log(
+        `🛡️ Moderation socket registered for user ${userId}`
+    );
+
+    socket.on("close", () => {
+
+        const sockets =
+            moderationClients.get(userId);
+
+        if (!sockets) {
+            return;
+        }
+
+        sockets.delete(socket);
+
+        if (sockets.size === 0) {
+            moderationClients.delete(userId);
+        }
+
+        console.log(
+            `🔌 Moderation socket closed for user ${userId}`
+        );
+
+    });
+}
+
+
+/* ============================================================
+   SEND LIVE MODERATION EVENT
+============================================================ */
+
+function sendModerationEvent(userId, type) {
+
+    if (!userId) {
+        console.log(
+            "⚠️ No user ID supplied for moderation event."
+        );
+
+        return false;
+    }
+
+    userId = String(userId);
+
+    const sockets =
+        moderationClients.get(userId);
+
+    if (!sockets || sockets.size === 0) {
+
+        console.log(
+            `ℹ️ User ${userId} is not connected to moderation WebSocket.`
+        );
+
+        return false;
+    }
+
+    const message =
+        JSON.stringify({
+            type: type
+        });
+
+    let sent = false;
+
+    for (const socket of sockets) {
+
+        if (
+            socket.readyState ===
+            WebSocket.OPEN
+        ) {
+
+            try {
+
+                socket.send(message);
+
+                sent = true;
+
+                console.log(
+                    `📡 Sent ${type} to user ${userId}`
+                );
+
+            } catch (error) {
+
+                console.error(
+                    `❌ Failed sending ${type} to ${userId}:`,
+                    error
+                );
+
+            }
+
+        }
+
+    }
+
+    return sent;
+}
+
+
+/* ============================================================
+   KICK USER LIVE
+============================================================ */
+
+function liveKickUser(userId) {
+
+    return sendModerationEvent(
+        userId,
+        "KICK"
+    );
+
+}
+
+
+/* ============================================================
+   BAN USER LIVE
+============================================================ */
+
+function liveBanUser(userId) {
+
+    return sendModerationEvent(
+        userId,
+        "BAN"
+    );
+
+}
 
 // ==================================================
 // SEND MODERATION EVENT
@@ -990,10 +1183,59 @@ async function requireAdmin(req, res, next) {
         });
     }
 }
+app.post("/api/admin/ban", async (req, res) => {
+    const { userId } = req.body;
+
+    const { error } = await supabase
+        .from("profiles")
+        .update({
+            banned: true
+        })
+        .eq("id", userId);
+
+    if (error) {
+        console.error("Ban error:", error);
+
+        return res.status(500).json({
+            error: "Failed to ban user"
+        });
+    }
+
+    // 🚫 Tell the user's browser immediately
+    liveBanUser(userId);
+
+    res.json({
+        success: true
+    });
+});
 // ==================================================
 // ADMIN AUTH
 // ==================================================
+app.post("/api/admin/kick", async (req, res) => {
+    const { userId } = req.body;
 
+    const { error } = await supabase
+        .from("profiles")
+        .update({
+            kicked: true
+        })
+        .eq("id", userId);
+
+    if (error) {
+        console.error("Kick error:", error);
+
+        return res.status(500).json({
+            error: "Failed to kick user"
+        });
+    }
+
+    // 🔥 Tell the user's browser immediately
+    liveKickUser(userId);
+
+    res.json({
+        success: true
+    });
+});
 app.get("/api/admin/auth", requireLogin, async (req, res) => {
     try {
 
