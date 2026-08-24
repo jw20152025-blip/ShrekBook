@@ -2922,22 +2922,42 @@ function hasRole(user, requiredRole) {
 ================================================== */
 
 function isOwner(user) {
+
     return hasRole(user, "owner");
+
 }
 
 
 function isAdmin(user) {
-    return hasRole(user, "admin");
+
+    return (
+        hasRole(user, "administrator") ||
+        hasRole(user, "owner")
+    );
+
 }
 
 
 function isSeniorModerator(user) {
-    return hasRole(user, "senior_moderator");
+
+    return (
+        hasRole(user, "senior_moderator") ||
+        hasRole(user, "administrator") ||
+        hasRole(user, "owner")
+    );
+
 }
 
 
 function isModerator(user) {
-    return hasRole(user, "moderator");
+
+    return (
+        hasRole(user, "junior_moderator") ||
+        hasRole(user, "senior_moderator") ||
+        hasRole(user, "administrator") ||
+        hasRole(user, "owner")
+    );
+
 }
 
 
