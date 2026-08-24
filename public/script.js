@@ -1,7 +1,7 @@
 /* ==================================================
    SHREKBOOK CLIENT SCRIPT
 ================================================== */
-
+let moderationCheckRunning = false;
 
 /* ==================================================
    ESCAPE HTML
@@ -3506,7 +3506,7 @@ async function clearKick(userId) {
    BAN / KICK MONITOR
 ================================================== */
 
-let moderationCheckRunning = false;
+
 
 
 async function checkModerationStatus() {
