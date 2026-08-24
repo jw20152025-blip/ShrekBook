@@ -1396,15 +1396,30 @@ app.post("/api/login", async (req, res) => {
 
         // ==========================================
         // CHECK EMAIL BAN
-        //
-        // This is your restored email-ban system.
-        // It happens BEFORE Supabase authentication.
         // ==========================================
 
-        const emailBan =
-            await getActiveBanByEmail(
-                email
+        let emailBan;
+
+        try {
+
+            emailBan =
+                await getActiveBanByEmail(
+                    email
+                );
+
+        } catch (error) {
+
+            console.error(
+                "LOGIN EMAIL BAN CHECK ERROR:",
+                error
             );
+
+            return res.status(500).json({
+                error:
+                    "Unable to verify ban status."
+            });
+
+        }
 
 
         if (emailBan) {
@@ -1422,41 +1437,7 @@ app.post("/api/login", async (req, res) => {
 
         }
 
-        const normalizedEmail =
-            String(email || "")
-                .trim()
-                .toLowerCase();
 
-        const {
-            error: emailBanError
-        } = await supabase
-            .from("bans")
-            .select("id, email, reason")
-            .eq("email", normalizedEmail)
-            .maybeSingle();
-
-        if (emailBanError) {
-
-            console.error(
-                "LOGIN EMAIL BAN CHECK ERROR:",
-                emailBanError
-            );
-
-            return res.status(500).json({
-                error:
-                    "Unable to verify ban status."
-            });
-
-        }
-
-        if (emailBan) {
-
-            return res.status(403).json({
-                error:
-                    "This email address is banned."
-            });
-
-        }
         // ==========================================
         // SUPABASE AUTH LOGIN
         // ==========================================
@@ -1503,14 +1484,30 @@ app.post("/api/login", async (req, res) => {
 
         // ==========================================
         // CHECK USER-ID BAN
-        //
-        // This checks your account/user ban system.
         // ==========================================
 
-        const userBan =
-            await getActiveBanByUserId(
-                authUser.id
+        let userBan;
+
+        try {
+
+            userBan =
+                await getActiveBanByUserId(
+                    authUser.id
+                );
+
+        } catch (error) {
+
+            console.error(
+                "LOGIN USER BAN CHECK ERROR:",
+                error
             );
+
+            return res.status(500).json({
+                error:
+                    "Unable to verify account ban status."
+            });
+
+        }
 
 
         if (userBan) {
@@ -1595,17 +1592,15 @@ app.post("/api/login", async (req, res) => {
             const original =
                 username;
 
-
             let number =
                 1;
 
 
-            // Find an unused username.
-
             while (true) {
 
                 const {
-                    data: taken
+                    data: taken,
+                    error: usernameError
                 } =
                     await supabase
                         .from("profiles")
@@ -1615,6 +1610,21 @@ app.post("/api/login", async (req, res) => {
                             username
                         )
                         .maybeSingle();
+
+
+                if (usernameError) {
+
+                    console.error(
+                        "USERNAME CHECK ERROR:",
+                        usernameError
+                    );
+
+                    return res.status(500).json({
+                        error:
+                            "Could not check username."
+                    });
+
+                }
 
 
                 if (!taken) {
@@ -1627,13 +1637,14 @@ app.post("/api/login", async (req, res) => {
                 username =
                     `${original}${number}`;
 
-
                 number++;
 
             }
 
 
-            // Create the profile.
+            // ======================================
+            // CREATE PROFILE
+            // ======================================
 
             const {
                 data: created,
@@ -1665,6 +1676,9 @@ app.post("/api/login", async (req, res) => {
                             true,
 
                         banned:
+                            false,
+
+                        warned:
                             false
 
                     })
@@ -1697,13 +1711,6 @@ app.post("/api/login", async (req, res) => {
 
         // ==========================================
         // CHECK PROFILE BAN
-        //
-        // Your ADMIN BAN button sets:
-        //
-        // banned = true
-        //
-        // So this prevents those accounts from
-        // logging in.
         // ==========================================
 
         if (profile.banned === true) {
@@ -1720,13 +1727,6 @@ app.post("/api/login", async (req, res) => {
 
         // ==========================================
         // CHECK PROFILE ACTIVE STATUS
-        //
-        // Kicked users have:
-        //
-        // is_active = false
-        //
-        // They cannot log back in until the account
-        // is made active again.
         // ==========================================
 
         if (profile.is_active === false) {
@@ -1830,7 +1830,6 @@ app.post("/api/login", async (req, res) => {
     }
 
 });
-
 
 
 /* ==================================================
