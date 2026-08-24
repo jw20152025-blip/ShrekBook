@@ -1682,9 +1682,7 @@ app.get("/api/me", async (req, res) => {
         if (!req.session.user) {
 
             return res.json({
-                loggedIn: false,
-                banned: false,
-                kicked: false
+                loggedIn: false
             });
 
         }
@@ -1704,9 +1702,7 @@ app.get("/api/me", async (req, res) => {
         if (error || !data) {
 
             return res.json({
-                loggedIn: false,
-                banned: false,
-                kicked: false
+                loggedIn: false
             });
 
         }
@@ -1720,13 +1716,10 @@ app.get("/api/me", async (req, res) => {
             await isAdmin(
                 data.id
             );
+
         res.json({
 
             loggedIn: true,
-
-            banned: data.banned === true,
-
-            kicked: data.kicked === true,
 
             isAdmin: admin,
 
@@ -1735,7 +1728,9 @@ app.get("/api/me", async (req, res) => {
                 ...data,
 
                 avatar:
-                    getAvatar(data.avatar),
+                    getAvatar(
+                        data.avatar
+                    ),
 
                 gyatt:
                     reactions.gyatt,
@@ -1763,29 +1758,6 @@ app.get("/api/me", async (req, res) => {
         });
 
     }
-    if (data.kicked === true) {
-
-        res.json({
-            loggedIn: true,
-            kicked: true,
-            banned: false
-        });
-
-        // Clear after sending the response
-        setTimeout(async () => {
-
-            await supabase
-                .from("profiles")
-                .update({
-                    kicked: false
-                })
-                .eq("id", data.id);
-
-        }, 1000);
-
-        return;
-    }
-
 
 });
 app.post("/api/admin/kick", async (req, res) => {
