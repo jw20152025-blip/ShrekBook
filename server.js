@@ -6,7 +6,7 @@ const path = require("path");
 const http = require("http");
 
 const session = require("express-session");
-;
+
 const { createClient } = require("@supabase/supabase-js");
 
 const { InferenceClient } = require("@huggingface/inference");
@@ -653,12 +653,15 @@ app.get("/api/admin/auth", requireLogin, async (req, res) => {
             "senior_moderator",
             "junior_moderator"
         ];
-
+        console.log(profile.role);
         if (!allowedRoles.includes(profile.role)) {
             return res.status(403).json({
+            
                 error: "Admin access required."
             });
+
         }
+
 
         res.json({
             success: true,
