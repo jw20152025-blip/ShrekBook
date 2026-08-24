@@ -2903,14 +2903,6 @@ function hasRole(user, requiredRole) {
         admin: 3,
         owner: 4
     };
-        console.log(
-        "ROLE CHECK:",
-        {
-            user: user,
-            requestedRole: role,
-            userRole: user?.role
-        }
-    );
 
     const userRole =
         getUserRole(user);
@@ -2930,42 +2922,22 @@ function hasRole(user, requiredRole) {
 ================================================== */
 
 function isOwner(user) {
-
     return hasRole(user, "owner");
-
 }
 
 
 function isAdmin(user) {
-
-    return (
-        hasRole(user, "administrator") ||
-        hasRole(user, "owner")
-    );
-
+    return hasRole(user, "admin");
 }
 
 
 function isSeniorModerator(user) {
-
-    return (
-        hasRole(user, "senior_moderator") ||
-        hasRole(user, "administrator") ||
-        hasRole(user, "owner")
-    );
-
+    return hasRole(user, "senior_moderator");
 }
 
 
-function isModerator(user) {
-
-    return (
-        hasRole(user, "junior_moderator") ||
-        hasRole(user, "senior_moderator") ||
-        hasRole(user, "administrator") ||
-        hasRole(user, "owner")
-    );
-
+function isJuniorModerator(user) {
+    return hasRole(user, "junior_moderatior");
 }
 
 
@@ -3847,7 +3819,7 @@ function debugUserRole(user) {
 
     console.log(
         "🔨 Moderator:",
-        isModerator(user)
+        isJuniorModerator(user)
     );
 
 
