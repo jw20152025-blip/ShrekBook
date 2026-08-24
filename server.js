@@ -611,6 +611,70 @@ wss.on("connection", (socket, request) => {
 });
 
 
+function registerModerationSocket(userId, socket) {
+
+    moderationSockets.set(
+        String(userId),
+        socket
+    );
+
+    console.log(
+        `🛡️ Registered moderation socket for ${userId}`
+    );
+
+    socket.on("close", () => {
+
+        if (
+            moderationSockets.get(String(userId))
+            === socket
+        ) {
+            moderationSockets.delete(
+                String(userId)
+            );
+        }
+
+    });
+}
+
+
+function sendModerationAction(userId, type) {
+
+    const socket =
+        moderationSockets.get(String(userId));
+
+    if (!socket) {
+
+        console.log(
+            `⚠️ No live socket for ${userId}`
+        );
+
+        return false;
+    }
+
+    if (
+        socket.readyState !== WebSocket.OPEN
+    ) {
+
+        moderationSockets.delete(
+            String(userId)
+        );
+
+        return false;
+    }
+
+    socket.send(
+        JSON.stringify({
+            type: type
+        })
+    );
+
+    console.log(
+        `📡 Sent ${type} to ${userId}`
+    );
+
+    return true;
+}
+
 // ==================================================
 // DEFAULT AVATAR
 // ==================================================
@@ -634,18 +698,13 @@ app.use(express.urlencoded({
     extended: true
 }));
 
-app.use(session({
-    secret: SESSION_SECRET,
+const sessionMiddleware = session({
+    secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: false
+});
 
-    cookie: {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 1000 * 60 * 60 * 24 * 30
-    }
-}));
+app.use(sessionMiddleware);
 
 app.use(express.static(
     path.join(__dirname, "public")
