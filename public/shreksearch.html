@@ -1,408 +1,544 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>ShrekSearch</title>
 
     <style>
-
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background: #f2f2f2;
-            color: #222;
-        }
-
-        .header {
-            background: #222;
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-
-        .header h1 {
-            margin: 0;
-            font-size: 32px;
-        }
-
-        .header p {
-            margin: 6px 0 0;
-            opacity: 0.75;
-        }
-
-        .container {
-            max-width: 900px;
-            margin: 30px auto;
-            padding: 0 20px;
-        }
-
-        .search-box {
-            background: white;
-            padding: 20px;
-            border-radius: 14px;
-            box-shadow: 0 3px 12px rgba(0,0,0,0.08);
-        }
-
-        .search-row {
-            display: flex;
-            gap: 10px;
-        }
-
-        #search-input {
-            flex: 1;
-            padding: 13px;
-            font-size: 17px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
+        * {
             box-sizing: border-box;
         }
 
-        #search-button {
-            padding: 13px 22px;
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            color: #222;
+        }
+
+        .container {
+            width: min(1000px, 92%);
+            margin: 0 auto;
+            padding: 35px 0 60px;
+        }
+
+        .logo {
+            text-align: center;
+            font-size: 42px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #777;
+            margin-bottom: 30px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        #searchInput {
+            flex: 1;
+            padding: 15px 18px;
+            border: 1px solid #ccc;
+            border-radius: 12px;
+            font-size: 17px;
+            outline: none;
+        }
+
+        #searchInput:focus {
+            border-color: #777;
+        }
+
+        #searchButton {
+            padding: 15px 24px;
             border: none;
-            border-radius: 8px;
-            background: #333;
+            border-radius: 12px;
+            background: #222;
             color: white;
             font-size: 16px;
-            font-weight: bold;
             cursor: pointer;
         }
 
-        #search-button:hover {
+        #searchButton:hover {
             opacity: 0.85;
         }
 
-        .result {
-            margin-top: 25px;
+        #searchButton:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
-        .result-card {
+        /* =========================
+           AI ANSWER
+        ========================= */
+
+        #aiAnswerSection {
+            display: none;
             background: white;
-            padding: 25px;
-            border-radius: 14px;
-            margin-bottom: 20px;
-            box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+            border: 1px solid #ddd;
+            border-radius: 15px;
+            padding: 22px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
-        .result-card h2 {
-            margin-top: 0;
+        .ai-answer-header {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 14px;
         }
 
-        .section-title {
-            margin-top: 25px;
-            margin-bottom: 10px;
-        }
-
-        .wiki-text,
-        .ai-text {
+        #aiAnswer {
+            font-size: 17px;
             line-height: 1.7;
             white-space: pre-wrap;
         }
 
-        .ai-box {
-            background: #f7f7f7;
-            border-left: 4px solid #333;
-            padding: 15px;
-            border-radius: 8px;
-        }
+        /* =========================
+           LOADING
+        ========================= */
 
-        .wiki-link {
-            display: inline-block;
-            margin-top: 15px;
-            text-decoration: none;
-            font-weight: bold;
-            color: #3366cc;
-        }
-
-        .error {
-            background: #ffe5e5;
-            color: #a00000;
-            padding: 15px;
-            border-radius: 8px;
-        }
-
-        .loading {
+        #loading {
+            display: none;
             text-align: center;
             padding: 25px;
-            font-size: 18px;
+            color: #777;
         }
 
-        .back-button {
-            display: inline-block;
-            margin-top: 15px;
-            color: white;
+        /* =========================
+           ERROR
+        ========================= */
+
+        #error {
+            display: none;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 10px;
+            background: #ffe5e5;
+            color: #a00000;
+        }
+
+        /* =========================
+           RESULTS
+        ========================= */
+
+        #results {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .result {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 14px;
+            padding: 20px;
+            transition: transform 0.15s ease,
+                        box-shadow 0.15s ease;
+        }
+
+        .result:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+        }
+
+        .result-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 7px;
+        }
+
+        .result-title a {
+            color: #1a0dab;
             text-decoration: none;
+        }
+
+        .result-title a:hover {
+            text-decoration: underline;
+        }
+
+        .result-url {
+            color: #16821a;
+            font-size: 14px;
+            margin-bottom: 10px;
+            word-break: break-all;
+        }
+
+        .result-description {
+            color: #444;
+            line-height: 1.6;
+        }
+
+        .no-results {
+            text-align: center;
+            color: #777;
+            padding: 40px;
         }
 
         @media (max-width: 600px) {
 
-            .search-row {
+            .logo {
+                font-size: 32px;
+            }
+
+            .search-box {
                 flex-direction: column;
             }
 
-            #search-button {
+            #searchButton {
                 width: 100%;
             }
-
         }
-
     </style>
-
 </head>
 
 <body>
 
-    <div class="header">
+<div class="container">
 
-        <h1>🧌 ShrekSearch</h1>
+    <div class="logo">
+        🧌 ShrekSearch
+    </div>
 
-        <p>Search Wikipedia, but ShrekBook-style.</p>
+    <div class="subtitle">
+        Search the web with ShrekAI
+    </div>
 
-        <a
-            href="/"
-            class="back-button"
+    <!-- SEARCH -->
+
+    <div class="search-box">
+
+        <input
+            id="searchInput"
+            type="text"
+            placeholder="Search the web..."
+            autocomplete="off"
         >
-            ← Back to ShrekBook
-        </a>
+
+        <button id="searchButton">
+            Search
+        </button>
 
     </div>
 
+    <!-- ERROR -->
 
-    <main class="container">
+    <div id="error"></div>
 
-        <div class="search-box">
+    <!-- LOADING -->
 
-            <div class="search-row">
+    <div id="loading">
+        🔎 Searching the web and generating your answer...
+    </div>
 
-                <input
-                    id="search-input"
-                    type="text"
-                    placeholder="Search for anything..."
-                    autocomplete="off"
-                >
+    <!-- AI ANSWER -->
 
-                <button
-                    id="search-button"
-                    type="button"
-                >
-                    🔎 Search
-                </button>
+    <section id="aiAnswerSection">
 
-            </div>
-
+        <div class="ai-answer-header">
+            🤖 ShrekAI Answer
         </div>
 
+        <div id="aiAnswer">
+            AI summary unavailable
+        </div>
 
-        <div
-            id="result"
-            class="result"
-        ></div>
+    </section>
 
-    </main>
+    <!-- RESULTS -->
+
+    <div id="results"></div>
+
+</div>
 
 
-    <script>
+<script>
 
-        const searchInput =
-            document.getElementById(
-                "search-input"
+    // ============================================================
+    // SHREKSEARCH FRONTEND
+    // ============================================================
+
+    const searchInput =
+        document.getElementById("searchInput");
+
+    const searchButton =
+        document.getElementById("searchButton");
+
+    const loading =
+        document.getElementById("loading");
+
+    const errorBox =
+        document.getElementById("error");
+
+    const aiAnswerSection =
+        document.getElementById("aiAnswerSection");
+
+    const aiAnswer =
+        document.getElementById("aiAnswer");
+
+    const resultsContainer =
+        document.getElementById("results");
+
+
+    // ============================================================
+    // ESCAPE HTML
+    // ============================================================
+
+    function escapeHtml(text) {
+
+        if (text === null || text === undefined) {
+            return "";
+        }
+
+        return String(text)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+
+    // ============================================================
+    // SEARCH
+    // ============================================================
+
+    async function searchShrekSearch() {
+
+        const query =
+            searchInput.value.trim();
+
+        if (!query) {
+            return;
+        }
+
+        // Reset UI
+
+        errorBox.style.display = "none";
+
+        aiAnswerSection.style.display = "none";
+
+        resultsContainer.innerHTML = "";
+
+        loading.style.display = "block";
+
+        searchButton.disabled = true;
+
+        try {
+
+            console.log(
+                "Searching ShrekSearch:",
+                query
             );
 
-        const searchButton =
-            document.getElementById(
-                "search-button"
+
+            // ====================================================
+            // CALL BACKEND
+            // ====================================================
+
+            const response = await fetch(
+                "/api/shreksearch?q=" +
+                encodeURIComponent(query)
             );
 
-        const result =
-            document.getElementById(
-                "result"
+
+            // ====================================================
+            // READ JSON
+            // ====================================================
+
+            const data =
+                await response.json();
+
+
+            console.log(
+                "ShrekSearch response:",
+                data
             );
 
 
-        async function searchShrekSearch() {
+            // ====================================================
+            // ERROR
+            // ====================================================
 
-            const query =
-                searchInput.value.trim();
+            if (!response.ok) {
 
-            if (!query) {
-
-                result.innerHTML = `
-                    <div class="error">
-                        ❌ Enter something to search for.
-                    </div>
-                `;
-
-                return;
+                throw new Error(
+                    data.error ||
+                    "Search failed"
+                );
 
             }
 
 
-            result.innerHTML = `
-                <div class="loading">
-                    🧌 ShrekSearch is searching...
-                </div>
-            `;
+            // ====================================================
+            // AI ANSWER
+            // ====================================================
 
-            searchButton.disabled = true;
+            if (
+                data.answer &&
+                data.answer.trim()
+            ) {
 
+                aiAnswer.textContent =
+                    data.answer;
 
-            try {
+                aiAnswerSection.style.display =
+                    "block";
 
-                const response =
-                    await fetch(
-                        "/api/shreksearch?q=" +
-                        encodeURIComponent(query),
-                        {
-                            method: "GET",
-                            credentials: "include",
-                            headers: {
-                                "Accept":
-                                    "application/json"
-                            }
-                        }
-                    );
+            }
 
 
-                const data =
-                    await response.json();
+            // ====================================================
+            // SEARCH RESULTS
+            // ====================================================
+
+            const results =
+                Array.isArray(data.results)
+                    ? data.results
+                    : [];
 
 
-                if (!response.ok) {
+            if (results.length === 0) {
 
-                    throw new Error(
-                        data.error ||
-                        "Search failed."
-                    );
-
-                }
-
-
-                result.innerHTML = `
-
-                    <div class="result-card">
-
-                        <h2>
-                            📖 ${escapeHtml(
-                                data.title
-                            )}
-                        </h2>
-
-                        <h3 class="section-title">
-                            Wikipedia
-                        </h3>
-
-                        <div class="wiki-text">
-                            ${escapeHtml(
-                                data.wikipedia
-                            )}
-                        </div>
-
-                        <a
-                            class="wiki-link"
-                            href="${escapeHtml(
-                                data.wikipediaUrl
-                            )}"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            Read the full Wikipedia article →
-                        </a>
-
-
-                        <h3 class="section-title">
-                            🤖 AI Summary
-                        </h3>
-
-                        <div class="ai-box">
-
-                            <div class="ai-text">
-                                ${escapeHtml(
-                                    data.aiSummary
-                                )}
-                            </div>
-
-                        </div>
-
+                resultsContainer.innerHTML = `
+                    <div class="no-results">
+                        No search results found.
                     </div>
-
                 `;
 
+            } else {
 
-            } catch (error) {
+                results.forEach(result => {
 
-                console.error(
-                    "SHREKSEARCH ERROR:",
-                    error
+                    const title =
+                        escapeHtml(
+                            result.title ||
+                            "Untitled"
+                        );
+
+                    const url =
+                        escapeHtml(
+                            result.url ||
+                            ""
+                        );
+
+                    const description =
+                        escapeHtml(
+                            result.description ||
+                            result.content ||
+                            "No description available."
+                        );
+
+
+                    const resultElement =
+                        document.createElement("div");
+
+                    resultElement.className =
+                        "result";
+
+
+                    resultElement.innerHTML = `
+
+                        <div class="result-title">
+
+                            <a
+                                href="${url}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                ${title}
+                            </a>
+
+                        </div>
+
+                        <div class="result-url">
+                            ${url}
+                        </div>
+
+                        <div class="result-description">
+                            ${description}
+                        </div>
+
+                    `;
+
+
+                    resultsContainer.appendChild(
+                        resultElement
+                    );
+
+                });
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "SHREKSEARCH ERROR:",
+                error
+            );
+
+
+            errorBox.textContent =
+                "❌ " +
+                (
+                    error.message ||
+                    "Search failed"
                 );
 
-                result.innerHTML = `
 
-                    <div class="error">
+            errorBox.style.display =
+                "block";
 
-                        ❌ ${escapeHtml(
-                            error.message
-                        )}
+        } finally {
 
-                    </div>
+            loading.style.display =
+                "none";
 
-                `;
+            searchButton.disabled =
+                false;
 
-            } finally {
+        }
 
-                searchButton.disabled = false;
+    }
+
+
+    // ============================================================
+    // BUTTON
+    // ============================================================
+
+    searchButton.addEventListener(
+        "click",
+        searchShrekSearch
+    );
+
+
+    // ============================================================
+    // ENTER KEY
+    // ============================================================
+
+    searchInput.addEventListener(
+        "keydown",
+        function(event) {
+
+            if (event.key === "Enter") {
+
+                event.preventDefault();
+
+                searchShrekSearch();
 
             }
 
         }
+    );
 
-
-        function escapeHtml(text) {
-
-            const div =
-                document.createElement(
-                    "div"
-                );
-
-            div.textContent =
-                text ?? "";
-
-            return div.innerHTML;
-
-        }
-
-
-        searchButton.addEventListener(
-            "click",
-            searchShrekSearch
-        );
-
-
-        searchInput.addEventListener(
-            "keydown",
-            event => {
-
-                if (
-                    event.key === "Enter"
-                ) {
-
-                    searchShrekSearch();
-
-                }
-
-            }
-        );
-
-    </script>
+</script>
 
 </body>
-
 </html>
