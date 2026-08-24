@@ -293,55 +293,47 @@ function removeModerationSocket(
    LIVE MODERATION WEBSOCKET
 ============================================================ */
 
-const moderationClients = new Map();
 
-/*
-    userId -> Set of WebSocket connections
-
-    A user can have multiple tabs open, so we use a Set.
-*/
 
 function registerModerationSocket(userId, socket) {
 
-    if (!userId || !socket) {
-        return;
-    }
-
     userId = String(userId);
 
-    if (!moderationClients.has(userId)) {
-        moderationClients.set(userId, new Set());
-    }
-
-    moderationClients.get(userId).add(socket);
+    moderationSockets.set(userId, socket);
 
     console.log(
-        `🛡️ Moderation socket registered for user ${userId}`
+        `🟢 MODERATION SOCKET REGISTERED: ${userId}`
+    );
+
+    socket.send(
+        JSON.stringify({
+            type: "CONNECTED"
+        })
     );
 
     socket.on("close", () => {
 
-        const sockets =
-            moderationClients.get(userId);
-
-        if (!sockets) {
-            return;
-        }
-
-        sockets.delete(socket);
-
-        if (sockets.size === 0) {
-            moderationClients.delete(userId);
-        }
-
         console.log(
-            `🔌 Moderation socket closed for user ${userId}`
+            `🔴 MODERATION SOCKET CLOSED: ${userId}`
+        );
+
+        if (
+            moderationSockets.get(userId) === socket
+        ) {
+            moderationSockets.delete(userId);
+        }
+
+    });
+
+    socket.on("error", error => {
+
+        console.error(
+            `❌ SOCKET ERROR FOR ${userId}:`,
+            error
         );
 
     });
 }
-
-
 /* ============================================================
    SEND LIVE MODERATION EVENT
 ============================================================ */
