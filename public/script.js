@@ -405,12 +405,144 @@ async function signup() {
 
 }
 
-
 /* ==================================================
    KICK DETECTOR
 ================================================== */
 
 let kickCheckRunning = false;
+
+
+/* ==================================================
+   ROLE / PERMISSION SYSTEM
+================================================== */
+
+const ROLE_LEVELS = {
+    peasant: 0,
+    moderator: 1,
+    "senior moderator": 2,
+    administrator: 3,
+    admin: 3,
+    owner: 4
+};
+
+
+function normalizeRole(role) {
+
+    return String(role || "peasant")
+        .trim()
+        .toLowerCase();
+
+}
+
+
+function getRoleLevel(role) {
+
+    return ROLE_LEVELS[
+        normalizeRole(role)
+    ] ?? 0;
+
+}
+
+
+function hasRole(user, minimumRole) {
+
+    if (!user) {
+        return false;
+    }
+
+    return (
+        getRoleLevel(user.role) >=
+        getRoleLevel(minimumRole)
+    );
+
+}
+
+
+function canModerate(user) {
+
+    return hasRole(
+        user,
+        "moderator"
+    );
+
+}
+
+
+function canKick(user) {
+
+    return hasRole(
+        user,
+        "moderator"
+    );
+
+}
+
+
+function canBan(user) {
+
+    return hasRole(
+        user,
+        "senior moderator"
+    );
+
+}
+
+
+function canManageStaff(user) {
+
+    return hasRole(
+        user,
+        "administrator"
+    );
+
+}
+
+
+function isOwner(user) {
+
+    return hasRole(
+        user,
+        "owner"
+    );
+
+}
+
+
+/* ==================================================
+   ROLE DISPLAY NAME
+================================================== */
+
+function getRoleDisplayName(role) {
+
+    const names = {
+
+        peasant:
+            "Peasant",
+
+        moderator:
+            "Moderator",
+
+        "senior moderator":
+            "Senior Moderator",
+
+        administrator:
+            "Administrator",
+
+        admin:
+            "Administrator",
+
+        owner:
+            "Owner"
+
+    };
+
+    return (
+        names[
+            normalizeRole(role)
+        ] || "Peasant"
+    );
+
+}
 
 
 /* ==================================================
@@ -463,7 +595,9 @@ let kickCheckRunning = false;
 
                     if (data.type === "BAN") {
 
-                        console.log("🚫 BANNED");
+                        console.log(
+                            "🚫 BANNED"
+                        );
 
                         window.location.replace(
                             "/login.html"
@@ -475,7 +609,9 @@ let kickCheckRunning = false;
 
                     if (data.type === "KICK") {
 
-                        console.log("🦵 KICKED");
+                        console.log(
+                            "🦵 KICKED"
+                        );
 
                         window.location.replace(
                             "/kicked.html"
@@ -678,7 +814,12 @@ function setupAdminNav(user) {
         return;
     }
 
-    const isAdmin =
+    /*
+       Keep compatibility with your
+       existing admin flags.
+    */
+
+    const legacyAdmin =
         user.is_admin === true ||
         user.is_admin === 1 ||
         user.is_admin === "true" ||
@@ -686,16 +827,36 @@ function setupAdminNav(user) {
         user.admin === 1 ||
         user.admin === "true" ||
         user.isAdmin === true ||
-        user.isAdmin === 1 ||
-        user.role === "admin";
+        user.isAdmin === 1;
+
+    const role =
+        normalizeRole(user.role);
+
+    /*
+       Moderator and above can see
+       the Admin navigation.
+    */
+
+    const hasStaffRole =
+        getRoleLevel(role) >=
+        getRoleLevel("moderator");
+
+    const canSeeAdminNav =
+        legacyAdmin ||
+        hasStaffRole;
 
     let adminNav =
-        document.getElementById("admin-nav");
+        document.getElementById(
+            "admin-nav"
+        );
 
-    if (!isAdmin) {
+    if (!canSeeAdminNav) {
 
         if (adminNav) {
-            adminNav.style.display = "none";
+
+            adminNav.style.display =
+                "none";
+
         }
 
         return;
@@ -704,7 +865,8 @@ function setupAdminNav(user) {
 
     if (adminNav) {
 
-        adminNav.style.display = "flex";
+        adminNav.style.display =
+            "flex";
 
         return;
 
@@ -713,7 +875,8 @@ function setupAdminNav(user) {
     adminNav =
         document.createElement("nav");
 
-    adminNav.id = "admin-nav";
+    adminNav.id =
+        "admin-nav";
 
     adminNav.style.cssText = `
         display:flex;
@@ -728,6 +891,11 @@ function setupAdminNav(user) {
         width:100%;
     `;
 
+    const displayRole =
+        getRoleDisplayName(
+            role
+        );
+
     adminNav.innerHTML = `
 
         <strong
@@ -739,6 +907,16 @@ function setupAdminNav(user) {
             🛡️ Admin
 
         </strong>
+
+        <span
+            style="
+                opacity:0.7;
+                white-space:nowrap;
+            ">
+
+            ${displayRole}
+
+        </span>
 
         <a
             href="/admin.html"
@@ -770,7 +948,9 @@ function setupAdminNav(user) {
     `;
 
     const app =
-        document.getElementById("app-section");
+        document.getElementById(
+            "app-section"
+        );
 
     if (app) {
 
@@ -781,7 +961,9 @@ function setupAdminNav(user) {
 
     } else {
 
-        document.body.prepend(adminNav);
+        document.body.prepend(
+            adminNav
+        );
 
     }
 
@@ -801,7 +983,11 @@ async function checkLogin() {
                 "/api/me",
                 {
                     credentials: "include",
-                    cache: "no-store"
+                    cache: "no-store",
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
                 }
             );
 
@@ -814,7 +1000,21 @@ async function checkLogin() {
             data.user
         ) {
 
-            setupAdminNav(data.user);
+            console.log(
+                "👤 Logged in as:",
+                data.user.username
+            );
+
+            console.log(
+                "🛡️ Role:",
+                getRoleDisplayName(
+                    data.user.role
+                )
+            );
+
+            setupAdminNav(
+                data.user
+            );
 
             showApp();
 
@@ -845,31 +1045,43 @@ async function checkLogin() {
 function showAuth() {
 
     const auth =
-        document.getElementById("auth-section");
+        document.getElementById(
+            "auth-section"
+        );
 
     const app =
-        document.getElementById("app-section");
+        document.getElementById(
+            "app-section"
+        );
 
     const logoutButton =
-        document.getElementById("logout-button");
+        document.getElementById(
+            "logout-button"
+        );
 
     const adminNav =
-        document.getElementById("admin-nav");
+        document.getElementById(
+            "admin-nav"
+        );
 
     if (auth) {
-        auth.style.display = "block";
+        auth.style.display =
+            "block";
     }
 
     if (app) {
-        app.style.display = "none";
+        app.style.display =
+            "none";
     }
 
     if (logoutButton) {
-        logoutButton.style.display = "none";
+        logoutButton.style.display =
+            "none";
     }
 
     if (adminNav) {
-        adminNav.style.display = "none";
+        adminNav.style.display =
+            "none";
     }
 
 }
@@ -882,13 +1094,16 @@ function showAuth() {
 async function checkAdmin() {
 
     const adminButton =
-        document.getElementById("admin-button");
+        document.getElementById(
+            "admin-button"
+        );
 
     if (!adminButton) {
         return;
     }
 
-    adminButton.style.display = "none";
+    adminButton.style.display =
+        "none";
 
     try {
 
@@ -896,16 +1111,30 @@ async function checkAdmin() {
             await fetch(
                 "/api/admin/check",
                 {
-                    credentials: "include"
+                    credentials: "include",
+                    cache: "no-store",
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
                 }
             );
 
         const data =
             await response.json();
 
+        /*
+           Admin button is now available
+           to Moderator and above.
+        */
+
         if (
             response.ok &&
-            data.isAdmin === true
+            (
+                data.isAdmin === true ||
+                data.canModerate === true ||
+                data.roleLevel >= 1
+            )
         ) {
 
             adminButton.style.display =
@@ -925,7 +1154,8 @@ async function checkAdmin() {
             error
         );
 
-        adminButton.style.display = "none";
+        adminButton.style.display =
+            "none";
 
     }
 
