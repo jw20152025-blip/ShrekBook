@@ -1495,161 +1495,178 @@ async function loadMessageUsers() {
 
 
 // ==================================================
-// SEND SPECIFIC MESSAGE
+// SPECIFIC MESSAGE POLLING
 // ==================================================
 
-async function sendSpecificMessageAdmin() {
+let lastSpecificMessageId = null;
 
-    const select =
-        document.getElementById(
-            "specificUserId"
-        );
+let checkingSpecificMessage = false;
 
 
-    const input =
-        document.getElementById(
-            "specificMessage"
-        );
+async function checkSpecificMessages() {
 
-
-    const status =
-        document.getElementById(
-            "specificMessageStatus"
-        );
-
-
-    if (
-        !select ||
-        !input ||
-        !status
-    ) {
-
-        console.error(
-            "Specific message elements are missing."
-        );
-
+    // Prevent overlapping requests
+    if (checkingSpecificMessage) {
         return;
-
     }
 
-
-    const userId =
-        select.value;
-
-
-    const message =
-        input.value.trim();
-
-
-    // ------------------------------------------
-    // VALIDATION
-    // ------------------------------------------
-
-    if (!userId) {
-
-        status.textContent =
-            "❌ Select a user.";
-
-        return;
-
-    }
-
-
-    if (!message) {
-
-        status.textContent =
-            "❌ Enter a message.";
-
-        return;
-
-    }
-
-
-    if (
-        message.length > 1000
-    ) {
-
-        status.textContent =
-            "❌ Message is too long.";
-
-        return;
-
-    }
-
-
-    if (
-        !confirm(
-            "Send this message to the selected user?"
-        )
-    ) {
-
-        return;
-
-    }
-
-
-    status.textContent =
-        "Sending...";
+    checkingSpecificMessage = true;
 
 
     try {
 
-        const data =
-            await adminApi(
-                "/api/admin/specific-message",
+        const response =
+            await fetch(
+                "/api/messages/specific",
                 {
+                    method: "GET",
 
-                    method:
-                        "POST",
+                    credentials: "include",
 
-                    body:
-                        JSON.stringify({
+                    cache: "no-store",
 
-                            userId:
-                                userId,
-
-                            message:
-                                message
-
-                        })
-
+                    headers: {
+                        "Cache-Control":
+                            "no-cache"
+                    }
                 }
             );
 
 
-        input.value =
-            "";
+        if (!response.ok) {
+            return;
+        }
 
 
-        status.textContent =
-            "✅ Specific message sent!";
+        const data =
+            await response.json();
+
+
+        const message =
+            data.message;
+
+
+        if (!message) {
+            return;
+        }
+
+
+        // ------------------------------------------
+        // NEW MESSAGE
+        // ------------------------------------------
+
+        if (
+            message.id ===
+            lastSpecificMessageId
+        ) {
+
+            return;
+
+        }
+
+
+        lastSpecificMessageId =
+            message.id;
 
 
         console.log(
-            "📨 SPECIFIC MESSAGE SENT:",
-            data
+            "📨 NEW SPECIFIC MESSAGE:",
+            message
         );
 
 
-    }
+        // ------------------------------------------
+        // SHOW POPUP
+        // ------------------------------------------
 
-    catch (error) {
+        showShrekBookMessage(
+
+            "📨 ShrekBook Message",
+
+            message.message
+
+        );
+
+
+        // ------------------------------------------
+        // ACKNOWLEDGE
+        // ------------------------------------------
+
+        try {
+
+            const ackResponse =
+                await fetch(
+                    "/api/messages/specific/ack",
+                    {
+
+                        method: "POST",
+
+                        credentials:
+                            "include",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        }
+
+                    }
+                );
+
+
+            if (
+                ackResponse.ok
+            ) {
+
+                console.log(
+                    "✅ Specific message acknowledged."
+                );
+
+            } else {
+
+                console.error(
+                    "❌ Failed to acknowledge specific message."
+                );
+
+            }
+
+        } catch (ackError) {
+
+            console.error(
+                "❌ MESSAGE ACK ERROR:",
+                ackError
+            );
+
+        }
+
+
+    } catch (error) {
 
         console.error(
-            "❌ SPECIFIC MESSAGE ERROR:",
+            "❌ SPECIFIC MESSAGE POLLING ERROR:",
             error
         );
 
+    } finally {
 
-        status.textContent =
-            "❌ " +
-            error.message;
+        checkingSpecificMessage =
+            false;
 
     }
 
 }
 
 
+// ==================================================
+// START POLLING
+// ==================================================
+
+checkSpecificMessages();
+
+
+setInterval(
+    checkSpecificMessages,
+    1000
+);
 // ==================================================
 // START
 // ==================================================
