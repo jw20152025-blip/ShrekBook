@@ -6595,7 +6595,12 @@ app.get(
     }
 );
 
-
+app.get("/api/admin/test", (req, res) => {
+    res.json({
+        success: true,
+        message: "ADMIN ROUTES ARE WORKING"
+    });
+});
 // ==================================================
 // START
 // ==================================================
