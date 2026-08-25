@@ -19,6 +19,132 @@
             box-sizing: border-box;
         }
 
+        /* ==================================================
+        MESSAGE CONTROLS
+        ================================================== */
+
+        .message-controls {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+
+            gap: 15px;
+
+            margin-top: 25px;
+
+            margin-bottom: 25px;
+
+        }
+
+
+        .message-box {
+
+            background: white;
+
+            border-radius: 12px;
+
+            padding: 20px;
+
+            box-shadow:
+                0 2px 8px
+                rgba(0, 0, 0, .08);
+
+        }
+
+
+        .message-box h2 {
+
+            margin-top: 0;
+
+        }
+
+
+        .message-box p {
+
+            color: #666;
+
+        }
+
+
+        .message-box textarea {
+
+            width: 100%;
+
+            min-height: 100px;
+
+            padding: 10px;
+
+            margin-bottom: 10px;
+
+            resize: vertical;
+
+            border:
+                1px solid #ccc;
+
+            border-radius: 8px;
+
+            font-family: inherit;
+
+            font-size: 14px;
+
+        }
+
+
+        .message-box select {
+
+            width: 100%;
+
+            margin-bottom: 10px;
+
+            border:
+                1px solid #ccc;
+
+            background: white;
+
+        }
+
+
+        .global-message-button {
+
+            background: #4d6cff;
+
+            color: white;
+
+        }
+
+
+        .specific-message-button {
+
+            background: #f29900;
+
+            color: white;
+
+        }
+
+
+        #globalMessageStatus,
+        #specificMessageStatus {
+
+            font-weight: bold;
+
+            margin-bottom: 0;
+
+        }
+
+
+        @media (max-width: 700px) {
+
+            .message-controls {
+
+                grid-template-columns: 1fr;
+
+            }
+
+        }
+
+
         body {
             margin: 0;
             padding: 30px;
@@ -293,6 +419,70 @@
         </button>
 
         <p id="resetPasswordStatus"></p>
+
+    </div>
+    <div class="message-controls">
+
+    <div class="message-box">
+
+        <h2>📢 Global Message</h2>
+
+        <p>
+            Send a popup to everyone currently online.
+        </p>
+
+        <textarea
+            id="globalMessage"
+            placeholder="Enter global message..."
+            maxlength="1000"
+            rows="4"
+        ></textarea>
+
+        <button
+            class="global-message-button"
+            onclick="sendGlobalMessage()"
+        >
+            📢 Send Global Message
+        </button>
+
+        <p id="globalMessageStatus"></p>
+
+    </div>
+
+
+        <div class="message-box">
+
+            <h2>🎯 Specific Message</h2>
+
+            <p>
+                Send a popup to one user.
+            </p>
+
+            <select id="specificUserId">
+
+                <option value="">
+                    Select a user...
+                </option>
+
+            </select>
+
+            <textarea
+                id="specificMessage"
+                placeholder="Enter message..."
+                maxlength="1000"
+                rows="4"
+            ></textarea>
+
+            <button
+                class="specific-message-button"
+                onclick="sendSpecificMessageAdmin()"
+            >
+                🎯 Send Specific Message
+            </button>
+
+            <p id="specificMessageStatus"></p>
+
+        </div>
 
     </div>
 
