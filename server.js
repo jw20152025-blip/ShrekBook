@@ -6237,7 +6237,80 @@ app.get(
     }
 );
 
+app.post("/api/admin/reset-password", async (req, res) => {
+    try {
+        // Make sure someone is actually logged in
+        if (!req.session || !req.session.user) {
+            return res.status(401).json({
+                error: "Not logged in"
+            });
+        }
 
+        // Get the currently logged-in admin's profile
+        const { data: admin, error: adminError } = await supabase
+            .from("profiles")
+            .select("id, role")
+            .eq("id", req.session.user.id)
+            .single();
+
+        if (adminError || !admin) {
+            return res.status(403).json({
+                error: "Unable to verify administrator"
+            });
+        }
+
+        // Only administrators and owner can reset passwords
+        if (admin.role !== "administrator" && admin.role !== "owner") {
+            return res.status(403).json({
+                error: "You do not have permission to reset passwords"
+            });
+        }
+
+        const { userId, newPassword } = req.body;
+
+        if (!userId || !newPassword) {
+            return res.status(400).json({
+                error: "User ID and new password are required"
+            });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({
+                error: "Password must be at least 6 characters"
+            });
+        }
+
+        // Change the user's Supabase Auth password
+        const { data, error } =
+            await supabase.auth.admin.updateUserById(
+                userId,
+                {
+                    password: newPassword
+                }
+            );
+
+        if (error) {
+            console.error("Password reset error:", error);
+
+            return res.status(500).json({
+                error: error.message
+            });
+        }
+
+        return res.json({
+            success: true,
+            message: "Password reset successfully"
+        });
+
+    } catch (error) {
+
+        console.error("Admin password reset error:", error);
+
+        return res.status(500).json({
+            error: "Internal server error"
+        });
+    }
+});
 // ==================================================
 // START
 // ==================================================

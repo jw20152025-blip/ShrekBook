@@ -870,7 +870,113 @@ function escapeHtml(
 
 }
 
+async function resetUserPassword() {
 
+    const userId =
+        document.getElementById("resetUserId")
+            .value.trim();
+
+    const newPassword =
+        document.getElementById("resetNewPassword")
+            .value;
+
+    const status =
+        document.getElementById("resetPasswordStatus");
+
+
+    if (!userId) {
+
+        status.textContent =
+            "❌ Enter the user's ID.";
+
+        return;
+    }
+
+
+    if (!newPassword) {
+
+        status.textContent =
+            "❌ Enter a new password.";
+
+        return;
+    }
+
+
+    if (newPassword.length < 6) {
+
+        status.textContent =
+            "❌ Password must be at least 6 characters.";
+
+        return;
+    }
+
+
+    if (!confirm(
+        "Reset this user's password?"
+    )) {
+        return;
+    }
+
+
+    status.textContent =
+        "Resetting password...";
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/reset-password",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        userId,
+                        newPassword
+                    })
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Password reset failed."
+            );
+
+        }
+
+
+        status.textContent =
+            "✅ Password reset successfully!";
+
+
+        document.getElementById(
+            "resetNewPassword"
+        ).value = "";
+
+
+    } catch (error) {
+
+        console.error(
+            "PASSWORD RESET ERROR:",
+            error
+        );
+
+        status.textContent =
+            "❌ " + error.message;
+    }
+}
 // ==================================================
 // START
 // ==================================================
