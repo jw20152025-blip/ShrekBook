@@ -5737,7 +5737,10 @@ app.post(
     "/api/admin/users/:id/unban",
     requireLogin,
     async (req, res) => {
-
+        canUnban = [
+            "administrator",
+            "owner"
+        ]
         try {
 
             const actor =
@@ -5773,6 +5776,13 @@ app.post(
                     error:
                         error.message
                 });
+
+            }
+            if (!user.role in canunBan){
+                return res.status(403).json({
+                    error:
+                        "You must be an administrator or higher to ban/unban people"
+            });
 
             }
 
