@@ -1129,134 +1129,65 @@ async function sendGlobalMessage() {
 }
 
 
-// ==================================================
+
+// ==========================================
 // SPECIFIC MESSAGE
-// ==================================================
+// ==========================================
 
-async function sendSpecificMessageAdmin() {
+if (
+    data.specificMessage &&
+    data.specificMessage.id !==
+        lastSpecificMessageId
+) {
 
-    const userSelect =
-        document.getElementById(
-            "specificUserId"
-        );
-
-    const messageInput =
-        document.getElementById(
-            "specificMessage"
-        );
-
-    const status =
-        document.getElementById(
-            "specificMessageStatus"
-        );
+    lastSpecificMessageId =
+        data.specificMessage.id;
 
 
-    const userId =
-        userSelect.value;
+    showShrekBookMessage(
+
+        "📨 ShrekBook Message",
+
+        data.specificMessage.message
+
+    );
 
 
-    const message =
-        messageInput.value.trim();
+    // Tell server we've received it
+    fetch(
+        "/api/messages/specific/ack",
+        {
 
+            method: "POST",
 
-    if (!userId) {
+            credentials: "include",
 
-        status.textContent =
-            "❌ Select a user.";
-
-        return;
-
-    }
-
-
-    if (!message) {
-
-        status.textContent =
-            "❌ Enter a message.";
-
-        return;
-
-    }
-
-
-    if (!confirm(
-        "Send this message to this user?"
-    )) {
-
-        return;
-
-    }
-
-
-    status.textContent =
-        "Sending...";
-
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/admin/specific-message",
-                {
-
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    credentials:
-                        "include",
-
-                    body:
-                        JSON.stringify({
-
-                            userId,
-                            message
-
-                        })
-
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Failed to send message."
-            );
+            headers: {
+                "Content-Type":
+                    "application/json"
+            }
 
         }
+    )
+    .then(() => {
 
+        console.log(
+            "✅ Specific message acknowledged."
+        );
 
-        messageInput.value = "";
-
-
-        status.textContent =
-            "✅ Message sent!";
-
-
-    } catch (error) {
+    })
+    .catch(error => {
 
         console.error(
-            "SPECIFIC MESSAGE ERROR:",
+            "MESSAGE ACK ERROR:",
             error
         );
 
-
-        status.textContent =
-            "❌ " +
-            error.message;
-
-    }
+    });
 
 }
+
+
 
 async function loadMessageUsers() {
 
