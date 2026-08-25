@@ -623,201 +623,445 @@ async function requireAdmin(req, res, next) {
         });
     }
 }
-app.post("/api/admin/bans", requireLogin, async (req, res) => {
+app.post(
+    "/api/admin/ban",
+    requireLogin,
+    async (req, res) => {
 
-    try {
+        try {
 
-        const {
-            userId,
-            reason
-        } = req.body;
+            const {
+                userId,
+                reason
+            } = req.body;
 
-        if (!userId) {
+            if (!userId) {
 
-            return res.status(400).json({
-                error: "User ID is required."
-            });
+                return res.status(400).json({
+                    error:
+                        "User ID is required."
+                });
 
-        }
+            }
 
+            // Get target profile
+            const {
+                data: targetUser,
+                error: targetError
+            } = await supabase
+                .from("profiles")
+                .select("id, email, banned")
+                .eq("id", userId)
+                .maybeSingle();
 
-        // ==========================================
-        // GET TARGET AUTH USER
-        // ==========================================
+            if (targetError) {
 
-        const {
-            data: authResult,
-            error: authError
-        } =
-            await supabase.auth.admin.getUserById(
-                userId
-            );
+                console.error(
+                    "TARGET USER ERROR:",
+                    targetError
+                );
 
+                return res.status(500).json({
+                    error:
+                        "Failed to find user."
+                });
 
-        if (authError || !authResult?.user) {
+            }
 
-            console.error(
-                "GET TARGET USER ERROR:",
-                authError
-            );
+            if (!targetUser) {
 
-            return res.status(404).json({
-                error:
-                    "Target user not found."
-            });
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
 
-        }
+            }
 
-
-        const targetEmail =
-            String(
-                authResult.user.email || ""
-            )
-                .trim()
-                .toLowerCase();
-
-
-        // ==========================================
-        // BAN PROFILE
-        // ==========================================
-
-        const {
-            error: profileBanError
-        } =
-            await supabase
+            // Ban profile
+            const {
+                error: profileBanError
+            } = await supabase
                 .from("profiles")
                 .update({
                     banned: true
                 })
-                .eq(
-                    "id",
-                    userId
+                .eq("id", userId);
+
+            if (profileBanError) {
+
+                console.error(
+                    "PROFILE BAN ERROR:",
+                    profileBanError
                 );
 
+                return res.status(500).json({
+                    error:
+                        "Failed to ban user."
+                });
 
-        if (profileBanError) {
+            }
+
+            // Add ban record
+            const {
+                error: banInsertError
+            } = await supabase
+                .from("bans")
+                .insert({
+                    user_id: userId,
+                    email: targetUser.email || null,
+                    reason:
+                        reason ||
+                        "Banned by moderator",
+                    banned_by:
+                        req.session.user.id
+                });
+
+            if (banInsertError) {
+
+                console.error(
+                    "BAN INSERT ERROR:",
+                    banInsertError
+                );
+
+                // Roll the profile ban back if
+                // the ban record couldn't be created.
+                await supabase
+                    .from("profiles")
+                    .update({
+                        banned: false
+                    })
+                    .eq("id", userId);
+
+                return res.status(500).json({
+                    error:
+                        "Failed to create ban record."
+                });
+
+            }
+
+            return res.json({
+                success: true
+            });
+
+        } catch (error) {
 
             console.error(
-                "PROFILE BAN ERROR:",
-                profileBanError
+                "BAN ERROR:",
+                error
             );
 
             return res.status(500).json({
                 error:
-                    "Failed to ban user."
+                    "Server error while banning user."
             });
 
         }
 
+    }
+);
+app.get(
+    "/api/admin/bans",
+    requireLogin,
+    async (req, res) => {
 
-        // ==========================================
-        // INSERT BAN RECORD
-        // ==========================================
+        try {
 
-        const {
-            error: banError
-        } =
-            await supabase
-                .from("bans")
-                .insert({
+            // ==========================================
+            // GET CURRENT USER
+            // ==========================================
 
-                    user_id:
-                        userId,
+            const userId =
+                req.session.user.id;
 
-                    email:
-                        targetEmail,
 
-                    reason:
-                        String(
-                            reason ||
-                            "Banned"
-                        ).trim(),
+            // ==========================================
+            // GET USER ROLE
+            // ==========================================
 
-                    banned_by:
-                        req.session.user.id
+            const {
+                data: moderator,
+                error: moderatorError
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(
+                        "id, username, display_name, role, is_active"
+                    )
+                    .eq(
+                        "id",
+                        userId
+                    )
+                    .maybeSingle();
 
+
+            if (moderatorError) {
+
+                console.error(
+                    "ADMIN BANS ROLE ERROR:",
+                    moderatorError
+                );
+
+                return res.status(500).json({
+                    error:
+                        "Failed to verify moderator access."
                 });
 
+            }
 
-        if (banError) {
 
-            console.error(
-                "BAN INSERT ERROR:",
-                banError
-            );
+            if (!moderator) {
 
-            /*
-             * IMPORTANT:
-             *
-             * The profile was already banned.
-             * Tell the client that the ban itself
-             * succeeded rather than pretending
-             * absolutely nothing happened.
-             */
+                return res.status(403).json({
+                    error:
+                        "Moderator access required."
+                });
+
+            }
+
+
+            // ==========================================
+            // ALLOWED MODERATION ROLES
+            // ==========================================
+
+            const allowedRoles = [
+                "owner",
+                "administrator",
+                "senior_moderator",
+                "junior_moderator"
+            ];
+
+
+            if (
+                !allowedRoles.includes(
+                    moderator.role
+                )
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "Moderator access required."
+                });
+
+            }
+
+
+            // ==========================================
+            // GET ALL BANS
+            // ==========================================
+
+            const {
+                data: bans,
+                error: banError
+            } =
+                await supabase
+                    .from("bans")
+                    .select("*")
+                    .order(
+                        "id",
+                        {
+                            ascending: false
+                        }
+                    );
+
+
+            if (banError) {
+
+                console.error(
+                    "GET BANS ERROR:",
+                    banError
+                );
+
+                return res.status(500).json({
+                    error:
+                        "Failed to load bans."
+                });
+
+            }
+
+
+            // ==========================================
+            // RETURN BANS
+            // ==========================================
 
             return res.json({
 
                 success: true,
 
-                warning:
-                    "User was banned, but the ban record could not be created."
+                bans:
+                    bans || []
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "GET BANS ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+
+                error:
+                    "Server error."
 
             });
 
         }
 
-
-        // ==========================================
-        // LIVE BAN
-        // ==========================================
+    }
+);app.get(
+    "/api/admin/bans",
+    requireLogin,
+    async (req, res) => {
 
         try {
 
-            liveBanUser(userId);
+            // ==========================================
+            // GET CURRENT USER
+            // ==========================================
+
+            const userId =
+                req.session.user.id;
+
+
+            // ==========================================
+            // GET USER ROLE
+            // ==========================================
+
+            const {
+                data: moderator,
+                error: moderatorError
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(
+                        "id, username, display_name, role, is_active"
+                    )
+                    .eq(
+                        "id",
+                        userId
+                    )
+                    .maybeSingle();
+
+
+            if (moderatorError) {
+
+                console.error(
+                    "ADMIN BANS ROLE ERROR:",
+                    moderatorError
+                );
+
+                return res.status(500).json({
+                    error:
+                        "Failed to verify moderator access."
+                });
+
+            }
+
+
+            if (!moderator) {
+
+                return res.status(403).json({
+                    error:
+                        "Moderator access required."
+                });
+
+            }
+
+
+            // ==========================================
+            // ALLOWED MODERATION ROLES
+            // ==========================================
+
+            const allowedRoles = [
+                "owner",
+                "administrator",
+                "senior_moderator",
+                "junior_moderator"
+            ];
+
+
+            if (
+                !allowedRoles.includes(
+                    moderator.role
+                )
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "Moderator access required."
+                });
+
+            }
+
+
+            // ==========================================
+            // GET ALL BANS
+            // ==========================================
+
+            const {
+                data: bans,
+                error: banError
+            } =
+                await supabase
+                    .from("bans")
+                    .select("*")
+                    .order(
+                        "id",
+                        {
+                            ascending: false
+                        }
+                    );
+
+
+            if (banError) {
+
+                console.error(
+                    "GET BANS ERROR:",
+                    banError
+                );
+
+                return res.status(500).json({
+                    error:
+                        "Failed to load bans."
+                });
+
+            }
+
+
+            // ==========================================
+            // RETURN BANS
+            // ==========================================
+
+            return res.json({
+
+                success: true,
+
+                bans:
+                    bans || []
+
+            });
+
 
         } catch (error) {
 
             console.error(
-                "LIVE BAN ERROR:",
+                "GET BANS ERROR:",
                 error
             );
 
-            /*
-             * Don't turn a successful database ban
-             * into a failed HTTP response.
-             */
+            return res.status(500).json({
+
+                error:
+                    "Server error."
+
+            });
 
         }
 
-
-        // ==========================================
-        // SUCCESS
-        // ==========================================
-
-        return res.json({
-
-            success: true,
-
-            message:
-                "User banned successfully."
-
-        });
-
-    } catch (error) {
-
-        console.error(
-            "BAN ENDPOINT ERROR:",
-            error
-        );
-
-        return res.status(500).json({
-            error:
-                "Server error while banning user."
-        });
-
     }
-
-});
+);
 app.post(
     "/api/admin/unban",
     requireLogin,
@@ -6594,7 +6838,16 @@ app.get(
 
     }
 );
+app.post("/api/admin/ban-test", (req, res) => {
 
+    console.log("🔥 BAN TEST POST HIT");
+
+    res.json({
+        success: true,
+        message: "POST BAN ROUTE WORKS"
+    });
+
+});
 app.get("/api/admin/test", (req, res) => {
     res.json({
         success: true,
