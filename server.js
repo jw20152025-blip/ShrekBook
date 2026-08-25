@@ -1912,144 +1912,330 @@ app.post("/api/admin/global-message", async (req, res) => {
 
 });
 
-app.post("/api/admin/specific-message", async (req, res) => {
+// ==================================================
+// SEND SPECIFIC MESSAGE
+// ADMIN + OWNER ONLY
+// ==================================================
 
-    try {
+app.post(
+    "/api/admin/specific-message",
+    async (req, res) => {
 
-        if (
-            !req.session ||
-            !req.session.user
-        ) {
+        try {
 
-            return res.status(401).json({
-                error: "Not logged in"
-            });
+            // ------------------------------------------
+            // CHECK LOGIN
+            // ------------------------------------------
 
-        }
+            if (
+                !req.session ||
+                !req.session.user ||
+                !req.session.user.id
+            ) {
 
-
-        const {
-            data: profile,
-            error
-        } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq(
-                "id",
-                req.session.user.id
-            )
-            .single();
-
-
-        if (
-            error ||
-            !profile
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "Unable to verify permissions."
-            });
-
-        }
-
-
-        // ADMIN + OWNER
-        if (
-            profile.role !== "administrator" &&
-            profile.role !== "owner"
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "Only administrators and owners can send specific messages."
-            });
-
-        }
-
-
-        const {
-            userId,
-            message
-        } = req.body;
-
-
-        if (
-            !userId
-        ) {
-
-            return res.status(400).json({
-                error:
-                    "User ID is required."
-            });
-
-        }
-
-
-        if (
-            !message ||
-            !message.trim()
-        ) {
-
-            return res.status(400).json({
-                error:
-                    "Message cannot be empty."
-            });
-
-        }
-
-
-        if (
-            message.length > 1000
-        ) {
-
-            return res.status(400).json({
-                error:
-                    "Message is too long."
-            });
-
-        }
-
-
-        // Store message for this user
-        specificMessages.set(
-            userId,
-            {
-
-                id:
-                    Date.now(),
-
-                message:
-                    message.trim(),
-
-                createdAt:
-                    Date.now()
+                return res.status(401).json({
+                    error: "Not logged in."
+                });
 
             }
-        );
 
 
-        res.json({
-            success: true
-        });
+            const senderId =
+                req.session.user.id;
 
 
-    } catch (error) {
+            // ------------------------------------------
+            // GET SENDER PROFILE
+            // ------------------------------------------
 
-        console.error(
-            "SPECIFIC MESSAGE ERROR:",
-            error
-        );
+            const {
+                data: sender,
+                error: senderError
+            } = await supabase
+                .from("profiles")
+                .select("id, username, display_name, role")
+                .eq(
+                    "id",
+                    senderId
+                )
+                .single();
 
-        res.status(500).json({
-            error:
-                "Failed to send specific message."
-        });
+
+            if (
+                senderError ||
+                !sender
+            ) {
+
+                console.error(
+                    "SENDER PROFILE ERROR:",
+                    senderError
+                );
+
+                return res.status(403).json({
+                    error:
+                        "Unable to verify your permissions."
+                });
+
+            }
+
+
+            // ------------------------------------------
+            // CHECK PERMISSIONS
+            // ------------------------------------------
+
+            if (
+                sender.role !== "administrator" &&
+                sender.role !== "owner"
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "Only administrators and owners can send specific messages."
+                });
+
+            }
+
+
+            // ------------------------------------------
+            // GET REQUEST DATA
+            // ------------------------------------------
+
+            const {
+                userId,
+                message
+            } = req.body || {};
+
+
+            // ------------------------------------------
+            // VALIDATE USER ID
+            // ------------------------------------------
+
+            if (
+                typeof userId !== "string" ||
+                !userId.trim()
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "A valid user ID is required."
+                });
+
+            }
+
+
+            const targetUserId =
+                userId.trim();
+
+
+            // ------------------------------------------
+            // PREVENT SELF MESSAGE
+            // ------------------------------------------
+
+            if (
+                targetUserId === senderId
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "You cannot send a specific message to yourself."
+                });
+
+            }
+
+
+            // ------------------------------------------
+            // VALIDATE MESSAGE
+            // ------------------------------------------
+
+            if (
+                typeof message !== "string"
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Message must be text."
+                });
+
+            }
+
+
+            const cleanMessage =
+                message.trim();
+
+
+            if (
+                !cleanMessage
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Message cannot be empty."
+                });
+
+            }
+
+
+            if (
+                cleanMessage.length > 1000
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Message cannot exceed 1000 characters."
+                });
+
+            }
+
+
+            // ------------------------------------------
+            // CHECK TARGET USER EXISTS
+            // ------------------------------------------
+
+            const {
+                data: targetUser,
+                error: targetError
+            } = await supabase
+                .from("profiles")
+                .select(
+                    "id, username, display_name"
+                )
+                .eq(
+                    "id",
+                    targetUserId
+                )
+                .single();
+
+
+            if (
+                targetError ||
+                !targetUser
+            ) {
+
+                return res.status(404).json({
+                    error:
+                        "That user does not exist."
+                });
+
+            }
+
+
+            // ------------------------------------------
+            // CHECK EXISTING MESSAGE
+            // ------------------------------------------
+
+            const existingMessage =
+                specificMessages.get(
+                    targetUserId
+                );
+
+
+            if (
+                existingMessage
+            ) {
+
+                return res.status(409).json({
+                    error:
+                        "That user already has an unread specific message."
+                });
+
+            }
+
+
+            // ------------------------------------------
+            // CREATE MESSAGE
+            // ------------------------------------------
+
+            const now =
+                Date.now();
+
+
+            const newMessage = {
+
+                id:
+                    `${now}-${Math.random()
+                        .toString(36)
+                        .slice(2, 10)}`,
+
+                message:
+                    cleanMessage,
+
+                createdAt:
+                    now,
+
+                senderId:
+                    sender.id,
+
+                senderUsername:
+                    sender.username,
+
+                senderDisplayName:
+                    sender.display_name ||
+                    sender.username ||
+                    "Administrator"
+
+            };
+
+
+            // ------------------------------------------
+            // STORE MESSAGE
+            // ------------------------------------------
+
+            specificMessages.set(
+                targetUserId,
+                newMessage
+            );
+
+
+            // ------------------------------------------
+            // RESPONSE
+            // ------------------------------------------
+
+            console.log(
+                `📨 Specific message sent by ${sender.username} to ${targetUser.username}`
+            );
+
+
+            return res.json({
+
+                success:
+                    true,
+
+                messageId:
+                    newMessage.id,
+
+                targetUser: {
+
+                    id:
+                        targetUser.id,
+
+                    username:
+                        targetUser.username,
+
+                    display_name:
+                        targetUser.display_name
+
+                }
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "SPECIFIC MESSAGE ERROR:",
+                error
+            );
+
+
+            return res.status(500).json({
+                error:
+                    "Failed to send specific message."
+            });
+
+        }
 
     }
-
-});
-
+);
 
 
 

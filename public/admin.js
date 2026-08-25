@@ -33,6 +33,11 @@ function showMessage(
     type = "success"
 ) {
 
+    if (!messageBox) {
+        return;
+    }
+
+
     messageBox.textContent =
         message;
 
@@ -89,6 +94,7 @@ async function adminApi(
 
     let data = {};
 
+
     try {
 
         data =
@@ -134,11 +140,34 @@ async function checkAdmin() {
             data.user;
 
 
-        adminInfo.textContent =
-            `Logged in as ${currentAdmin.display_name || currentAdmin.username} — ${formatRole(currentAdmin.role)}`;
+        if (!currentAdmin) {
+
+            throw new Error(
+                "Administrator information unavailable."
+            );
+
+        }
+
+
+        if (adminInfo) {
+
+            adminInfo.textContent =
+                `Logged in as ${
+                    currentAdmin.display_name ||
+                    currentAdmin.username ||
+                    "Administrator"
+                } — ${
+                    formatRole(
+                        currentAdmin.role
+                    )
+                }`;
+
+        }
 
 
         await loadUsers();
+
+        await loadMessageUsers();
 
     }
 
@@ -150,15 +179,31 @@ async function checkAdmin() {
         );
 
 
-        adminInfo.textContent =
-            "Access denied.";
+        if (adminInfo) {
+
+            adminInfo.textContent =
+                "Access denied.";
+
+        }
 
 
-        usersContainer.innerHTML = `
-            <div class="loading">
-                ❌ ${escapeHtml(error.message)}
-            </div>
-        `;
+        if (usersContainer) {
+
+            usersContainer.innerHTML = `
+
+                <div class="loading">
+
+                    ❌ ${
+                        escapeHtml(
+                            error.message
+                        )
+                    }
+
+                </div>
+
+            `;
+
+        }
 
     }
 
@@ -173,11 +218,17 @@ async function loadUsers() {
 
     try {
 
-        usersContainer.innerHTML = `
-            <div class="loading">
-                Loading users...
-            </div>
-        `;
+        if (usersContainer) {
+
+            usersContainer.innerHTML = `
+
+                <div class="loading">
+                    Loading users...
+                </div>
+
+            `;
+
+        }
 
 
         allUsers =
@@ -186,9 +237,29 @@ async function loadUsers() {
             );
 
 
+        if (
+            !Array.isArray(
+                allUsers
+            )
+        ) {
+
+            throw new Error(
+                "/api/admin/users did not return an array."
+            );
+
+        }
+
+
         renderUsers(
             allUsers
         );
+
+
+        // Keep the specific-message dropdown updated
+        populateMessageUsers(
+            allUsers
+        );
+
 
     }
 
@@ -200,11 +271,23 @@ async function loadUsers() {
         );
 
 
-        usersContainer.innerHTML = `
-            <div class="loading">
-                ❌ ${escapeHtml(error.message)}
-            </div>
-        `;
+        if (usersContainer) {
+
+            usersContainer.innerHTML = `
+
+                <div class="loading">
+
+                    ❌ ${
+                        escapeHtml(
+                            error.message
+                        )
+                    }
+
+                </div>
+
+            `;
+
+        }
 
     }
 
@@ -212,19 +295,29 @@ async function loadUsers() {
 
 
 // ==================================================
-// RENDER
+// RENDER USERS
 // ==================================================
 
 function renderUsers(
     users
 ) {
 
-    if (!users.length) {
+    if (!usersContainer) {
+        return;
+    }
+
+
+    if (
+        !Array.isArray(users) ||
+        !users.length
+    ) {
 
         usersContainer.innerHTML = `
+
             <div class="loading">
                 No users found.
             </div>
+
         `;
 
         return;
@@ -255,7 +348,8 @@ function createUserCard(
 
     const isSelf =
         currentAdmin &&
-        currentAdmin.id === user.id;
+        currentAdmin.id ===
+            user.id;
 
 
     const canManage =
@@ -270,20 +364,30 @@ function createUserCard(
 
 
     let badges = `
+
         <span class="badge">
-            ${escapeHtml(
-                formatRole(user.role)
-            )}
+
+            ${
+                escapeHtml(
+                    formatRole(
+                        user.role
+                    )
+                )
+            }
+
         </span>
+
     `;
 
 
     if (user.banned) {
 
         badges += `
+
             <span class="badge banned">
                 BANNED
             </span>
+
         `;
 
     }
@@ -292,9 +396,11 @@ function createUserCard(
     if (user.kicked) {
 
         badges += `
+
             <span class="badge kicked">
                 KICKED
             </span>
+
         `;
 
     }
@@ -310,13 +416,16 @@ function createUserCard(
 
                     <div class="user-name">
 
-                        ${escapeHtml(
-                            user.display_name ||
-                            user.username ||
-                            "Unknown"
-                        )}
+                        ${
+                            escapeHtml(
+                                user.display_name ||
+                                user.username ||
+                                "Unknown"
+                            )
+                        }
 
                     </div>
+
 
                     <div class="username">
 
@@ -326,6 +435,7 @@ function createUserCard(
                         )}
 
                     </div>
+
 
                     <div class="badges">
 
@@ -340,74 +450,92 @@ function createUserCard(
 
             ${
                 canManage
+
                 ? `
-                <div class="actions">
 
-                    <button
-                        class="role-button"
-                        onclick="changeRole('${user.id}')"
-                    >
-                        Change Role
-                    </button>
+                    <div class="actions">
 
-
-                    ${
-                        user.banned
-
-                        ? `
                         <button
-                            class="unban-button"
-                            onclick="unbanUser('${user.id}')"
+                            class="role-button"
+                            onclick="changeRole('${user.id}')"
                         >
-                            Unban
+                            Change Role
                         </button>
-                        `
-
-                        : `
-                        <button
-                            class="ban-button"
-                            onclick="banUser('${user.id}')"
-                        >
-                            Ban
-                        </button>
-                        `
-                    }
 
 
-                    ${
-                        user.kicked
-
-                        ? `
-                        <button
-                            class="clear-kick-button"
-                            onclick="clearKick('${user.id}')"
-                        >
-                            Clear Kick
-                        </button>
-                        `
-
-                        : `
-                        <button
-                            class="kick-button"
-                            onclick="kickUser('${user.id}')"
-                        >
-                            Kick
-                        </button>
-                        `
-                    }
-
-                </div>
-                `
-                : `
-                <div class="actions">
-                    <span>
                         ${
-                            isSelf
-                            ? "This is you."
-                            : "Insufficient permissions."
+                            user.banned
+
+                            ? `
+
+                                <button
+                                    class="unban-button"
+                                    onclick="unbanUser('${user.id}')"
+                                >
+                                    Unban
+                                </button>
+
+                            `
+
+                            : `
+
+                                <button
+                                    class="ban-button"
+                                    onclick="banUser('${user.id}')"
+                                >
+                                    Ban
+                                </button>
+
+                            `
                         }
-                    </span>
-                </div>
+
+
+                        ${
+                            user.kicked
+
+                            ? `
+
+                                <button
+                                    class="clear-kick-button"
+                                    onclick="clearKick('${user.id}')"
+                                >
+                                    Clear Kick
+                                </button>
+
+                            `
+
+                            : `
+
+                                <button
+                                    class="kick-button"
+                                    onclick="kickUser('${user.id}')"
+                                >
+                                    Kick
+                                </button>
+
+                            `
+                        }
+
+                    </div>
+
+                `
+
+                : `
+
+                    <div class="actions">
+
+                        <span>
+
+                            ${
+                                isSelf
+                                ? "This is you."
+                                : "Insufficient permissions."
+                            }
+
+                        </span>
+
+                    </div>
+
                 `
             }
 
@@ -465,6 +593,7 @@ async function changeRole(
             await adminApi(
                 `/api/admin/users/${encodeURIComponent(userId)}/role`,
                 {
+
                     method:
                         "PUT",
 
@@ -473,6 +602,7 @@ async function changeRole(
                             role:
                                 newRole
                         })
+
                 }
             );
 
@@ -534,8 +664,10 @@ async function banUser(
         await adminApi(
             `/api/admin/users/${encodeURIComponent(userId)}/ban`,
             {
+
                 method:
                     "POST"
+
             }
         );
 
@@ -586,8 +718,10 @@ async function unbanUser(
         await adminApi(
             `/api/admin/users/${encodeURIComponent(userId)}/unban`,
             {
+
                 method:
                     "POST"
+
             }
         );
 
@@ -649,8 +783,10 @@ async function kickUser(
         await adminApi(
             `/api/admin/users/${encodeURIComponent(userId)}/kick`,
             {
+
                 method:
                     "POST"
+
             }
         );
 
@@ -689,8 +825,10 @@ async function clearKick(
         await adminApi(
             `/api/admin/users/${encodeURIComponent(userId)}/clear-kick`,
             {
+
                 method:
                     "POST"
+
             }
         );
 
@@ -720,64 +858,75 @@ async function clearKick(
 // SEARCH
 // ==================================================
 
-searchInput.addEventListener(
-    "input",
-    () => {
+if (searchInput) {
 
-        const query =
-            searchInput.value
-                .trim()
-                .toLowerCase();
+    searchInput.addEventListener(
+        "input",
+        () => {
+
+            const query =
+                searchInput.value
+                    .trim()
+                    .toLowerCase();
 
 
-        if (!query) {
+            if (!query) {
+
+                renderUsers(
+                    allUsers
+                );
+
+                return;
+
+            }
+
+
+            const filtered =
+                allUsers.filter(
+                    user => {
+
+                        const username =
+                            String(
+                                user.username ||
+                                ""
+                            )
+                            .toLowerCase();
+
+
+                        const displayName =
+                            String(
+                                user.display_name ||
+                                ""
+                            )
+                            .toLowerCase();
+
+
+                        return (
+
+                            username.includes(
+                                query
+                            )
+
+                            ||
+
+                            displayName.includes(
+                                query
+                            )
+
+                        );
+
+                    }
+                );
+
 
             renderUsers(
-                allUsers
+                filtered
             );
-
-            return;
 
         }
+    );
 
-
-        const filtered =
-            allUsers.filter(
-                user => {
-
-                    const username =
-                        String(
-                            user.username ||
-                            ""
-                        )
-                        .toLowerCase();
-
-                    const displayName =
-                        String(
-                            user.display_name ||
-                            ""
-                        )
-                        .toLowerCase();
-
-                    return (
-                        username.includes(
-                            query
-                        ) ||
-                        displayName.includes(
-                            query
-                        )
-                    );
-
-                }
-            );
-
-
-        renderUsers(
-            filtered
-        );
-
-    }
-);
+}
 
 
 // ==================================================
@@ -821,7 +970,8 @@ function formatRole(
 ) {
 
     return String(
-        role || "peasant"
+        role ||
+        "peasant"
     )
         .replace(
             /_/g,
@@ -870,18 +1020,37 @@ function escapeHtml(
 
 }
 
+
+// ==================================================
+// RESET USER PASSWORD
+// ==================================================
+
 async function resetUserPassword() {
 
     const userId =
-        document.getElementById("resetUserId")
-            .value.trim();
+        document.getElementById(
+            "resetUserId"
+        )
+        ?.value
+        .trim();
+
 
     const newPassword =
-        document.getElementById("resetNewPassword")
-            .value;
+        document.getElementById(
+            "resetNewPassword"
+        )
+        ?.value;
+
 
     const status =
-        document.getElementById("resetPasswordStatus");
+        document.getElementById(
+            "resetPasswordStatus"
+        );
+
+
+    if (!status) {
+        return;
+    }
 
 
     if (!userId) {
@@ -890,6 +1059,7 @@ async function resetUserPassword() {
             "❌ Enter the user's ID.";
 
         return;
+
     }
 
 
@@ -899,22 +1069,30 @@ async function resetUserPassword() {
             "❌ Enter a new password.";
 
         return;
+
     }
 
 
-    if (newPassword.length < 6) {
+    if (
+        newPassword.length < 6
+    ) {
 
         status.textContent =
             "❌ Password must be at least 6 characters.";
 
         return;
+
     }
 
 
-    if (!confirm(
-        "Reset this user's password?"
-    )) {
+    if (
+        !confirm(
+            "Reset this user's password?"
+        )
+    ) {
+
         return;
+
     }
 
 
@@ -924,99 +1102,67 @@ async function resetUserPassword() {
 
     try {
 
-        const response =
-            await fetch(
+        const data =
+            await adminApi(
                 "/api/admin/reset-password",
                 {
-                    method: "POST",
 
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
+                    method:
+                        "POST",
 
-                    body: JSON.stringify({
-                        userId,
-                        newPassword
-                    })
+                    body:
+                        JSON.stringify({
+
+                            userId:
+                                userId,
+
+                            newPassword:
+                                newPassword
+
+                        })
+
                 }
             );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Password reset failed."
-            );
-
-        }
 
 
         status.textContent =
             "✅ Password reset successfully!";
 
 
-        document.getElementById(
-            "resetNewPassword"
-        ).value = "";
+        console.log(
+            "PASSWORD RESET:",
+            data
+        );
 
 
-    } catch (error) {
+        const passwordInput =
+            document.getElementById(
+                "resetNewPassword"
+            );
+
+
+        if (passwordInput) {
+
+            passwordInput.value =
+                "";
+
+        }
+
+    }
+
+    catch (error) {
 
         console.error(
             "PASSWORD RESET ERROR:",
             error
         );
 
+
         status.textContent =
-            "❌ " + error.message;
+            "❌ " +
+            error.message;
+
     }
-}
-
-// ==================================================
-// MESSAGE USER DROPDOWN
-// ==================================================
-
-function populateMessageUsers(users) {
-
-    const select =
-        document.getElementById(
-            "specificUserId"
-        );
-
-    if (!select) return;
-
-
-    select.innerHTML = `
-        <option value="">
-            Select a user...
-        </option>
-    `;
-
-
-    users.forEach(user => {
-
-        const option =
-            document.createElement("option");
-
-
-        option.value =
-            user.id;
-
-
-        option.textContent =
-            `${user.display_name || user.username}
-            (@${user.username})`;
-
-
-        select.appendChild(option);
-
-    });
 
 }
 
@@ -1032,10 +1178,16 @@ async function sendGlobalMessage() {
             "globalMessage"
         );
 
+
     const status =
         document.getElementById(
             "globalMessageStatus"
         );
+
+
+    if (!input || !status) {
+        return;
+    }
 
 
     const message =
@@ -1052,9 +1204,23 @@ async function sendGlobalMessage() {
     }
 
 
-    if (!confirm(
-        "Send this message to everyone currently online?"
-    )) {
+    if (
+        message.length > 1000
+    ) {
+
+        status.textContent =
+            "❌ Message is too long.";
+
+        return;
+
+    }
+
+
+    if (
+        !confirm(
+            "Send this message to everyone currently online?"
+        )
+    ) {
 
         return;
 
@@ -1067,20 +1233,13 @@ async function sendGlobalMessage() {
 
     try {
 
-        const response =
-            await fetch(
+        const data =
+            await adminApi(
                 "/api/admin/global-message",
                 {
 
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    credentials:
-                        "include",
+                    method:
+                        "POST",
 
                     body:
                         JSON.stringify({
@@ -1091,28 +1250,22 @@ async function sendGlobalMessage() {
             );
 
 
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Failed to send global message."
-            );
-
-        }
-
-
-        input.value = "";
+        input.value =
+            "";
 
 
         status.textContent =
             "✅ Global message sent!";
 
 
-    } catch (error) {
+        console.log(
+            "GLOBAL MESSAGE:",
+            data
+        );
+
+    }
+
+    catch (error) {
 
         console.error(
             "GLOBAL MESSAGE ERROR:",
@@ -1129,150 +1282,59 @@ async function sendGlobalMessage() {
 }
 
 
+// ==================================================
+// SPECIFIC MESSAGE USER DROPDOWN
+// ==================================================
 
-// ==========================================
-// SPECIFIC MESSAGE
-// ==========================================
-
-if (
-    data.specificMessage &&
-    data.specificMessage.id !==
-        lastSpecificMessageId
+function populateMessageUsers(
+    users
 ) {
 
-    lastSpecificMessageId =
-        data.specificMessage.id;
-
-
-    showShrekBookMessage(
-
-        "📨 ShrekBook Message",
-
-        data.specificMessage.message
-
-    );
-
-
-    // Tell server we've received it
-    fetch(
-        "/api/messages/specific/ack",
-        {
-
-            method: "POST",
-
-            credentials: "include",
-
-            headers: {
-                "Content-Type":
-                    "application/json"
-            }
-
-        }
-    )
-    .then(() => {
-
-        console.log(
-            "✅ Specific message acknowledged."
-        );
-
-    })
-    .catch(error => {
-
-        console.error(
-            "MESSAGE ACK ERROR:",
-            error
-        );
-
-    });
-
-}
-
-
-
-async function loadMessageUsers() {
-
     const select =
-        document.getElementById("specificUserId");
+        document.getElementById(
+            "specificUserId"
+        );
+
 
     if (!select) {
-
-        console.error(
-            "❌ specificUserId dropdown does not exist."
-        );
-
         return;
     }
 
 
-    try {
-
-        const response =
-            await fetch("/api/users", {
-
-                method: "GET",
-
-                credentials: "include",
-
-                cache: "no-store"
-
-            });
+    const previousValue =
+        select.value;
 
 
-        if (!response.ok) {
-
-            throw new Error(
-                "HTTP " +
-                response.status
-            );
-
-        }
+    select.innerHTML =
+        "";
 
 
-        // YOUR /api/users RETURNS A PLAIN ARRAY
-        const users =
-            await response.json();
-
-
-        console.log(
-            "API USERS:",
-            users
+    const defaultOption =
+        document.createElement(
+            "option"
         );
 
 
-        if (!Array.isArray(users)) {
-
-            console.error(
-                "❌ /api/users did not return an array:",
-                users
-            );
-
-            return;
-        }
+    defaultOption.value =
+        "";
 
 
-        // Clear dropdown
-        select.innerHTML = "";
+    defaultOption.textContent =
+        "Select a user...";
 
 
-        // Default option
-        const defaultOption =
-            document.createElement("option");
-
-        defaultOption.value = "";
-
-        defaultOption.textContent =
-            "Select a user...";
-
-        select.appendChild(
-            defaultOption
-        );
+    select.appendChild(
+        defaultOption
+    );
 
 
-        // Add every user
-        users.forEach(user => {
+    users.forEach(
+        user => {
 
             const option =
-                document.createElement("option");
+                document.createElement(
+                    "option"
+                );
 
 
             option.value =
@@ -1280,16 +1342,126 @@ async function loadMessageUsers() {
 
 
             option.textContent =
-                user.display_name ||
-                user.username ||
-                "Unknown user";
+                `${
+                    user.display_name ||
+                    user.username ||
+                    "Unknown"
+                } (@${
+                    user.username ||
+                    "unknown"
+                })`;
 
 
             select.appendChild(
                 option
             );
 
-        });
+        }
+    );
+
+
+    // Restore previously selected user
+    if (
+        previousValue &&
+        users.some(
+            user =>
+                user.id ===
+                previousValue
+        )
+    ) {
+
+        select.value =
+            previousValue;
+
+    }
+
+}
+
+
+// ==================================================
+// LOAD MESSAGE USERS
+// ==================================================
+
+async function loadMessageUsers() {
+
+    const select =
+        document.getElementById(
+            "specificUserId"
+        );
+
+
+    if (!select) {
+
+        console.warn(
+            "specificUserId dropdown not found."
+        );
+
+        return;
+
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/users",
+                {
+
+                    method:
+                        "GET",
+
+                    credentials:
+                        "include",
+
+                    cache:
+                        "no-store",
+
+                    headers: {
+
+                        "Cache-Control":
+                            "no-cache"
+
+                    }
+
+                }
+            );
+
+
+        const users =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                users.error ||
+                `HTTP ${response.status}`
+            );
+
+        }
+
+
+        if (
+            !Array.isArray(users)
+        ) {
+
+            throw new Error(
+                "/api/users did not return an array."
+            );
+
+        }
+
+
+        console.log(
+            "📋 API USERS:",
+            users
+        );
+
+
+        populateMessageUsers(
+            users
+        );
 
 
         console.log(
@@ -1298,38 +1470,202 @@ async function loadMessageUsers() {
             "users to specific message dropdown."
         );
 
-    } catch (error) {
+
+    }
+
+    catch (error) {
 
         console.error(
             "❌ DROPDOWN ERROR:",
             error
         );
 
+
+        select.innerHTML = `
+
+            <option value="">
+                Failed to load users
+            </option>
+
+        `;
+
     }
 
 }
 
 
+// ==================================================
+// SEND SPECIFIC MESSAGE
+// ==================================================
+
+async function sendSpecificMessageAdmin() {
+
+    const select =
+        document.getElementById(
+            "specificUserId"
+        );
 
 
+    const input =
+        document.getElementById(
+            "specificMessage"
+        );
+
+
+    const status =
+        document.getElementById(
+            "specificMessageStatus"
+        );
+
+
+    if (
+        !select ||
+        !input ||
+        !status
+    ) {
+
+        console.error(
+            "Specific message elements are missing."
+        );
+
+        return;
+
+    }
+
+
+    const userId =
+        select.value;
+
+
+    const message =
+        input.value.trim();
+
+
+    // ------------------------------------------
+    // VALIDATION
+    // ------------------------------------------
+
+    if (!userId) {
+
+        status.textContent =
+            "❌ Select a user.";
+
+        return;
+
+    }
+
+
+    if (!message) {
+
+        status.textContent =
+            "❌ Enter a message.";
+
+        return;
+
+    }
+
+
+    if (
+        message.length > 1000
+    ) {
+
+        status.textContent =
+            "❌ Message is too long.";
+
+        return;
+
+    }
+
+
+    if (
+        !confirm(
+            "Send this message to the selected user?"
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    status.textContent =
+        "Sending...";
+
+
+    try {
+
+        const data =
+            await adminApi(
+                "/api/admin/specific-message",
+                {
+
+                    method:
+                        "POST",
+
+                    body:
+                        JSON.stringify({
+
+                            userId:
+                                userId,
+
+                            message:
+                                message
+
+                        })
+
+                }
+            );
+
+
+        input.value =
+            "";
+
+
+        status.textContent =
+            "✅ Specific message sent!";
+
+
+        console.log(
+            "📨 SPECIFIC MESSAGE SENT:",
+            data
+        );
+
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "❌ SPECIFIC MESSAGE ERROR:",
+            error
+        );
+
+
+        status.textContent =
+            "❌ " +
+            error.message;
+
+    }
+
+}
 
 
 // ==================================================
 // START
 // ==================================================
 
-checkAdmin();
-
-
 document.addEventListener(
     "DOMContentLoaded",
-    function () {
+    () => {
 
         console.log(
-            "🧌 Admin page loaded."
+            "🧌 ShrekBook admin panel loaded."
         );
 
-        loadMessageUsers();
+
+        // Check administrator access.
+        checkAdmin();
 
     }
 );
+
