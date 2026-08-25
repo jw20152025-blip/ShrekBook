@@ -623,97 +623,200 @@ async function requireAdmin(req, res, next) {
         });
     }
 }
-app.post("/api/admin/ban", async (req, res) => {
-    const { userId } = req.body;
-    const {
-        data: authResult,
-        error: authError
-    } = await supabase.auth.admin.getUserById(
-        userId
-    );
-    const { error } = await supabase
-        .from("profiles")
-        .update({
-            banned: true
-        })
-        .eq("id", userId);
+app.post("/api/admin/ban", requireLogin, async (req, res) => {
 
-    if (error) {
-        console.error("Ban error:", error);
+    try {
 
-        return res.status(500).json({
-            error: "Failed to ban user"
+        const {
+            userId,
+            reason
+        } = req.body;
+
+        if (!userId) {
+
+            return res.status(400).json({
+                error: "User ID is required."
+            });
+
+        }
+
+
+        // ==========================================
+        // GET TARGET AUTH USER
+        // ==========================================
+
+        const {
+            data: authResult,
+            error: authError
+        } =
+            await supabase.auth.admin.getUserById(
+                userId
+            );
+
+
+        if (authError || !authResult?.user) {
+
+            console.error(
+                "GET TARGET USER ERROR:",
+                authError
+            );
+
+            return res.status(404).json({
+                error:
+                    "Target user not found."
+            });
+
+        }
+
+
+        const targetEmail =
+            String(
+                authResult.user.email || ""
+            )
+                .trim()
+                .toLowerCase();
+
+
+        // ==========================================
+        // BAN PROFILE
+        // ==========================================
+
+        const {
+            error: profileBanError
+        } =
+            await supabase
+                .from("profiles")
+                .update({
+                    banned: true
+                })
+                .eq(
+                    "id",
+                    userId
+                );
+
+
+        if (profileBanError) {
+
+            console.error(
+                "PROFILE BAN ERROR:",
+                profileBanError
+            );
+
+            return res.status(500).json({
+                error:
+                    "Failed to ban user."
+            });
+
+        }
+
+
+        // ==========================================
+        // INSERT BAN RECORD
+        // ==========================================
+
+        const {
+            error: banError
+        } =
+            await supabase
+                .from("bans")
+                .insert({
+
+                    user_id:
+                        userId,
+
+                    email:
+                        targetEmail,
+
+                    reason:
+                        String(
+                            reason ||
+                            "Banned"
+                        ).trim(),
+
+                    banned_by:
+                        req.session.user.id
+
+                });
+
+
+        if (banError) {
+
+            console.error(
+                "BAN INSERT ERROR:",
+                banError
+            );
+
+            /*
+             * IMPORTANT:
+             *
+             * The profile was already banned.
+             * Tell the client that the ban itself
+             * succeeded rather than pretending
+             * absolutely nothing happened.
+             */
+
+            return res.json({
+
+                success: true,
+
+                warning:
+                    "User was banned, but the ban record could not be created."
+
+            });
+
+        }
+
+
+        // ==========================================
+        // LIVE BAN
+        // ==========================================
+
+        try {
+
+            liveBanUser(userId);
+
+        } catch (error) {
+
+            console.error(
+                "LIVE BAN ERROR:",
+                error
+            );
+
+            /*
+             * Don't turn a successful database ban
+             * into a failed HTTP response.
+             */
+
+        }
+
+
+        // ==========================================
+        // SUCCESS
+        // ==========================================
+
+        return res.json({
+
+            success: true,
+
+            message:
+                "User banned successfully."
+
         });
-    }
 
-    // 🚫 Tell the user's browser immediately
-    liveBanUser(userId);
-
-    res.json({
-        success: true
-    });
-    const normalizedEmail =
-    String(targetEmail || "")
-        .trim()
-        .toLowerCase();
-
-    const {
-        data: ban,
-        error: banError
-    } = await supabase
-        .from("bans")
-        .insert({
-            user_id: targetUserId,
-            email: normalizedEmail,
-            reason: reason || "Banned",
-            banned_by: req.session.user.id
-        })
-        .select()
-        .single();
-
-    if (banError) {
+    } catch (error) {
 
         console.error(
-            "BAN INSERT ERROR:",
-            banError
+            "BAN ENDPOINT ERROR:",
+            error
         );
 
         return res.status(500).json({
             error:
-                "Failed to create ban."
+                "Server error while banning user."
         });
 
     }
-});
-// ==================================================
-// ADMIN AUTH
-// ==================================================
-app.post("/api/admin/kick", async (req, res) => {
-    const { userId } = req.body;
 
-    const { error } = await supabase
-        .from("profiles")
-        .update({
-            kicked: true
-        })
-        .eq("id", userId);
-
-    if (error) {
-        console.error("Kick error:", error);
-
-        return res.status(500).json({
-            error: "Failed to kick user"
-        });
-    }
-
-    // 🔥 Tell the user's browser immediately
-    liveKickUser(userId);
-    setTimeout(() => {
-        clearKick(userId);
-    }, 1000);
-    res.json({
-        success: true
-    });
 });
 app.get("/api/admin/auth", requireLogin, async (req, res) => {
     try {
