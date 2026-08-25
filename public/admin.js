@@ -1258,9 +1258,147 @@ async function sendSpecificMessageAdmin() {
 
 }
 
+async function loadMessageUsers() {
+
+    const select =
+        document.getElementById("specificUserId");
+
+    if (!select) {
+
+        console.error(
+            "❌ specificUserId dropdown does not exist."
+        );
+
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch("/api/users", {
+
+                method: "GET",
+
+                credentials: "include",
+
+                cache: "no-store"
+
+            });
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "HTTP " +
+                response.status
+            );
+
+        }
+
+
+        // YOUR /api/users RETURNS A PLAIN ARRAY
+        const users =
+            await response.json();
+
+
+        console.log(
+            "API USERS:",
+            users
+        );
+
+
+        if (!Array.isArray(users)) {
+
+            console.error(
+                "❌ /api/users did not return an array:",
+                users
+            );
+
+            return;
+        }
+
+
+        // Clear dropdown
+        select.innerHTML = "";
+
+
+        // Default option
+        const defaultOption =
+            document.createElement("option");
+
+        defaultOption.value = "";
+
+        defaultOption.textContent =
+            "Select a user...";
+
+        select.appendChild(
+            defaultOption
+        );
+
+
+        // Add every user
+        users.forEach(user => {
+
+            const option =
+                document.createElement("option");
+
+
+            option.value =
+                user.id;
+
+
+            option.textContent =
+                user.display_name ||
+                user.username ||
+                "Unknown user";
+
+
+            select.appendChild(
+                option
+            );
+
+        });
+
+
+        console.log(
+            "✅ Added",
+            users.length,
+            "users to specific message dropdown."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "❌ DROPDOWN ERROR:",
+            error
+        );
+
+    }
+
+}
+
+
+
+
+
+
 // ==================================================
 // START
 // ==================================================
 
 checkAdmin();
 
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        console.log(
+            "🧌 Admin page loaded."
+        );
+
+        loadMessageUsers();
+
+    }
+);
