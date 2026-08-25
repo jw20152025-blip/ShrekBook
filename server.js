@@ -1,6 +1,16 @@
 
 require("dotenv").config();
 
+// ==================================================
+// GLOBAL / SPECIFIC MESSAGES
+// ==================================================
+
+let globalMessage = null;
+
+const specificMessages = new Map();
+
+// Tracks when each logged-in session started
+const messageSessionTimes = new Map();
 const express = require("express");
 const path = require("path");
 const http = require("http");
@@ -1802,6 +1812,11 @@ app.get("/api/me", async (req, res) => {
 
         }
 
+
+        const userId =
+            req.session.user.id;
+
+
         const {
             data,
             error
@@ -1810,9 +1825,10 @@ app.get("/api/me", async (req, res) => {
             .select("*")
             .eq(
                 "id",
-                req.session.user.id
+                userId
             )
             .single();
+
 
         if (error || !data) {
 
@@ -1822,15 +1838,80 @@ app.get("/api/me", async (req, res) => {
 
         }
 
+
+        // ==========================================
+        // MESSAGE SESSION
+        // ==========================================
+
+        if (!messageSessionTimes.has(userId)) {
+
+            messageSessionTimes.set(
+                userId,
+                Date.now()
+            );
+
+        }
+
+
+        const sessionStarted =
+            messageSessionTimes.get(userId);
+
+
+        // ==========================================
+        // GLOBAL MESSAGE
+        // ==========================================
+
+        let pendingGlobalMessage = null;
+
+
+        if (
+            globalMessage &&
+            globalMessage.createdAt >= sessionStarted
+        ) {
+
+            pendingGlobalMessage =
+                globalMessage;
+
+        }
+
+
+        // ==========================================
+        // SPECIFIC MESSAGE
+        // ==========================================
+
+        let pendingSpecificMessage =
+            specificMessages.get(userId) || null;
+
+
+        // Specific messages are consumed
+        // after being delivered.
+
+        if (pendingSpecificMessage) {
+
+            specificMessages.delete(userId);
+
+        }
+
+
+        // ==========================================
+        // EXISTING REACTIONS
+        // ==========================================
+
         const reactions =
             await getReactionCounts(
                 data.id
             );
 
+
         const admin =
             await isAdmin(
                 data.id
             );
+
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
 
         res.json({
 
@@ -1856,9 +1937,17 @@ app.get("/api/me", async (req, res) => {
                 ogred:
                     reactions.ogred
 
-            }
+            },
+
+            // NEW
+            globalMessage:
+                pendingGlobalMessage,
+
+            specificMessage:
+                pendingSpecificMessage
 
         });
+
 
     } catch (error) {
 
@@ -1875,6 +1964,288 @@ app.get("/api/me", async (req, res) => {
     }
 
 });
+app.post("/api/admin/global-message", async (req, res) => {
+
+    try {
+
+        if (!req.session.user) {
+
+            return res.status(401).json({
+                error: "Not logged in"
+            });
+
+        }
+
+
+        const admin =
+            await isAdmin(
+                req.session.user.id
+            );
+
+
+        // isAdmin() alone isn't enough because
+        // administrators must NOT be allowed
+        // to send global messages.
+
+        const {
+            data: profile,
+            error
+        } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq(
+                "id",
+                req.session.user.id
+            )
+            .single();
+
+
+        if (
+            error ||
+            !profile ||
+            profile.role !== "owner"
+        ) {
+
+            return res.status(403).json({
+                error:
+                    "Only the owner can send global messages."
+            });
+
+        }
+
+
+        const { message } =
+            req.body;
+
+
+        if (
+            !message ||
+            !message.trim()
+        ) {
+
+            return res.status(400).json({
+                error:
+                    "Message cannot be empty."
+            });
+
+        }
+
+
+        globalMessage = {
+
+            id:
+                Date.now(),
+
+            message:
+                message.trim(),
+
+            createdAt:
+                Date.now()
+
+        };
+
+
+        res.json({
+            success: true
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "GLOBAL MESSAGE ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error:
+                "Failed to send global message."
+        });
+
+    }
+
+});
+app.post("/api/admin/specific-message", async (req, res) => {
+
+    try {
+
+        if (!req.session.user) {
+
+            return res.status(401).json({
+                error: "Not logged in"
+            });
+
+        }
+
+
+        const {
+            data: profile,
+            error
+        } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq(
+                "id",
+                req.session.user.id
+            )
+            .single();
+
+
+        if (error || !profile) {
+
+            return res.status(403).json({
+                error:
+                    "Unable to verify permissions."
+            });
+
+        }
+
+
+        if (
+            profile.role !== "administrator" &&
+            profile.role !== "owner"
+        ) {
+
+            return res.status(403).json({
+                error:
+                    "Only administrators and owners can send specific messages."
+            });
+
+        }
+
+
+        const {
+            userId,
+            message
+        } = req.body;
+
+
+        if (!userId) {
+
+            return res.status(400).json({
+                error:
+                    "User ID is required."
+            });
+
+        }
+
+
+        if (
+            !message ||
+            !message.trim()
+        ) {
+
+            return res.status(400).json({
+                error:
+                    "Message cannot be empty."
+            });
+
+        }
+
+
+        specificMessages.set(
+            userId,
+            {
+
+                id:
+                    Date.now(),
+
+                message:
+                    message.trim(),
+
+                createdAt:
+                    Date.now()
+
+            }
+        );
+
+
+        res.json({
+            success: true
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "SPECIFIC MESSAGE ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error:
+                "Failed to send specific message."
+        });
+
+    }
+
+});
+
+// ==================================================
+// ONLINE STATUS
+// ==================================================
+
+app.get("/api/online", async (req, res) => {
+
+    try {
+
+        // User is not logged in
+        if (!req.session || !req.session.user) {
+
+            return res.json({
+                online: false
+            });
+
+        }
+
+
+        // Make sure the user still exists
+        const {
+            data,
+            error
+        } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq(
+                "id",
+                req.session.user.id
+            )
+            .single();
+
+
+        if (error || !data) {
+
+            return res.json({
+                online: false
+            });
+
+        }
+
+
+        // User is logged in
+        res.json({
+            online: true,
+            userId: data.id
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "ONLINE ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            online: false,
+            error: "Server error."
+        });
+
+    }
+
+});
+
+
 app.post("/api/admin/kick", async (req, res) => {
 
     try {
@@ -6311,6 +6682,7 @@ app.post("/api/admin/reset-password", async (req, res) => {
         });
     }
 });
+
 // ==================================================
 // START
 // ==================================================
