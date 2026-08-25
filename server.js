@@ -568,29 +568,141 @@ async function requireAdmin(req, res, next) {
     }
 }
 app.post("/api/admin/ban", async (req, res) => {
-    const { userId } = req.body;
 
-    const { error } = await supabase
-        .from("profiles")
-        .update({
-            banned: true
-        })
-        .eq("id", userId);
+    try {
 
-    if (error) {
-        console.error("Ban error:", error);
+        // ==========================================
+        // CHECK LOGIN
+        // ==========================================
+
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+
+        // ==========================================
+        // CHECK PERMISSION
+        // ==========================================
+
+        const { data: user, error: userError } =
+            await supabase
+                .from("profiles")
+                .select("role")
+                .eq("id", req.session.user.id)
+                .maybeSingle();
+
+
+        if (userError || !user) {
+
+            console.error(
+                "BAN PERMISSION CHECK ERROR:",
+                userError
+            );
+
+            return res.status(403).json({
+                error: "Unable to verify permissions."
+            });
+
+        }
+
+
+        const canBan = [
+            "administrator",
+            "owner"
+        ];
+
+
+        if (!canBan.includes(user.role)) {
+
+            return res.status(403).json({
+                error:
+                    "You do not have permission to ban users."
+            });
+
+        }
+
+
+        // ==========================================
+        // GET TARGET USER
+        // ==========================================
+
+        const { userId, reason } = req.body;
+
+
+        if (!userId) {
+
+            return res.status(400).json({
+                error: "User ID is required."
+            });
+
+        }
+
+
+        // ==========================================
+        // BAN PROFILE
+        // ==========================================
+
+        const { error } =
+            await supabase
+                .from("profiles")
+                .update({
+                    banned: true
+                })
+                .eq("id", userId);
+
+
+        if (error) {
+
+            console.error(
+                "Ban error:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Failed to ban user."
+            });
+
+        }
+
+
+        // ==========================================
+        // LIVE BAN
+        // ==========================================
+
+        liveBanUser(userId);
+
+
+        // ==========================================
+        // SUCCESS
+        // ==========================================
+
+        return res.json({
+
+            success: true,
+
+            message:
+                "User banned successfully."
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "ADMIN BAN ERROR:",
+            error
+        );
 
         return res.status(500).json({
-            error: "Failed to ban user"
+            error:
+                "Server error while banning user."
         });
+
     }
 
-    // 🚫 Tell the user's browser immediately
-    liveBanUser(userId);
-
-    res.json({
-        success: true
-    });
 });
 // ==================================================
 // ADMIN AUTH
