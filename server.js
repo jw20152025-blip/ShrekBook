@@ -818,6 +818,177 @@ app.post("/api/admin/ban", requireLogin, async (req, res) => {
     }
 
 });
+app.post(
+    "/api/admin/unban",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            const {
+                userId
+            } = req.body;
+
+
+            if (!userId) {
+
+                return res.status(400).json({
+                    error:
+                        "User ID is required."
+                });
+
+            }
+
+
+            const {
+                data: moderator,
+                error: moderatorError
+            } =
+                await supabase
+                    .from("profiles")
+                    .select("role")
+                    .eq(
+                        "id",
+                        req.session.user.id
+                    )
+                    .maybeSingle();
+
+
+            if (
+                moderatorError ||
+                !moderator
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "Moderator access required."
+                });
+
+            }
+
+
+            const allowedRoles = [
+                "owner",
+                "administrator",
+                "senior_moderator",
+                "junior_moderator"
+            ];
+
+
+            if (
+                !allowedRoles.includes(
+                    moderator.role
+                )
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "Moderator access required."
+                });
+
+            }
+
+
+            // =====================================
+            // UNBAN PROFILE
+            // =====================================
+
+            const {
+                error
+            } =
+                await supabase
+                    .from("profiles")
+                    .update({
+                        banned: false
+                    })
+                    .eq(
+                        "id",
+                        userId
+                    );
+
+
+            if (error) {
+
+                console.error(
+                    "UNBAN PROFILE ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        "Failed to unban user."
+                });
+
+            }
+
+
+            // =====================================
+            // REMOVE BAN RECORD
+            // =====================================
+
+            const {
+                error: banDeleteError
+            } =
+                await supabase
+                    .from("bans")
+                    .delete()
+                    .eq(
+                        "user_id",
+                        userId
+                    );
+
+
+            if (banDeleteError) {
+
+                console.error(
+                    "BAN RECORD DELETE ERROR:",
+                    banDeleteError
+                );
+
+                /*
+                 * The profile is already unbanned.
+                 * Don't tell the frontend that the
+                 * entire unban failed.
+                 */
+
+                return res.json({
+
+                    success: true,
+
+                    warning:
+                        "Account unbanned, but the ban record could not be removed."
+
+                });
+
+            }
+
+
+            return res.json({
+
+                success: true,
+
+                message:
+                    "User unbanned successfully."
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "UNBAN ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Server error while unbanning user."
+            });
+
+        }
+
+    }
+);
 app.get("/api/admin/auth", requireLogin, async (req, res) => {
     try {
 
