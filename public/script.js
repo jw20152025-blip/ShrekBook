@@ -2708,6 +2708,182 @@ async function loadPeople() {
 
 }
 
+// ==================================================
+// SHREKBOOK POPUP MESSAGES
+// ==================================================
+
+let lastGlobalMessageId = null;
+let lastSpecificMessageId = null;
+
+
+function showShrekBookMessage(
+    title,
+    message
+) {
+
+    const existing =
+        document.getElementById(
+            "shrekbook-message-popup"
+        );
+
+
+    if (existing) {
+        existing.remove();
+    }
+
+
+    const popup =
+        document.createElement("div");
+
+
+    popup.id =
+        "shrekbook-message-popup";
+
+
+    popup.innerHTML = `
+
+        <div class="shrekbook-message-box">
+
+            <h2>
+                ${escapeHtml(title)}
+            </h2>
+
+            <p>
+                ${escapeHtml(message)}
+            </p>
+
+            <button
+                id="closeShrekMessage"
+            >
+                OK
+            </button>
+
+        </div>
+
+    `;
+
+
+    document.body.appendChild(
+        popup
+    );
+
+
+    document
+        .getElementById(
+            "closeShrekMessage"
+        )
+        .onclick = () => {
+
+            popup.remove();
+
+        };
+
+}
+
+
+// ==================================================
+// CHECK /api/me
+// ==================================================
+
+async function checkMessages() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/me",
+                {
+                    credentials:
+                        "include"
+                }
+            );
+
+
+        if (!response.ok) {
+            return;
+        }
+
+
+        const data =
+            await response.json();
+
+
+        if (
+            !data.loggedIn
+        ) {
+
+            return;
+
+        }
+
+
+        // ==========================================
+        // GLOBAL
+        // ==========================================
+
+        if (
+            data.globalMessage &&
+            data.globalMessage.id !==
+                lastGlobalMessageId
+        ) {
+
+            lastGlobalMessageId =
+                data.globalMessage.id;
+
+
+            showShrekBookMessage(
+                "📢 ShrekBook Announcement",
+                data.globalMessage.message
+            );
+
+        }
+
+
+        // ==========================================
+        // SPECIFIC
+        // ==========================================
+
+        if (
+            data.specificMessage &&
+            data.specificMessage.id !==
+                lastSpecificMessageId
+        ) {
+
+            lastSpecificMessageId =
+                data.specificMessage.id;
+
+
+            showShrekBookMessage(
+                "📨 ShrekBook Message",
+                data.specificMessage.message
+            );
+
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "MESSAGE CHECK ERROR:",
+            error
+        );
+
+    }
+
+}
+
+
+// Check immediately
+checkMessages();
+
+
+// Then every 2 seconds
+setInterval(
+    checkMessages,
+    2000
+);
+
+
 
 /* ==================================================
    ENTER KEY FOR COMMENTS

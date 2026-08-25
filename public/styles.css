@@ -380,6 +380,98 @@ nav a {
         flex-direction: column;
     }
 }
+
+/* ==================================================
+   SHREKBOOK MESSAGE POPUP
+================================================== */
+
+#shrekbook-message-popup {
+
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 999999;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 20px;
+
+    background:
+        rgba(0, 0, 0, 0.55);
+
+}
+
+
+.shrekbook-message-box {
+
+    width:
+        min(500px, 100%);
+
+    background:
+        white;
+
+    border-radius:
+        16px;
+
+    padding:
+        30px;
+
+    text-align:
+        center;
+
+    box-shadow:
+        0 20px 60px
+        rgba(0, 0, 0, .35);
+
+}
+
+
+.shrekbook-message-box h2 {
+
+    margin-top: 0;
+
+}
+
+
+.shrekbook-message-box p {
+
+    font-size: 17px;
+
+    line-height: 1.5;
+
+    white-space: pre-wrap;
+
+    overflow-wrap: anywhere;
+
+}
+
+
+.shrekbook-message-box button {
+
+    margin-top: 15px;
+
+    padding:
+        10px 30px;
+
+    border: none;
+
+    border-radius:
+        8px;
+
+    cursor:
+        pointer;
+
+    font-size:
+        16px;
+
+}
+
+
 /* ==========================================
    ONLINE STATUS
    ========================================== */

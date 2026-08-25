@@ -977,6 +977,287 @@ async function resetUserPassword() {
             "❌ " + error.message;
     }
 }
+
+// ==================================================
+// MESSAGE USER DROPDOWN
+// ==================================================
+
+function populateMessageUsers(users) {
+
+    const select =
+        document.getElementById(
+            "specificUserId"
+        );
+
+    if (!select) return;
+
+
+    select.innerHTML = `
+        <option value="">
+            Select a user...
+        </option>
+    `;
+
+
+    users.forEach(user => {
+
+        const option =
+            document.createElement("option");
+
+
+        option.value =
+            user.id;
+
+
+        option.textContent =
+            `${user.display_name || user.username}
+            (@${user.username})`;
+
+
+        select.appendChild(option);
+
+    });
+
+}
+
+
+// ==================================================
+// GLOBAL MESSAGE
+// ==================================================
+
+async function sendGlobalMessage() {
+
+    const input =
+        document.getElementById(
+            "globalMessage"
+        );
+
+    const status =
+        document.getElementById(
+            "globalMessageStatus"
+        );
+
+
+    const message =
+        input.value.trim();
+
+
+    if (!message) {
+
+        status.textContent =
+            "❌ Enter a message.";
+
+        return;
+
+    }
+
+
+    if (!confirm(
+        "Send this message to everyone currently online?"
+    )) {
+
+        return;
+
+    }
+
+
+    status.textContent =
+        "Sending...";
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/global-message",
+                {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    credentials:
+                        "include",
+
+                    body:
+                        JSON.stringify({
+                            message
+                        })
+
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Failed to send global message."
+            );
+
+        }
+
+
+        input.value = "";
+
+
+        status.textContent =
+            "✅ Global message sent!";
+
+
+    } catch (error) {
+
+        console.error(
+            "GLOBAL MESSAGE ERROR:",
+            error
+        );
+
+
+        status.textContent =
+            "❌ " +
+            error.message;
+
+    }
+
+}
+
+
+// ==================================================
+// SPECIFIC MESSAGE
+// ==================================================
+
+async function sendSpecificMessageAdmin() {
+
+    const userSelect =
+        document.getElementById(
+            "specificUserId"
+        );
+
+    const messageInput =
+        document.getElementById(
+            "specificMessage"
+        );
+
+    const status =
+        document.getElementById(
+            "specificMessageStatus"
+        );
+
+
+    const userId =
+        userSelect.value;
+
+
+    const message =
+        messageInput.value.trim();
+
+
+    if (!userId) {
+
+        status.textContent =
+            "❌ Select a user.";
+
+        return;
+
+    }
+
+
+    if (!message) {
+
+        status.textContent =
+            "❌ Enter a message.";
+
+        return;
+
+    }
+
+
+    if (!confirm(
+        "Send this message to this user?"
+    )) {
+
+        return;
+
+    }
+
+
+    status.textContent =
+        "Sending...";
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/specific-message",
+                {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    credentials:
+                        "include",
+
+                    body:
+                        JSON.stringify({
+
+                            userId,
+                            message
+
+                        })
+
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Failed to send message."
+            );
+
+        }
+
+
+        messageInput.value = "";
+
+
+        status.textContent =
+            "✅ Message sent!";
+
+
+    } catch (error) {
+
+        console.error(
+            "SPECIFIC MESSAGE ERROR:",
+            error
+        );
+
+
+        status.textContent =
+            "❌ " +
+            error.message;
+
+    }
+
+}
+
 // ==================================================
 // START
 // ==================================================
