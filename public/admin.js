@@ -1655,7 +1655,168 @@ async function checkSpecificMessages() {
 
 }
 
+// ==================================================
+// SEND SPECIFIC MESSAGE
+// ADMIN + OWNER
+// ==================================================
 
+async function sendSpecificMessageAdmin() {
+
+    const userSelect =
+        document.getElementById(
+            "specificUserId"
+        );
+
+    const messageInput =
+        document.getElementById(
+            "specificMessage"
+        );
+
+    const status =
+        document.getElementById(
+            "specificMessageStatus"
+        );
+
+
+    if (
+        !userSelect ||
+        !messageInput ||
+        !status
+    ) {
+
+        console.error(
+            "❌ Specific message elements missing."
+        );
+
+        return;
+
+    }
+
+
+    const userId =
+        userSelect.value;
+
+
+    const message =
+        messageInput.value.trim();
+
+
+    // ------------------------------------------
+    // VALIDATION
+    // ------------------------------------------
+
+    if (!userId) {
+
+        status.textContent =
+            "❌ Select a user.";
+
+        return;
+
+    }
+
+
+    if (!message) {
+
+        status.textContent =
+            "❌ Enter a message.";
+
+        return;
+
+    }
+
+
+    if (
+        message.length > 1000
+    ) {
+
+        status.textContent =
+            "❌ Message is too long.";
+
+        return;
+
+    }
+
+
+    const selectedOption =
+        userSelect.options[
+            userSelect.selectedIndex
+        ];
+
+
+    const username =
+        selectedOption
+            ? selectedOption.textContent
+            : "this user";
+
+
+    if (
+        !confirm(
+            `Send this message to ${username}?`
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    status.textContent =
+        "Sending...";
+
+
+    try {
+
+        const data =
+            await adminApi(
+                "/api/admin/specific-message",
+                {
+
+                    method:
+                        "POST",
+
+                    body:
+                        JSON.stringify({
+
+                            userId:
+                                userId,
+
+                            message:
+                                message
+
+                        })
+
+                }
+            );
+
+
+        console.log(
+            "📨 SPECIFIC MESSAGE SENT:",
+            data
+        );
+
+
+        status.textContent =
+            "✅ Specific message sent!";
+
+
+        messageInput.value = "";
+
+
+    } catch (error) {
+
+        console.error(
+            "❌ SPECIFIC MESSAGE ERROR:",
+            error
+        );
+
+
+        status.textContent =
+            "❌ " +
+            error.message;
+
+    }
+
+}
 // ==================================================
 // START POLLING
 // ==================================================
