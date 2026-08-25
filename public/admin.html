@@ -1093,11 +1093,13 @@ async function banUser() {
         return;
     }
 
+    const reasonElement =
+        document.getElementById("reason");
+
     const reason =
-        document
-            .getElementById("reason")
-            .value
-            .trim();
+        reasonElement
+            ? reasonElement.value.trim()
+            : "";
 
     if (
         !confirm(
@@ -1106,12 +1108,15 @@ async function banUser() {
             "will be blocked."
         )
     ) {
-
         return;
-
     }
 
     try {
+
+        console.log(
+            "🔨 Sending ban request:",
+            selectedUser.id
+        );
 
         const response =
             await fetch(
@@ -1140,10 +1145,67 @@ async function banUser() {
                 }
             );
 
-        const data =
-            await response.json();
+
+        // ==========================================
+        // READ RAW RESPONSE FIRST
+        // ==========================================
+
+        const rawResponse =
+            await response.text();
+
+
+        console.log(
+            "BAN HTTP STATUS:",
+            response.status
+        );
+
+        console.log(
+            "BAN RAW RESPONSE:",
+            rawResponse
+        );
+
+
+        // ==========================================
+        // TRY TO PARSE JSON
+        // ==========================================
+
+        let data;
+
+        try {
+
+            data =
+                JSON.parse(
+                    rawResponse
+                );
+
+        } catch (jsonError) {
+
+            console.error(
+                "❌ BAN RESPONSE WAS NOT JSON:",
+                rawResponse
+            );
+
+            alert(
+                "Ban endpoint returned HTTP " +
+                response.status +
+                ". Check the console."
+            );
+
+            return;
+
+        }
+
+
+        // ==========================================
+        // SERVER ERROR
+        // ==========================================
 
         if (!response.ok) {
+
+            console.error(
+                "❌ BAN SERVER ERROR:",
+                data
+            );
 
             alert(
                 data.error ||
@@ -1154,25 +1216,74 @@ async function banUser() {
 
         }
 
+
+        // ==========================================
+        // SUCCESS
+        // ==========================================
+
+        if (
+            data.success !== true
+        ) {
+
+            console.error(
+                "❌ BAN DID NOT RETURN SUCCESS:",
+                data
+            );
+
+            alert(
+                data.error ||
+                "Ban failed."
+            );
+
+            return;
+
+        }
+
+
+        console.log(
+            "✅ BAN SUCCESS:",
+            data
+        );
+
+
         alert(
             "🔨 User banned successfully."
         );
 
-        selectedUser.banned = true;
 
-        updateBanButton(true);
+        // ==========================================
+        // UPDATE CURRENT USER
+        // ==========================================
+
+        selectedUser.banned =
+            true;
+
+
+        // ==========================================
+        // CHANGE BAN → UNBAN
+        // ==========================================
+
+        updateBanButton(
+            true
+        );
+
+
+        // ==========================================
+        // REFRESH BAN LIST
+        // ==========================================
 
         loadBans();
+
 
     } catch (error) {
 
         console.error(
-            "BAN ERROR:",
+            "❌ BAN REQUEST ERROR:",
             error
         );
 
         alert(
-            "Ban failed."
+            "Ban failed. Check the browser console."
         );
 
     }
