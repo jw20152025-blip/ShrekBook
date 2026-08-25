@@ -623,7 +623,7 @@ async function requireAdmin(req, res, next) {
         });
     }
 }
-app.post("/api/admin/ban", requireLogin, async (req, res) => {
+app.post("/api/admin/bans", requireLogin, async (req, res) => {
 
     try {
 
