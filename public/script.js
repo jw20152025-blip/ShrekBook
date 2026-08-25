@@ -37,6 +37,137 @@ function warn() {
 }
 
 
+
+// ==================================================
+// SPECIFIC MESSAGE POLLING
+// ==================================================
+
+let lastSpecificMessageId = null;
+
+let checkingSpecificMessage = false;
+
+
+async function checkSpecificMessages() {
+
+    if (checkingSpecificMessage) {
+        return;
+    }
+
+
+    checkingSpecificMessage = true;
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/messages/specific",
+                {
+                    method: "GET",
+
+                    credentials:
+                        "include",
+
+                    cache:
+                        "no-store"
+                }
+            );
+
+
+        if (!response.ok) {
+            return;
+        }
+
+
+        const data =
+            await response.json();
+
+
+        const message =
+            data.message;
+
+
+        if (!message) {
+            return;
+        }
+
+
+        if (
+            message.id ===
+            lastSpecificMessageId
+        ) {
+
+            return;
+
+        }
+
+
+        lastSpecificMessageId =
+            message.id;
+
+
+        console.log(
+            "📨 NEW SPECIFIC MESSAGE:",
+            message
+        );
+
+
+        showShrekBookMessage(
+            "📨 ShrekBook Message",
+            message.message
+        );
+
+
+        const ackResponse =
+            await fetch(
+                "/api/messages/specific/ack",
+                {
+                    method:
+                        "POST",
+
+                    credentials:
+                        "include",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    }
+                }
+            );
+
+
+        if (ackResponse.ok) {
+
+            console.log(
+                "✅ Specific message acknowledged."
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "❌ SPECIFIC MESSAGE ERROR:",
+            error
+        );
+
+    } finally {
+
+        checkingSpecificMessage =
+            false;
+
+    }
+
+}
+
+
+checkSpecificMessages();
+
+
+setInterval(
+    checkSpecificMessages,
+    1000
+);
 /* ==================================================
    FILE -> BASE64
 ================================================== */
@@ -2713,7 +2844,7 @@ async function loadPeople() {
 // ==================================================
 
 let lastGlobalMessageId = null;
-let lastSpecificMessageId = null;
+
 
 
 function showShrekBookMessage(
