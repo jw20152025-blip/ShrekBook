@@ -252,6 +252,146 @@ async function login() {
 
 }
 
+/* ==================================================
+   SHOW SIGNUP UI
+================================================== */
+
+function showSignup() {
+
+    const loginBox =
+        document.getElementById("loginBox");
+
+    const signupBox =
+        document.getElementById("signupBox");
+
+
+    if (!loginBox || !signupBox) {
+        console.error(
+            "❌ Login or signup box not found."
+        );
+        return;
+    }
+
+
+    // Hide login
+    loginBox.style.display = "none";
+
+
+    // Show signup
+    signupBox.style.display = "block";
+
+
+    // Change page title
+    document.title =
+        "Sign Up - ShrekBook 🧌";
+
+
+    // Clear old login status
+    const loginStatus =
+        document.getElementById("status");
+
+    if (loginStatus) {
+        loginStatus.textContent = "";
+    }
+
+
+    // Focus username field
+    const username =
+        document.getElementById("signupUsername");
+
+    if (username) {
+        setTimeout(() => {
+            username.focus();
+        }, 50);
+    }
+}
+
+
+/* ==================================================
+   SHOW LOGIN UI
+================================================== */
+
+function showLogin() {
+
+    const loginBox =
+        document.getElementById("loginBox");
+
+    const signupBox =
+        document.getElementById("signupBox");
+
+
+    if (!loginBox || !signupBox) {
+        console.error(
+            "❌ Login or signup box not found."
+        );
+        return;
+    }
+
+
+    // Hide signup
+    signupBox.style.display = "none";
+
+
+    // Show login
+    loginBox.style.display = "block";
+
+
+    // Change page title
+    document.title =
+        "Login - ShrekBook 🧌";
+
+
+    // Clear old signup status
+    const signupStatus =
+        document.getElementById("signupStatus");
+
+    if (signupStatus) {
+        signupStatus.textContent = "";
+    }
+
+
+    // Focus email field
+    const email =
+        document.getElementById("email");
+
+    if (email) {
+        setTimeout(() => {
+            email.focus();
+        }, 50);
+    }
+}
+
+
+/* ==================================================
+   OPTIONAL:
+   ALLOW ?signup IN URL
+================================================== */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        const params =
+            new URLSearchParams(
+                window.location.search
+            );
+
+
+        if (
+            params.get("signup") === "true" ||
+            params.get("signup") === "1"
+        ) {
+
+            showSignup();
+
+        } else {
+
+            showLogin();
+
+        }
+
+    }
+);
 
 /* ==================================================
    SIGNUP
