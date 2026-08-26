@@ -1,142 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Login - ShrekBook 🧌</title>
-
-    <link rel="stylesheet" href="/styles.css">
-</head>
-
-<body>
-
-<header class="navbar">
-    <div class="navbar-inner">
-
-        <a href="/" class="logo">
-            🧌 ShrekBook
-        </a>
-
-        <nav>
-            <a href="/">Home</a>
-        </nav>
-
-    </div>
-</header>
-
-
-<main class="container">
-
-    <section class="auth-section">
-
-        <!-- ========================= -->
-        <!-- LOGIN UI -->
-        <!-- ========================= -->
-
-        <div class="auth-box" id="loginBox">
-
-            <h1>Welcome Back 🧌</h1>
-
-            <p>
-                Log back into ShrekBook.
-            </p>
-
-            <input
-                id="email"
-                type="email"
-                placeholder="Email"
-                autocomplete="email"
-            >
-
-            <input
-                id="password"
-                type="password"
-                placeholder="Password"
-                autocomplete="current-password"
-            >
-
-            <button onclick="login()">
-                🔐 Login
-            </button>
-
-            <p id="status"></p>
-
-            <p>
-                Don't have an account?
-                <a href="#" onclick="showSignup(); return false;">
-                    Create one
-                </a>
-            </p>
-
-        </div>
-
-
-        <!-- ========================= -->
-        <!-- SIGNUP UI -->
-        <!-- ========================= -->
-
-        <div
-            class="auth-box"
-            id="signupBox"
-            style="display: none;"
-        >
-
-            <h1>Create Account 🧌</h1>
-
-            <p>
-                Join ShrekBook!
-            </p>
-
-            <input
-                id="signupUsername"
-                type="text"
-                placeholder="Username"
-                autocomplete="username"
-            >
-
-            <input
-                id="signupEmail"
-                type="email"
-                placeholder="Email"
-                autocomplete="email"
-            >
-
-            <input
-                id="signupPassword"
-                type="password"
-                placeholder="Password"
-                autocomplete="new-password"
-            >
-
-            <input
-                id="signupPasswordConfirm"
-                type="password"
-                placeholder="Confirm Password"
-                autocomplete="new-password"
-            >
-
-            <button onclick="signup()">
-                🧌 Create Account
-            </button>
-
-            <p id="signupStatus"></p>
-
-            <p>
-                Already have an account?
-                <a href="#" onclick="showLogin(); return false;">
-                    Log in
-                </a>
-            </p>
-
-        </div>
-
-    </section>
-
-</main>
-
-
 <script>
+
+/* ==================================================
+   SHREKBOOK AUTH
+================================================== */
+
 
 /* ==================================================
    SHOW LOGIN
@@ -144,11 +11,41 @@
 
 function showLogin() {
 
-    document.getElementById("loginBox")
-        .style.display = "block";
+    const loginBox =
+        document.getElementById("loginBox");
 
-    document.getElementById("signupBox")
-        .style.display = "none";
+    const signupBox =
+        document.getElementById("signupBox");
+
+    if (!loginBox || !signupBox) {
+
+        console.error(
+            "❌ Login/signup boxes not found."
+        );
+
+        return;
+    }
+
+    signupBox.style.display = "none";
+    loginBox.style.display = "block";
+
+    document.title =
+        "Login - ShrekBook 🧌";
+
+    const signupStatus =
+        document.getElementById("signupStatus");
+
+    if (signupStatus) {
+        signupStatus.textContent = "";
+    }
+
+    const email =
+        document.getElementById("email");
+
+    if (email) {
+        email.focus();
+    }
+
 }
 
 
@@ -158,11 +55,41 @@ function showLogin() {
 
 function showSignup() {
 
-    document.getElementById("loginBox")
-        .style.display = "none";
+    const loginBox =
+        document.getElementById("loginBox");
 
-    document.getElementById("signupBox")
-        .style.display = "block";
+    const signupBox =
+        document.getElementById("signupBox");
+
+    if (!loginBox || !signupBox) {
+
+        console.error(
+            "❌ Login/signup boxes not found."
+        );
+
+        return;
+    }
+
+    loginBox.style.display = "none";
+    signupBox.style.display = "block";
+
+    document.title =
+        "Sign Up - ShrekBook 🧌";
+
+    const loginStatus =
+        document.getElementById("status");
+
+    if (loginStatus) {
+        loginStatus.textContent = "";
+    }
+
+    const username =
+        document.getElementById("signupUsername");
+
+    if (username) {
+        username.focus();
+    }
+
 }
 
 
@@ -172,16 +99,33 @@ function showSignup() {
 
 async function login() {
 
-    const email =
-        document.getElementById("email")
-            .value.trim();
+    const emailInput =
+        document.getElementById("email");
 
-    const password =
-        document.getElementById("password")
-            .value;
+    const passwordInput =
+        document.getElementById("password");
 
     const status =
         document.getElementById("status");
+
+    if (
+        !emailInput ||
+        !passwordInput ||
+        !status
+    ) {
+
+        console.error(
+            "❌ Login elements missing."
+        );
+
+        return;
+    }
+
+    const email =
+        emailInput.value.trim();
+
+    const password =
+        passwordInput.value;
 
 
     if (!email || !password) {
@@ -200,25 +144,38 @@ async function login() {
     try {
 
         const response =
-            await fetch("/api/login", {
+            await fetch(
+                "/api/login",
+                {
+                    method: "POST",
 
-                method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
+                    credentials: "include",
 
-                body: JSON.stringify({
-                    email,
-                    password
-                })
-
-            });
+                    body: JSON.stringify({
+                        email,
+                        password
+                    })
+                }
+            );
 
 
-        const data =
-            await response.json();
+        let data = {};
+
+        try {
+
+            data =
+                await response.json();
+
+        } catch {
+
+            data = {};
+
+        }
 
 
         if (!response.ok) {
@@ -237,161 +194,23 @@ async function login() {
 
         window.location.href = "/";
 
+    }
 
-    } catch (error) {
+    catch (error) {
 
         console.error(
-            "LOGIN ERROR:",
+            "❌ LOGIN ERROR:",
             error
         );
 
         status.textContent =
-            "❌ " + error.message;
+            "❌ " +
+            error.message;
 
     }
 
 }
 
-/* ==================================================
-   SHOW SIGNUP UI
-================================================== */
-
-function showSignup() {
-
-    const loginBox =
-        document.getElementById("loginBox");
-
-    const signupBox =
-        document.getElementById("signupBox");
-
-
-    if (!loginBox || !signupBox) {
-        console.error(
-            "❌ Login or signup box not found."
-        );
-        return;
-    }
-
-
-    // Hide login
-    loginBox.style.display = "none";
-
-
-    // Show signup
-    signupBox.style.display = "block";
-
-
-    // Change page title
-    document.title =
-        "Sign Up - ShrekBook 🧌";
-
-
-    // Clear old login status
-    const loginStatus =
-        document.getElementById("status");
-
-    if (loginStatus) {
-        loginStatus.textContent = "";
-    }
-
-
-    // Focus username field
-    const username =
-        document.getElementById("signupUsername");
-
-    if (username) {
-        setTimeout(() => {
-            username.focus();
-        }, 50);
-    }
-}
-
-
-/* ==================================================
-   SHOW LOGIN UI
-================================================== */
-
-function showLogin() {
-
-    const loginBox =
-        document.getElementById("loginBox");
-
-    const signupBox =
-        document.getElementById("signupBox");
-
-
-    if (!loginBox || !signupBox) {
-        console.error(
-            "❌ Login or signup box not found."
-        );
-        return;
-    }
-
-
-    // Hide signup
-    signupBox.style.display = "none";
-
-
-    // Show login
-    loginBox.style.display = "block";
-
-
-    // Change page title
-    document.title =
-        "Login - ShrekBook 🧌";
-
-
-    // Clear old signup status
-    const signupStatus =
-        document.getElementById("signupStatus");
-
-    if (signupStatus) {
-        signupStatus.textContent = "";
-    }
-
-
-    // Focus email field
-    const email =
-        document.getElementById("email");
-
-    if (email) {
-        setTimeout(() => {
-            email.focus();
-        }, 50);
-    }
-}
-
-
-/* ==================================================
-   OPTIONAL:
-   ALLOW ?signup IN URL
-================================================== */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-
-        const params =
-            new URLSearchParams(
-                window.location.search
-            );
-
-
-        if (
-            params.get("signup") === "true" ||
-            params.get("signup") === "1"
-        ) {
-
-            showSignup();
-
-        } else {
-
-            showLogin();
-
-        }
-
-    }
-);
 
 /* ==================================================
    SIGNUP
@@ -399,27 +218,67 @@ document.addEventListener(
 
 async function signup() {
 
-    const username =
-        document.getElementById("signupUsername")
-            .value.trim();
+    const usernameInput =
+        document.getElementById(
+            "signupUsername"
+        );
 
-    const email =
-        document.getElementById("signupEmail")
-            .value.trim();
+    const emailInput =
+        document.getElementById(
+            "signupEmail"
+        );
 
-    const password =
-        document.getElementById("signupPassword")
-            .value;
+    const passwordInput =
+        document.getElementById(
+            "signupPassword"
+        );
 
-    const confirmPassword =
-        document.getElementById("signupPasswordConfirm")
-            .value;
+    const confirmInput =
+        document.getElementById(
+            "signupPasswordConfirm"
+        );
 
     const status =
-        document.getElementById("signupStatus");
+        document.getElementById(
+            "signupStatus"
+        );
 
 
-    if (!username || !email || !password) {
+    if (
+        !usernameInput ||
+        !emailInput ||
+        !passwordInput ||
+        !confirmInput ||
+        !status
+    ) {
+
+        console.error(
+            "❌ Signup elements missing."
+        );
+
+        return;
+    }
+
+
+    const username =
+        usernameInput.value.trim();
+
+    const email =
+        emailInput.value.trim();
+
+    const password =
+        passwordInput.value;
+
+    const confirmPassword =
+        confirmInput.value;
+
+
+    if (
+        !username ||
+        !email ||
+        !password ||
+        !confirmPassword
+    ) {
 
         status.textContent =
             "❌ Please fill in all fields.";
@@ -453,28 +312,39 @@ async function signup() {
     try {
 
         const response =
-            await fetch("/api/signup", {
+            await fetch(
+                "/api/signup",
+                {
+                    method: "POST",
 
-                method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
+                    credentials: "include",
 
-                body: JSON.stringify({
-
-                    username,
-                    email,
-                    password
-
-                })
-
-            });
+                    body: JSON.stringify({
+                        username,
+                        email,
+                        password
+                    })
+                }
+            );
 
 
-        const data =
-            await response.json();
+        let data = {};
+
+        try {
+
+            data =
+                await response.json();
+
+        } catch {
+
+            data = {};
+
+        }
 
 
         if (!response.ok) {
@@ -487,40 +357,89 @@ async function signup() {
         }
 
 
+        console.log(
+            "✅ SIGNUP SUCCESS:",
+            data
+        );
+
+
         status.textContent =
             "✅ Account created!";
 
 
         /*
-         * Automatically show the login UI
-         * after successful signup.
+         * Switch back to login after signup.
          */
 
         setTimeout(() => {
 
             showLogin();
 
-            document.getElementById("email")
-                .value = email;
+            const loginEmail =
+                document.getElementById(
+                    "email"
+                );
+
+            if (loginEmail) {
+
+                loginEmail.value =
+                    email;
+
+            }
 
         }, 1000);
 
+    }
 
-    } catch (error) {
+    catch (error) {
 
         console.error(
-            "SIGNUP ERROR:",
+            "❌ SIGNUP ERROR:",
             error
         );
 
         status.textContent =
-            "❌ " + error.message;
+            "❌ " +
+            error.message;
 
     }
 
 }
 
-</script>
 
-</body>
-</html>
+/* ==================================================
+   URL SIGNUP SUPPORT
+================================================== */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        console.log(
+            "🧌 ShrekBook auth loaded."
+        );
+
+
+        const params =
+            new URLSearchParams(
+                window.location.search
+            );
+
+
+        if (
+            params.get("signup") === "true" ||
+            params.get("signup") === "1"
+        ) {
+
+            showSignup();
+
+        } else {
+
+            showLogin();
+
+        }
+
+    }
+);
+
+</script>
