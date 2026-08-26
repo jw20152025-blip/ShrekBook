@@ -3802,12 +3802,27 @@ app.post(
 
         try {
 
+            // ==========================================
+            // CHECK LOGIN
+            // ==========================================
+
             if (!req.session.user) {
+
                 return res.status(401).json({
                     error:
                         "You must be logged in."
                 });
+
             }
+
+
+            const userId =
+                req.session.user.id;
+
+
+            // ==========================================
+            // GET CONTENT
+            // ==========================================
 
             const content =
                 String(
@@ -3815,14 +3830,23 @@ app.post(
                     ""
                 ).trim();
 
+
             if (content.length > 5000) {
+
                 return res.status(400).json({
                     error:
                         "Post is too long."
                 });
+
             }
 
+
+            // ==========================================
+            // IMAGE
+            // ==========================================
+
             let imageUrl = null;
+
 
             if (
                 req.body.image &&
@@ -3838,7 +3862,7 @@ app.post(
                             req.body.image.data,
                             req.body.image.type,
                             req.body.image.name,
-                            req.session.user.id
+                            userId
                         );
 
                 } catch (error) {
@@ -3852,15 +3876,27 @@ app.post(
 
             }
 
+
+            // ==========================================
+            // CHECK EMPTY POST
+            // ==========================================
+
             if (
                 !content &&
                 !imageUrl
             ) {
+
                 return res.status(400).json({
                     error:
                         "Post cannot be empty."
                 });
+
             }
+
+
+            // ==========================================
+            // CREATE POST
+            // ==========================================
 
             const {
                 data,
@@ -3868,16 +3904,26 @@ app.post(
             } = await supabase
                 .from("posts")
                 .insert({
+
                     user_id:
-                        req.session.user.id,
+                        userId,
+
                     content,
+
                     image_url:
                         imageUrl
+
                 })
                 .select()
                 .single();
 
+
             if (error) {
+
+                console.error(
+                    "POST INSERT ERROR:",
+                    error
+                );
 
                 return res.status(500).json({
                     error:
@@ -3886,7 +3932,122 @@ app.post(
 
             }
 
-            res.status(201).json(data);
+
+            // ==========================================
+            // FIRST POST OF THE DAY
+            // UTC
+            // ==========================================
+
+            const todayUTC =
+                new Date()
+                    .toISOString()
+                    .slice(0, 10);
+
+
+            const {
+                data: profile,
+                error: profileError
+            } = await supabase
+                .from("profiles")
+                .select(
+                    "last_post_reward_date"
+                )
+                .eq(
+                    "id",
+                    userId
+                )
+                .single();
+
+
+            if (profileError) {
+
+                console.error(
+                    "POST REWARD PROFILE ERROR:",
+                    profileError
+                );
+
+            } else {
+
+                // ======================================
+                // ONLY REWARD FIRST POST OF UTC DAY
+                // ======================================
+
+                if (
+                    profile.last_post_reward_date !==
+                    todayUTC
+                ) {
+
+                    const {
+                        error: coinError
+                    } = await supabase.rpc(
+                        "increment_shrekcoins",
+                        {
+
+                            user_id:
+                                userId,
+
+                            amount:
+                                5
+
+                        }
+                    );
+
+
+                    if (coinError) {
+
+                        console.error(
+                            "POST SHREKCOIN ERROR:",
+                            coinError
+                        );
+
+                    } else {
+
+                        // ==================================
+                        // MARK TODAY'S REWARD AS CLAIMED
+                        // ==================================
+
+                        const {
+                            error: dateError
+                        } = await supabase
+                            .from("profiles")
+                            .update({
+
+                                last_post_reward_date:
+                                    todayUTC
+
+                            })
+                            .eq(
+                                "id",
+                                userId
+                            );
+
+
+                        if (dateError) {
+
+                            console.error(
+                                "POST REWARD DATE ERROR:",
+                                dateError
+                            );
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+
+            // ==========================================
+            // SUCCESS
+            // ==========================================
+
+            return res.status(201).json({
+
+                ...data
+
+            });
+
 
         } catch (error) {
 
@@ -3895,7 +4056,7 @@ app.post(
                 error
             );
 
-            res.status(500).json({
+            return res.status(500).json({
                 error:
                     "Server error."
             });
@@ -4607,12 +4768,27 @@ app.post(
 
         try {
 
+            // ==========================================
+            // CHECK LOGIN
+            // ==========================================
+
             if (!req.session.user) {
+
                 return res.status(401).json({
                     error:
                         "You must be logged in."
                 });
+
             }
+
+
+            const userId =
+                req.session.user.id;
+
+
+            // ==========================================
+            // GET CONTENT
+            // ==========================================
 
             const content =
                 String(
@@ -4620,14 +4796,23 @@ app.post(
                     ""
                 ).trim();
 
+
             if (content.length > 500) {
+
                 return res.status(400).json({
                     error:
                         "Comment is too long."
                 });
+
             }
 
+
+            // ==========================================
+            // IMAGE
+            // ==========================================
+
             let imageUrl = null;
+
 
             if (
                 req.body.image &&
@@ -4643,7 +4828,7 @@ app.post(
                             req.body.image.data,
                             req.body.image.type,
                             req.body.image.name,
-                            req.session.user.id
+                            userId
                         );
 
                 } catch (error) {
@@ -4657,15 +4842,27 @@ app.post(
 
             }
 
+
+            // ==========================================
+            // CHECK EMPTY COMMENT
+            // ==========================================
+
             if (
                 !content &&
                 !imageUrl
             ) {
+
                 return res.status(400).json({
                     error:
                         "Comment cannot be empty."
                 });
+
             }
+
+
+            // ==========================================
+            // CREATE COMMENT
+            // ==========================================
 
             const {
                 data,
@@ -4673,18 +4870,29 @@ app.post(
             } = await supabase
                 .from("comments")
                 .insert({
+
                     post_id:
                         req.params.postId,
+
                     user_id:
-                        req.session.user.id,
+                        userId,
+
                     content,
+
                     image_url:
                         imageUrl
+
                 })
                 .select()
                 .single();
 
+
             if (error) {
+
+                console.error(
+                    "COMMENT INSERT ERROR:",
+                    error
+                );
 
                 return res.status(500).json({
                     error:
@@ -4693,7 +4901,122 @@ app.post(
 
             }
 
-            res.status(201).json(data);
+
+            // ==========================================
+            // FIRST COMMENT OF THE DAY
+            // UTC
+            // ==========================================
+
+            const todayUTC =
+                new Date()
+                    .toISOString()
+                    .slice(0, 10);
+
+
+            const {
+                data: profile,
+                error: profileError
+            } = await supabase
+                .from("profiles")
+                .select(
+                    "last_comment_reward_date"
+                )
+                .eq(
+                    "id",
+                    userId
+                )
+                .single();
+
+
+            if (profileError) {
+
+                console.error(
+                    "COMMENT REWARD PROFILE ERROR:",
+                    profileError
+                );
+
+            } else {
+
+                // ======================================
+                // ONLY REWARD FIRST COMMENT OF UTC DAY
+                // ======================================
+
+                if (
+                    profile.last_comment_reward_date !==
+                    todayUTC
+                ) {
+
+                    const {
+                        error: coinError
+                    } = await supabase.rpc(
+                        "increment_shrekcoins",
+                        {
+
+                            user_id:
+                                userId,
+
+                            amount:
+                                5
+
+                        }
+                    );
+
+
+                    if (coinError) {
+
+                        console.error(
+                            "COMMENT SHREKCOIN ERROR:",
+                            coinError
+                        );
+
+                    } else {
+
+                        // ==================================
+                        // MARK TODAY'S REWARD AS CLAIMED
+                        // ==================================
+
+                        const {
+                            error: dateError
+                        } = await supabase
+                            .from("profiles")
+                            .update({
+
+                                last_comment_reward_date:
+                                    todayUTC
+
+                            })
+                            .eq(
+                                "id",
+                                userId
+                            );
+
+
+                        if (dateError) {
+
+                            console.error(
+                                "COMMENT REWARD DATE ERROR:",
+                                dateError
+                            );
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+
+            // ==========================================
+            // SUCCESS
+            // ==========================================
+
+            return res.status(201).json({
+
+                ...data
+
+            });
+
 
         } catch (error) {
 
@@ -4702,7 +5025,7 @@ app.post(
                 error
             );
 
-            res.status(500).json({
+            return res.status(500).json({
                 error:
                     "Server error."
             });
