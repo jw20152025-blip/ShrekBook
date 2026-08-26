@@ -2399,122 +2399,64 @@ app.get("/api/me", async (req, res) => {
 });
 
 
-app.post("/api/admin/specific-message", async (req, res) => {
+// ==================================================
+// GET SPECIFIC MESSAGE FOR CURRENT USER
+// ==================================================
 
-    try {
+app.get(
+    "/api/specific-message",
+    async (req, res) => {
 
-        if (!req.session.user) {
+        try {
 
-            return res.status(401).json({
-                error: "Not logged in"
-            });
+            if (
+                !req.session ||
+                !req.session.user ||
+                !req.session.user.id
+            ) {
 
-        }
-
-
-        const {
-            data: profile,
-            error
-        } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq(
-                "id",
-                req.session.user.id
-            )
-            .single();
-
-
-        if (error || !profile) {
-
-            return res.status(403).json({
-                error:
-                    "Unable to verify permissions."
-            });
-
-        }
-
-
-        if (
-            profile.role !== "administrator" &&
-            profile.role !== "owner"
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "Only administrators and owners can send specific messages."
-            });
-
-        }
-
-
-        const {
-            userId,
-            message
-        } = req.body;
-
-
-        if (!userId) {
-
-            return res.status(400).json({
-                error:
-                    "User ID is required."
-            });
-
-        }
-
-
-        if (
-            !message ||
-            !message.trim()
-        ) {
-
-            return res.status(400).json({
-                error:
-                    "Message cannot be empty."
-            });
-
-        }
-
-
-        specificMessages.set(
-            userId,
-            {
-
-                id:
-                    Date.now(),
-
-                message:
-                    message.trim(),
-
-                createdAt:
-                    Date.now()
+                return res.status(401).json({
+                    error: "Not logged in."
+                });
 
             }
-        );
 
+            const userId =
+                req.session.user.id;
 
-        res.json({
-            success: true
-        });
+            const message =
+                specificMessages.get(
+                    userId
+                );
 
+            if (!message) {
 
-    } catch (error) {
+                return res.json({
+                    message: null
+                });
 
-        console.error(
-            "SPECIFIC MESSAGE ERROR:",
-            error
-        );
+            }
 
-        res.status(500).json({
-            error:
-                "Failed to send specific message."
-        });
+            return res.json({
+                message
+            });
+
+        } catch (error) {
+
+            console.error(
+                "GET SPECIFIC MESSAGE ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Failed to get specific message."
+            });
+
+        }
 
     }
-
-});
-
+);
 // ==================================================
 // ONLINE STATUS
 // ==================================================

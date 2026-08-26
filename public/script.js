@@ -42,7 +42,7 @@ function warn() {
 // SPECIFIC MESSAGE POLLING
 // ==================================================
 
-let lastSpecificMessageId = null;
+
 
 let checkingSpecificMessage = false;
 
@@ -3460,7 +3460,261 @@ function setupAdminNav(user) {
     }
 
 }
+// ==================================================
+// SPECIFIC ADMIN MESSAGE
+// ==================================================
 
+let lastSpecificMessageId = null;
+let showingSpecificMessage = false;
+
+
+// ==================================================
+// CHECK FOR SPECIFIC MESSAGE
+// ==================================================
+
+async function checkSpecificMessages() {
+
+    if (showingSpecificMessage) {
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/specific-message",
+                {
+                    method: "GET",
+
+                    credentials: "include",
+
+                    cache: "no-store",
+
+                    headers: {
+                        "Cache-Control":
+                            "no-cache"
+                    }
+                }
+            );
+
+
+        if (!response.ok) {
+
+            if (
+                response.status === 401
+            ) {
+                return;
+            }
+
+            return;
+        }
+
+
+        const data =
+            await response.json();
+
+
+        const message =
+            data.message;
+
+
+        if (!message) {
+            return;
+        }
+
+
+        // Don't show the same message repeatedly
+        if (
+            lastSpecificMessageId ===
+            message.id
+        ) {
+
+            return;
+
+        }
+
+
+        lastSpecificMessageId =
+            message.id;
+
+
+        showSpecificMessage(
+            message
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "SPECIFIC MESSAGE CHECK ERROR:",
+            error
+        );
+
+    }
+
+}
+
+
+// ==================================================
+// SHOW SPECIFIC MESSAGE
+// ==================================================
+
+function showSpecificMessage(
+    message
+) {
+
+    showingSpecificMessage = true;
+
+
+    const sender =
+        message.senderDisplayName ||
+        message.senderUsername ||
+        "Administrator";
+
+
+    const overlay =
+        document.createElement(
+            "div"
+        );
+
+
+    overlay.id =
+        "specific-message-overlay";
+
+
+    overlay.style.cssText = `
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.65);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999999;
+        padding: 20px;
+    `;
+
+
+    const box =
+        document.createElement(
+            "div"
+        );
+
+
+    box.style.cssText = `
+        background: white;
+        width: 100%;
+        max-width: 500px;
+        border-radius: 18px;
+        padding: 30px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        text-align: center;
+    `;
+
+
+    box.innerHTML = `
+
+        <div
+            style="
+                font-size: 50px;
+                margin-bottom: 10px;
+            "
+        >
+            🧌
+        </div>
+
+        <h2>
+            ShrekBook Message
+        </h2>
+
+        <p
+            style="
+                color: #666;
+                margin-bottom: 20px;
+            "
+        >
+            Message from
+            <strong>
+                ${escapeHtml(sender)}
+            </strong>
+        </p>
+
+        <div
+            style="
+                background: #f5f5f5;
+                border-radius: 12px;
+                padding: 18px;
+                text-align: left;
+                white-space: pre-wrap;
+                overflow-wrap: anywhere;
+                margin-bottom: 25px;
+            "
+        >
+            ${escapeHtml(message.message)}
+        </div>
+
+        <button
+            id="specific-message-close"
+            style="
+                padding: 12px 25px;
+                border: none;
+                border-radius: 10px;
+                cursor: pointer;
+                font-weight: bold;
+            "
+        >
+            Got it
+        </button>
+
+    `;
+
+
+    overlay.appendChild(
+        box
+    );
+
+
+    document.body.appendChild(
+        overlay
+    );
+
+
+    document
+        .getElementById(
+            "specific-message-close"
+        )
+        .onclick =
+        async () => {
+
+            try {
+
+                await fetch(
+                    "/api/specific-message",
+                    {
+                        method: "DELETE",
+
+                        credentials:
+                            "include"
+                    }
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "CLEAR SPECIFIC MESSAGE ERROR:",
+                    error
+                );
+
+            }
+
+
+            overlay.remove();
+
+            showingSpecificMessage =
+                false;
+
+        };
+
+}
 async function checkModerationStatus() {
 
     try {
