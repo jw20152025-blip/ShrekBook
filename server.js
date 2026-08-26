@@ -4716,6 +4716,10 @@ app.post(
 // REACTIONS
 // ==================================================
 
+// ==================================================
+// ADD REACTION + SHREKCOIN REWARD
+// ==================================================
+
 async function addReaction(
     req,
     res,
@@ -4724,12 +4728,19 @@ async function addReaction(
 
     try {
 
+        // ==========================================
+        // CHECK LOGIN
+        // ==========================================
+
         if (!req.session.user) {
+
             return res.status(401).json({
                 error:
                     "You must be logged in."
             });
+
         }
+
 
         const fromUserId =
             req.session.user.id;
@@ -4737,53 +4748,115 @@ async function addReaction(
         const toUserId =
             req.params.id;
 
+
+        // ==========================================
+        // PREVENT SELF REACTION
+        // ==========================================
+
         if (
             fromUserId ===
             toUserId
         ) {
+
             return res.status(400).json({
                 error:
                     "You cannot react to yourself."
             });
+
         }
+
+
+        // ==========================================
+        // VALIDATE REACTION TYPE
+        // ==========================================
+
+        const validTypes = [
+            "gyatt",
+            "cat",
+            "ogred"
+        ];
+
+
+        if (
+            !validTypes.includes(type)
+        ) {
+
+            return res.status(400).json({
+                error:
+                    "Invalid reaction type."
+            });
+
+        }
+
+
+        // ==========================================
+        // CHECK TARGET USER
+        // ==========================================
 
         const {
             data: targetUser,
             error: targetError
         } = await supabase
             .from("profiles")
-            .select("id")
+            .select(
+                "id, shrekcoins"
+            )
             .eq(
                 "id",
                 toUserId
             )
             .maybeSingle();
 
+
         if (targetError) {
+
+            console.error(
+                "TARGET USER ERROR:",
+                targetError
+            );
+
             return res.status(500).json({
                 error:
                     targetError.message
             });
+
         }
 
+
         if (!targetUser) {
+
             return res.status(404).json({
                 error:
                     "User not found."
             });
+
         }
+
+
+        // ==========================================
+        // CREATE REACTION
+        // ==========================================
 
         const {
             error: insertError
         } = await supabase
             .from("reactions")
             .insert({
+
                 from_user_id:
                     fromUserId,
+
                 to_user_id:
                     toUserId,
+
                 type
+
             });
+
+
+        // ==========================================
+        // DUPLICATE REACTION
+        // ==========================================
 
         if (insertError) {
 
@@ -4793,17 +4866,34 @@ async function addReaction(
             ) {
 
                 const names = {
-                    gyatt: "Gyatt",
-                    cat: "Cat",
-                    ogred: "Ogred"
+
+                    gyatt:
+                        "Gyatt",
+
+                    cat:
+                        "Cat",
+
+                    ogred:
+                        "Ogred"
+
                 };
 
+
                 return res.status(400).json({
+
                     error:
                         `You already gave this person a ${names[type]}.`
+
                 });
 
             }
+
+
+            console.error(
+                "REACTION INSERT ERROR:",
+                insertError
+            );
+
 
             return res.status(500).json({
                 error:
@@ -4811,6 +4901,45 @@ async function addReaction(
             });
 
         }
+
+
+        // ==========================================
+        // GIVE TARGET USER +1 SHREKCOIN
+        // ==========================================
+
+        const {
+            error: coinError
+        } = await supabase.rpc(
+            "increment_shrekcoins",
+            {
+                user_id:
+                    toUserId,
+
+                amount:
+                    1
+            }
+        );
+
+
+        if (coinError) {
+
+            console.error(
+                "SHREKCOIN REWARD ERROR:",
+                coinError
+            );
+
+            // The reaction was already created.
+            // Don't undo it here.
+            //
+            // This means the reaction still works
+            // even if the coin reward has a problem.
+
+        }
+
+
+        // ==========================================
+        // GET UPDATED REACTION COUNT
+        // ==========================================
 
         const {
             count,
@@ -4820,8 +4949,10 @@ async function addReaction(
             .select(
                 "*",
                 {
-                    count: "exact",
-                    head: true
+                    count:
+                        "exact",
+                    head:
+                        true
                 }
             )
             .eq(
@@ -4833,21 +4964,34 @@ async function addReaction(
                 type
             );
 
+
         if (countError) {
+
             return res.status(500).json({
                 error:
                     countError.message
             });
+
         }
+
+
+        // ==========================================
+        // SUCCESS
+        // ==========================================
 
         res.json({
 
-            success: true,
+            success:
+                true,
 
             [type]:
-                count || 0
+                count || 0,
+
+            shrekcoinEarned:
+                1
 
         });
+
 
     } catch (error) {
 
@@ -4855,6 +4999,7 @@ async function addReaction(
             `${type.toUpperCase()} ERROR:`,
             error
         );
+
 
         res.status(500).json({
             error:
@@ -4864,7 +5009,6 @@ async function addReaction(
     }
 
 }
-
 app.post(
     "/api/users/:id/gyatt",
     async (req, res) => {
