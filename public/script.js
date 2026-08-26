@@ -2150,7 +2150,124 @@ async function loadPosts() {
 
 }
 
+// ==================================================
+// LOGIN / SIGNUP UI SWITCHING
+// ==================================================
 
+function showSignup() {
+
+    console.log("🧌 Switching to signup UI...");
+
+    const loginBox =
+        document.getElementById("login-box");
+
+    const signupBox =
+        document.getElementById("signup-box");
+
+    if (!loginBox || !signupBox) {
+
+        console.error(
+            "❌ Login or signup box not found."
+        );
+
+        return;
+    }
+
+    // Hide login
+    loginBox.style.display = "none";
+
+    // Show signup
+    signupBox.style.display = "block";
+
+    // Clear login status
+    const loginStatus =
+        document.getElementById("login-status");
+
+    if (loginStatus) {
+        loginStatus.textContent = "";
+    }
+
+    // Clear signup status
+    const signupStatus =
+        document.getElementById("signup-status");
+
+    if (signupStatus) {
+        signupStatus.textContent = "";
+    }
+
+    // Focus username
+    const username =
+        document.getElementById("signup-username");
+
+    if (username) {
+
+        setTimeout(() => {
+            username.focus();
+        }, 50);
+
+    }
+
+}
+
+
+// ==================================================
+// SHOW LOGIN UI
+// ==================================================
+
+function showLogin() {
+
+    console.log("🧌 Switching to login UI...");
+
+    const loginBox =
+        document.getElementById("login-box");
+
+    const signupBox =
+        document.getElementById("signup-box");
+
+    if (!loginBox || !signupBox) {
+
+        console.error(
+            "❌ Login or signup box not found."
+        );
+
+        return;
+    }
+
+    // Hide signup
+    signupBox.style.display = "none";
+
+    // Show login
+    loginBox.style.display = "block";
+
+    // Clear signup status
+    const signupStatus =
+        document.getElementById("signup-status");
+
+    if (signupStatus) {
+        signupStatus.textContent = "";
+    }
+
+    // Focus email
+    const email =
+        document.getElementById("login-email");
+
+    if (email) {
+
+        setTimeout(() => {
+            email.focus();
+        }, 50);
+
+    }
+
+}
+
+
+// ==================================================
+// MAKE FUNCTIONS AVAILABLE TO HTML ONCLICK
+// ==================================================
+
+window.showSignup = showSignup;
+window.showLogin = showLogin;
 /* ==================================================
    CREATE POST
 ================================================== */
