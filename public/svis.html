@@ -647,83 +647,40 @@ async function loadShrekCoins() {
 
 async function buyItem(itemId) {
 
-    const status =
-        document.getElementById(
-            "shop-status"
-        );
+    console.log("🛒 BUY ITEM ID:", itemId);
 
-
-    status.textContent =
-        "Purchasing... 🧌";
-
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/shop/buy",
-                {
-
-                    method:
-                        "POST",
-
-                    credentials:
-                        "include",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json"
-
-                    },
-
-                    body:
-                        JSON.stringify({
-
-                            itemId
-
-                        })
-
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Purchase failed."
-            );
-
-        }
-
-
-        status.textContent =
-            `✅ Purchased ${data.itemName || itemId}! 🧌`;
-
-
-        // Refresh coin balance
-        loadShrekCoins();
-
-
-    } catch (error) {
-
-        console.error(
-            "SHOP ERROR:",
-            error
-        );
-
-
-        status.textContent =
-            "❌ " +
-            error.message;
-
+    if (!itemId) {
+        throw new Error("A valid item ID is required.");
     }
 
+    const response = await fetch("/api/shop/buy", {
+        method: "POST",
+
+        credentials: "include",
+
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+            item_id: itemId
+        })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(
+            data.error ||
+            "Purchase failed."
+        );
+    }
+
+    console.log("✅ PURCHASED:", data);
+
+    alert("✅ Item purchased!");
+
+    loadShop();
 }
 
 
