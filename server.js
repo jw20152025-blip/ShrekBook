@@ -5034,7 +5034,377 @@ app.post(
 
     }
 );
+// ==================================================
+// BUY SHOP ITEM
+// ==================================================
 
+app.post(
+    "/api/shop/buy",
+    async (req, res) => {
+
+        try {
+
+            // ==========================================
+            // CHECK LOGIN
+            // ==========================================
+
+            if (
+                !req.session ||
+                !req.session.user ||
+                !req.session.user.id
+            ) {
+
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+
+            }
+
+
+            const userId =
+                req.session.user.id;
+
+
+            // ==========================================
+            // GET ITEM ID
+            // ==========================================
+
+            const itemId =
+                req.body &&
+                req.body.itemId;
+
+
+            if (
+                itemId === undefined ||
+                itemId === null ||
+                !Number.isInteger(
+                    Number(itemId)
+                )
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "A valid item ID is required."
+                });
+
+            }
+
+
+            const numericItemId =
+                Number(itemId);
+
+
+            if (
+                numericItemId <= 0
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Invalid item ID."
+                });
+
+            }
+
+
+            // ==========================================
+            // PURCHASE
+            //
+            // PostgreSQL handles:
+            //
+            // - item validation
+            // - balance checking
+            // - coin deduction
+            // - ownership
+            //
+            // atomically.
+            // ==========================================
+
+            const {
+                data,
+                error
+            } =
+                await supabase.rpc(
+                    "buy_shop_item",
+                    {
+                        p_user_id:
+                            userId,
+
+                        p_item_id:
+                            numericItemId
+                    }
+                );
+
+
+            if (error) {
+
+                console.error(
+                    "SHOP PURCHASE ERROR:",
+                    error
+                );
+
+
+                const message =
+                    error.message ||
+                    "Purchase failed.";
+
+
+                // ======================================
+                // USER-FACING ERRORS
+                // ======================================
+
+                if (
+                    message.includes(
+                        "Not enough ShrekCoins"
+                    )
+                ) {
+
+                    return res.status(400).json({
+                        error:
+                            "You don't have enough ShrekCoins."
+                    });
+
+                }
+
+
+                if (
+                    message.includes(
+                        "already own"
+                    )
+                ) {
+
+                    return res.status(400).json({
+                        error:
+                            "You already own this item."
+                    });
+
+                }
+
+
+                if (
+                    message.includes(
+                        "not found"
+                    ) ||
+                    message.includes(
+                        "unavailable"
+                    )
+                ) {
+
+                    return res.status(404).json({
+                        error:
+                            "That item is unavailable."
+                    });
+
+                }
+
+
+                return res.status(500).json({
+                    error:
+                        "Purchase failed."
+                });
+
+            }
+
+
+            // ==========================================
+            // SUCCESS
+            // ==========================================
+
+            return res.json({
+
+                success:
+                    true,
+
+                purchase:
+                    data
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "SHOP BUY ERROR:",
+                error
+            );
+
+
+            return res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
+// ==================================================
+// GET SHOP ITEMS
+// ==================================================
+
+app.get(
+    "/api/shop/items",
+    async (req, res) => {
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("shop_items")
+                    .select(`
+                        id,
+                        name,
+                        description,
+                        item_type,
+                        price,
+                        item_value
+                    `)
+                    .eq(
+                        "active",
+                        true
+                    )
+                    .order(
+                        "price",
+                        {
+                            ascending: true
+                        }
+                    );
+
+
+            if (error) {
+
+                console.error(
+                    "SHOP ITEMS ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        "Failed to load shop."
+                });
+
+            }
+
+
+            return res.json({
+                items:
+                    data || []
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "SHOP ITEMS ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
+// ==================================================
+// GET MY SHOP ITEMS
+// ==================================================
+
+app.get(
+    "/api/shop/my-items",
+    async (req, res) => {
+
+        try {
+
+            if (
+                !req.session ||
+                !req.session.user
+            ) {
+
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+
+            }
+
+
+            const userId =
+                req.session.user.id;
+
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("user_items")
+                    .select(`
+                        id,
+                        purchased_at,
+                        item:shop_items (
+                            id,
+                            name,
+                            description,
+                            item_type,
+                            price,
+                            item_value
+                        )
+                    `)
+                    .eq(
+                        "user_id",
+                        userId
+                    )
+                    .order(
+                        "purchased_at",
+                        {
+                            ascending: false
+                        }
+                    );
+
+
+            if (error) {
+
+                console.error(
+                    "MY ITEMS ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        "Failed to load your items."
+                });
+
+            }
+
+
+            return res.json({
+                items:
+                    data || []
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "MY ITEMS ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
 // ==================================================
 // REACTIONS
 // ==================================================

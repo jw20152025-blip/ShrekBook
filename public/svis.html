@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>ShrekBook Virtual Items Shop 🧌</title>
+
+    <link
+        rel="icon"
+        type="image/png"
+        href="/favicon.png">
+
+    <link
+        rel="stylesheet"
+        href="/styles.css">
+
+    <style>
+
+        /* ==================================================
+           SHOP
+        ================================================== */
+
+        .shop-container {
+
+            max-width: 1100px;
+
+            margin: 40px auto;
+
+            padding: 20px;
+
+        }
+
+
+        .shop-header {
+
+            text-align: center;
+
+            margin-bottom: 35px;
+
+        }
+
+
+        .shop-header h1 {
+
+            font-size: 40px;
+
+            margin-bottom: 10px;
+
+        }
+
+
+        .shop-header p {
+
+            color: #666;
+
+            font-size: 17px;
+
+        }
+
+
+        /* ==================================================
+           COIN BALANCE
+        ================================================== */
+
+        .coin-balance {
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            gap: 10px;
+
+            margin: 25px auto;
+
+            padding: 15px 25px;
+
+            max-width: 300px;
+
+            border-radius: 15px;
+
+            background: #f5f5f5;
+
+            font-size: 22px;
+
+            font-weight: bold;
+
+        }
+
+
+        #shrekcoins {
+
+            font-size: 25px;
+
+        }
+
+
+        /* ==================================================
+           SHOP GRID
+        ================================================== */
+
+        .shop-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(
+                    auto-fit,
+                    minmax(
+                        220px,
+                        1fr
+                    )
+                );
+
+            gap: 20px;
+
+        }
+
+
+        /* ==================================================
+           ITEM CARD
+        ================================================== */
+
+        .shop-item {
+
+            background: white;
+
+            border-radius: 18px;
+
+            padding: 25px;
+
+            text-align: center;
+
+            box-shadow:
+                0 3px 12px
+                rgba(
+                    0,
+                    0,
+                    0,
+                    0.08
+                );
+
+            transition:
+                transform 0.2s ease;
+
+        }
+
+
+        .shop-item:hover {
+
+            transform:
+                translateY(-4px);
+
+        }
+
+
+        .item-icon {
+
+            font-size: 60px;
+
+            margin-bottom: 10px;
+
+        }
+
+
+        .shop-item h2 {
+
+            margin:
+                10px 0;
+
+        }
+
+
+        .shop-item p {
+
+            color: #666;
+
+            min-height: 45px;
+
+        }
+
+
+        .item-price {
+
+            font-size: 20px;
+
+            font-weight: bold;
+
+            margin:
+                15px 0;
+
+        }
+
+
+        .buy-button {
+
+            width: 100%;
+
+            padding: 12px;
+
+            border: none;
+
+            border-radius: 10px;
+
+            cursor: pointer;
+
+            font-size: 16px;
+
+            font-weight: bold;
+
+            background: #eeeeee;
+
+        }
+
+
+        .buy-button:hover {
+
+            opacity: 0.8;
+
+        }
+
+
+        .buy-button:disabled {
+
+            opacity: 0.5;
+
+            cursor: not-allowed;
+
+        }
+
+
+        /* ==================================================
+           STATUS
+        ================================================== */
+
+        #shop-status {
+
+            text-align: center;
+
+            margin:
+                20px 0;
+
+            font-weight: bold;
+
+        }
+
+
+        /* ==================================================
+           MOBILE
+        ================================================== */
+
+        @media (
+            max-width: 600px
+        ) {
+
+            .shop-header h1 {
+
+                font-size: 30px;
+
+            }
+
+            .shop-container {
+
+                padding: 15px;
+
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<!-- ==================================================
+     NAVBAR
+================================================== -->
+
+<header class="navbar">
+
+    <div class="navbar-inner">
+
+        <a
+            href="/"
+            class="logo">
+
+            🧌 ShrekBook
+
+        </a>
+
+
+        <nav>
+
+            <a href="/">
+                Home
+            </a>
+
+            <a href="/profile.html">
+                Profile
+            </a>
+
+            <a href="/shrekchat.html">
+                💬 ShrekChat
+            </a>
+
+        </nav>
+
+    </div>
+
+</header>
+
+
+<!-- ==================================================
+     SHOP
+================================================== -->
+
+<main class="shop-container">
+
+
+    <div class="shop-header">
+
+        <h1>
+            🛒 ShrekBook Virtual Items Shop
+        </h1>
+
+        <p>
+            Spend your hard-earned ShrekCoins on
+            completely unnecessary virtual items. 🧌
+        </p>
+
+
+        <div class="coin-balance">
+
+            🪙
+
+            <span id="shrekcoins">
+                Loading...
+            </span>
+
+            ShrekCoins
+
+        </div>
+
+    </div>
+
+
+    <p id="shop-status"></p>
+
+
+    <!-- ==================================================
+         ITEMS
+    ================================================== -->
+
+    <div class="shop-grid">
+
+
+        <!-- TITLE -->
+
+        <div class="shop-item">
+
+            <div class="item-icon">
+                👑
+            </div>
+
+            <h2>
+                Swamp Royalty
+            </h2>
+
+            <p>
+                Show everyone that you
+                apparently own the swamp.
+            </p>
+
+            <div class="item-price">
+
+                🪙 100
+
+            </div>
+
+            <button
+                class="buy-button"
+                onclick="buyItem('swamp_royalty')">
+
+                Buy
+
+            </button>
+
+        </div>
+
+
+        <!-- OGRE -->
+
+        <div class="shop-item">
+
+            <div class="item-icon">
+                🧌
+            </div>
+
+            <h2>
+                Certified Ogre
+            </h2>
+
+            <p>
+                A prestigious title for
+                distinguished ogres.
+            </p>
+
+            <div class="item-price">
+
+                🪙 50
+
+            </div>
+
+            <button
+                class="buy-button"
+                onclick="buyItem('certified_ogre')">
+
+                Buy
+
+            </button>
+
+        </div>
+
+
+        <!-- CAT -->
+
+        <div class="shop-item">
+
+            <div class="item-icon">
+                🐱
+            </div>
+
+            <h2>
+                Cat Enjoyer
+            </h2>
+
+            <p>
+                For those who understand
+                the true power of cats.
+            </p>
+
+            <div class="item-price">
+
+                🪙 75
+
+            </div>
+
+            <button
+                class="buy-button"
+                onclick="buyItem('cat_enjoyer')">
+
+                Buy
+
+            </button>
+
+        </div>
+
+
+        <!-- LEGEND -->
+
+        <div class="shop-item">
+
+            <div class="item-icon">
+                🔥
+            </div>
+
+            <h2>
+                ShrekBook Legend
+            </h2>
+
+            <p>
+                You have achieved levels of
+                swamp fame previously thought impossible.
+            </p>
+
+            <div class="item-price">
+
+                🪙 250
+
+            </div>
+
+            <button
+                class="buy-button"
+                onclick="buyItem('shrekbook_legend')">
+
+                Buy
+
+            </button>
+
+        </div>
+
+
+        <!-- SHREK GOD -->
+
+        <div class="shop-item">
+
+            <div class="item-icon">
+                🧌👑
+            </div>
+
+            <h2>
+                Shrek God
+            </h2>
+
+            <p>
+                Basically the CEO of the swamp.
+            </p>
+
+            <div class="item-price">
+
+                🪙 500
+
+            </div>
+
+            <button
+                class="buy-button"
+                onclick="buyItem('shrek_god')">
+
+                Buy
+
+            </button>
+
+        </div>
+
+
+        <!-- SECRET -->
+
+        <div class="shop-item">
+
+            <div class="item-icon">
+                ❓
+            </div>
+
+            <h2>
+                Mystery Item
+            </h2>
+
+            <p>
+                Nobody knows what this does.
+                Not even Shrek.
+            </p>
+
+            <div class="item-price">
+
+                🪙 150
+
+            </div>
+
+            <button
+                class="buy-button"
+                onclick="buyItem('mystery_item')">
+
+                Buy
+
+            </button>
+
+        </div>
+
+
+    </div>
+
+</main>
+
+
+<script>
+
+/* ==================================================
+   LOAD SHREKCOINS
+================================================== */
+
+async function loadShrekCoins() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/me",
+                {
+                    credentials:
+                        "include"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (
+            !response.ok ||
+            !data.loggedIn
+        ) {
+
+            document.getElementById(
+                "shrekcoins"
+            ).textContent =
+                "Not logged in";
+
+            return;
+
+        }
+
+
+        const coins =
+            data.user &&
+            data.user.shrekcoins !== undefined
+                ? data.user.shrekcoins
+                : 0;
+
+
+        document.getElementById(
+            "shrekcoins"
+        ).textContent =
+            coins;
+
+
+    } catch (error) {
+
+        console.error(
+            "COIN LOAD ERROR:",
+            error
+        );
+
+        document.getElementById(
+            "shrekcoins"
+        ).textContent =
+            "Error";
+
+    }
+
+}
+
+
+/* ==================================================
+   BUY ITEM
+================================================== */
+
+async function buyItem(itemId) {
+
+    const status =
+        document.getElementById(
+            "shop-status"
+        );
+
+
+    status.textContent =
+        "Purchasing... 🧌";
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/shop/buy",
+                {
+
+                    method:
+                        "POST",
+
+                    credentials:
+                        "include",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            itemId
+
+                        })
+
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Purchase failed."
+            );
+
+        }
+
+
+        status.textContent =
+            `✅ Purchased ${data.itemName || itemId}! 🧌`;
+
+
+        // Refresh coin balance
+        loadShrekCoins();
+
+
+    } catch (error) {
+
+        console.error(
+            "SHOP ERROR:",
+            error
+        );
+
+
+        status.textContent =
+            "❌ " +
+            error.message;
+
+    }
+
+}
+
+
+/* ==================================================
+   START
+================================================== */
+
+loadShrekCoins();
+
+</script>
+
+
+</body>
+
+</html>
