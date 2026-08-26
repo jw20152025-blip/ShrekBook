@@ -1,506 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0">
-
-    <title>ShrekBook Virtual Items Shop 🧌</title>
-
-    <link
-        rel="icon"
-        type="image/png"
-        href="/favicon.png">
-
-    <link
-        rel="stylesheet"
-        href="/styles.css">
-
-    <style>
-
-        /* ==================================================
-           SHOP
-        ================================================== */
-
-        .shop-container {
-
-            max-width: 1100px;
-
-            margin: 40px auto;
-
-            padding: 20px;
-
-        }
-
-
-        .shop-header {
-
-            text-align: center;
-
-            margin-bottom: 35px;
-
-        }
-
-
-        .shop-header h1 {
-
-            font-size: 40px;
-
-            margin-bottom: 10px;
-
-        }
-
-
-        .shop-header p {
-
-            color: #666;
-
-            font-size: 17px;
-
-        }
-
-
-        /* ==================================================
-           COIN BALANCE
-        ================================================== */
-
-        .coin-balance {
-
-            display: flex;
-
-            justify-content: center;
-
-            align-items: center;
-
-            gap: 10px;
-
-            margin: 25px auto;
-
-            padding: 15px 25px;
-
-            max-width: 300px;
-
-            border-radius: 15px;
-
-            background: #f5f5f5;
-
-            font-size: 22px;
-
-            font-weight: bold;
-
-        }
-
-
-        #shrekcoins {
-
-            font-size: 25px;
-
-        }
-
-
-        /* ==================================================
-           SHOP GRID
-        ================================================== */
-
-        .shop-grid {
-
-            display: grid;
-
-            grid-template-columns:
-                repeat(
-                    auto-fit,
-                    minmax(
-                        220px,
-                        1fr
-                    )
-                );
-
-            gap: 20px;
-
-        }
-
-
-        /* ==================================================
-           ITEM CARD
-        ================================================== */
-
-        .shop-item {
-
-            background: white;
-
-            border-radius: 18px;
-
-            padding: 25px;
-
-            text-align: center;
-
-            box-shadow:
-                0 3px 12px
-                rgba(
-                    0,
-                    0,
-                    0,
-                    0.08
-                );
-
-            transition:
-                transform 0.2s ease;
-
-        }
-
-
-        .shop-item:hover {
-
-            transform:
-                translateY(-4px);
-
-        }
-
-
-        .item-icon {
-
-            font-size: 60px;
-
-            margin-bottom: 10px;
-
-        }
-
-
-        .shop-item h2 {
-
-            margin:
-                10px 0;
-
-        }
-
-
-        .shop-item p {
-
-            color: #666;
-
-            min-height: 45px;
-
-        }
-
-
-        .item-price {
-
-            font-size: 20px;
-
-            font-weight: bold;
-
-            margin:
-                15px 0;
-
-        }
-
-
-        .buy-button {
-
-            width: 100%;
-
-            padding: 12px;
-
-            border: none;
-
-            border-radius: 10px;
-
-            cursor: pointer;
-
-            font-size: 16px;
-
-            font-weight: bold;
-
-            background: #eeeeee;
-
-        }
-
-
-        .buy-button:hover {
-
-            opacity: 0.8;
-
-        }
-
-
-        .buy-button:disabled {
-
-            opacity: 0.5;
-
-            cursor: not-allowed;
-
-        }
-
-
-        /* ==================================================
-           STATUS
-        ================================================== */
-
-        #shop-status {
-
-            text-align: center;
-
-            margin:
-                20px 0;
-
-            font-weight: bold;
-
-        }
-
-
-        /* ==================================================
-           MOBILE
-        ================================================== */
-
-        @media (
-            max-width: 600px
-        ) {
-
-            .shop-header h1 {
-
-                font-size: 30px;
-
-            }
-
-            .shop-container {
-
-                padding: 15px;
-
-            }
-
-        }
-
-    </style>
-
-</head>
-
-
-<body>
-
-
-<!-- ==================================================
-     NAVBAR
-================================================== -->
-
-<header class="navbar">
-
-    <div class="navbar-inner">
-
-        <a
-            href="/"
-            class="logo">
-
-            🧌 ShrekBook
-
-        </a>
-
-
-        <nav>
-
-            <a href="/">
-                Home
-            </a>
-
-            <a href="/profile.html">
-                Profile
-            </a>
-
-            <a href="/shrekchat.html">
-                💬 ShrekChat
-            </a>
-
-        </nav>
-
-    </div>
-
-</header>
-
-
-<!-- ==================================================
-     SHOP
-================================================== -->
-
-<main class="shop-container">
-
-
-    <div class="shop-header">
-
-        <h1>
-            🛒 ShrekBook Virtual Items Shop
-        </h1>
-
-        <p>
-            Spend your hard-earned ShrekCoins on
-            completely unnecessary virtual items. 🧌
-        </p>
-
-
-        <div class="coin-balance">
-
-            🪙
-
-            <span id="shrekcoins">
-                Loading...
-            </span>
-
-            ShrekCoins
-
-        </div>
-
-    </div>
-
-
-    <p id="shop-status"></p>
-
-
-    <!-- ==================================================
-         ITEMS
-    ================================================== -->
-
-    <div class="shop-grid">
-
-
-        <!-- TITLE -->
-
-        <div class="shop-item">
-
-            <div class="item-icon">
-                👑
-            </div>
-
-            <h2>
-                Swamp Resident
-            </h2>
-
-            <p>
-                Show people you are a proud resident of ShrekBook.
-            </p>
-
-            <div class="item-price">
-
-                🪙 10
-
-            </div>
-
-            <button
-                class="buy-button"
-                onclick="buyItem(1)">
-
-                Buy
-
-            </button>
-
-        </div>
-
-
-        <!-- OGRE -->
-
-        <div class="shop-item">
-
-            <div class="item-icon">
-                🧌
-            </div>
-
-            <h2>
-                Certified Ogre
-            </h2>
-
-            <p>
-                A prestigious title for
-                distinguished ogres.
-            </p>
-
-            <div class="item-price">
-
-                🪙 50
-
-            </div>
-
-            <button
-                class="buy-button"
-                onclick="buyItem(2)">
-
-                Buy
-
-            </button>
-
-        </div>
-
-
-        <!-- CAT -->
-
-        <div class="shop-item">
-
-            <div class="item-icon">
-                🐱
-            </div>
-
-            <h2>
-                Shrek Enthusiast 
-            </h2>
-
-            <p>
-                Makes it apparent that your like Shrek.
-            </p>
-
-            <div class="item-price">
-
-                🪙 100
-
-            </div>
-
-            <button
-                class="buy-button"
-                onclick="buyItem(3)">
-
-                Buy
-
-            </button>
-
-        </div>
-
-
-        <!-- LEGEND -->
-
-        <div class="shop-item">
-
-            <div class="item-icon">
-                🔥
-            </div>
-
-            <h2>
-                Swamp Lord
-            </h2>
-
-            <p>
-                Rule the swamp in style.
-            </p>
-
-            <div class="item-price">
-
-                🪙 500
-            </div>
-
-            <button
-                class="buy-button"
-                onclick="buyItem(4)">
-
-                Buy
-
-            </button>
-
-        </div>
-
-
-
-
-</main>
-
-
 <script>
 
 /* ==================================================
@@ -515,15 +12,12 @@ async function loadShrekCoins() {
             await fetch(
                 "/api/me",
                 {
-                    credentials:
-                        "include"
+                    credentials: "include"
                 }
             );
 
-
         const data =
             await response.json();
-
 
         if (
             !response.ok ||
@@ -536,9 +30,7 @@ async function loadShrekCoins() {
                 "Not logged in";
 
             return;
-
         }
-
 
         const coins =
             data.user &&
@@ -546,12 +38,10 @@ async function loadShrekCoins() {
                 ? data.user.shrekcoins
                 : 0;
 
-
         document.getElementById(
             "shrekcoins"
         ).textContent =
             coins;
-
 
     } catch (error) {
 
@@ -564,7 +54,6 @@ async function loadShrekCoins() {
             "shrekcoins"
         ).textContent =
             "Error";
-
     }
 
 }
@@ -576,50 +65,111 @@ async function loadShrekCoins() {
 
 async function buyItem(itemId) {
 
-    console.log("🛒 BUY ITEM DATABASE ID:", itemId);
-
-    if (!itemId) {
-        throw new Error("A valid shop item ID is required.");
-    }
-
-    const response = await fetch(
-        "/api/shop/buy",
-        {
-            method: "POST",
-
-            credentials: "include",
-
-            headers: {
-                "Content-Type": "application/json"
-            },
-
-            body: JSON.stringify({
-                item_id: itemId
-            })
-        }
+    console.log(
+        "🛒 BUY ITEM DATABASE ID:",
+        itemId
     );
 
-    const data =
-        await response.json();
 
-    if (!response.ok) {
+    if (!itemId) {
 
-        throw new Error(
-            data.error ||
-            "Purchase failed."
+        alert(
+            "❌ This item does not have a valid ID."
+        );
+
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/shop/buy",
+                {
+                    method: "POST",
+
+                    credentials:
+                        "include",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                        item_id:
+                            itemId
+
+                    })
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        console.log(
+            "🛒 SHOP RESPONSE:",
+            data
+        );
+
+
+        if (!response.ok) {
+
+            alert(
+                "❌ " +
+                (
+                    data.error ||
+                    "Purchase failed."
+                )
+            );
+
+            return;
+        }
+
+
+        alert(
+            "✅ Item purchased!"
+        );
+
+
+        /* ------------------------------------------
+           Update coins immediately
+        ------------------------------------------ */
+
+        if (
+            data.shrekcoins !== undefined
+        ) {
+
+            document.getElementById(
+                "shrekcoins"
+            ).textContent =
+                data.shrekcoins;
+
+        } else {
+
+            await loadShrekCoins();
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "🛒 SHOP ERROR:",
+            error
+        );
+
+        alert(
+            "❌ Could not connect to the shop."
         );
 
     }
 
-    console.log(
-        "✅ PURCHASED SHOP ITEM:",
-        data
-    );
-
-    alert("✅ Item purchased!");
-
-    loadShop();
 }
+
 
 /* ==================================================
    START
@@ -628,8 +178,3 @@ async function buyItem(itemId) {
 loadShrekCoins();
 
 </script>
-
-
-</body>
-
-</html>

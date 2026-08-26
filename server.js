@@ -5072,15 +5072,13 @@ app.post(
 
             const itemId =
                 req.body &&
-                req.body.itemId;
+                req.body.item_id;
 
 
             if (
                 itemId === undefined ||
                 itemId === null ||
-                !Number.isInteger(
-                    Number(itemId)
-                )
+                itemId === ""
             ) {
 
                 return res.status(400).json({
@@ -5096,6 +5094,7 @@ app.post(
 
 
             if (
+                !Number.isInteger(numericItemId) ||
                 numericItemId <= 0
             ) {
 
@@ -5109,15 +5108,6 @@ app.post(
 
             // ==========================================
             // PURCHASE
-            //
-            // PostgreSQL handles:
-            //
-            // - item validation
-            // - balance checking
-            // - coin deduction
-            // - ownership
-            //
-            // atomically.
             // ==========================================
 
             const {
@@ -5136,6 +5126,10 @@ app.post(
                 );
 
 
+            // ==========================================
+            // DATABASE ERROR
+            // ==========================================
+
             if (error) {
 
                 console.error(
@@ -5149,14 +5143,13 @@ app.post(
                     "Purchase failed.";
 
 
-                // ======================================
-                // USER-FACING ERRORS
-                // ======================================
+                // Not enough coins
 
                 if (
-                    message.includes(
-                        "Not enough ShrekCoins"
-                    )
+                    message.toLowerCase()
+                        .includes(
+                            "not enough"
+                        )
                 ) {
 
                     return res.status(400).json({
@@ -5167,10 +5160,13 @@ app.post(
                 }
 
 
+                // Already owns item
+
                 if (
-                    message.includes(
-                        "already own"
-                    )
+                    message.toLowerCase()
+                        .includes(
+                            "already own"
+                        )
                 ) {
 
                     return res.status(400).json({
@@ -5181,13 +5177,17 @@ app.post(
                 }
 
 
+                // Item doesn't exist
+
                 if (
-                    message.includes(
-                        "not found"
-                    ) ||
-                    message.includes(
-                        "unavailable"
-                    )
+                    message.toLowerCase()
+                        .includes(
+                            "not found"
+                        ) ||
+                    message.toLowerCase()
+                        .includes(
+                            "unavailable"
+                        )
                 ) {
 
                     return res.status(404).json({
@@ -5207,6 +5207,34 @@ app.post(
 
 
             // ==========================================
+            // GET NEW COIN BALANCE
+            // ==========================================
+
+            const {
+                data: profile,
+                error: profileError
+            } =
+                await supabase
+                    .from("profiles")
+                    .select("shrekcoins")
+                    .eq(
+                        "id",
+                        userId
+                    )
+                    .single();
+
+
+            if (profileError) {
+
+                console.error(
+                    "COIN BALANCE ERROR:",
+                    profileError
+                );
+
+            }
+
+
+            // ==========================================
             // SUCCESS
             // ==========================================
 
@@ -5216,7 +5244,12 @@ app.post(
                     true,
 
                 purchase:
-                    data
+                    data,
+
+                shrekcoins:
+                    profile
+                        ? profile.shrekcoins
+                        : null
 
             });
 
