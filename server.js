@@ -1911,7 +1911,66 @@ app.post("/api/admin/global-message", async (req, res) => {
     }
 
 });
+// ==================================================
+// MARK GLOBAL MESSAGE AS READ
+// ==================================================
 
+app.post("/api/global-message/read", async (req, res) => {
+
+    try {
+
+        if (
+            !req.session ||
+            !req.session.user ||
+            !req.session.user.id
+        ) {
+
+            return res.status(401).json({
+                error:
+                    "Not logged in."
+            });
+
+        }
+
+
+        if (
+            !globalMessage
+        ) {
+
+            return res.json({
+                success:
+                    true
+            });
+
+        }
+
+
+        globalMessage.readBy.add(
+            req.session.user.id
+        );
+
+
+        return res.json({
+            success:
+                true
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "GLOBAL MESSAGE READ ERROR:",
+            error
+        );
+
+        return res.status(500).json({
+            error:
+                "Failed to mark message as read."
+        });
+
+    }
+
+});
 // ==================================================
 // SEND SPECIFIC MESSAGE
 // ADMIN + OWNER ONLY

@@ -2960,7 +2960,7 @@ async function loadPeople() {
 // SHREKBOOK POPUP MESSAGES
 // ==================================================
 
-let lastGlobalMessageId = null;
+
 
 
 
@@ -3030,6 +3030,18 @@ function showShrekBookMessage(
 
 
 // ==================================================
+// MESSAGE TRACKING
+// ==================================================
+
+let lastGlobalMessageId =
+    localStorage.getItem(
+        "shrekbook_last_global_message_id"
+    );
+
+
+
+
+// ==================================================
 // CHECK /api/me
 // ==================================================
 
@@ -3042,7 +3054,10 @@ async function checkMessages() {
                 "/api/me",
                 {
                     credentials:
-                        "include"
+                        "include",
+
+                    cache:
+                        "no-store"
                 }
             );
 
@@ -3077,6 +3092,15 @@ async function checkMessages() {
 
             lastGlobalMessageId =
                 data.globalMessage.id;
+
+
+            // Remember that this user has seen it
+            localStorage.setItem(
+                "shrekbook_last_global_message_id",
+                String(
+                    data.globalMessage.id
+                )
+            );
 
 
             showShrekBookMessage(
@@ -3121,16 +3145,21 @@ async function checkMessages() {
 }
 
 
-// Check immediately
+// ==================================================
+// CHECK IMMEDIATELY
+// ==================================================
+
 checkMessages();
 
 
-// Then every 2 seconds
+// ==================================================
+// CHECK EVERY 2 SECONDS
+// ==================================================
+
 setInterval(
     checkMessages,
     2000
 );
-
 
 
 /* ==================================================
