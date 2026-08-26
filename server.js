@@ -131,6 +131,148 @@ app.use(
 
     })
 );
+
+async function awardShrekCoins(
+    userId,
+    amount,
+    reason
+) {
+
+    try {
+
+        if (
+            !userId ||
+            !Number.isInteger(amount) ||
+            amount === 0
+        ) {
+
+            return false;
+
+        }
+
+
+        // ------------------------------------------
+        // GET CURRENT BALANCE
+        // ------------------------------------------
+
+        const {
+            data: profile,
+            error: profileError
+        } = await supabase
+            .from("profiles")
+            .select("shrekcoins")
+            .eq(
+                "id",
+                userId
+            )
+            .single();
+
+
+        if (
+            profileError ||
+            !profile
+        ) {
+
+            console.error(
+                "SHREKCOIN PROFILE ERROR:",
+                profileError
+            );
+
+            return false;
+
+        }
+
+
+        const newBalance =
+            Math.max(
+                0,
+                (profile.shrekcoins || 0) +
+                amount
+            );
+
+
+        // ------------------------------------------
+        // UPDATE BALANCE
+        // ------------------------------------------
+
+        const {
+            error: updateError
+        } = await supabase
+            .from("profiles")
+            .update({
+                shrekcoins:
+                    newBalance
+            })
+            .eq(
+                "id",
+                userId
+            );
+
+
+        if (updateError) {
+
+            console.error(
+                "SHREKCOIN UPDATE ERROR:",
+                updateError
+            );
+
+            return false;
+
+        }
+
+
+        // ------------------------------------------
+        // RECORD TRANSACTION
+        // ------------------------------------------
+
+        const {
+            error: transactionError
+        } = await supabase
+            .from("shrekcoin_transactions")
+            .insert({
+
+                user_id:
+                    userId,
+
+                amount:
+                    amount,
+
+                reason:
+                    reason
+
+            });
+
+
+        if (transactionError) {
+
+            console.error(
+                "SHREKCOIN TRANSACTION ERROR:",
+                transactionError
+            );
+
+        }
+
+
+        console.log(
+            `🪙 ${amount > 0 ? "+" : ""}${amount} ShrekCoins → ${userId} (${reason})`
+        );
+
+
+        return true;
+
+    } catch (error) {
+
+        console.error(
+            "SHREKCOIN ERROR:",
+            error
+        );
+
+        return false;
+
+    }
+
+}
+
 app.get("/api/shreksearch", async (req, res) => {
     try {
         const query = String(req.query.q || "").trim();
@@ -1358,7 +1500,6 @@ function requireLogin(req, res, next) {
 // LOGIN
 // ==================================================
 
-
 app.post("/api/login", async (req, res) => {
 
     try {
@@ -1390,9 +1531,6 @@ app.post("/api/login", async (req, res) => {
 
         // ==========================================
         // CHECK EMAIL BAN
-        //
-        // This is your restored email-ban system.
-        // It happens BEFORE Supabase authentication.
         // ==========================================
 
         const emailBan =
@@ -1463,8 +1601,6 @@ app.post("/api/login", async (req, res) => {
 
         // ==========================================
         // CHECK USER-ID BAN
-        //
-        // This checks your account/user ban system.
         // ==========================================
 
         const userBan =
@@ -1560,7 +1696,7 @@ app.post("/api/login", async (req, res) => {
                 1;
 
 
-            // Find an unused username.
+            // Find unused username
 
             while (true) {
 
@@ -1593,7 +1729,9 @@ app.post("/api/login", async (req, res) => {
             }
 
 
-            // Create the profile.
+            // ======================================
+            // CREATE PROFILE
+            // ======================================
 
             const {
                 data: created,
@@ -1625,7 +1763,19 @@ app.post("/api/login", async (req, res) => {
                             true,
 
                         banned:
-                            false
+                            false,
+
+                        // ==========================
+                        // SHREKCOINS
+                        // ==========================
+
+                        shrekcoins:
+                            10,
+
+                        last_shrekcoin_login:
+                            new Date()
+                                .toISOString()
+                                .slice(0, 10)
 
                     })
                     .select()
@@ -1652,18 +1802,16 @@ app.post("/api/login", async (req, res) => {
             profile =
                 created;
 
+
+            console.log(
+                `🪙 ${username} received 10 ShrekCoins for their first login.`
+            );
+
         }
 
 
         // ==========================================
         // CHECK PROFILE BAN
-        //
-        // Your ADMIN BAN button sets:
-        //
-        // banned = true
-        //
-        // So this prevents those accounts from
-        // logging in.
         // ==========================================
 
         if (profile.banned === true) {
@@ -1680,13 +1828,6 @@ app.post("/api/login", async (req, res) => {
 
         // ==========================================
         // CHECK PROFILE ACTIVE STATUS
-        //
-        // Kicked users have:
-        //
-        // is_active = false
-        //
-        // They cannot log back in until the account
-        // is made active again.
         // ==========================================
 
         if (profile.is_active === false) {
@@ -1697,6 +1838,89 @@ app.post("/api/login", async (req, res) => {
                     "Your ShrekBook account is currently inactive."
 
             });
+
+        }
+
+
+        // ==========================================
+        // DAILY LOGIN SHREKCOIN
+        //
+        // First login of each day = +10
+        // ==========================================
+
+        const today =
+            new Date()
+                .toISOString()
+                .slice(0, 10);
+
+
+        let loginCoinsAwarded =
+            0;
+
+
+        if (
+            profile.last_shrekcoin_login !==
+            today
+        ) {
+
+            const currentCoins =
+                Number(
+                    profile.shrekcoins || 0
+                );
+
+
+            const newCoinTotal =
+                currentCoins + 10;
+
+
+            const {
+                data: updatedProfile,
+                error: coinError
+            } =
+                await supabase
+                    .from("profiles")
+                    .update({
+
+                        shrekcoins:
+                            newCoinTotal,
+
+                        last_shrekcoin_login:
+                            today
+
+                    })
+                    .eq(
+                        "id",
+                        profile.id
+                    )
+                    .select()
+                    .single();
+
+
+            if (coinError) {
+
+                console.error(
+                    "SHREKCOIN LOGIN ERROR:",
+                    coinError
+                );
+
+                // Don't prevent login if the
+                // coin system happens to fail.
+                loginCoinsAwarded = 0;
+
+            } else {
+
+                profile =
+                    updatedProfile;
+
+                loginCoinsAwarded =
+                    10;
+
+
+                console.log(
+                    `🪙 ${profile.username} received 10 ShrekCoins for logging in today.`
+                );
+
+            }
 
         }
 
@@ -1755,6 +1979,14 @@ app.post("/api/login", async (req, res) => {
                     success:
                         true,
 
+                    loginCoinsAwarded:
+                        loginCoinsAwarded,
+
+                    shrekcoins:
+                        Number(
+                            profile.shrekcoins || 0
+                        ),
+
                     user: {
 
                         ...profile,
@@ -1790,6 +2022,7 @@ app.post("/api/login", async (req, res) => {
     }
 
 });
+
 
 
 app.post("/api/admin/global-message", async (req, res) => {

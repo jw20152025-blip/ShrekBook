@@ -3040,6 +3040,95 @@ let lastGlobalMessageId =
 
 
 
+// ==================================================
+// SHREKCOIN DISPLAY
+// ==================================================
+
+async function loadShrekCoins() {
+
+    const display =
+        document.getElementById("shrekcoin-display");
+
+    const count =
+        document.getElementById("shrekcoin-count");
+
+
+    if (!display || !count) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/me",
+                {
+                    credentials: "include",
+                    cache: "no-store"
+                }
+            );
+
+
+        if (!response.ok) {
+
+            display.style.display = "none";
+
+            return;
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        if (!data.loggedIn) {
+
+            display.style.display = "none";
+
+            return;
+
+        }
+
+
+        const coins =
+            Number(
+                data.user?.shrekcoins ??
+                data.shrekcoins ??
+                0
+            );
+
+
+        count.textContent =
+            coins.toLocaleString();
+
+
+        display.style.display =
+            "block";
+
+
+    } catch (error) {
+
+        console.error(
+            "SHREKCOIN LOAD ERROR:",
+            error
+        );
+
+    }
+
+}
+
+
+// Load immediately
+loadShrekCoins();
+
+
+// Refresh every 5 seconds
+setInterval(
+    loadShrekCoins,
+    5000
+);
 
 // ==================================================
 // CHECK /api/me
