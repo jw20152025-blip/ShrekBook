@@ -8360,11 +8360,22 @@ app.post(
     "/api/admin/users/:id/unban",
     requireLogin,
     async (req, res) => {
-        canUnban = [
-            "administrator",
-            "owner"
-        ]
+
         try {
+
+            // ==========================================
+            // ROLES ALLOWED TO UNBAN
+            // ==========================================
+
+            const canUnban = [
+                "administrator",
+                "owner"
+            ];
+
+
+            // ==========================================
+            // GET ACTOR
+            // ==========================================
 
             const actor =
                 await requireAdmin(
@@ -8377,6 +8388,28 @@ app.post(
                 return;
             }
 
+
+            // ==========================================
+            // CHECK ACTOR PERMISSION
+            // ==========================================
+
+            if (
+                !canUnban.includes(
+                    actor.role
+                )
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You must be an administrator or higher to ban/unban people."
+                });
+
+            }
+
+
+            // ==========================================
+            // GET TARGET USER
+            // ==========================================
 
             const {
                 data: target,
@@ -8395,20 +8428,22 @@ app.post(
 
             if (error) {
 
+                console.error(
+                    "UNBAN TARGET ERROR:",
+                    error
+                );
+
                 return res.status(500).json({
                     error:
                         error.message
                 });
 
             }
-            if (!user.role in canunBan){
-                return res.status(403).json({
-                    error:
-                        "You must be an administrator or higher to ban/unban people"
-            });
 
-            }
 
+            // ==========================================
+            // USER NOT FOUND
+            // ==========================================
 
             if (!target) {
 
@@ -8419,6 +8454,10 @@ app.post(
 
             }
 
+
+            // ==========================================
+            // PREVENT SELF-UNBAN
+            // ==========================================
 
             if (
                 target.id === actor.id
@@ -8431,6 +8470,10 @@ app.post(
 
             }
 
+
+            // ==========================================
+            // CHECK ROLE MANAGEMENT
+            // ==========================================
 
             if (
                 !canManageRole(
@@ -8447,6 +8490,10 @@ app.post(
             }
 
 
+            // ==========================================
+            // UNBAN USER
+            // ==========================================
+
             const {
                 error: updateError
             } = await supabase
@@ -8462,6 +8509,11 @@ app.post(
 
             if (updateError) {
 
+                console.error(
+                    "UNBAN UPDATE ERROR:",
+                    updateError
+                );
+
                 return res.status(500).json({
                     error:
                         updateError.message
@@ -8470,22 +8522,35 @@ app.post(
             }
 
 
-            res.json({
-                success: true,
-                banned: false
-            });
+            // ==========================================
+            // SUCCESS
+            // ==========================================
 
+            console.log(
+                `🔓 ${actor.username} unbanned ${target.username}`
+            );
+
+
+            return res.json({
+
+                success:
+                    true,
+
+                banned:
+                    false
+
+            });
 
         } catch (error) {
 
             console.error(
-                "UNBAN ERROR:",
+                "🔥 UNBAN ERROR:",
                 error
             );
 
-
-            res.status(500).json({
+            return res.status(500).json({
                 error:
+                    error.message ||
                     "Server error."
             });
 
