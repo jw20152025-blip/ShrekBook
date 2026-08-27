@@ -3,6 +3,9 @@
 ================================================== */
 let moderationCheckRunning = false;
 let showingSpecificMessage = false;
+let onlineHeartbeatStarted = false;
+
+let currentLeaderboard = "overall";
 /* ==================================================
    ESCAPE HTML
 ================================================== */
@@ -129,96 +132,12 @@ function warn() {
 
 
 
-// ==================================================
-// SPECIFIC MESSAGE POLLING
-// ==================================================
 
 
 
-let checkingSpecificMessage = false;
 
 
-app.get(
-    "/api/specific-message",
-    async (req, res) => {
 
-        try {
-
-            // ==========================================
-            // LOGGED OUT
-            // ==========================================
-
-            if (
-                !req.session ||
-                !req.session.user ||
-                !req.session.user.id
-            ) {
-
-                return res.json({
-                    loggedIn: false,
-                    message: null
-                });
-
-            }
-
-
-            // ==========================================
-            // USER IS LOGGED IN
-            // ==========================================
-
-            const userId =
-                req.session.user.id;
-
-
-            // ==========================================
-            // YOUR EXISTING SPECIFIC MESSAGE CODE
-            // STARTS HERE
-            // ==========================================
-
-            // IMPORTANT:
-            // Keep whatever code you currently have
-            // below this point that finds the message.
-
-
-            // Example:
-            //
-            // const { data: message, error } =
-            //     await supabase
-            //         .from("specific_messages")
-            //         .select("*")
-            //         .eq("user_id", userId)
-            //         .eq("read", false)
-            //         .maybeSingle();
-
-
-            // ==========================================
-            // RETURN YOUR EXISTING RESULT
-            // ==========================================
-
-        } catch (error) {
-
-            console.error(
-                "SPECIFIC MESSAGE ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    "Could not check specific message."
-            });
-
-        }
-
-    }
-);
-
-checkSpecificMessages();
-
-
-setInterval(
-    checkSpecificMessages,
-    1000
-);
 /* ==================================================
    FILE -> BASE64
 ================================================== */
@@ -723,7 +642,7 @@ function createLeaderboardUI() {
    LEADERBOARD
 ================================================== */
 
-let currentLeaderboard = "overall";
+
 
 
 const leaderboardTitles = {
@@ -3409,7 +3328,6 @@ async function updateOnlineStatus() {
    ONLINE HEARTBEAT
 ================================================== */
 
-let onlineHeartbeatStarted = false;
 
 function startOnlineHeartbeat() {
 
