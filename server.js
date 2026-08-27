@@ -4,7 +4,7 @@ require("dotenv").config();
 // ==================================================
 // GLOBAL / SPECIFIC MESSAGES
 // ==================================================
-let showingSpecificMessage = false;
+
 let globalMessage = null;
 
 const specificMessages = new Map();
@@ -3379,6 +3379,10 @@ app.get(
 // ONE USER
 // ==================================================
 
+// ==================================================
+// ONE USER
+// ==================================================
+
 app.get(
     "/api/users/:id",
     async (req, res) => {
@@ -3415,8 +3419,7 @@ app.get(
                     avatar,
                     bio,
                     created_at,
-                    equipped_title_id,
-                    displayed_item_id
+                    equipped_title_id
                 `)
                 .eq(
                     "id",
@@ -3504,48 +3507,88 @@ app.get(
 
 
             // ==========================================
-            // GET DISPLAYED ITEM
+            // GET ALL DISPLAYED ITEMS
             // ==========================================
 
-            let displayedItem =
-                null;
+            let displayedItems = [];
 
 
-            if (
-                profile.displayed_item_id
+            const {
+                data: displayedInventory,
+                error: displayedInventoryError
+            } = await supabase
+                .from("user_inventory")
+                .select(`
+                    item_id,
+                    equipped
+                `)
+                .eq(
+                    "user_id",
+                    id
+                )
+                .eq(
+                    "equipped",
+                    true
+                );
+
+
+            if (displayedInventoryError) {
+
+                console.error(
+                    "DISPLAYED INVENTORY ERROR:",
+                    displayedInventoryError
+                );
+
+            } else if (
+                displayedInventory &&
+                displayedInventory.length > 0
             ) {
 
-                const {
-                    data: item,
-                    error: itemError
-                } = await supabase
-                    .from("shop_items")
-                    .select(`
-                        id,
-                        name,
-                        description,
-                        price,
-                        icon,
-                        item_type
-                    `)
-                    .eq(
-                        "id",
-                        profile.displayed_item_id
-                    )
-                    .maybeSingle();
+                const itemIds =
+                    displayedInventory
+                        .map(
+                            inventoryItem =>
+                                inventoryItem.item_id
+                        )
+                        .filter(Boolean);
 
 
-                if (itemError) {
+                if (
+                    itemIds.length > 0
+                ) {
 
-                    console.error(
-                        "DISPLAYED ITEM ERROR:",
-                        itemError
-                    );
+                    const {
+                        data: items,
+                        error: itemsError
+                    } = await supabase
+                        .from("shop_items")
+                        .select(`
+                            id,
+                            name,
+                            description,
+                            icon,
+                            price,
+                            item_type
+                        `)
+                        .in(
+                            "id",
+                            itemIds
+                        );
 
-                } else {
 
-                    displayedItem =
-                        item || null;
+                    if (itemsError) {
+
+                        console.error(
+                            "DISPLAYED ITEMS ERROR:",
+                            itemsError
+                        );
+
+                    } else {
+
+                        displayedItems =
+                            items || [];
+
+                    }
 
                 }
 
@@ -3582,11 +3625,6 @@ app.get(
 
             if (postsError) {
 
-                console.error(
-                    "POSTS ERROR:",
-                    postsError
-                );
-
                 return res.status(500).json({
                     error:
                         postsError.message
@@ -3611,66 +3649,34 @@ app.get(
 
             return res.json({
 
-                id:
-                    profile.id,
+                ...profile,
 
-                username:
-                    profile.username,
-
-                display_name:
-                    profile.display_name,
 
                 avatar:
                     getAvatar(
                         profile.avatar
                     ),
 
-                bio:
-                    profile.bio,
-
-                created_at:
-                    profile.created_at,
-
-                equipped_title_id:
-                    profile.equipped_title_id,
-
-                displayed_item_id:
-                    profile.displayed_item_id,
-
-
-                // --------------------------------------
-                // EQUIPPED TITLE
-                // --------------------------------------
 
                 equippedTitle:
                     equippedTitle,
 
 
-                // --------------------------------------
-                // DISPLAYED ITEM
-                // --------------------------------------
+                displayedItems:
+                    displayedItems,
 
-                displayedItem:
-                    displayedItem,
-
-
-                // --------------------------------------
-                // REACTIONS
-                // --------------------------------------
 
                 gyatt:
                     reactions.gyatt,
 
+
                 cat:
                     reactions.cat,
+
 
                 ogred:
                     reactions.ogred,
 
-
-                // --------------------------------------
-                // POSTS
-                // --------------------------------------
 
                 posts:
                     posts || []

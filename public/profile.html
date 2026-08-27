@@ -250,22 +250,9 @@
 
         </div>
         <div
-            id="displayed-item"
-            class="displayed-item"
-            style="display:none;">
-
-            <span
-                id="displayed-item-icon"
-                class="displayed-item-icon">
-            </span>
-
-            <span
-                id="displayed-item-name"
-                class="displayed-item-name">
-            </span>
-
+            id="displayed-items"
+            class="displayed-items">
         </div>
-
 
         <p id="profile-bio">
         </p>
@@ -572,6 +559,7 @@ function renderEquippedTitle() {
 // DISPLAY MULTIPLE ITEMS
 // ==================================================
 
+
 function renderDisplayedItem() {
 
     const container =
@@ -579,14 +567,23 @@ function renderDisplayedItem() {
             "displayed-items"
         );
 
-
     if (!container) {
+
+        console.error(
+            "DISPLAYED ITEMS CONTAINER NOT FOUND"
+        );
+
         return;
+
     }
 
 
     container.innerHTML = "";
 
+
+    // ==================================================
+    // GET DISPLAYED ITEMS
+    // ==================================================
 
     const items =
         profileUser &&
@@ -597,25 +594,47 @@ function renderDisplayedItem() {
             : [];
 
 
-    // ==========================================
-    // NO ITEMS
-    // ==========================================
+    console.log(
+        "DISPLAYED ITEMS:",
+        items
+    );
+
+
+    // ==================================================
+    // NOTHING DISPLAYED
+    // ==================================================
 
     if (
         items.length === 0
     ) {
+
+        container.style.display =
+            "none";
 
         return;
 
     }
 
 
-    // ==========================================
-    // DISPLAY ITEMS
-    // ==========================================
+    // ==================================================
+    // SHOW CONTAINER
+    // ==================================================
+
+    container.style.display =
+        "flex";
+
+
+    // ==================================================
+    // CREATE EACH ITEM
+    // ==================================================
 
     items.forEach(
         item => {
+
+            if (!item) {
+                return;
+            }
+
 
             const itemElement =
                 document.createElement(
@@ -626,6 +645,10 @@ function renderDisplayedItem() {
             itemElement.className =
                 "displayed-item";
 
+
+            // ==========================================
+            // ICON
+            // ==========================================
 
             const iconElement =
                 document.createElement(
@@ -642,6 +665,10 @@ function renderDisplayedItem() {
                 "🎁";
 
 
+            // ==========================================
+            // NAME
+            // ==========================================
+
             const nameElement =
                 document.createElement(
                     "span"
@@ -657,10 +684,13 @@ function renderDisplayedItem() {
                 "Item";
 
 
+            // ==========================================
+            // BUILD ITEM
+            // ==========================================
+
             itemElement.appendChild(
                 iconElement
             );
-
 
             itemElement.appendChild(
                 nameElement
