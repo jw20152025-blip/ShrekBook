@@ -2537,158 +2537,221 @@ app.post(
 
 let moderationCheckRunning = false;
 
-
 app.get("/api/me", async (req, res) => {
 
-    try {
+try {
 
-        if (!req.session.user) {
+    if (!req.session.user) {
 
-            return res.json({
-                loggedIn: false
-            });
-
-        }
-
-
-        // ==========================================
-        // MESSAGE SESSION START
-        // ==========================================
-
-        if (!req.session.messageStartedAt) {
-
-            req.session.messageStartedAt =
-                Date.now();
-
-        }
-
-
-        const {
-            data,
-            error
-        } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq(
-                "id",
-                req.session.user.id
-            )
-            .single();
-
-
-        if (error || !data) {
-
-            return res.json({
-                loggedIn: false
-            });
-
-        }
-
-
-        // ==========================================
-        // GLOBAL MESSAGE
-        // ==========================================
-
-        let pendingGlobalMessage = null;
-
-
-        if (
-            globalMessage &&
-            globalMessage.createdAt >=
-                req.session.messageStartedAt
-        ) {
-
-            pendingGlobalMessage =
-                globalMessage;
-
-        }
-
-
-        // ==========================================
-        // SPECIFIC MESSAGE
-        // ==========================================
-
-        const pendingSpecificMessage =
-            specificMessages.get(data.id) || null;
-
-
-        if (pendingSpecificMessage) {
-
-            specificMessages.delete(data.id);
-
-        }
-
-
-        // ==========================================
-        // EXISTING CODE
-        // ==========================================
-
-        const reactions =
-            await getReactionCounts(
-                data.id
-            );
-
-
-        const admin =
-            await isAdmin(
-                data.id
-            );
-
-
-        // ==========================================
-        // RESPONSE
-        // ==========================================
-
-        res.json({
-
-            loggedIn: true,
-
-            isAdmin: admin,
-
-            user: {
-
-                ...data,
-
-                avatar:
-                    getAvatar(
-                        data.avatar
-                    ),
-
-                gyatt:
-                    reactions.gyatt,
-
-                cat:
-                    reactions.cat,
-
-                ogred:
-                    reactions.ogred
-
-            },
-
-            globalMessage:
-                pendingGlobalMessage,
-
-            specificMessage:
-                pendingSpecificMessage
-
-        });
-
-
-    } catch (error) {
-
-        console.error(
-            "ME ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error:
-                "Server error."
+        return res.json({
+            loggedIn: false
         });
 
     }
 
+
+    // ==========================================
+    // MESSAGE SESSION START
+    // ==========================================
+
+    if (!req.session.messageStartedAt) {
+
+        req.session.messageStartedAt =
+            Date.now();
+
+    }
+
+
+    // ==========================================
+    // LOAD PROFILE
+    // ==========================================
+
+    const {
+        data,
+        error
+    } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq(
+            "id",
+            req.session.user.id
+        )
+        .single();
+
+
+    if (error || !data) {
+
+        return res.json({
+            loggedIn: false
+        });
+
+    }
+
+
+    // ==========================================
+    // GLOBAL MESSAGE
+    // ==========================================
+
+    let pendingGlobalMessage = null;
+
+
+    if (
+        globalMessage &&
+        globalMessage.createdAt >=
+            req.session.messageStartedAt
+    ) {
+
+        pendingGlobalMessage =
+            globalMessage;
+
+    }
+
+
+    // ==========================================
+    // SPECIFIC MESSAGE
+    // ==========================================
+
+    const pendingSpecificMessage =
+        specificMessages.get(data.id) || null;
+
+
+    if (pendingSpecificMessage) {
+
+        specificMessages.delete(data.id);
+
+    }
+
+
+    // ==========================================
+    // REACTIONS
+    // ==========================================
+
+    const reactions =
+        await getReactionCounts(
+            data.id
+        );
+
+
+    // ==========================================
+    // ADMIN
+    // ==========================================
+
+    const admin =
+        await isAdmin(
+            data.id
+        );
+
+
+    // ==========================================
+    // EQUIPPED TITLE
+    // ==========================================
+
+    let equippedTitle = null;
+
+
+    if (
+        data.equipped_title_id
+    ) {
+
+        const {
+            data: title,
+            error: titleError
+        } =
+            await supabase
+                .from("shop_items")
+                .select(
+                    "id, name, description, icon, price"
+                )
+                .eq(
+                    "id",
+                    data.equipped_title_id
+                )
+                .maybeSingle();
+
+
+        if (titleError) {
+
+            console.error(
+                "EQUIPPED TITLE ERROR:",
+                titleError
+            );
+
+        } else {
+
+            equippedTitle =
+                title || null;
+
+        }
+
+    }
+
+
+    // ==========================================
+    // RESPONSE
+    // ==========================================
+
+    res.json({
+
+        loggedIn: true,
+
+        isAdmin:
+            admin,
+
+        user: {
+
+            ...data,
+
+            avatar:
+                getAvatar(
+                    data.avatar
+                ),
+
+            gyatt:
+                reactions.gyatt,
+
+            cat:
+                reactions.cat,
+
+            ogred:
+                reactions.ogred,
+
+            // ==================================
+            // EQUIPPED TITLE
+            // ==================================
+
+            equippedTitle:
+                equippedTitle
+
+        },
+
+        globalMessage:
+            pendingGlobalMessage,
+
+        specificMessage:
+            pendingSpecificMessage
+
+    });
+
+
+} catch (error) {
+
+    console.error(
+        "ME ERROR:",
+        error
+    );
+
+    res.status(500).json({
+
+        error:
+            "Server error."
+
+    });
+
+}
+
+
 });
+
 
 
 // ==================================================
@@ -5265,6 +5328,492 @@ app.post(
             return res.status(500).json({
                 error:
                     "Server error."
+            });
+
+        }
+
+    }
+);
+// ==================================================
+// SHOP INVENTORY
+// ==================================================
+
+app.get(
+    "/api/shop/inventory",
+    async (req, res) => {
+
+        try {
+
+            if (
+                !req.session ||
+                !req.session.user ||
+                !req.session.user.id
+            ) {
+
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+
+            }
+
+
+            const userId =
+                req.session.user.id;
+
+
+            // ==========================================
+            // GET OWNED ITEMS
+            // ==========================================
+
+            const {
+                data: ownedItems,
+                error: ownedError
+            } =
+                await supabase
+                    .from("user_shop_items")
+                    .select(`
+                        purchased_at,
+                        shop_items (
+                            id,
+                            name,
+                            description,
+                            icon,
+                            price
+                        )
+                    `)
+                    .eq(
+                        "user_id",
+                        userId
+                    );
+
+
+            if (ownedError) {
+
+                console.error(
+                    "INVENTORY ERROR:",
+                    ownedError
+                );
+
+                return res.status(500).json({
+                    error:
+                        ownedError.message
+                });
+
+            }
+
+
+            // ==========================================
+            // GET EQUIPPED TITLE
+            // ==========================================
+
+            const {
+                data: profile,
+                error: profileError
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(
+                        "equipped_title_id"
+                    )
+                    .eq(
+                        "id",
+                        userId
+                    )
+                    .single();
+
+
+            if (profileError) {
+
+                return res.status(500).json({
+                    error:
+                        profileError.message
+                });
+
+            }
+
+
+            let equipped = null;
+
+
+            if (
+                profile.equipped_title_id
+            ) {
+
+                const {
+                    data: equippedItem,
+                    error: equippedError
+                } =
+                    await supabase
+                        .from("shop_items")
+                        .select(
+                            "id, name, description, icon, price"
+                        )
+                        .eq(
+                            "id",
+                            profile.equipped_title_id
+                        )
+                        .maybeSingle();
+
+
+                if (equippedError) {
+
+                    console.error(
+                        "EQUIPPED TITLE ERROR:",
+                        equippedError
+                    );
+
+                } else {
+
+                    equipped =
+                        equippedItem;
+
+                }
+
+            }
+
+
+            // ==========================================
+            // FORMAT ITEMS
+            // ==========================================
+
+            const items =
+                (ownedItems || [])
+                    .map(row => {
+
+                        if (
+                            !row.shop_items
+                        ) {
+                            return null;
+                        }
+
+                        return {
+
+                            id:
+                                row.shop_items.id,
+
+                            name:
+                                row.shop_items.name,
+
+                            description:
+                                row.shop_items.description,
+
+                            icon:
+                                row.shop_items.icon,
+
+                            price:
+                                row.shop_items.price,
+
+                            purchased_at:
+                                row.purchased_at
+
+                        };
+
+                    })
+                    .filter(Boolean);
+
+
+            return res.json({
+
+                success:
+                    true,
+
+                items,
+
+                equipped
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "SHOP INVENTORY ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Failed to load inventory."
+            });
+
+        }
+
+    }
+);
+// ==================================================
+// EQUIP SHOP TITLE
+// ==================================================
+
+app.post(
+    "/api/shop/equip",
+    async (req, res) => {
+
+        try {
+
+            if (
+                !req.session ||
+                !req.session.user ||
+                !req.session.user.id
+            ) {
+
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+
+            }
+
+
+            const userId =
+                req.session.user.id;
+
+
+            const itemId =
+                req.body &&
+                req.body.item_id;
+
+
+            const numericItemId =
+                Number(itemId);
+
+
+            if (
+                !Number.isInteger(
+                    numericItemId
+                ) ||
+                numericItemId <= 0
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "A valid item ID is required."
+                });
+
+            }
+
+
+            // ==========================================
+            // CHECK OWNERSHIP
+            // ==========================================
+
+            const {
+                data: ownership,
+                error: ownershipError
+            } =
+                await supabase
+                    .from("user_shop_items")
+                    .select("user_id, item_id")
+                    .eq(
+                        "user_id",
+                        userId
+                    )
+                    .eq(
+                        "item_id",
+                        numericItemId
+                    )
+                    .maybeSingle();
+
+
+            if (ownershipError) {
+
+                console.error(
+                    "OWNERSHIP CHECK ERROR:",
+                    ownershipError
+                );
+
+                return res.status(500).json({
+                    error:
+                        ownershipError.message
+                });
+
+            }
+
+
+            if (!ownership) {
+
+                return res.status(403).json({
+                    error:
+                        "You do not own this item."
+                });
+
+            }
+
+
+            // ==========================================
+            // CHECK ITEM EXISTS
+            // ==========================================
+
+            const {
+                data: item,
+                error: itemError
+            } =
+                await supabase
+                    .from("shop_items")
+                    .select(
+                        "id, name, description, icon"
+                    )
+                    .eq(
+                        "id",
+                        numericItemId
+                    )
+                    .maybeSingle();
+
+
+            if (
+                itemError ||
+                !item
+            ) {
+
+                return res.status(404).json({
+                    error:
+                        "Shop item not found."
+                });
+
+            }
+
+
+            // ==========================================
+            // EQUIP
+            // ==========================================
+
+            const {
+                error: updateError
+            } =
+                await supabase
+                    .from("profiles")
+                    .update({
+
+                        equipped_title_id:
+                            numericItemId
+
+                    })
+                    .eq(
+                        "id",
+                        userId
+                    );
+
+
+            if (updateError) {
+
+                console.error(
+                    "EQUIP UPDATE ERROR:",
+                    updateError
+                );
+
+                return res.status(500).json({
+                    error:
+                        "Could not equip title."
+                });
+
+            }
+
+
+            return res.json({
+
+                success:
+                    true,
+
+                equipped:
+                    item
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "EQUIP TITLE ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Failed to equip title."
+            });
+
+        }
+
+    }
+);
+// ==================================================
+// UNEQUIP SHOP TITLE
+// ==================================================
+
+app.post(
+    "/api/shop/unequip",
+    async (req, res) => {
+
+        try {
+
+            if (
+                !req.session ||
+                !req.session.user ||
+                !req.session.user.id
+            ) {
+
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+
+            }
+
+
+            const userId =
+                req.session.user.id;
+
+
+            const {
+                error
+            } =
+                await supabase
+                    .from("profiles")
+                    .update({
+
+                        equipped_title_id:
+                            null
+
+                    })
+                    .eq(
+                        "id",
+                        userId
+                    );
+
+
+            if (error) {
+
+                console.error(
+                    "UNEQUIP ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        "Could not unequip title."
+                });
+
+            }
+
+
+            return res.json({
+
+                success:
+                    true
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "UNEQUIP TITLE ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Failed to unequip title."
             });
 
         }

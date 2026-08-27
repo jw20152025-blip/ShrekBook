@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+```
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0">
+
+<title>Inventory - ShrekBook 🧌</title>
+
+<link
+    rel="icon"
+    type="image/png"
+    href="/favicon.png">
+
+<link
+    rel="stylesheet"
+    href="/styles.css">
+
+<style>
+
+    .inventory-container {
+
+        max-width: 1100px;
+
+        margin: 40px auto;
+
+        padding: 20px;
+
+    }
+
+
+    .inventory-header {
+
+        text-align: center;
+
+        margin-bottom: 35px;
+
+    }
+
+
+    .inventory-header h1 {
+
+        font-size: 40px;
+
+        margin-bottom: 10px;
+
+    }
+
+
+    .inventory-header p {
+
+        color: #666;
+
+    }
+
+
+    .equipped-box {
+
+        background: white;
+
+        border-radius: 18px;
+
+        padding: 25px;
+
+        margin-bottom: 30px;
+
+        box-shadow:
+            0 3px 12px
+            rgba(0, 0, 0, 0.08);
+
+        text-align: center;
+
+    }
+
+
+    .equipped-title {
+
+        font-size: 28px;
+
+        font-weight: bold;
+
+        margin-top: 10px;
+
+    }
+
+
+    .inventory-grid {
+
+        display: grid;
+
+        grid-template-columns:
+            repeat(
+                auto-fit,
+                minmax(230px, 1fr)
+            );
+
+        gap: 20px;
+
+    }
+
+
+    .inventory-item {
+
+        background: white;
+
+        border-radius: 18px;
+
+        padding: 25px;
+
+        text-align: center;
+
+        box-shadow:
+            0 3px 12px
+            rgba(0, 0, 0, 0.08);
+
+    }
+
+
+    .item-icon {
+
+        font-size: 55px;
+
+        margin-bottom: 10px;
+
+    }
+
+
+    .inventory-item h2 {
+
+        margin: 10px 0;
+
+    }
+
+
+    .inventory-item p {
+
+        color: #666;
+
+        min-height: 45px;
+
+    }
+
+
+    .item-date {
+
+        font-size: 13px;
+
+        color: #888;
+
+        margin-bottom: 15px;
+
+    }
+
+
+    .inventory-button {
+
+        width: 100%;
+
+        padding: 12px;
+
+        border: none;
+
+        border-radius: 10px;
+
+        cursor: pointer;
+
+        font-weight: bold;
+
+        font-size: 15px;
+
+    }
+
+
+    .inventory-button:hover {
+
+        opacity: 0.8;
+
+    }
+
+
+    .unequip-button {
+
+        margin-top: 15px;
+
+        padding: 10px 20px;
+
+        border: none;
+
+        border-radius: 10px;
+
+        cursor: pointer;
+
+        font-weight: bold;
+
+    }
+
+
+    .empty-inventory {
+
+        text-align: center;
+
+        padding: 50px 20px;
+
+        background: white;
+
+        border-radius: 18px;
+
+        box-shadow:
+            0 3px 12px
+            rgba(0, 0, 0, 0.08);
+
+    }
+
+
+    #inventory-status {
+
+        text-align: center;
+
+        margin: 20px;
+
+        font-weight: bold;
+
+    }
+
+
+    @media (max-width: 600px) {
+
+        .inventory-header h1 {
+
+            font-size: 30px;
+
+        }
+
+        .inventory-container {
+
+            padding: 15px;
+
+        }
+
+    }
+
+</style>
+```
+
+</head>
+
+<body>
+
+<header class="navbar">
+
+```
+<div class="navbar-inner">
+
+    <a
+        href="/"
+        class="logo">
+
+        🧌 ShrekBook
+
+    </a>
+
+
+    <nav>
+
+        <a href="/">
+            Home
+        </a>
+
+        <a href="/profile.html">
+            Profile
+        </a>
+
+        <a href="/svis.html">
+            🛒 Shop
+        </a>
+
+    </nav>
+
+</div>
+```
+
+</header>
+
+<main class="inventory-container">
+
+```
+<div class="inventory-header">
+
+    <h1>
+        🎒 My ShrekBook Inventory
+    </h1>
+
+    <p>
+        Your collection of completely unnecessary
+        virtual swamp items. 🧌
+    </p>
+
+</div>
+
+
+<div id="inventory-status">
+    Loading inventory...
+</div>
+
+
+<!-- ==========================================
+     EQUIPPED TITLE
+=========================================== -->
+
+<section class="equipped-box">
+
+    <h2>
+        🏷️ Equipped Title
+    </h2>
+
+    <div
+        id="equipped-title"
+        class="equipped-title">
+
+        Loading...
+
+    </div>
+
+
+    <button
+        id="unequip-button"
+        class="unequip-button"
+        onclick="unequipTitle()"
+        style="display:none;">
+
+        ❌ Unequip Title
+
+    </button>
+
+</section>
+
+
+<!-- ==========================================
+     INVENTORY
+=========================================== -->
+
+<section>
+
+    <h2>
+        🎒 Your Items
+    </h2>
+
+
+    <div
+        id="inventory"
+        class="inventory-grid">
+
+    </div>
+
+</section>
+```
+
+</main>
+
+<script>
+
+/* ==================================================
+   LOAD INVENTORY
+================================================== */
+
+async function loadInventory() {
+
+    const status =
+        document.getElementById(
+            "inventory-status"
+        );
+
+    const inventory =
+        document.getElementById(
+            "inventory"
+        );
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/shop/inventory",
+                {
+                    credentials:
+                        "include"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        console.log(
+            "🎒 INVENTORY:",
+            data
+        );
+
+
+        if (!response.ok) {
+
+            status.textContent =
+                "❌ " +
+                (
+                    data.error ||
+                    "Could not load inventory."
+                );
+
+            return;
+
+        }
+
+
+        status.textContent = "";
+
+
+        /* ------------------------------------------
+           EQUIPPED TITLE
+        ------------------------------------------ */
+
+        const equipped =
+            data.equipped;
+
+
+        const equippedElement =
+            document.getElementById(
+                "equipped-title"
+            );
+
+
+        const unequipButton =
+            document.getElementById(
+                "unequip-button"
+            );
+
+
+        if (equipped) {
+
+            equippedElement.textContent =
+                (
+                    equipped.icon ||
+                    "🏷️"
+                ) +
+                " " +
+                equipped.name;
+
+            unequipButton.style.display =
+                "inline-block";
+
+        } else {
+
+            equippedElement.textContent =
+                "No title equipped";
+
+            unequipButton.style.display =
+                "none";
+
+        }
+
+
+        /* ------------------------------------------
+           ITEMS
+        ------------------------------------------ */
+
+        inventory.innerHTML = "";
+
+
+        if (
+            !data.items ||
+            data.items.length === 0
+        ) {
+
+            inventory.innerHTML = `
+
+                <div class="empty-inventory">
+
+                    <h2>
+                        🎒 Your inventory is empty
+                    </h2>
+
+                    <p>
+                        Go buy some damn titles.
+                        🧌
+                    </p>
+
+                    <a href="/svis.html">
+                        🛒 Visit the Shop
+                    </a>
+
+                </div>
+
+            `;
+
+            return;
+
+        }
+
+
+        data.items.forEach(item => {
+
+            const card =
+                document.createElement(
+                    "div"
+                );
+
+
+            card.className =
+                "inventory-item";
+
+
+            const isEquipped =
+                equipped &&
+                String(equipped.id) ===
+                String(item.id);
+
+
+            card.innerHTML = `
+
+                <div class="item-icon">
+
+                    ${escapeHtml(
+                        item.icon ||
+                        "🏷️"
+                    )}
+
+                </div>
+
+
+                <h2>
+
+                    ${escapeHtml(
+                        item.name ||
+                        "Unnamed Item"
+                    )}
+
+                </h2>
+
+
+                <p>
+
+                    ${escapeHtml(
+                        item.description ||
+                        "No description."
+                    )}
+
+                </p>
+
+
+                <div class="item-date">
+
+                    Purchased:
+                    ${formatDate(
+                        item.purchased_at
+                    )}
+
+                </div>
+
+
+                <button
+                    class="inventory-button"
+                    onclick="equipTitle('${escapeAttribute(item.id)}')"
+                    ${isEquipped ? "disabled" : ""}>
+
+                    ${
+                        isEquipped
+                            ? "✅ Equipped"
+                            : "🏷️ Equip Title"
+                    }
+
+                </button>
+
+            `;
+
+
+            inventory.appendChild(
+                card
+            );
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "INVENTORY ERROR:",
+            error
+        );
+
+
+        status.textContent =
+            "❌ Could not load inventory.";
+
+    }
+
+}
+
+
+/* ==================================================
+   EQUIP TITLE
+================================================== */
+
+async function equipTitle(itemId) {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/shop/equip",
+                {
+
+                    method:
+                        "POST",
+
+                    credentials:
+                        "include",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            item_id:
+                                itemId
+
+                        })
+
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            alert(
+                "❌ " +
+                (
+                    data.error ||
+                    "Could not equip title."
+                )
+            );
+
+            return;
+
+        }
+
+
+        alert(
+            "🏷️ Title equipped!"
+        );
+
+
+        loadInventory();
+
+
+    } catch (error) {
+
+        console.error(
+            "EQUIP ERROR:",
+            error
+        );
+
+
+        alert(
+            "❌ Could not equip title."
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   UNEQUIP TITLE
+================================================== */
+
+async function unequipTitle() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/shop/unequip",
+                {
+
+                    method:
+                        "POST",
+
+                    credentials:
+                        "include"
+
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            alert(
+                "❌ " +
+                (
+                    data.error ||
+                    "Could not unequip title."
+                )
+            );
+
+            return;
+
+        }
+
+
+        alert(
+            "❌ Title unequipped."
+        );
+
+
+        loadInventory();
+
+
+    } catch (error) {
+
+        console.error(
+            "UNEQUIP ERROR:",
+            error
+        );
+
+
+        alert(
+            "❌ Could not unequip title."
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   ESCAPE HTML
+================================================== */
+
+function escapeHtml(value) {
+
+    return String(
+        value ?? ""
+    )
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+}
+
+
+function escapeAttribute(value) {
+
+    return escapeHtml(
+        value
+    );
+
+}
+
+
+/* ==================================================
+   DATE
+================================================== */
+
+function formatDate(date) {
+
+    if (!date) {
+
+        return "Unknown";
+
+    }
+
+
+    const parsed =
+        new Date(date);
+
+
+    if (
+        Number.isNaN(
+            parsed.getTime()
+        )
+    ) {
+
+        return "Unknown";
+
+    }
+
+
+    return parsed.toLocaleDateString();
+
+}
+
+
+/* ==================================================
+   START
+================================================== */
+
+loadInventory();
+
+</script>
+
+</body>
+
+</html>
