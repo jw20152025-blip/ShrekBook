@@ -1,117 +1,197 @@
+
 /* ==================================================
    SHREKBOOK CLIENT SCRIPT
 ================================================== */
+
 let moderationCheckRunning = false;
 let showingSpecificMessage = false;
 let onlineHeartbeatStarted = false;
 
 let currentLeaderboard = "overall";
+
+
 // ==================================================
-// CACHED /api/me
+// ME CACHE
 // ==================================================
 
-let cachedMe = null;
-let cachedMeTime = 0;
+let meCache = null;
+let meCacheTime = 0;
+let meRequest = null;
 
-const ME_CACHE_DURATION = 10 * 1000; // 10 seconds
+const ME_CACHE_DURATION = 10 * 1000;
 
 
-async function getMeCached(forceRefresh = false) {
+// ==================================================
+// GET CURRENT USER
+// IMPORTANT:
+// This function returns PARSED DATA, not a fetch Response.
+// ==================================================
+
+async function getMeCached(force = false) {
 
     const now = Date.now();
 
-    // Return cached result if it's still fresh
+    // Return valid cache
     if (
-        !forceRefresh &&
-        cachedMe &&
-        now - cachedMeTime < ME_CACHE_DURATION
+        !force &&
+        meCache &&
+        (now - meCacheTime) < ME_CACHE_DURATION
     ) {
-        return cachedMe;
+        return meCache;
     }
 
+    // Reuse an existing request
+    if (meRequest) {
+        return meRequest;
+    }
 
-    try {
+    meRequest = (async () => {
 
-        const response =
-            me = await getMeCached();
+        try {
 
+            const response =
+                await fetch(
+                    "/api/me",
+                    {
+                        method: "GET",
+                        credentials: "include",
+                        cache: "no-store",
+                        headers: {
+                            "Accept": "application/json"
+                        }
+                    }
+                );
 
-        // Logged out
-        if (
-            response.status === 401 ||
-            response.status === 403
-        ) {
+            // Not logged in
+            if (response.status === 401) {
 
-            cachedMe = {
+                meCache = {
+                    loggedIn: false,
+                    user: null
+                };
+
+                meCacheTime = Date.now();
+
+                return meCache;
+            }
+
+            if (!response.ok) {
+
+                throw new Error(
+                    `GET /api/me failed: ${response.status}`
+                );
+            }
+
+            const data =
+                await response.json();
+
+            meCache = data;
+            meCacheTime = Date.now();
+
+            return data;
+
+        } catch (error) {
+
+            console.error(
+                "ME CACHE ERROR:",
+                error
+            );
+
+            if (meCache) {
+                return meCache;
+            }
+
+            return {
                 loggedIn: false,
                 user: null
             };
 
-            cachedMeTime = now;
+        } finally {
 
-            return cachedMe;
-        }
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                `HTTP ${response.status}`
-            );
+            meRequest = null;
 
         }
 
+    })();
 
-        const data =
-            await response.json();
-
-
-        cachedMe =
-            data;
-
-        cachedMeTime =
-            now;
+    return meRequest;
+}
 
 
-        return data;
+// ==================================================
+// FORCE REFRESH ME
+// ==================================================
+
+async function refreshMe() {
+
+    meCache = null;
+    meCacheTime = 0;
+
+    return getMeCached(true);
+}
 
 
-    } catch (error) {
+// ==================================================
+// CLEAR ME CACHE
+// ==================================================
 
-        console.error(
-            "ME CACHE ERROR:",
-            error
-        );
+function clearMeCache() {
 
-
-        // Don't destroy a valid cached session
-        // just because one request failed.
-        if (cachedMe) {
-            return cachedMe;
-        }
-
-
-        return {
-            loggedIn: false,
-            user: null
-        };
-
-    }
+    meCache = null;
+    meCacheTime = 0;
 
 }
+
+
 /* ==================================================
    ESCAPE HTML
 ================================================== */
 
 function escapeHtml(text) {
 
-    const div = document.createElement("div");
+    const div =
+        document.createElement("div");
 
-    div.textContent = text ?? "";
+    div.textContent =
+        text ?? "";
 
     return div.innerHTML;
 
 }
+
+
+/* ==================================================
+   SAFE JSON RESPONSE
+================================================== */
+
+async function getJsonResponse(response) {
+
+    const contentType =
+        response.headers.get("content-type") || "";
+
+    if (
+        contentType.includes("application/json")
+    ) {
+
+        return await response.json();
+
+    }
+
+    const text =
+        await response.text();
+
+    return {
+        error:
+            text ||
+            `Request failed with status ${response.status}`
+    };
+
+}
+
+
+/* ==================================================
+   INVENTORY
+================================================== */
 
 async function loadInventory() {
 
@@ -121,14 +201,15 @@ async function loadInventory() {
             await fetch(
                 "/api/shop/inventory",
                 {
-                    credentials: "include"
+                    credentials: "include",
+                    headers: {
+                        "Accept": "application/json"
+                    }
                 }
             );
 
-
         const data =
-            await response.json();
-
+            await getJsonResponse(response);
 
         if (!response.ok) {
 
@@ -139,38 +220,31 @@ async function loadInventory() {
 
         }
 
-
         const inventory =
             data.items || [];
-
 
         const container =
             document.getElementById(
                 "inventory"
             );
 
-
         if (!container) {
             return;
         }
 
-
-        if (inventory.length === 0) {
+        if (!inventory.length) {
 
             container.innerHTML =
                 "<p>You don't own any items yet. 🧌</p>";
 
             return;
-
         }
-
 
         container.innerHTML =
             inventory.map(item => {
 
                 const shopItem =
-                    item.shop_items;
-
+                    item.shop_items || {};
 
                 return `
 
@@ -178,7 +252,7 @@ async function loadInventory() {
 
                         <h3>
                             ${escapeHtml(
-                                shopItem.name
+                                shopItem.name || "Item"
                             )}
                         </h3>
 
@@ -194,7 +268,6 @@ async function loadInventory() {
 
             }).join("");
 
-
     } catch (error) {
 
         console.error(
@@ -205,6 +278,8 @@ async function loadInventory() {
     }
 
 }
+
+
 /* ==================================================
    WARNING
 ================================================== */
@@ -212,7 +287,9 @@ async function loadInventory() {
 function warn() {
 
     const element =
-        document.getElementById("upload-avatar-button-warn");
+        document.getElementById(
+            "upload-avatar-button-warn"
+        );
 
     if (element) {
 
@@ -224,13 +301,6 @@ function warn() {
 }
 
 
-
-
-
-
-
-
-
 /* ==================================================
    FILE -> BASE64
 ================================================== */
@@ -239,13 +309,16 @@ function fileToBase64(file) {
 
     return new Promise((resolve, reject) => {
 
-        const reader = new FileReader();
+        const reader =
+            new FileReader();
 
         reader.onload = () => {
 
-            const result = reader.result;
+            const result =
+                reader.result;
 
-            const base64 = result.split(",")[1];
+            const base64 =
+                result.split(",")[1];
 
             resolve(base64);
 
@@ -254,7 +327,9 @@ function fileToBase64(file) {
         reader.onerror = () => {
 
             reject(
-                new Error("Could not read image.")
+                new Error(
+                    "Could not read image."
+                )
             );
 
         };
@@ -281,35 +356,56 @@ async function giveReaction(type) {
         return;
     }
 
+    const validTypes = [
+        "gyatt",
+        "cat",
+        "ogred"
+    ];
+
+    if (!validTypes.includes(type)) {
+        return;
+    }
+
     try {
 
         const response =
             await fetch(
-                `/api/users/${userId}/${type}`,
+                `/api/users/${encodeURIComponent(userId)}/${encodeURIComponent(type)}`,
                 {
                     method: "POST",
-                    credentials: "include"
+                    credentials: "include",
+                    headers: {
+                        "Accept": "application/json"
+                    }
                 }
             );
 
         const data =
-            await response.json();
+            await getJsonResponse(response);
 
         if (!response.ok) {
 
-            alert("❌ " + (data.error || "Could not react."));
+            alert(
+                "❌ " +
+                (
+                    data.error ||
+                    "Could not react."
+                )
+            );
 
             return;
-
         }
 
         if (type === "gyatt") {
 
             const element =
-                document.getElementById("gyatt-count");
+                document.getElementById(
+                    "gyatt-count"
+                );
 
             if (element) {
-                element.textContent = data.gyatt;
+                element.textContent =
+                    data.gyatt;
             }
 
         }
@@ -317,10 +413,13 @@ async function giveReaction(type) {
         if (type === "cat") {
 
             const element =
-                document.getElementById("cat-count");
+                document.getElementById(
+                    "cat-count"
+                );
 
             if (element) {
-                element.textContent = data.cat;
+                element.textContent =
+                    data.cat;
             }
 
         }
@@ -328,15 +427,20 @@ async function giveReaction(type) {
         if (type === "ogred") {
 
             const element =
-                document.getElementById("ogred-count");
+                document.getElementById(
+                    "ogred-count"
+                );
 
             if (element) {
-                element.textContent = data.ogred;
+                element.textContent =
+                    data.ogred;
             }
 
         }
 
-        loadLeaderboard(currentLeaderboard);
+        loadLeaderboard(
+            currentLeaderboard
+        );
 
     } catch (error) {
 
@@ -345,7 +449,9 @@ async function giveReaction(type) {
             error
         );
 
-        alert("❌ Could not react.");
+        alert(
+            "❌ Could not react."
+        );
 
     }
 
@@ -370,7 +476,10 @@ async function prepareImage(file) {
 
     }
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (
+        file.size >
+        5 * 1024 * 1024
+    ) {
 
         throw new Error(
             "Image must be under 5MB."
@@ -384,9 +493,7 @@ async function prepareImage(file) {
     return {
 
         data: data,
-
         type: file.type,
-
         name: file.name
 
     };
@@ -403,12 +510,12 @@ async function login() {
     const email =
         document.getElementById(
             "login-email"
-        ).value.trim();
+        )?.value.trim();
 
     const password =
         document.getElementById(
             "login-password"
-        ).value;
+        )?.value;
 
     const status =
         document.getElementById(
@@ -417,15 +524,21 @@ async function login() {
 
     if (!email || !password) {
 
-        status.textContent =
-            "❌ Enter your email and password.";
+        if (status) {
+
+            status.textContent =
+                "❌ Enter your email and password.";
+
+        }
 
         return;
 
     }
 
-    status.textContent =
-        "Logging in...";
+    if (status) {
+        status.textContent =
+            "Logging in...";
+    }
 
     try {
 
@@ -438,6 +551,8 @@ async function login() {
 
                     headers: {
                         "Content-Type":
+                            "application/json",
+                        "Accept":
                             "application/json"
                     },
 
@@ -446,9 +561,11 @@ async function login() {
                     body:
                         JSON.stringify({
 
-                            email: email,
+                            email:
+                                email,
 
-                            password: password
+                            password:
+                                password
 
                         })
 
@@ -456,7 +573,7 @@ async function login() {
             );
 
         const data =
-            await response.json();
+            await getJsonResponse(response);
 
         if (!response.ok) {
 
@@ -467,8 +584,14 @@ async function login() {
 
         }
 
-        status.textContent =
-            "✅ Logged in!";
+        clearMeCache();
+
+        if (status) {
+
+            status.textContent =
+                "✅ Logged in!";
+
+        }
 
         await checkLogin();
 
@@ -479,8 +602,13 @@ async function login() {
             error
         );
 
-        status.textContent =
-            "❌ " + error.message;
+        if (status) {
+
+            status.textContent =
+                "❌ " +
+                error.message;
+
+        }
 
     }
 
@@ -496,22 +624,22 @@ async function signup() {
     const username =
         document.getElementById(
             "signup-username"
-        ).value.trim();
+        )?.value.trim();
 
     const displayName =
         document.getElementById(
             "signup-display-name"
-        ).value.trim();
+        )?.value.trim();
 
     const email =
         document.getElementById(
             "signup-email"
-        ).value.trim();
+        )?.value.trim();
 
     const password =
         document.getElementById(
             "signup-password"
-        ).value;
+        )?.value;
 
     const status =
         document.getElementById(
@@ -524,15 +652,23 @@ async function signup() {
         !password
     ) {
 
-        status.textContent =
-            "❌ Fill in all required fields.";
+        if (status) {
+
+            status.textContent =
+                "❌ Fill in all required fields.";
+
+        }
 
         return;
 
     }
 
-    status.textContent =
-        "Creating account...";
+    if (status) {
+
+        status.textContent =
+            "Creating account...";
+
+    }
 
     try {
 
@@ -545,6 +681,8 @@ async function signup() {
 
                     headers: {
                         "Content-Type":
+                            "application/json",
+                        "Accept":
                             "application/json"
                     },
 
@@ -553,15 +691,18 @@ async function signup() {
                     body:
                         JSON.stringify({
 
-                            username: username,
+                            username:
+                                username,
 
                             display_name:
                                 displayName ||
                                 username,
 
-                            email: email,
+                            email:
+                                email,
 
-                            password: password
+                            password:
+                                password
 
                         })
 
@@ -569,7 +710,7 @@ async function signup() {
             );
 
         const data =
-            await response.json();
+            await getJsonResponse(response);
 
         if (!response.ok) {
 
@@ -580,8 +721,12 @@ async function signup() {
 
         }
 
-        status.textContent =
-            "✅ Account created!";
+        if (status) {
+
+            status.textContent =
+                "✅ Account created!";
+
+        }
 
         showLogin();
 
@@ -592,21 +737,21 @@ async function signup() {
             error
         );
 
-        status.textContent =
-            "❌ " + error.message;
+        if (status) {
+
+            status.textContent =
+                "❌ " +
+                error.message;
+
+        }
 
     }
 
 }
 
 
-
-
-
-
-
 /* ==================================================
-   CREATE LEADERBOARD UI
+   LEADERBOARD UI
 ================================================== */
 
 function createLeaderboardUI() {
@@ -629,7 +774,9 @@ function createLeaderboardUI() {
     }
 
     const section =
-        document.createElement("section");
+        document.createElement(
+            "section"
+        );
 
     section.id =
         "leaderboard-section";
@@ -650,62 +797,55 @@ function createLeaderboardUI() {
                 gap:8px;
                 flex-wrap:wrap;
                 margin-bottom:15px;
-            ">
+            "
+        >
 
             <button
                 id="leaderboard-button-overall"
-                onclick="loadLeaderboard('overall')">
-
+                onclick="loadLeaderboard('overall')"
+            >
                 🏆 Overall
-
             </button>
 
             <button
                 id="leaderboard-button-posts"
-                onclick="loadLeaderboard('posts')">
-
+                onclick="loadLeaderboard('posts')"
+            >
                 📝 Posts
-
             </button>
 
             <button
                 id="leaderboard-button-comments"
-                onclick="loadLeaderboard('comments')">
-
+                onclick="loadLeaderboard('comments')"
+            >
                 💬 Comments
-
             </button>
 
             <button
                 id="leaderboard-button-cat"
-                onclick="loadLeaderboard('cat')">
-
+                onclick="loadLeaderboard('cat')"
+            >
                 🐱 Cat
-
             </button>
 
             <button
                 id="leaderboard-button-gyatt"
-                onclick="loadLeaderboard('gyatt')">
-
+                onclick="loadLeaderboard('gyatt')"
+            >
                 🍑 Gyatt
-
             </button>
 
             <button
                 id="leaderboard-button-ogred"
-                onclick="loadLeaderboard('ogred')">
-
+                onclick="loadLeaderboard('ogred')"
+            >
                 🧌 Ogred
-
             </button>
 
         </div>
 
         <div id="leaderboard">
-
             Loading leaderboard... 🧌
-
         </div>
 
     `;
@@ -724,7 +864,9 @@ function createLeaderboardUI() {
 
     } else {
 
-        app.appendChild(section);
+        app.appendChild(
+            section
+        );
 
     }
 
@@ -732,11 +874,8 @@ function createLeaderboardUI() {
 
 
 /* ==================================================
-   LEADERBOARD
+   LEADERBOARD TITLES
 ================================================== */
-
-
-
 
 const leaderboardTitles = {
 
@@ -765,7 +904,10 @@ const leaderboardTitles = {
    GET LEADERBOARD SCORE
 ================================================== */
 
-function getLeaderboardScore(user, type) {
+function getLeaderboardScore(
+    user,
+    type
+) {
 
     if (!user) {
         return 0;
@@ -777,7 +919,9 @@ function getLeaderboardScore(user, type) {
         user.score !== null
     ) {
 
-        return Number(user.score) || 0;
+        return Number(
+            user.score
+        ) || 0;
 
     }
 
@@ -818,21 +962,26 @@ function getLeaderboardScore(user, type) {
     };
 
     const fields =
-        possibleFields[type] || [
+        possibleFields[type] ||
+        [
             "score",
             "count",
             "total",
             "value"
         ];
 
-    for (const field of fields) {
+    for (
+        const field of fields
+    ) {
 
         if (
             user[field] !== undefined &&
             user[field] !== null
         ) {
 
-            return Number(user[field]) || 0;
+            return Number(
+                user[field]
+            ) || 0;
 
         }
 
@@ -847,19 +996,26 @@ function getLeaderboardScore(user, type) {
    LOAD LEADERBOARD
 ================================================== */
 
-async function loadLeaderboard(type = "overall") {
+async function loadLeaderboard(
+    type = "overall"
+) {
 
     const container =
-        document.getElementById("leaderboard");
+        document.getElementById(
+            "leaderboard"
+        );
 
     if (!container) {
         return;
     }
 
-    currentLeaderboard = type;
+    currentLeaderboard =
+        type;
 
     const title =
-        document.getElementById("leaderboard-title");
+        document.getElementById(
+            "leaderboard-title"
+        );
 
     if (title) {
 
@@ -875,7 +1031,9 @@ async function loadLeaderboard(type = "overall") {
         )
         .forEach(button => {
 
-            button.classList.remove("active");
+            button.classList.remove(
+                "active"
+            );
 
         });
 
@@ -885,7 +1043,11 @@ async function loadLeaderboard(type = "overall") {
         );
 
     if (activeButton) {
-        activeButton.classList.add("active");
+
+        activeButton.classList.add(
+            "active"
+        );
+
     }
 
     container.innerHTML = `
@@ -904,13 +1066,16 @@ async function loadLeaderboard(type = "overall") {
                     credentials: "include",
                     cache: "no-store",
                     headers: {
-                        "Accept": "application/json"
+                        "Accept":
+                            "application/json"
                     }
                 }
             );
 
         const data =
-            await response.json();
+            await getJsonResponse(
+                response
+            );
 
         console.log(
             "LEADERBOARD DATA:",
@@ -930,13 +1095,16 @@ async function loadLeaderboard(type = "overall") {
             Array.isArray(data)
                 ? data
                 : (
-                    Array.isArray(data.leaderboard)
+                    Array.isArray(
+                        data.leaderboard
+                    )
                         ? data.leaderboard
                         : []
                 );
 
-        const currentUser =
-            data.currentUser || null;
+        let currentUser =
+            data.currentUser ||
+            null;
 
         users =
             users
@@ -981,10 +1149,13 @@ async function loadLeaderboard(type = "overall") {
                     (user, index) => {
 
                         const rank =
-                            user.rank ||
-                            index + 1;
+                            Number(
+                                user.rank ||
+                                index + 1
+                            );
 
-                        let medal = "";
+                        let medal =
+                            String(rank);
 
                         if (rank === 1) {
                             medal = "🥇";
@@ -996,10 +1167,6 @@ async function loadLeaderboard(type = "overall") {
 
                         else if (rank === 3) {
                             medal = "🥉";
-                        }
-
-                        else {
-                            medal = `${rank}`;
                         }
 
                         const avatar =
@@ -1016,7 +1183,9 @@ async function loadLeaderboard(type = "overall") {
                             "user";
 
                         const score =
-                            user.leaderboardScore;
+                            Number(
+                                user.leaderboardScore
+                            ) || 0;
 
                         return `
 
@@ -1037,15 +1206,11 @@ async function loadLeaderboard(type = "overall") {
                                     <div
                                         class="leaderboard-rank"
                                     >
-
                                         <span
                                             class="leaderboard-medal"
                                         >
-
                                             ${medal}
-
                                         </span>
-
                                     </div>
 
                                     <img
@@ -1068,21 +1233,17 @@ async function loadLeaderboard(type = "overall") {
                                         <div
                                             class="leaderboard-name"
                                         >
-
                                             ${escapeHtml(
                                                 displayName
                                             )}
-
                                         </div>
 
                                         <div
                                             class="leaderboard-username"
                                         >
-
                                             @${escapeHtml(
                                                 username
                                             )}
-
                                         </div>
 
                                     </div>
@@ -1090,10 +1251,7 @@ async function loadLeaderboard(type = "overall") {
                                     <div
                                         class="leaderboard-score"
                                     >
-
-                                        ${Number(score)
-                                            .toLocaleString()}
-
+                                        ${score.toLocaleString()}
                                     </div>
 
                                 </div>
@@ -1110,12 +1268,23 @@ async function loadLeaderboard(type = "overall") {
         if (currentUser) {
 
             const currentRank =
-                currentUser.rank;
+                currentUser.rank ||
+                (
+                    users.findIndex(
+                        user =>
+                            String(user.id) ===
+                            String(currentUser.id)
+                    ) + 1
+                );
 
             const currentScore =
                 Number(
-                    currentUser.leaderboardScore ?? 0
-                );
+                    currentUser.leaderboardScore ??
+                    getLeaderboardScore(
+                        currentUser,
+                        type
+                    )
+                ) || 0;
 
             const alreadyVisible =
                 topFive.some(
@@ -1142,9 +1311,7 @@ async function loadLeaderboard(type = "overall") {
                                 margin-bottom:8px;
                             "
                         >
-
                             🧌 Your position
-
                         </div>
 
                         <a
@@ -1167,9 +1334,7 @@ async function loadLeaderboard(type = "overall") {
                                 <div
                                     class="leaderboard-rank"
                                 >
-
                                     #${currentRank}
-
                                 </div>
 
                                 <img
@@ -1195,24 +1360,20 @@ async function loadLeaderboard(type = "overall") {
                                     <div
                                         class="leaderboard-name"
                                     >
-
                                         ${escapeHtml(
                                             currentUser.display_name ||
                                             currentUser.username ||
                                             "You"
                                         )}
-
                                     </div>
 
                                     <div
                                         class="leaderboard-username"
                                     >
-
                                         @${escapeHtml(
                                             currentUser.username ||
                                             "user"
                                         )}
-
                                     </div>
 
                                 </div>
@@ -1220,10 +1381,7 @@ async function loadLeaderboard(type = "overall") {
                                 <div
                                     class="leaderboard-score"
                                 >
-
-                                    ${currentScore
-                                        .toLocaleString()}
-
+                                    ${currentScore.toLocaleString()}
                                 </div>
 
                             </div>
@@ -1238,7 +1396,8 @@ async function loadLeaderboard(type = "overall") {
 
         }
 
-        container.innerHTML = html;
+        container.innerHTML =
+            html;
 
     } catch (error) {
 
@@ -1252,11 +1411,9 @@ async function loadLeaderboard(type = "overall") {
             <div
                 class="leaderboard-empty"
             >
-
                 ❌ ${escapeHtml(
                     error.message
                 )}
-
             </div>
 
         `;
@@ -1288,16 +1445,20 @@ function showApp() {
         );
 
     if (auth) {
-        auth.style.display = "none";
+        auth.style.display =
+            "none";
     }
 
     if (app) {
-        app.style.display = "block";
+        app.style.display =
+            "block";
     }
 
     if (logoutButton) {
+
         logoutButton.style.display =
             "inline-block";
+
     }
 
     createLeaderboardUI();
@@ -1309,6 +1470,8 @@ function showApp() {
     loadLeaderboard(
         "overall"
     );
+
+    loadInventory();
 
     startOnlineHeartbeat();
 
@@ -1342,6 +1505,8 @@ async function logout() {
 
     }
 
+    clearMeCache();
+
     showAuth();
 
 }
@@ -1352,7 +1517,6 @@ async function logout() {
 ================================================== */
 
 let mentionUsers = null;
-
 let mentionUsersPromise = null;
 
 
@@ -1362,92 +1526,80 @@ let mentionUsersPromise = null;
 
 async function loadMentionUsers() {
 
-    /*
-     * Already loaded.
-     */
-
     if (mentionUsers !== null) {
         return mentionUsers;
     }
-
-    /*
-     * Another request is already running.
-     *
-     * Reuse it instead of making another request.
-     */
 
     if (mentionUsersPromise) {
         return mentionUsersPromise;
     }
 
-    mentionUsersPromise = (async () => {
+    mentionUsersPromise =
+        (async () => {
 
-        try {
+            try {
 
-            const response =
-                await fetch(
-                    "/api/users",
-                    {
-                        credentials: "include",
-                        cache: "no-store",
-                        headers: {
-                            "Accept":
-                                "application/json"
+                const response =
+                    await fetch(
+                        "/api/users",
+                        {
+                            credentials: "include",
+                            cache: "no-store",
+                            headers: {
+                                "Accept":
+                                    "application/json"
+                            }
                         }
-                    }
-                );
+                    );
 
-            if (!response.ok) {
+                if (!response.ok) {
+
+                    console.error(
+                        "MENTION USERS REQUEST FAILED:",
+                        response.status
+                    );
+
+                    mentionUsers = [];
+
+                    return mentionUsers;
+
+                }
+
+                const users =
+                    await response.json();
+
+                if (!Array.isArray(users)) {
+
+                    mentionUsers = [];
+
+                    return mentionUsers;
+
+                }
+
+                mentionUsers =
+                    users;
+
+                return mentionUsers;
+
+            } catch (error) {
 
                 console.error(
-                    "MENTION USERS REQUEST FAILED:",
-                    response.status
+                    "MENTION USERS ERROR:",
+                    error
                 );
 
                 mentionUsers = [];
 
                 return mentionUsers;
 
-            }
+            } finally {
 
-            const users =
-                await response.json();
-
-            if (!Array.isArray(users)) {
-
-                mentionUsers = [];
-
-                return mentionUsers;
+                mentionUsersPromise =
+                    null;
 
             }
 
-            console.log(
-                "MENTION USERS:",
-                users
-            );
-
-            mentionUsers = users;
-
-            return mentionUsers;
-
-        } catch (error) {
-
-            console.error(
-                "MENTION USERS ERROR:",
-                error
-            );
-
-            mentionUsers = [];
-
-            return mentionUsers;
-
-        } finally {
-
-            mentionUsersPromise = null;
-
-        }
-
-    })();
+        })();
 
     return mentionUsersPromise;
 
@@ -1458,29 +1610,35 @@ async function loadMentionUsers() {
    FORMAT MENTIONS
 ================================================== */
 
-function formatMentions(text, users = []) {
+function formatMentions(
+    text,
+    users = []
+) {
 
     if (!text) {
         return "";
     }
 
     return String(text).replace(
-        /(^|[\s.,!?;:()[\]{}"'`<>])@([A-Za-z0-9_.-@]+)/g,
-        (match, before, username) => {
+        /(^|[\s.,!?;:()[\]{}"'`<>])@([A-Za-z0-9_.-]+)/g,
+        (
+            match,
+            before,
+            username
+        ) => {
 
             const normalized =
                 username.toLowerCase();
 
             const user =
-                users.find(u =>
-                    String(u.username || "")
-                        .toLowerCase() === normalized
+                users.find(
+                    u =>
+                        String(
+                            u.username || ""
+                        )
+                        .toLowerCase() ===
+                        normalized
                 );
-
-            /*
-             * Unknown @username:
-             * keep it as text.
-             */
 
             if (!user) {
                 return match;
@@ -1490,8 +1648,12 @@ function formatMentions(text, users = []) {
                 before +
                 `<a
                     class="post-mention"
-                    href="/profile.html?id=${encodeURIComponent(user.id)}"
-                >@${escapeHtml(user.username)}</a>`
+                    href="/profile.html?id=${encodeURIComponent(
+                        user.id
+                    )}"
+                >@${escapeHtml(
+                    user.username
+                )}</a>`
             );
 
         }
@@ -1504,294 +1666,127 @@ function formatMentions(text, users = []) {
    FORMAT POST CONTENT
 ================================================== */
 
-async function formatPostContent(content) {
+async function formatPostContent(
+    content
+) {
 
-    if (content === null || content === undefined) {
+    if (
+        content === null ||
+        content === undefined
+    ) {
         return "";
     }
 
     const users =
         await loadMentionUsers();
 
-    /*
-     * Convert to string.
-     */
     let text =
         String(content);
 
-    /*
-     * Normalize line endings.
-     */
     text =
-        text.replace(/\r\n/g, "\n")
+        text
+            .replace(/\r\n/g, "\n")
             .replace(/\r/g, "\n");
 
-    /*
-     * Escape HTML BEFORE creating our own HTML.
-     */
     text =
         escapeHtml(text);
 
-    /*
-     * Split into individual lines.
-     */
     const lines =
         text.split("\n");
 
-    return lines.map(line => {
+    return lines.map(
+        line => {
 
-        /*
-         * ==========================================
-         * ### SMALL
-         * ==========================================
-         */
+            // ### Small
+            if (
+                line.startsWith("### ")
+            ) {
 
-        if (
-            line.startsWith("### ")
-        ) {
+                const value =
+                    line.substring(4);
 
-            const value =
-                line.substring(4);
+                return `
+                    <div
+                        class="post-heading post-heading-small"
+                    >
+                        ${formatMentions(
+                            value,
+                            users
+                        )}
+                    </div>
+                `;
 
-            return `
-                <div class="post-heading post-heading-small">
-                    ${formatMentions(value, users)}
-                </div>
-            `;
+            }
 
-        }
+            // ## Medium
+            if (
+                line.startsWith("## ")
+            ) {
 
+                const value =
+                    line.substring(3);
 
-        /*
-         * ==========================================
-         * ## MEDIUM
-         * ==========================================
-         */
+                return `
+                    <div
+                        class="post-heading post-heading-medium"
+                    >
+                        ${formatMentions(
+                            value,
+                            users
+                        )}
+                    </div>
+                `;
 
-        if (
-            line.startsWith("## ")
-        ) {
+            }
 
-            const value =
-                line.substring(3);
+            // # Large
+            if (
+                line.startsWith("# ")
+            ) {
 
-            return `
-                <div class="post-heading post-heading-medium">
-                    ${formatMentions(value, users)}
-                </div>
-            `;
+                const value =
+                    line.substring(2);
 
-        }
+                return `
+                    <div
+                        class="post-heading post-heading-large"
+                    >
+                        ${formatMentions(
+                            value,
+                            users
+                        )}
+                    </div>
+                `;
 
+            }
 
-        /*
-         * ==========================================
-         * # LARGE
-         * ==========================================
-         */
+            // Empty line
+            if (
+                line.trim() === ""
+            ) {
 
-        if (
-            line.startsWith("# ")
-        ) {
+                return `
+                    <div
+                        class="post-line-break"
+                    ></div>
+                `;
 
-            const value =
-                line.substring(2);
+            }
 
-            return `
-                <div class="post-heading post-heading-large">
-                    ${formatMentions(value, users)}
-                </div>
-            `;
-
-        }
-
-
-        /*
-         * ==========================================
-         * EMPTY LINE
-         * ==========================================
-         */
-
-        if (
-            line.trim() === ""
-        ) {
-
-            return `
-                <div class="post-line-break"></div>
-            `;
-
-        }
-
-
-        /*
-         * ==========================================
-         * NORMAL LINE
-         * ==========================================
-         */
-
-        return `
-            <div class="post-line">
-                ${formatMentions(line, users)}
-            </div>
-        `;
-
-    }).join("");
-
-}
-
-
-/* ==================================================
-   SHREKBOOK POST FORMATTER
-================================================== */
-
-async function formatPostContent(content) {
-
-    if (!content) {
-        return "";
-    }
-
-    const users =
-        await loadMentionUsers();
-
-    /*
-     * Escape user text BEFORE creating HTML.
-     *
-     * This prevents HTML injection.
-     */
-
-    const escaped =
-        escapeHtml(String(content));
-
-    /*
-     * Normalize Windows line endings.
-     */
-
-    const normalized =
-        escaped.replace(/\r\n/g, "\n");
-
-    const lines =
-        normalized.split("\n");
-
-    return lines.map(line => {
-
-        /*
-         * ==============================================
-         * ### SMALL HEADING
-         * ==============================================
-         */
-
-        if (
-            line.startsWith("### ")
-        ) {
-
-            const headingText =
-                line.substring(4);
-
+            // Normal line
             return `
                 <div
-                    class="post-heading post-heading-small"
+                    class="post-line"
                 >
                     ${formatMentions(
-                        headingText,
+                        line,
                         users
                     )}
                 </div>
             `;
 
         }
-
-
-        /*
-         * ==============================================
-         * ## MEDIUM HEADING
-         * ==============================================
-         */
-
-        if (
-            line.startsWith("## ")
-        ) {
-
-            const headingText =
-                line.substring(3);
-
-            return `
-                <div
-                    class="post-heading post-heading-medium"
-                >
-                    ${formatMentions(
-                        headingText,
-                        users
-                    )}
-                </div>
-            `;
-
-        }
-
-
-        /*
-         * ==============================================
-         * # LARGE HEADING
-         * ==============================================
-         */
-
-        if (
-            line.startsWith("# ")
-        ) {
-
-            const headingText =
-                line.substring(2);
-
-            return `
-                <div
-                    class="post-heading post-heading-large"
-                >
-                    ${formatMentions(
-                        headingText,
-                        users
-                    )}
-                </div>
-            `;
-
-        }
-
-
-        /*
-         * ==============================================
-         * EMPTY LINE
-         * ==============================================
-         */
-
-        if (
-            line.trim() === ""
-        ) {
-
-            return `
-                <div
-                    class="post-line-break"
-                ></div>
-            `;
-
-        }
-
-
-        /*
-         * ==============================================
-         * NORMAL TEXT
-         * ==============================================
-         */
-
-        return `
-            <div
-                class="post-line"
-            >
-                ${formatMentions(
-                    line,
-                    users
-                )}
-            </div>
-        `;
-
-    }).join("");
+    ).join("");
 
 }
 
@@ -1817,18 +1812,32 @@ async function loadPosts() {
             await fetch(
                 "/api/posts",
                 {
-                    credentials: "include"
+                    credentials: "include",
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
                 }
             );
 
         const posts =
-            await response.json();
+            await getJsonResponse(
+                response
+            );
 
         if (!response.ok) {
 
             throw new Error(
                 posts.error ||
                 "Could not load posts."
+            );
+
+        }
+
+        if (!Array.isArray(posts)) {
+
+            throw new Error(
+                "Invalid posts response."
             );
 
         }
@@ -1842,269 +1851,264 @@ async function loadPosts() {
 
         }
 
-        container.innerHTML =
-            (
-                await Promise.all(
-                    posts.map(
-                        async post => {
+        const renderedPosts =
+            await Promise.all(
+                posts.map(
+                    async post => {
 
-                            const avatar =
-                                post.avatar ||
-                                "/default-avatar.png";
+                        const avatar =
+                            post.avatar ||
+                            "/default-avatar.png";
 
-                            const displayName =
-                                post.display_name ||
-                                post.username ||
-                                "User";
+                        const displayName =
+                            post.display_name ||
+                            post.username ||
+                            "User";
 
-                            let imageHTML = "";
+                        let imageHTML =
+                            "";
 
-                            if (
-                                post.image_url
-                            ) {
+                        if (
+                            post.image_url
+                        ) {
 
-                                imageHTML = `
+                            imageHTML = `
 
-                                    <div
-                                        class="post-image-container"
-                                        style="
-                                            margin-top:12px;
-                                        "
-                                    >
-
-                                        <img
-                                            src="${escapeHtml(
-                                                post.image_url
-                                            )}"
-                                            alt="Post image"
-                                            style="
-                                                max-width:100%;
-                                                max-height:600px;
-                                                border-radius:12px;
-                                                object-fit:contain;
-                                                display:block;
-                                            "
-                                            onerror="
-                                                this.style.display='none';
-                                            "
-                                        >
-
-                                    </div>
-
-                                `;
-
-                            }
-
-                            return `
-
-                                <article
-                                    class="post"
+                                <div
+                                    class="post-image-container"
+                                    style="
+                                        margin-top:12px;
+                                    "
                                 >
 
-                                    <div
-                                        class="post-header"
-                                        style="
-                                            display:flex;
-                                            align-items:center;
-                                            gap:10px;
-                                        "
-                                    >
-
-                                        <img
-                                            src="${escapeHtml(
-                                                avatar
-                                            )}"
-                                            alt="Avatar"
-                                            style="
-                                                width:45px;
-                                                height:45px;
-                                                border-radius:50%;
-                                                object-fit:cover;
-                                            "
-                                            onerror="
-                                                this.src='/default-avatar.png';
-                                            "
-                                        >
-
-                                        <a
-                                            href="/profile.html?id=${encodeURIComponent(
-                                                post.user_id
-                                            )}"
-                                            style="
-                                                text-decoration:none;
-                                                color:inherit;
-                                            "
-                                        >
-
-                                            <strong>
-                                                ${escapeHtml(
-                                                    displayName
-                                                )}
-                                            </strong>
-
-                                            <div>
-                                                @${escapeHtml(
-                                                    post.username ||
-                                                    "user"
-                                                )}
-                                            </div>
-
-                                        </a>
-
-                                    </div>
-
-                                    ${
-                                        post.content
-                                            ? `
-
-                                                <div
-                                                    class="post-content"
-                                                    style="
-                                                        margin-top:10px;
-                                                    "
-                                                >
-
-                                                    ${await formatPostContent(
-                                                        post.content
-                                                    )}
-
-                                                </div>
-
-                                            `
-                                            : ""
-                                    }
-
-                                    ${imageHTML}
-
-                                    <button
-                                        onclick="
-                                            toggleComments(
-                                                '${escapeHtml(
-                                                    post.id
-                                                )}'
-                                            )
-                                        "
-                                    >
-
-                                        💬 Comments
-
-                                    </button>
-
-                                    <div
-                                        id="comments-${escapeHtml(
-                                            post.id
+                                    <img
+                                        src="${escapeHtml(
+                                            post.image_url
                                         )}"
-                                        class="comments"
+                                        alt="Post image"
                                         style="
-                                            display:none;
+                                            max-width:100%;
+                                            max-height:600px;
+                                            border-radius:12px;
+                                            object-fit:contain;
+                                            display:block;
+                                        "
+                                        onerror="
+                                            this.style.display='none';
                                         "
                                     >
 
-                                        <div
-                                            id="comment-list-${escapeHtml(
-                                                post.id
-                                            )}"
-                                        >
-
-                                            Loading...
-
-                                        </div>
-
-                                        <div
-                                            class="comment-form"
-                                            style="
-                                                margin-top:10px;
-                                            "
-                                        >
-
-                                            <input
-                                                id="comment-input-${escapeHtml(
-                                                    post.id
-                                                )}"
-                                                placeholder="Write a comment..."
-                                                maxlength="500"
-                                            >
-
-                                            <input
-                                                id="comment-image-${escapeHtml(
-                                                    post.id
-                                                )}"
-                                                type="file"
-                                                accept="
-                                                    image/png,
-                                                    image/jpeg,
-                                                    image/webp,
-                                                    image/gif
-                                                "
-                                            >
-
-                                            <button
-                                                onclick="
-                                                    submitComment(
-                                                        '${escapeHtml(
-                                                            post.id
-                                                        )}'
-                                                    )
-                                                "
-                                            >
-
-                                                Send
-
-                                            </button>
-
-                                            <div
-                                                id="comment-preview-${escapeHtml(
-                                                    post.id
-                                                )}"
-                                                style="
-                                                    display:none;
-                                                    margin-top:8px;
-                                                "
-                                            >
-
-                                                <img
-                                                    id="comment-preview-image-${escapeHtml(
-                                                        post.id
-                                                    )}"
-                                                    alt="Comment image preview"
-                                                    style="
-                                                        max-width:200px;
-                                                        max-height:200px;
-                                                        border-radius:10px;
-                                                    "
-                                                >
-
-                                                <br>
-
-                                                <button
-                                                    type="button"
-                                                    onclick="
-                                                        clearCommentImage(
-                                                            '${escapeHtml(
-                                                                post.id
-                                                            )}'
-                                                        )
-                                                    "
-                                                >
-
-                                                    ❌ Remove image
-
-                                                </button>
-
-                                            </div>
-
-                                        </div>
-
-                                    </div>
-
-                                </article>
+                                </div>
 
                             `;
 
                         }
-                    )
+
+                        const formattedContent =
+                            post.content
+                                ? await formatPostContent(
+                                    post.content
+                                )
+                                : "";
+
+                        return `
+
+                            <article
+                                class="post"
+                            >
+
+                                <div
+                                    class="post-header"
+                                    style="
+                                        display:flex;
+                                        align-items:center;
+                                        gap:10px;
+                                    "
+                                >
+
+                                    <img
+                                        src="${escapeHtml(
+                                            avatar
+                                        )}"
+                                        alt="Avatar"
+                                        style="
+                                            width:45px;
+                                            height:45px;
+                                            border-radius:50%;
+                                            object-fit:cover;
+                                        "
+                                        onerror="
+                                            this.src='/default-avatar.png';
+                                        "
+                                    >
+
+                                    <a
+                                        href="/profile.html?id=${encodeURIComponent(
+                                            post.user_id
+                                        )}"
+                                        style="
+                                            text-decoration:none;
+                                            color:inherit;
+                                        "
+                                    >
+
+                                        <strong>
+                                            ${escapeHtml(
+                                                displayName
+                                            )}
+                                        </strong>
+
+                                        <div>
+                                            @${escapeHtml(
+                                                post.username ||
+                                                "user"
+                                            )}
+                                        </div>
+
+                                    </a>
+
+                                </div>
+
+                                ${
+                                    formattedContent
+                                        ? `
+                                            <div
+                                                class="post-content"
+                                                style="
+                                                    margin-top:10px;
+                                                "
+                                            >
+                                                ${formattedContent}
+                                            </div>
+                                        `
+                                        : ""
+                                }
+
+                                ${imageHTML}
+
+                                <button
+                                    onclick="
+                                        toggleComments(
+                                            '${escapeHtml(
+                                                String(post.id)
+                                            )}'
+                                        )
+                                    "
+                                >
+                                    💬 Comments
+                                </button>
+
+                                <div
+                                    id="comments-${escapeHtml(
+                                        String(post.id)
+                                    )}"
+                                    class="comments"
+                                    style="
+                                        display:none;
+                                    "
+                                >
+
+                                    <div
+                                        id="comment-list-${escapeHtml(
+                                            String(post.id)
+                                        )}"
+                                    >
+                                        Loading...
+                                    </div>
+
+                                    <div
+                                        class="comment-form"
+                                        style="
+                                            margin-top:10px;
+                                        "
+                                    >
+
+                                        <input
+                                            id="comment-input-${escapeHtml(
+                                                String(post.id)
+                                            )}"
+                                            placeholder="Write a comment..."
+                                            maxlength="500"
+                                        >
+
+                                        <input
+                                            id="comment-image-${escapeHtml(
+                                                String(post.id)
+                                            )}"
+                                            type="file"
+                                            accept="
+                                                image/png,
+                                                image/jpeg,
+                                                image/webp,
+                                                image/gif
+                                            "
+                                        >
+
+                                        <button
+                                            onclick="
+                                                submitComment(
+                                                    '${escapeHtml(
+                                                        String(post.id)
+                                                    )}'
+                                                )
+                                            "
+                                        >
+                                            Send
+                                        </button>
+
+                                        <div
+                                            id="comment-preview-${escapeHtml(
+                                                String(post.id)
+                                            )}"
+                                            style="
+                                                display:none;
+                                                margin-top:8px;
+                                            "
+                                        >
+
+                                            <img
+                                                id="comment-preview-image-${escapeHtml(
+                                                    String(post.id)
+                                                )}"
+                                                alt="Comment image preview"
+                                                style="
+                                                    max-width:200px;
+                                                    max-height:200px;
+                                                    border-radius:10px;
+                                                "
+                                            >
+
+                                            <br>
+
+                                            <button
+                                                type="button"
+                                                onclick="
+                                                    clearCommentImage(
+                                                        '${escapeHtml(
+                                                            String(post.id)
+                                                        )}'
+                                                    )
+                                                "
+                                            >
+                                                ❌ Remove image
+                                            </button>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </article>
+
+                        `;
+
+                    }
                 )
-            ).join("");
+            );
+
+        container.innerHTML =
+            renderedPosts.join("");
 
         posts.forEach(
             post => {
@@ -2124,7 +2128,11 @@ async function loadPosts() {
                         `comment-preview-image-${post.id}`
                     );
 
-                if (!input) {
+                if (
+                    !input ||
+                    !preview ||
+                    !previewImage
+                ) {
                     return;
                 }
 
@@ -2154,7 +2162,8 @@ async function loadPosts() {
                                 "❌ Please choose an image."
                             );
 
-                            input.value = "";
+                            input.value =
+                                "";
 
                             return;
 
@@ -2169,7 +2178,8 @@ async function loadPosts() {
                                 "❌ Image must be under 5MB."
                             );
 
-                            input.value = "";
+                            input.value =
+                                "";
 
                             return;
 
@@ -2189,7 +2199,9 @@ async function loadPosts() {
 
                             };
 
-                        reader.readAsDataURL(file);
+                        reader.readAsDataURL(
+                            file
+                        );
 
                     }
                 );
@@ -2213,19 +2225,26 @@ async function loadPosts() {
 
 }
 
-// ==================================================
-// LOGIN / SIGNUP UI SWITCHING
-// ==================================================
+
+/* ==================================================
+   LOGIN / SIGNUP UI
+================================================== */
 
 function showSignup() {
 
-    console.log("🧌 Switching to signup UI...");
+    console.log(
+        "🧌 Switching to signup UI..."
+    );
 
     const loginBox =
-        document.getElementById("login-box");
+        document.getElementById(
+            "login-box"
+        );
 
     const signupBox =
-        document.getElementById("signup-box");
+        document.getElementById(
+            "signup-box"
+        );
 
     if (!loginBox || !signupBox) {
 
@@ -2236,56 +2255,64 @@ function showSignup() {
         return;
     }
 
-    // Hide login
-    loginBox.style.display = "none";
+    loginBox.style.display =
+        "none";
 
-    // Show signup
-    signupBox.style.display = "block";
+    signupBox.style.display =
+        "block";
 
-    // Clear login status
     const loginStatus =
-        document.getElementById("login-status");
+        document.getElementById(
+            "login-status"
+        );
 
     if (loginStatus) {
-        loginStatus.textContent = "";
+        loginStatus.textContent =
+            "";
     }
 
-    // Clear signup status
     const signupStatus =
-        document.getElementById("signup-status");
+        document.getElementById(
+            "signup-status"
+        );
 
     if (signupStatus) {
-        signupStatus.textContent = "";
+        signupStatus.textContent =
+            "";
     }
 
-    // Focus username
     const username =
-        document.getElementById("signup-username");
+        document.getElementById(
+            "signup-username"
+        );
 
     if (username) {
 
-        setTimeout(() => {
-            username.focus();
-        }, 50);
+        setTimeout(
+            () => username.focus(),
+            50
+        );
 
     }
 
 }
 
 
-// ==================================================
-// SHOW LOGIN UI
-// ==================================================
-
 function showLogin() {
 
-    console.log("🧌 Switching to login UI...");
+    console.log(
+        "🧌 Switching to login UI..."
+    );
 
     const loginBox =
-        document.getElementById("login-box");
+        document.getElementById(
+            "login-box"
+        );
 
     const signupBox =
-        document.getElementById("signup-box");
+        document.getElementById(
+            "signup-box"
+        );
 
     if (!loginBox || !signupBox) {
 
@@ -2296,41 +2323,46 @@ function showLogin() {
         return;
     }
 
-    // Hide signup
-    signupBox.style.display = "none";
+    signupBox.style.display =
+        "none";
 
-    // Show login
-    loginBox.style.display = "block";
+    loginBox.style.display =
+        "block";
 
-    // Clear signup status
     const signupStatus =
-        document.getElementById("signup-status");
+        document.getElementById(
+            "signup-status"
+        );
 
     if (signupStatus) {
-        signupStatus.textContent = "";
+        signupStatus.textContent =
+            "";
     }
 
-    // Focus email
     const email =
-        document.getElementById("login-email");
+        document.getElementById(
+            "login-email"
+        );
 
     if (email) {
 
-        setTimeout(() => {
-            email.focus();
-        }, 50);
+        setTimeout(
+            () => email.focus(),
+            50
+        );
 
     }
 
 }
 
 
-// ==================================================
-// MAKE FUNCTIONS AVAILABLE TO HTML ONCLICK
-// ==================================================
+window.showSignup =
+    showSignup;
 
-window.showSignup = showSignup;
-window.showLogin = showLogin;
+window.showLogin =
+    showLogin;
+
+
 /* ==================================================
    CREATE POST
 ================================================== */
@@ -2353,27 +2385,39 @@ async function createPost() {
         );
 
     const content =
-        input?.value.trim() || "";
+        input?.value.trim() ||
+        "";
 
     const file =
-        imageInput?.files?.[0] || null;
+        imageInput?.files?.[0] ||
+        null;
 
     if (!content && !file) {
 
-        status.textContent =
-            "❌ Write something or select an image.";
+        if (status) {
+
+            status.textContent =
+                "❌ Write something or select an image.";
+
+        }
 
         return;
 
     }
 
-    status.textContent =
-        "Posting...";
+    if (status) {
+
+        status.textContent =
+            "Posting...";
+
+    }
 
     try {
 
         const image =
-            await prepareImage(file);
+            await prepareImage(
+                file
+            );
 
         const response =
             await fetch(
@@ -2384,6 +2428,8 @@ async function createPost() {
 
                     headers: {
                         "Content-Type":
+                            "application/json",
+                        "Accept":
                             "application/json"
                     },
 
@@ -2392,9 +2438,11 @@ async function createPost() {
                     body:
                         JSON.stringify({
 
-                            content: content,
+                            content:
+                                content,
 
-                            image: image
+                            image:
+                                image
 
                         })
 
@@ -2402,7 +2450,9 @@ async function createPost() {
             );
 
         const data =
-            await response.json();
+            await getJsonResponse(
+                response
+            );
 
         if (!response.ok) {
 
@@ -2413,10 +2463,14 @@ async function createPost() {
 
         }
 
-        input.value = "";
+        if (input) {
+            input.value =
+                "";
+        }
 
         if (imageInput) {
-            imageInput.value = "";
+            imageInput.value =
+                "";
         }
 
         const preview =
@@ -2430,15 +2484,21 @@ async function createPost() {
             );
 
         if (preview) {
-            preview.style.display = "none";
+            preview.style.display =
+                "none";
         }
 
         if (previewImage) {
-            previewImage.src = "";
+            previewImage.src =
+                "";
         }
 
-        status.textContent =
-            "✅ Posted!";
+        if (status) {
+
+            status.textContent =
+                "✅ Posted!";
+
+        }
 
         loadPosts();
 
@@ -2453,8 +2513,13 @@ async function createPost() {
             error
         );
 
-        status.textContent =
-            "❌ " + error.message;
+        if (status) {
+
+            status.textContent =
+                "❌ " +
+                error.message;
+
+        }
 
     }
 
@@ -2465,7 +2530,9 @@ async function createPost() {
    TOGGLE COMMENTS
 ================================================== */
 
-async function toggleComments(postId) {
+async function toggleComments(
+    postId
+) {
 
     const box =
         document.getElementById(
@@ -2477,16 +2544,21 @@ async function toggleComments(postId) {
     }
 
     if (
-        box.style.display === "none"
+        box.style.display ===
+        "none"
     ) {
 
-        box.style.display = "block";
+        box.style.display =
+            "block";
 
-        loadComments(postId);
+        loadComments(
+            postId
+        );
 
     } else {
 
-        box.style.display = "none";
+        box.style.display =
+            "none";
 
     }
 
@@ -2497,7 +2569,9 @@ async function toggleComments(postId) {
    LOAD COMMENTS
 ================================================== */
 
-async function loadComments(postId) {
+async function loadComments(
+    postId
+) {
 
     const list =
         document.getElementById(
@@ -2512,20 +2586,34 @@ async function loadComments(postId) {
 
         const response =
             await fetch(
-                `/api/posts/${postId}/comments`,
+                `/api/posts/${encodeURIComponent(postId)}/comments`,
                 {
-                    credentials: "include"
+                    credentials: "include",
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
                 }
             );
 
         const comments =
-            await response.json();
+            await getJsonResponse(
+                response
+            );
 
         if (!response.ok) {
 
             throw new Error(
                 comments.error ||
                 "Could not load comments."
+            );
+
+        }
+
+        if (!Array.isArray(comments)) {
+
+            throw new Error(
+                "Invalid comments response."
             );
 
         }
@@ -2553,7 +2641,8 @@ async function loadComments(postId) {
                             comment.username ||
                             "User";
 
-                        let imageHTML = "";
+                        let imageHTML =
+                            "";
 
                         if (
                             comment.image_url
@@ -2581,6 +2670,13 @@ async function loadComments(postId) {
                             `;
 
                         }
+
+                        const formattedContent =
+                            comment.content
+                                ? await formatPostContent(
+                                    comment.content
+                                )
+                                : "";
 
                         return `
 
@@ -2625,19 +2721,13 @@ async function loadComments(postId) {
                                 </div>
 
                                 ${
-                                    comment.content
+                                    formattedContent
                                         ? `
-
                                             <div
                                                 class="comment-content"
                                             >
-
-                                                ${await formatPostContent(
-                                                    comment.content
-                                                )}
-
+                                                ${formattedContent}
                                             </div>
-
                                         `
                                         : ""
                                 }
@@ -2676,7 +2766,9 @@ async function loadComments(postId) {
    SUBMIT COMMENT
 ================================================== */
 
-async function submitComment(postId) {
+async function submitComment(
+    postId
+) {
 
     const input =
         document.getElementById(
@@ -2689,10 +2781,12 @@ async function submitComment(postId) {
         );
 
     const content =
-        input?.value.trim() || "";
+        input?.value.trim() ||
+        "";
 
     const file =
-        imageInput?.files?.[0] || null;
+        imageInput?.files?.[0] ||
+        null;
 
     if (!content && !file) {
         return;
@@ -2701,17 +2795,21 @@ async function submitComment(postId) {
     try {
 
         const image =
-            await prepareImage(file);
+            await prepareImage(
+                file
+            );
 
         const response =
             await fetch(
-                `/api/posts/${postId}/comments`,
+                `/api/posts/${encodeURIComponent(postId)}/comments`,
                 {
 
                     method: "POST",
 
                     headers: {
                         "Content-Type":
+                            "application/json",
+                        "Accept":
                             "application/json"
                     },
 
@@ -2720,9 +2818,11 @@ async function submitComment(postId) {
                     body:
                         JSON.stringify({
 
-                            content: content,
+                            content:
+                                content,
 
-                            image: image
+                            image:
+                                image
 
                         })
 
@@ -2730,7 +2830,9 @@ async function submitComment(postId) {
             );
 
         const data =
-            await response.json();
+            await getJsonResponse(
+                response
+            );
 
         if (!response.ok) {
 
@@ -2741,15 +2843,23 @@ async function submitComment(postId) {
 
         }
 
-        input.value = "";
-
-        if (imageInput) {
-            imageInput.value = "";
+        if (input) {
+            input.value =
+                "";
         }
 
-        clearCommentImage(postId);
+        if (imageInput) {
+            imageInput.value =
+                "";
+        }
 
-        loadComments(postId);
+        clearCommentImage(
+            postId
+        );
+
+        loadComments(
+            postId
+        );
 
         loadLeaderboard(
             currentLeaderboard
@@ -2763,7 +2873,8 @@ async function submitComment(postId) {
         );
 
         alert(
-            "❌ " + error.message
+            "❌ " +
+            error.message
         );
 
     }
@@ -2775,7 +2886,9 @@ async function submitComment(postId) {
    CLEAR COMMENT IMAGE
 ================================================== */
 
-function clearCommentImage(postId) {
+function clearCommentImage(
+    postId
+) {
 
     const input =
         document.getElementById(
@@ -2793,15 +2906,18 @@ function clearCommentImage(postId) {
         );
 
     if (input) {
-        input.value = "";
+        input.value =
+            "";
     }
 
     if (previewImage) {
-        previewImage.src = "";
+        previewImage.src =
+            "";
     }
 
     if (preview) {
-        preview.style.display = "none";
+        preview.style.display =
+            "none";
     }
 
 }
@@ -2829,15 +2945,18 @@ function clearPostImage() {
         );
 
     if (input) {
-        input.value = "";
+        input.value =
+            "";
     }
 
     if (previewImage) {
-        previewImage.src = "";
+        previewImage.src =
+            "";
     }
 
     if (preview) {
-        preview.style.display = "none";
+        preview.style.display =
+            "none";
     }
 
 }
@@ -2864,18 +2983,32 @@ async function loadPeople() {
             await fetch(
                 "/api/users",
                 {
-                    credentials: "include"
+                    credentials: "include",
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
                 }
             );
 
         const users =
-            await response.json();
+            await getJsonResponse(
+                response
+            );
 
         if (!response.ok) {
 
             throw new Error(
                 users.error ||
                 "Could not load people."
+            );
+
+        }
+
+        if (!Array.isArray(users)) {
+
+            throw new Error(
+                "Invalid users response."
             );
 
         }
@@ -2975,8 +3108,7 @@ async function loadPeople() {
                                         border:2px solid white;
                                         box-sizing:border-box;
                                     "
-                                >
-                                </span>
+                                ></span>
 
                             </div>
 
@@ -2990,7 +3122,8 @@ async function loadPeople() {
 
                                 <p>
                                     @${escapeHtml(
-                                        user.username
+                                        user.username ||
+                                        "user"
                                     )}
                                 </p>
 
@@ -3019,13 +3152,10 @@ async function loadPeople() {
 
 }
 
-// ==================================================
-// SHREKBOOK POPUP MESSAGES
-// ==================================================
 
-
-
-
+/* ==================================================
+   SHREKBOOK POPUP MESSAGE
+================================================== */
 
 function showShrekBookMessage(
     title,
@@ -3037,19 +3167,17 @@ function showShrekBookMessage(
             "shrekbook-message-popup"
         );
 
-
     if (existing) {
         existing.remove();
     }
 
-
     const popup =
-        document.createElement("div");
-
+        document.createElement(
+            "div"
+        );
 
     popup.id =
         "shrekbook-message-popup";
-
 
     popup.innerHTML = `
 
@@ -3073,79 +3201,80 @@ function showShrekBookMessage(
 
     `;
 
-
     document.body.appendChild(
         popup
     );
 
-
-    document
-        .getElementById(
+    const closeButton =
+        document.getElementById(
             "closeShrekMessage"
-        )
-        .onclick = () => {
+        );
 
-            popup.remove();
+    if (closeButton) {
 
-        };
+        closeButton.onclick =
+            () => {
+
+                popup.remove();
+
+            };
+
+    }
 
 }
 
 
-// ==================================================
-// MESSAGE TRACKING
-// ==================================================
+/* ==================================================
+   MESSAGE TRACKING
+================================================== */
 
 let lastGlobalMessageId =
     localStorage.getItem(
         "shrekbook_last_global_message_id"
     );
 
+let lastSpecificMessageId =
+    localStorage.getItem(
+        "shrekbook_last_specific_message_id"
+    );
 
 
-// ==================================================
-// SHREKCOIN DISPLAY
-// ==================================================
+/* ==================================================
+   SHREKCOIN DISPLAY
+================================================== */
 
 async function loadShrekCoins() {
 
     const display =
-        document.getElementById("shrekcoin-display");
+        document.getElementById(
+            "shrekcoin-display"
+        );
 
     const count =
-        document.getElementById("shrekcoin-count");
-
+        document.getElementById(
+            "shrekcoin-count"
+        );
 
     if (!display || !count) {
         return;
     }
 
-
     try {
 
-        const me = await getMeCached();
-
-        if (!response.ok) {
-
-            display.style.display = "none";
-
-            return;
-
-        }
-
-
+        // getMeCached() already returns parsed data.
         const data =
-            await response.json();
+            await getMeCached();
 
+        if (
+            !data ||
+            !data.loggedIn
+        ) {
 
-        if (!data.loggedIn) {
-
-            display.style.display = "none";
+            display.style.display =
+                "none";
 
             return;
-
         }
-
 
         const coins =
             Number(
@@ -3154,14 +3283,11 @@ async function loadShrekCoins() {
                 0
             );
 
-
         count.textContent =
             coins.toLocaleString();
 
-
         display.style.display =
             "block";
-
 
     } catch (error) {
 
@@ -3169,6 +3295,9 @@ async function loadShrekCoins() {
             "SHREKCOIN LOAD ERROR:",
             error
         );
+
+        display.style.display =
+            "none";
 
     }
 
@@ -3185,39 +3314,30 @@ setInterval(
     5000
 );
 
-// ==================================================
-// CHECK /api/me
-// ==================================================
+
+/* ==================================================
+   CHECK MESSAGES
+================================================== */
 
 async function checkMessages() {
 
     try {
 
-        const response =
-            me = await getMeCached();
-
-
-        if (!response.ok) {
-            return;
-        }
-
+        // IMPORTANT:
+        // getMeCached() returns DATA.
+        // It does NOT return Response.
 
         const data =
-            await response.json();
-
+            await getMeCached();
 
         if (
+            !data ||
             !data.loggedIn
         ) {
-
             return;
-
         }
 
-
-        // ==========================================
-        // GLOBAL
-        // ==========================================
+        // GLOBAL MESSAGE
 
         if (
             data.globalMessage &&
@@ -3228,15 +3348,12 @@ async function checkMessages() {
             lastGlobalMessageId =
                 data.globalMessage.id;
 
-
-            // Remember that this user has seen it
             localStorage.setItem(
                 "shrekbook_last_global_message_id",
                 String(
                     data.globalMessage.id
                 )
             );
-
 
             showShrekBookMessage(
                 "📢 ShrekBook Announcement",
@@ -3245,10 +3362,7 @@ async function checkMessages() {
 
         }
 
-
-        // ==========================================
-        // SPECIFIC
-        // ==========================================
+        // SPECIFIC MESSAGE
 
         if (
             data.specificMessage &&
@@ -3259,6 +3373,12 @@ async function checkMessages() {
             lastSpecificMessageId =
                 data.specificMessage.id;
 
+            localStorage.setItem(
+                "shrekbook_last_specific_message_id",
+                String(
+                    data.specificMessage.id
+                )
+            );
 
             showShrekBookMessage(
                 "📨 ShrekBook Message",
@@ -3266,7 +3386,6 @@ async function checkMessages() {
             );
 
         }
-
 
     } catch (error) {
 
@@ -3280,17 +3399,11 @@ async function checkMessages() {
 }
 
 
-// ==================================================
-// CHECK IMMEDIATELY
-// ==================================================
-
+// Check immediately
 checkMessages();
 
 
-// ==================================================
-// CHECK EVERY 2 SECONDS
-// ==================================================
-
+// Check every 2 seconds
 setInterval(
     checkMessages,
     2000
@@ -3309,9 +3422,7 @@ document.addEventListener(
             event.key !== "Enter" ||
             event.shiftKey
         ) {
-
             return;
-
         }
 
         const target =
@@ -3333,7 +3444,9 @@ document.addEventListener(
                     ""
                 );
 
-            submitComment(postId);
+            submitComment(
+                postId
+            );
 
         }
 
@@ -3360,22 +3473,20 @@ async function updateOnlineStatus() {
 
                     headers: {
                         "Content-Type":
+                            "application/json",
+                        "Accept":
                             "application/json"
                     }
 
                 }
             );
 
-        /*
-         * 401 means the session has expired.
-         *
-         * Don't spam the console.
-         */
-
-        if (response.status === 401) {
-
+        // 401 = not logged in.
+        // Do not spam console.
+        if (
+            response.status === 401
+        ) {
             return;
-
         }
 
         if (!response.ok) {
@@ -3386,7 +3497,6 @@ async function updateOnlineStatus() {
             );
 
             return;
-
         }
 
     } catch (error) {
@@ -3404,24 +3514,16 @@ async function updateOnlineStatus() {
    ONLINE HEARTBEAT
 ================================================== */
 
-
 function startOnlineHeartbeat() {
 
     if (onlineHeartbeatStarted) {
         return;
     }
 
-    onlineHeartbeatStarted = true;
-
-    /*
-     * Send immediately after login.
-     */
+    onlineHeartbeatStarted =
+        true;
 
     updateOnlineStatus();
-
-    /*
-     * Then every 30 seconds.
-     */
 
     setInterval(
         updateOnlineStatus,
@@ -3430,25 +3532,18 @@ function startOnlineHeartbeat() {
 
 }
 
+
 /* ==================================================
    ROLE SYSTEM
 ================================================== */
 
-function getUserRole(user) {
+function getUserRole(
+    user
+) {
 
     if (!user) {
         return "peasant";
     }
-
-    /*
-        Supported roles:
-
-        owner
-        admin
-        senior_moderator
-        moderator
-        peasant
-    */
 
     let role =
         user.role ||
@@ -3456,24 +3551,42 @@ function getUserRole(user) {
         user.rank ||
         "peasant";
 
-    role = String(role)
-        .toLowerCase()
-        .trim()
-        .replace(/[\s-]+/g, "_");
+    role =
+        String(role)
+            .toLowerCase()
+            .trim()
+            .replace(
+                /[\s-]+/g,
+                "_"
+            );
 
     const validRoles = [
         "owner",
         "admin",
+        "administrator",
         "senior_moderator",
+        "junior_moderator",
         "moderator",
         "peasant"
     ];
 
-    if (!validRoles.includes(role)) {
+    if (
+        !validRoles.includes(
+            role
+        )
+    ) {
         return "peasant";
     }
 
+    // Treat administrator as admin internally.
+    if (
+        role === "administrator"
+    ) {
+        return "admin";
+    }
+
     return role;
+
 }
 
 
@@ -3481,26 +3594,51 @@ function getUserRole(user) {
    ROLE PERMISSIONS
 ================================================== */
 
-function hasRole(user, requiredRole) {
+function hasRole(
+    user,
+    requiredRole
+) {
 
     const roleLevels = {
-        peasant: 0,
-        moderator: 1,
-        senior_moderator: 2,
-        admin: 3,
-        owner: 4
+
+        peasant:
+            0,
+
+        moderator:
+            1,
+
+        junior_moderator:
+            1,
+
+        senior_moderator:
+            2,
+
+        admin:
+            3,
+
+        owner:
+            4
+
     };
 
     const userRole =
-        getUserRole(user);
+        getUserRole(
+            user
+        );
 
     const userLevel =
-        roleLevels[userRole] ?? 0;
+        roleLevels[userRole] ??
+        0;
 
     const requiredLevel =
-        roleLevels[requiredRole] ?? 0;
+        roleLevels[requiredRole] ??
+        0;
 
-    return userLevel >= requiredLevel;
+    return (
+        userLevel >=
+        requiredLevel
+    );
+
 }
 
 
@@ -3508,58 +3646,86 @@ function hasRole(user, requiredRole) {
    INDIVIDUAL ROLE CHECKS
 ================================================== */
 
-function isOwner(user) {
-    return hasRole(user, "owner");
+function isOwner(
+    user
+) {
+
+    return hasRole(
+        user,
+        "owner"
+    );
+
 }
 
 
-function isAdmin(user) {
-    return hasRole(user, "admin");
+function isAdmin(
+    user
+) {
+
+    return hasRole(
+        user,
+        "admin"
+    );
+
 }
 
 
-function isSeniorModerator(user) {
-    return hasRole(user, "senior_moderator");
+function isSeniorModerator(
+    user
+) {
+
+    return hasRole(
+        user,
+        "senior_moderator"
+    );
+
 }
 
 
-function isJuniorModerator(user) {
-    return hasRole(user, "junior_moderatior");
-}
+function isJuniorModerator(
+    user
+) {
 
-
-/* ==================================================
-   CAN ACCESS ADMIN PANEL
-================================================== */
-
-function canAccessAdminPanel(user) {
-
-    if (!user) {
-        return false;
-    }
-
-    /*
-        Admin panel is available to:
-
-        OWNER
-        ADMIN
-
-        Moderators do NOT get the admin panel.
-    */
-
-    return (
-        getUserRole(user) === "owner" ||
-        getUserRole(user) === "admin"
+    return hasRole(
+        user,
+        "junior_moderator"
     );
 
 }
 
 
 /* ==================================================
-   CAN ACCESS MODERATION
+   ADMIN PANEL ACCESS
 ================================================== */
 
-function canModerate(user) {
+function canAccessAdminPanel(
+    user
+) {
+
+    if (!user) {
+        return false;
+    }
+
+    const role =
+        getUserRole(
+            user
+        );
+
+    return (
+        role === "owner" ||
+        role === "admin"
+    );
+
+}
+
+
+/* ==================================================
+   MODERATION ACCESS
+================================================== */
+
+function canModerate(
+    user
+) {
 
     if (!user) {
         return false;
@@ -3577,73 +3743,58 @@ function canModerate(user) {
    ADMIN NAVIGATION
 ================================================== */
 
-function setupAdminNav(user) {
+function setupAdminNav(
+    user
+) {
 
     let adminNav =
-        document.getElementById("admin-nav");
-
-    /*
-        Remove/hide the nav if there is
-        no logged-in user.
-    */
+        document.getElementById(
+            "admin-nav"
+        );
 
     if (!user) {
 
         if (adminNav) {
-            adminNav.style.display = "none";
+            adminNav.style.display =
+                "none";
         }
 
         return;
-
     }
 
-
     const role =
-        getUserRole(user);
-
-
-    /*
-        ONLY owner/admin get Admin Panel.
-
-        Moderator and Senior Moderator
-        do NOT get this button.
-    */
+        getUserRole(
+            user
+        );
 
     const allowed =
-        canAccessAdminPanel(user);
-
+        canAccessAdminPanel(
+            user
+        );
 
     if (!allowed) {
 
         if (adminNav) {
-            adminNav.style.display = "none";
+            adminNav.style.display =
+                "none";
         }
 
         return;
-
     }
-
-
-    /*
-        If the nav already exists,
-        simply show it.
-    */
 
     if (adminNav) {
 
-        adminNav.style.display = "flex";
+        adminNav.style.display =
+            "flex";
 
         return;
 
     }
 
-
-    /*
-        Create Admin Navigation
-    */
-
     adminNav =
-        document.createElement("nav");
+        document.createElement(
+            "nav"
+        );
 
     adminNav.id =
         "admin-nav";
@@ -3661,23 +3812,13 @@ function setupAdminNav(user) {
         width:100%;
     `;
 
-
-    /*
-        Different label depending
-        on the user's actual role.
-    */
-
     let roleLabel =
         "Admin";
 
     if (role === "owner") {
-        roleLabel = "Owner";
+        roleLabel =
+            "Owner";
     }
-
-    if (role === "admin") {
-        roleLabel = "Admin";
-    }
-
 
     adminNav.innerHTML = `
 
@@ -3717,12 +3858,10 @@ function setupAdminNav(user) {
 
     `;
 
-
     const app =
         document.getElementById(
             "app-section"
         );
-
 
     if (app) {
 
@@ -3740,23 +3879,30 @@ function setupAdminNav(user) {
     }
 
 }
-// ==================================================
-// SPECIFIC ADMIN MESSAGE
-// ==================================================
-
-let lastSpecificMessageId = null;
 
 
+/* ==================================================
+   SPECIFIC ADMIN MESSAGE
+================================================== */
 
-// ==================================================
-// CHECK FOR SPECIFIC MESSAGE
-// ==================================================
+let showingSpecificMessageCheck =
+    false;
+
+
+/* ==================================================
+   CHECK SPECIFIC MESSAGE
+================================================== */
 
 async function checkSpecificMessages() {
 
-    if (showingSpecificMessage) {
+    if (
+        showingSpecificMessageCheck
+    ) {
         return;
     }
+
+    showingSpecificMessageCheck =
+        true;
 
     try {
 
@@ -3765,63 +3911,59 @@ async function checkSpecificMessages() {
                 "/api/specific-message",
                 {
                     method: "GET",
-
                     credentials: "include",
-
                     cache: "no-store",
-
                     headers: {
+                        "Accept":
+                            "application/json",
                         "Cache-Control":
                             "no-cache"
                     }
                 }
             );
 
-
-        if (!response.ok) {
-
-            if (
-                response.status === 401
-            ) {
-                return;
-            }
-
+        if (
+            response.status === 401
+        ) {
             return;
         }
 
+        if (!response.ok) {
+            return;
+        }
 
         const data =
-            await response.json();
-
+            await getJsonResponse(
+                response
+            );
 
         const message =
             data.message;
-
 
         if (!message) {
             return;
         }
 
-
-        // Don't show the same message repeatedly
         if (
             lastSpecificMessageId ===
             message.id
         ) {
-
             return;
-
         }
-
 
         lastSpecificMessageId =
             message.id;
 
+        localStorage.setItem(
+            "shrekbook_last_specific_message_id",
+            String(
+                message.id
+            )
+        );
 
         showSpecificMessage(
             message
         );
-
 
     } catch (error) {
 
@@ -3830,73 +3972,72 @@ async function checkSpecificMessages() {
             error
         );
 
+    } finally {
+
+        showingSpecificMessageCheck =
+            false;
+
     }
 
 }
 
 
-// ==================================================
-// SHOW SPECIFIC MESSAGE
-// ==================================================
+/* ==================================================
+   SHOW SPECIFIC MESSAGE
+================================================== */
 
 function showSpecificMessage(
     message
 ) {
 
-    showingSpecificMessage = true;
-
+    showingSpecificMessage =
+        true;
 
     const sender =
         message.senderDisplayName ||
         message.senderUsername ||
         "Administrator";
 
-
     const overlay =
         document.createElement(
             "div"
         );
 
-
     overlay.id =
         "specific-message-overlay";
 
-
     overlay.style.cssText = `
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.65);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 999999;
-        padding: 20px;
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,0.65);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        z-index:999999;
+        padding:20px;
     `;
-
 
     const box =
         document.createElement(
             "div"
         );
 
-
     box.style.cssText = `
-        background: white;
-        width: 100%;
-        max-width: 500px;
-        border-radius: 18px;
-        padding: 30px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-        text-align: center;
+        background:white;
+        width:100%;
+        max-width:500px;
+        border-radius:18px;
+        padding:30px;
+        box-shadow:0 10px 40px rgba(0,0,0,0.3);
+        text-align:center;
     `;
-
 
     box.innerHTML = `
 
         <div
             style="
-                font-size: 50px;
-                margin-bottom: 10px;
+                font-size:50px;
+                margin-bottom:10px;
             "
         >
             🧌
@@ -3908,38 +4049,42 @@ function showSpecificMessage(
 
         <p
             style="
-                color: #666;
-                margin-bottom: 20px;
+                color:#666;
+                margin-bottom:20px;
             "
         >
             Message from
             <strong>
-                ${escapeHtml(sender)}
+                ${escapeHtml(
+                    sender
+                )}
             </strong>
         </p>
 
         <div
             style="
-                background: #f5f5f5;
-                border-radius: 12px;
-                padding: 18px;
-                text-align: left;
-                white-space: pre-wrap;
-                overflow-wrap: anywhere;
-                margin-bottom: 25px;
+                background:#f5f5f5;
+                border-radius:12px;
+                padding:18px;
+                text-align:left;
+                white-space:pre-wrap;
+                overflow-wrap:anywhere;
+                margin-bottom:25px;
             "
         >
-            ${escapeHtml(message.message)}
+            ${escapeHtml(
+                message.message
+            )}
         </div>
 
         <button
             id="specific-message-close"
             style="
-                padding: 12px 25px;
-                border: none;
-                border-radius: 10px;
-                cursor: pointer;
-                font-weight: bold;
+                padding:12px 25px;
+                border:none;
+                border-radius:10px;
+                cursor:pointer;
+                font-weight:bold;
             "
         >
             Got it
@@ -3947,392 +4092,60 @@ function showSpecificMessage(
 
     `;
 
-
     overlay.appendChild(
         box
     );
-
 
     document.body.appendChild(
         overlay
     );
 
-
-    document
-        .getElementById(
+    const closeButton =
+        document.getElementById(
             "specific-message-close"
-        )
-        .onclick =
-        async () => {
-
-            try {
-
-                await fetch(
-                    "/api/specific-message",
-                    {
-                        method: "DELETE",
-
-                        credentials:
-                            "include"
-                    }
-                );
-
-            } catch (error) {
-
-                console.error(
-                    "CLEAR SPECIFIC MESSAGE ERROR:",
-                    error
-                );
-
-            }
-
-
-            overlay.remove();
-
-            showingSpecificMessage =
-                false;
-
-        };
-
-}
-async function checkModerationStatus() {
-
-    try {
-
-        const me = await getMeCached();
-
-        if (!response.ok) {
-            return;
-        }
-
-        const data = await response.json();
-
-
-        // BAN
-        if (data.banned === true) {
-
-            console.log("🚫 BAN DETECTED");
-
-            window.location.replace(
-                "/login.html"
-            );
-
-            return;
-        }
-
-
-        // KICK
-        if (data.kicked === true) {
-
-            console.log("🦵 KICK DETECTED");
-
-            window.location.replace(
-                "/kicked.html"
-            );
-
-            return;
-        }
-
-    } catch (error) {
-
-        console.error(
-            "MODERATION CHECK ERROR:",
-            error
         );
 
+    if (closeButton) {
+
+        closeButton.onclick =
+            async () => {
+
+                try {
+
+                    await fetch(
+                        "/api/specific-message",
+                        {
+                            method: "DELETE",
+                            credentials:
+                                "include"
+                        }
+                    );
+
+                } catch (error) {
+
+                    console.error(
+                        "CLEAR SPECIFIC MESSAGE ERROR:",
+                        error
+                    );
+
+                }
+
+                overlay.remove();
+
+                showingSpecificMessage =
+                    false;
+
+            };
+
     }
-
-}
-
-if (
-    !window.location.pathname
-        .toLowerCase()
-        .endsWith("/login.html") &&
-    !window.location.pathname
-        .toLowerCase()
-        .endsWith("/kicked.html")
-) {
-
-    checkModerationStatus();
-
-    setInterval(
-        checkModerationStatus,
-        500
-    );
-
-}
-/* ==================================================
-   ADMIN BUTTON / ROLE CHECK
-================================================== */
-
-async function checkAdmin() {
-
-    const adminButton =
-        document.getElementById("admin-button");
-
-    if (!adminButton) {
-        return;
-    }
-
-    // Hide by default
-    adminButton.style.display = "none";
-
-    try {
-
-        const response =
-            me = await getMeCached();
-
-        if (!response.ok) {
-            return;
-        }
-
-        const data =
-            await response.json();
-
-        const user =
-            data.user || data;
-
-        if (!user) {
-            return;
-        }
-
-        const role =
-            String(
-                user.role ||
-                user.user_role ||
-                "peasant"
-            ).toLowerCase().trim();
-
-        /*
-            ADMIN PANEL ACCESS
-
-            owner
-            administrator
-            admin
-
-            Moderators DO NOT get the
-            Admin Panel from this check.
-        */
-
-        const canAccessAdminPanel =
-            role === "owner" ||
-            role === "administrator" ||
-            role === "senior_moderator"||
-            role === "junior_moderator"||
-            user.is_admin === true ||
-            user.is_admin === 1 ||
-            user.is_admin === "true";
-
-        if (canAccessAdminPanel) {
-
-            adminButton.style.display =
-                "inline-block";
-
-            console.log(
-                "🛡️ Admin Panel access granted:",
-                role
-            );
-
-        } else {
-
-            adminButton.style.display =
-                "none";
-
-            console.log(
-                "👤 Admin Panel access denied:",
-                role
-            );
-
-        }
-
-    } catch (error) {
-
-        console.error(
-            "ADMIN BUTTON ERROR:",
-            error
-        );
-
-        adminButton.style.display =
-            "none";
-    }
-}
-
-/* ==================================================
-   MODERATION UI
-================================================== */
-
-function setupModerationUI(user) {
-
-    if (!user) {
-        return;
-    }
-
-
-    const moderationElements =
-        document.querySelectorAll(
-            "[data-moderator-only]"
-        );
-
-
-    /*
-        Moderator+
-        can see moderation controls.
-    */
-
-    const allowed =
-        canModerate(user);
-
-
-    moderationElements.forEach(
-        element => {
-
-            element.style.display =
-                allowed
-                    ? ""
-                    : "none";
-
-        }
-    );
 
 }
 
 
 /* ==================================================
-   ROLE UI
+   MODERATION STATUS
+   ONLY ONE VERSION OF THIS FUNCTION
 ================================================== */
-
-function setupRoleUI(user) {
-
-    if (!user) {
-        return;
-    }
-
-
-    const role =
-        getUserRole(user);
-
-
-    /*
-        Put the role into elements
-        using data-role-display.
-    */
-
-    document
-        .querySelectorAll(
-            "[data-role-display]"
-        )
-        .forEach(
-            element => {
-
-                element.textContent =
-                    role
-                        .replace(/_/g, " ")
-                        .replace(/\b\w/g, c =>
-                            c.toUpperCase()
-                        );
-
-            }
-        );
-
-
-    /*
-        Owner-only elements
-    */
-
-    document
-        .querySelectorAll(
-            "[data-owner-only]"
-        )
-        .forEach(
-            element => {
-
-                element.style.display =
-                    role === "owner"
-                        ? ""
-                        : "none";
-
-            }
-        );
-
-
-    /*
-        Admin+ elements
-    */
-
-    document
-        .querySelectorAll(
-            "[data-admin-only]"
-        )
-        .forEach(
-            element => {
-
-                element.style.display =
-                    canAccessAdminPanel(user)
-                        ? ""
-                        : "none";
-
-            }
-        );
-
-
-    /*
-        Moderator+ elements
-    */
-
-    document
-        .querySelectorAll(
-            "[data-moderator-only]"
-        )
-        .forEach(
-            element => {
-
-                element.style.display =
-                    canModerate(user)
-                        ? ""
-                        : "none";
-
-            }
-        );
-
-}
-async function clearKick(userId) {
-
-    try {
-
-        const { error } = await supabase
-            .from("profiles")
-            .update({
-                kicked: false
-            })
-            .eq("id", userId);
-
-        if (error) {
-            console.error(
-                "CLEAR KICK ERROR:",
-                error
-            );
-            return;
-        }
-
-        console.log(
-            `🦵 Kick cleared for ${userId}`
-        );
-
-    } catch (error) {
-
-        console.error(
-            "CLEAR KICK ERROR:",
-            error
-        );
-
-    }
-}
-/* ==================================================
-   BAN / KICK MONITOR
-================================================== */
-
-
-
 
 async function checkModerationStatus() {
 
@@ -4340,22 +4153,20 @@ async function checkModerationStatus() {
         return;
     }
 
-    moderationCheckRunning = true;
+    moderationCheckRunning =
+        true;
 
     try {
 
-        const response =
-            me = await getMeCached();
+        const data =
+            await getMeCached();
 
-
-        if (!response.ok) {
+        if (
+            !data ||
+            !data.loggedIn
+        ) {
             return;
         }
-
-
-        const data =
-            await response.json();
-
 
         /* ==========================================
            BAN
@@ -4404,7 +4215,6 @@ async function checkModerationStatus() {
             return;
         }
 
-
     } catch (error) {
 
         console.error(
@@ -4414,7 +4224,8 @@ async function checkModerationStatus() {
 
     } finally {
 
-        moderationCheckRunning = false;
+        moderationCheckRunning =
+            false;
 
     }
 
@@ -4422,17 +4233,20 @@ async function checkModerationStatus() {
 
 
 /* ==================================================
-   START MONITOR
+   START MODERATION MONITOR
 ================================================== */
 
-if (
-    !window.location.pathname
-        .toLowerCase()
-        .endsWith("/login.html") &&
+const currentPath =
+    window.location.pathname
+        .toLowerCase();
 
-    !window.location.pathname
-        .toLowerCase()
-        .endsWith("/kicked.html")
+if (
+    !currentPath.endsWith(
+        "/login.html"
+    ) &&
+    !currentPath.endsWith(
+        "/kicked.html"
+    )
 ) {
 
     checkModerationStatus();
@@ -4443,6 +4257,226 @@ if (
     );
 
 }
+
+
+/* ==================================================
+   ADMIN BUTTON / ROLE CHECK
+================================================== */
+
+async function checkAdmin() {
+
+    const adminButton =
+        document.getElementById(
+            "admin-button"
+        );
+
+    if (!adminButton) {
+        return;
+    }
+
+    adminButton.style.display =
+        "none";
+
+    try {
+
+        const data =
+            await getMeCached();
+
+        if (
+            !data ||
+            !data.loggedIn
+        ) {
+            return;
+        }
+
+        const user =
+            data.user ||
+            null;
+
+        if (!user) {
+            return;
+        }
+
+        const role =
+            getUserRole(
+                user
+            );
+
+        const allowed =
+            canAccessAdminPanel(
+                user
+            );
+
+        if (allowed) {
+
+            adminButton.style.display =
+                "inline-block";
+
+            console.log(
+                "🛡️ Admin Panel access granted:",
+                role
+            );
+
+        } else {
+
+            adminButton.style.display =
+                "none";
+
+            console.log(
+                "👤 Admin Panel access denied:",
+                role
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "ADMIN BUTTON ERROR:",
+            error
+        );
+
+        adminButton.style.display =
+            "none";
+
+    }
+
+}
+
+
+/* ==================================================
+   MODERATION UI
+================================================== */
+
+function setupModerationUI(
+    user
+) {
+
+    if (!user) {
+        return;
+    }
+
+    const moderationElements =
+        document.querySelectorAll(
+            "[data-moderator-only]"
+        );
+
+    const allowed =
+        canModerate(
+            user
+        );
+
+    moderationElements.forEach(
+        element => {
+
+            element.style.display =
+                allowed
+                    ? ""
+                    : "none";
+
+        }
+    );
+
+}
+
+
+/* ==================================================
+   ROLE UI
+================================================== */
+
+function setupRoleUI(
+    user
+) {
+
+    if (!user) {
+        return;
+    }
+
+    const role =
+        getUserRole(
+            user
+        );
+
+    document
+        .querySelectorAll(
+            "[data-role-display]"
+        )
+        .forEach(
+            element => {
+
+                element.textContent =
+                    role
+                        .replace(
+                            /_/g,
+                            " "
+                        )
+                        .replace(
+                            /\b\w/g,
+                            c =>
+                                c.toUpperCase()
+                        );
+
+            }
+        );
+
+
+    // Owner-only
+    document
+        .querySelectorAll(
+            "[data-owner-only]"
+        )
+        .forEach(
+            element => {
+
+                element.style.display =
+                    role === "owner"
+                        ? ""
+                        : "none";
+
+            }
+        );
+
+
+    // Admin+
+    document
+        .querySelectorAll(
+            "[data-admin-only]"
+        )
+        .forEach(
+            element => {
+
+                element.style.display =
+                    canAccessAdminPanel(
+                        user
+                    )
+                        ? ""
+                        : "none";
+
+            }
+        );
+
+
+    // Moderator+
+    document
+        .querySelectorAll(
+            "[data-moderator-only]"
+        )
+        .forEach(
+            element => {
+
+                element.style.display =
+                    canModerate(
+                        user
+                    )
+                        ? ""
+                        : "none";
+
+            }
+        );
+
+}
+
+
 /* ==================================================
    SESSION CHECK
 ================================================== */
@@ -4451,23 +4485,17 @@ async function checkLogin() {
 
     try {
 
-        const response =
-            me = await getMeCached();
-
+        // IMPORTANT:
+        // getMeCached() returns parsed data.
 
         const data =
-            await response.json();
-
+            await getMeCached();
 
         if (
-            response.ok &&
+            data &&
             data.loggedIn &&
             data.user
         ) {
-
-            /*
-                Set up ALL role systems.
-            */
 
             setupAdminNav(
                 data.user
@@ -4490,7 +4518,6 @@ async function checkLogin() {
             showAuth();
 
         }
-
 
     } catch (error) {
 
@@ -4537,32 +4564,39 @@ function showAuth() {
             "admin-button"
         );
 
-
     if (auth) {
-        auth.style.display = "block";
-    }
 
+        auth.style.display =
+            "block";
+
+    }
 
     if (app) {
-        app.style.display = "none";
-    }
 
+        app.style.display =
+            "none";
+
+    }
 
     if (logoutButton) {
+
         logoutButton.style.display =
             "none";
-    }
 
+    }
 
     if (adminNav) {
+
         adminNav.style.display =
             "none";
+
     }
 
-
     if (adminButton) {
+
         adminButton.style.display =
             "none";
+
     }
 
 }
@@ -4572,7 +4606,9 @@ function showAuth() {
    ROLE DEBUG
 ================================================== */
 
-function debugUserRole(user) {
+function debugUserRole(
+    user
+) {
 
     if (!user) {
 
@@ -4584,10 +4620,10 @@ function debugUserRole(user) {
 
     }
 
-
     const role =
-        getUserRole(user);
-
+        getUserRole(
+            user
+        );
 
     console.log(
         "👤 User:",
@@ -4596,42 +4632,35 @@ function debugUserRole(user) {
         user.id
     );
 
-
     console.log(
         "🎖️ Role:",
         role
     );
-
 
     console.log(
         "👑 Owner:",
         isOwner(user)
     );
 
-
     console.log(
         "🛡️ Admin:",
         isAdmin(user)
     );
-
 
     console.log(
         "⭐ Senior Moderator:",
         isSeniorModerator(user)
     );
 
-
     console.log(
-        "🔨 Moderator:",
+        "🔨 Junior Moderator:",
         isJuniorModerator(user)
     );
-
 
     console.log(
         "📋 Admin Panel:",
         canAccessAdminPanel(user)
     );
-
 
     console.log(
         "🔨 Moderation:",
@@ -4639,6 +4668,8 @@ function debugUserRole(user) {
     );
 
 }
+
+
 /* ==================================================
    START
 ================================================== */
@@ -4651,3 +4682,55 @@ document.addEventListener(
 
     }
 );
+
+
+/* ==================================================
+   OPTIONAL GLOBAL FUNCTIONS
+   Makes HTML onclick handlers work reliably.
+================================================== */
+
+window.login =
+    login;
+
+window.signup =
+    signup;
+
+window.logout =
+    logout;
+
+window.createPost =
+    createPost;
+
+window.giveReaction =
+    giveReaction;
+
+window.toggleComments =
+    toggleComments;
+
+window.submitComment =
+    submitComment;
+
+window.clearCommentImage =
+    clearCommentImage;
+
+window.clearPostImage =
+    clearPostImage;
+
+window.loadLeaderboard =
+    loadLeaderboard;
+
+window.loadPeople =
+    loadPeople;
+
+window.loadPosts =
+    loadPosts;
+
+window.loadInventory =
+    loadInventory;
+
+window.warn =
+    warn;
+
+window.debugUserRole =
+    debugUserRole;
+

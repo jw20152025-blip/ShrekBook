@@ -1,2008 +1,599 @@
 
-require("dotenv").config();
-
-// ==================================================
-// GLOBAL / SPECIFIC MESSAGES
-// ==================================================
-
-let globalMessage = null;
-
-const specificMessages = new Map();
-
-// Tracks when each logged-in session started
-const messageSessionTimes = new Map();
-const express = require("express");
-const path = require("path");
-const http = require("http");
-
-const session = require("express-session");
-
-const { createClient } = require("@supabase/supabase-js");
-
-const { InferenceClient } = require("@huggingface/inference");
-
-const hf = new InferenceClient(
-    process.env.HF_TOKEN
-);
-const app = express();
-
-const PORT =
-    process.env.PORT || 3000;
-
-
-// ==================================================
-// ENVIRONMENT VARIABLES
-// ==================================================
-
-const SUPABASE_URL =
-    process.env.SUPABASE_URL;
-
-const SUPABASE_SERVICE_ROLE_KEY =
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-const SESSION_SECRET =
-    process.env.SESSION_SECRET;
-
-
-// ==================================================
-// CHECK ENVIRONMENT
-// ==================================================
-
-if (
-    !SUPABASE_URL ||
-    !SUPABASE_SERVICE_ROLE_KEY
-) {
-
-    console.error(
-        "❌ Missing Supabase environment variables."
-    );
-
-    process.exit(1);
-
-}
-
-
-if (!SESSION_SECRET) {
-
-    console.error(
-        "❌ Missing SESSION_SECRET."
-    );
-
-    process.exit(1);
-
-}
-
-/* ============================================================
-   MODERATION WEBSOCKET SERVER
-============================================================ */
-
-
-
-// ==================================================
-// SUPABASE
-// ==================================================
-
-const supabase =
-    createClient(
-        SUPABASE_URL,
-        SUPABASE_SERVICE_ROLE_KEY
-    );
-
-
-// ==================================================
-// SESSION STORE
-// ==================================================
-
-const sessionStore =
-    new session.MemoryStore();
-
-
-// ==================================================
-// EXPRESS SESSION
-// ==================================================
-
-app.use(
-    session({
-
-        secret:
-            SESSION_SECRET,
-
-        resave:
-            false,
-
-        saveUninitialized:
-            false,
-
-        store:
-            sessionStore,
-
-        cookie: {
-
-            secure:
-                false,
-
-            httpOnly:
-                true,
-
-            sameSite:
-                "lax"
-
-        }
-
-    })
-);
-
-async function awardShrekCoins(
-    userId,
-    amount,
-    reason
-) {
-
-    try {
-
-        if (
-            !userId ||
-            !Number.isInteger(amount) ||
-            amount === 0
-        ) {
-
-            return false;
-
-        }
-
-
-        // ------------------------------------------
-        // GET CURRENT BALANCE
-        // ------------------------------------------
-
-        const {
-            data: profile,
-            error: profileError
-        } = await supabase
-            .from("profiles")
-            .select("shrekcoins")
-            .eq(
-                "id",
-                userId
-            )
-            .single();
-
-
-        if (
-            profileError ||
-            !profile
-        ) {
-
-            console.error(
-                "SHREKCOIN PROFILE ERROR:",
-                profileError
-            );
-
-            return false;
-
-        }
-
-
-        const newBalance =
-            Math.max(
-                0,
-                (profile.shrekcoins || 0) +
-                amount
-            );
-
-
-        // ------------------------------------------
-        // UPDATE BALANCE
-        // ------------------------------------------
-
-        const {
-            error: updateError
-        } = await supabase
-            .from("profiles")
-            .update({
-                shrekcoins:
-                    newBalance
-            })
-            .eq(
-                "id",
-                userId
-            );
-
-
-        if (updateError) {
-
-            console.error(
-                "SHREKCOIN UPDATE ERROR:",
-                updateError
-            );
-
-            return false;
-
-        }
-
-
-        // ------------------------------------------
-        // RECORD TRANSACTION
-        // ------------------------------------------
-
-        const {
-            error: transactionError
-        } = await supabase
-            .from("shrekcoin_transactions")
-            .insert({
-
-                user_id:
-                    userId,
-
-                amount:
-                    amount,
-
-                reason:
-                    reason
-
-            });
-
-
-        if (transactionError) {
-
-            console.error(
-                "SHREKCOIN TRANSACTION ERROR:",
-                transactionError
-            );
-
-        }
-
-
-        console.log(
-            `🪙 ${amount > 0 ? "+" : ""}${amount} ShrekCoins → ${userId} (${reason})`
-        );
-
-
-        return true;
-
-    } catch (error) {
-
-        console.error(
-            "SHREKCOIN ERROR:",
-            error
-        );
-
-        return false;
-
-    }
-
-}
-
-app.get("/api/shreksearch", async (req, res) => {
-    try {
-        const query = String(req.query.q || "").trim();
-
-        if (!query) {
-            return res.status(400).json({
-                error: "Missing search query"
-            });
-        }
-
-        const apiKey = process.env.TAVILY_API_KEY;
-
-        if (!apiKey) {
-            console.error("TAVILY_API_KEY is missing");
-
-            return res.status(500).json({
-                error: "TAVILY_API_KEY missing"
-            });
-        }
-
-        console.log("ShrekSearch query:", query);
-
-        const response = await fetch("https://api.tavily.com/search", {
-            method: "POST",
-
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${apiKey}`
-            },
-
-            body: JSON.stringify({
-                query: query,
-
-                search_depth: "basic",
-
-                max_results: 8,
-
-                include_answer: true
-            })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error("Tavily error:", data);
-
-            return res.status(500).json({
-                error: "Tavily search failed",
-                details: data
-            });
-        }
-
-        const results = (data.results || []).map(result => ({
-            title: result.title || "",
-            url: result.url || "",
-            description: result.content || "",
-            content: result.content || ""
-        }));
-
-        res.json({
-            query: query,
-
-            // THIS is the AI-style answer
-            answer: data.answer || "No AI answer was generated.",
-
-            results: results
-        });
-
-    } catch (error) {
-
-        console.error("SHREKSEARCH ERROR:", error);
-
-        res.status(500).json({
-            error: "Search failed",
-            details: error.message
-        });
-    }
-});
-// ==================================================
-// INSTANT MODERATION WEBSOCKET
-// ==================================================
-
-const server =
-    http.createServer(app);
-
 /* ==================================================
-   ONLINE STATUS
+   SHREKBOOK CLIENT SCRIPT
 ================================================== */
-app.get("/api/moderation/status", async (req, res) => {
 
-    try {
+let moderationCheckRunning = false;
+let showingSpecificMessage = false;
+let onlineHeartbeatStarted = false;
 
-        if (!req.session || !req.session.userId) {
-
-            return res.json({
-                loggedIn: false,
-                banned: false,
-                kicked: false
-            });
-
-        }
-
-        const userId =
-            req.session.userId;
-
-        const { data: user, error } =
-            await supabase
-                .from("profiles")
-                .select("id, banned, kicked")
-                .eq("id", userId)
-                .single();
-
-        if (error) {
-
-            console.error(
-                "Moderation status error:",
-                error
-            );
-
-            return res.status(500).json({
-                error: "Failed to check moderation status"
-            });
-
-        }
-
-        res.json({
-            loggedIn: true,
-            banned: user?.banned === true,
-            kicked: user?.kicked === true
-        });
-
-    } catch (error) {
-
-        console.error(
-            "Moderation status error:",
-            error
-        );
-
-        res.status(500).json({
-            error: "Server error"
-        });
-
-    }
-
-});
-app.post("/api/online", async (req, res) => {
-
-    try {
-
-        if (!req.session || !req.session.userId) {
-
-            return res.status(401).json({
-                error: "Not logged in."
-            });
-
-        }
-
-        const userId =
-            req.session.userId;
-
-
-        const { error } =
-            await supabase
-                .from("profiles")
-                .update({
-                    last_seen: new Date().toISOString()
-                })
-                .eq("id", userId);
-
-
-        if (error) {
-
-            console.error(
-                "ONLINE STATUS SUPABASE ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error: "Could not update online status."
-            });
-
-        }
-
-
-        res.json({
-            success: true
-        });
-
-
-    } catch (error) {
-
-        console.error(
-            "ONLINE STATUS ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error: "Could not update online status."
-        });
-
-    }
-
-});
-
-// ==================================================
-// DEFAULT AVATAR
-// ==================================================
-
-const DEFAULT_AVATAR =
-    "/default-avatar.png";
-
+let currentLeaderboard = "overall";
 
 
 // ==================================================
-// EXPRESS
+// ME CACHE
 // ==================================================
 
-app.set("trust proxy", 1);
+let meCache = null;
+let meCacheTime = 0;
+let meRequest = null;
 
-app.use(express.json({
-    limit: "10mb"
-}));
+const ME_CACHE_DURATION = 10 * 1000;
 
-app.use(express.urlencoded({
-    extended: true
-}));
 
-const sessionMiddleware = session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false
-});
-
-app.use(sessionMiddleware);
-
-app.use(express.static(
-    path.join(__dirname, "public")
-));
-app.get("/sitemap.xml", (req, res) => {
-    res.sendFile(
-        path.join(__dirname, "public", "sitemap.xml")
-    );
-});
 // ==================================================
-// HELPERS
+// GET CURRENT USER
+// IMPORTANT:
+// This function returns PARSED DATA, not a fetch Response.
 // ==================================================
 
-function getAvatar(avatar) {
+async function getMeCached(force = false) {
+
+    const now = Date.now();
+
+    // Return valid cache
     if (
-        typeof avatar === "string" &&
-        avatar.trim() !== ""
+        !force &&
+        meCache &&
+        (now - meCacheTime) < ME_CACHE_DURATION
     ) {
-        return avatar;
+        return meCache;
     }
 
-    return DEFAULT_AVATAR;
-}
-
-function normalizeEmail(email) {
-    return String(email || "")
-        .trim()
-        .toLowerCase();
-}
-
-// ==================================================
-// ADMIN / BAN HELPERS
-// ==================================================
-
-async function isAdmin(userId) {
-    if (!userId) {
-        return false;
+    // Reuse an existing request
+    if (meRequest) {
+        return meRequest;
     }
 
-    const {
-        data,
-        error
-    } = await supabase
-        .from("admins")
-        .select("user_id")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-    if (error) {
-        console.error(
-            "ADMIN CHECK ERROR:",
-            error
-        );
-
-        return false;
-    }
-
-    return !!data;
-}
-
-async function getActiveBanByUserId(userId) {
-    if (!userId) {
-        return null;
-    }
-
-    const {
-        data,
-        error
-    } = await supabase
-        .from("bans")
-        .select(`
-            id,
-            user_id,
-            email,
-            reason,
-            banned_at,
-            banned_by,
-            active
-        `)
-        .eq("user_id", userId)
-        .eq("active", true)
-        .order("banned_at", {
-            ascending: false
-        })
-        .limit(1)
-        .maybeSingle();
-
-    if (error) {
-        console.error(
-            "BAN USER CHECK ERROR:",
-            error
-        );
-
-        return null;
-    }
-
-    return data;
-}
-
-async function getActiveBanByEmail(email) {
-    const normalized =
-        normalizeEmail(email);
-
-    if (!normalized) {
-        return null;
-    }
-
-    const {
-        data,
-        error
-    } = await supabase
-        .from("bans")
-        .select(`
-            id,
-            user_id,
-            email,
-            reason,
-            banned_at,
-            banned_by,
-            active
-        `)
-        .eq("email", normalized)
-        .eq("active", true)
-        .order("banned_at", {
-            ascending: false
-        })
-        .limit(1)
-        .maybeSingle();
-
-    if (error) {
-        console.error(
-            "BAN EMAIL CHECK ERROR:",
-            error
-        );
-
-        return null;
-    }
-
-    return data;
-}
-
-async function getActiveBan(userId, email) {
-    const userBan =
-        await getActiveBanByUserId(userId);
-
-    if (userBan) {
-        return userBan;
-    }
-
-    return await getActiveBanByEmail(email);
-}
-
-async function requireAdmin(req, res, next) {
-    try {
-        if (!req.session.user) {
-            return res.status(401).json({
-                error: "You must be logged in."
-            });
-        }
-
-        const userId = req.session.user.id;
-
-        // 👑 OWNER ALWAYS HAS STAFF ACCESS
-        if (
-            process.env.OWNER_ID &&
-            userId === process.env.OWNER_ID
-        ) {
-            return next();
-        }
-
-        // Check administrator table
-        const { data: admin, error: adminError } = await supabase
-            .from("admins")
-            .select("user_id")
-            .eq("user_id", userId)
-            .maybeSingle();
-
-        if (adminError) {
-            console.error("STAFF ADMIN CHECK ERROR:", adminError);
-        }
-
-        if (admin) {
-            return next();
-        }
-
-        // Check staff/moderator table
-        const { data: staff, error: staffError } = await supabase
-            .from("staff")
-            .select("user_id, role")
-            .eq("user_id", userId)
-            .maybeSingle();
-
-        if (staffError) {
-            console.error("STAFF CHECK ERROR:", staffError);
-        }
-
-        if (staff) {
-            return next();
-        }
-
-        return res.status(403).json({
-            error: "Staff access required."
-        });
-
-    } catch (error) {
-        console.error("REQUIRE STAFF ERROR:", error);
-
-        return res.status(500).json({
-            error: "Server error."
-        });
-    }
-}
-app.post("/api/admin/ban", async (req, res) => {
-
-    try {
-
-        // ==========================================
-        // CHECK LOGIN
-        // ==========================================
-
-        if (!req.session.user) {
-            return res.status(401).json({
-                error: "You must be logged in."
-            });
-        }
-
-
-        // ==========================================
-        // CHECK PERMISSION
-        // ==========================================
-
-        const { data: user, error: userError } =
-            await supabase
-                .from("profiles")
-                .select("role")
-                .eq("id", req.session.user.id)
-                .maybeSingle();
-
-
-        if (userError || !user) {
-
-            console.error(
-                "BAN PERMISSION CHECK ERROR:",
-                userError
-            );
-
-            return res.status(403).json({
-                error: "Unable to verify permissions."
-            });
-
-        }
-
-
-        const canBan = [
-            "administrator",
-            "owner"
-        ];
-
-
-        if (!canBan.includes(user.role)) {
-
-            return res.status(403).json({
-                error:
-                    "You do not have permission to ban users."
-            });
-
-        }
-
-
-        // ==========================================
-        // GET TARGET USER
-        // ==========================================
-
-        const { userId, reason } = req.body;
-
-
-        if (!userId) {
-
-            return res.status(400).json({
-                error: "User ID is required."
-            });
-
-        }
-
-
-        // ==========================================
-        // BAN PROFILE
-        // ==========================================
-
-        const { error } =
-            await supabase
-                .from("profiles")
-                .update({
-                    banned: true
-                })
-                .eq("id", userId);
-
-
-        if (error) {
-
-            console.error(
-                "Ban error:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    "Failed to ban user."
-            });
-
-        }
-
-
-        // ==========================================
-        // LIVE BAN
-        // ==========================================
-
-        liveBanUser(userId);
-
-
-        // ==========================================
-        // SUCCESS
-        // ==========================================
-
-        return res.json({
-
-            success: true,
-
-            message:
-                "User banned successfully."
-
-        });
-
-
-    } catch (error) {
-
-        console.error(
-            "ADMIN BAN ERROR:",
-            error
-        );
-
-        return res.status(500).json({
-            error:
-                "Server error while banning user."
-        });
-
-    }
-
-});
-// ==================================================
-// ADMIN AUTH
-// ==================================================
-app.post("/api/admin/kick", async (req, res) => {
-    const { userId } = req.body;
-
-    const { error } = await supabase
-        .from("profiles")
-        .update({
-            kicked: true
-        })
-        .eq("id", userId);
-
-    if (error) {
-        console.error("Kick error:", error);
-
-        return res.status(500).json({
-            error: "Failed to kick user"
-        });
-    }
-
-    // 🔥 Tell the user's browser immediately
-    liveKickUser(userId);
-    setTimeout(() => {
-        clearKick(userId);
-    }, 1000);
-    res.json({
-        success: true
-    });
-});
-app.get("/api/admin/auth", requireLogin, async (req, res) => {
-    try {
-
-        const userId = req.session.user.id;
-
-        const { data: profile, error } = await supabase
-            .from("profiles")
-            .select("id, username, display_name, role, is_active")
-            .eq("id", userId)
-            .maybeSingle();
-
-        if (error) {
-            console.error("ADMIN AUTH ERROR:", error);
-
-            return res.status(500).json({
-                error: error.message
-            });
-        }
-
-        if (!profile) {
-            return res.status(404).json({
-                error: "User profile not found."
-            });
-        }
-
-        const allowedRoles = [
-            "owner",
-            "administrator",
-            "senior_moderator",
-            "junior_moderator"
-        ];
-        console.log(profile.role);
-        if (!allowedRoles.includes(profile.role)) {
-            return res.status(403).json({
-            
-                error: "Admin access required."
-            });
-
-        }
-
-
-        res.json({
-            success: true,
-            authorized: true,
-            user: profile
-        });
-
-    } catch (error) {
-
-        console.error("ADMIN AUTH ERROR:", error);
-
-        res.status(500).json({
-            error: "Server error."
-        });
-
-    }
-});
-// ==================================================
-// BAN CHECK FOR API REQUESTS
-// ==================================================
-//
-// This makes sure a banned user cannot simply remain
-// logged in and continue using the API.
-//
-// Login/signup/me/health are handled separately.
-
-app.use("/api", async (req, res, next) => {
-
-    const publicRoutes = [
-        "/login",
-        "/signup",
-        "/health",
-        "/test"
-    ];
-
-    if (publicRoutes.includes(req.path)) {
-        return next();
-    }
-
-    if (!req.session.user) {
-        return next();
-    }
-
-    try {
-
-        const ban =
-            await getActiveBan(
-                req.session.user.id,
-                req.session.user.email
-            );
-
-        if (ban) {
-
-            req.session.destroy(() => {});
-
-            return res.status(403).json({
-                error: "Your account has been banned.",
-                reason:
-                    ban.reason ||
-                    "No reason provided."
-            });
-        }
-
-        next();
-
-    } catch (error) {
-
-        console.error(
-            "GLOBAL BAN CHECK ERROR:",
-            error
-        );
-
-        next();
-    }
-});
-
-// ==================================================
-// REACTION COUNTS
-// ==================================================
-
-async function getReactionCounts(userId) {
-
-    const counts = {
-        gyatt: 0,
-        cat: 0,
-        ogred: 0
-    };
-
-    const {
-        data: reactions,
-        error
-    } = await supabase
-        .from("reactions")
-        .select("type")
-        .eq("to_user_id", userId);
-
-    if (error) {
-        throw error;
-    }
-
-    for (const reaction of reactions || []) {
-
-        if (reaction.type === "gyatt") {
-            counts.gyatt++;
-        }
-
-        if (reaction.type === "cat") {
-            counts.cat++;
-        }
-
-        if (reaction.type === "ogred") {
-            counts.ogred++;
-        }
-    }
-
-    return counts;
-}
-// ==================================================
-// CHANGE USER ROLE
-// ==================================================
-
-app.post(
-    "/api/admin/users/:userId/role",
-    requireAdmin,
-    async (req, res) => {
+    meRequest = (async () => {
 
         try {
 
-            const targetUserId =
-                String(
-                    req.params.userId || ""
-                ).trim();
-
-            const newRole =
-                String(
-                    req.body.role || ""
-                ).trim().toLowerCase();
-
-
-            const allowedRoles = [
-                "owner",
-                "administrator",
-                "senior_moderator",
-                "moderator",
-                "peasant"
-            ];
-
-
-            if (!targetUserId) {
-
-                return res.status(400).json({
-                    error: "User ID is required."
-                });
-
-            }
-
-
-            if (!allowedRoles.includes(newRole)) {
-
-                return res.status(400).json({
-                    error: "Invalid role."
-                });
-
-            }
-
-
-            const currentUserId =
-                req.session.user.id;
-
-
-            // ==========================================
-            // OWNER PROTECTION
-            // ==========================================
-
-            if (
-                targetUserId === currentUserId
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot change your own role."
-                });
-
-            }
-
-
-            // ==========================================
-            // GET TARGET PROFILE
-            // ==========================================
-
-            const {
-                data: target,
-                error: targetError
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "id, username, display_name, role"
-                )
-                .eq(
-                    "id",
-                    targetUserId
-                )
-                .maybeSingle();
-
-
-            if (targetError) {
-
-                return res.status(500).json({
-                    error:
-                        targetError.message
-                });
-
-            }
-
-
-            if (!target) {
-
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-
-            }
-
-
-            // ==========================================
-            // OWNER CANNOT BE TOUCHED
-            // ==========================================
-
-            if (
-                target.role === "owner"
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "The Owner cannot be demoted or modified."
-                });
-
-            }
-
-
-            // ==========================================
-            // ONLY OWNER CAN CREATE/REMOVE ADMINS
-            // ==========================================
-
-            const currentProfile =
-                await supabase
-                    .from("profiles")
-                    .select("role")
-                    .eq(
-                        "id",
-                        currentUserId
-                    )
-                    .maybeSingle();
-
-
-            const currentRole =
-                currentProfile.data?.role;
-
-
-            if (
-                newRole === "owner"
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "The Owner role cannot be assigned."
-                });
-
-            }
-
-
-            if (
-                newRole === "administrator" &&
-                currentRole !== "owner"
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "Only the Owner can promote users to Administrator."
-                });
-
-            }
-
-
-            // ==========================================
-            // UPDATE ROLE
-            // ==========================================
-
-            const {
-                data: updated,
-                error: updateError
-            } = await supabase
-                .from("profiles")
-                .update({
-                    role: newRole
-                })
-                .eq(
-                    "id",
-                    targetUserId
-                )
-                .select(
-                    "id, username, display_name, role"
-                )
-                .single();
-
-
-            if (updateError) {
-
-                console.error(
-                    "ROLE UPDATE ERROR:",
-                    updateError
+            const response =
+                await fetch(
+                    "/api/me",
+                    {
+                        method: "GET",
+                        credentials: "include",
+                        cache: "no-store",
+                        headers: {
+                            "Accept": "application/json"
+                        }
+                    }
                 );
 
-                return res.status(500).json({
-                    error:
-                        updateError.message
-                });
+            // Not logged in
+            if (response.status === 401) {
 
+                meCache = {
+                    loggedIn: false,
+                    user: null
+                };
+
+                meCacheTime = Date.now();
+
+                return meCache;
             }
 
+            if (!response.ok) {
 
-            // ==========================================
-            // KEEP ADMINS TABLE IN SYNC
-            // ==========================================
-
-            if (
-                newRole === "administrator"
-            ) {
-
-                await supabase
-                    .from("admins")
-                    .upsert(
-                        {
-                            user_id:
-                                targetUserId
-                        },
-                        {
-                            onConflict:
-                                "user_id"
-                        }
-                    );
-
-            } else {
-
-                await supabase
-                    .from("admins")
-                    .delete()
-                    .eq(
-                        "user_id",
-                        targetUserId
-                    );
-
+                throw new Error(
+                    `GET /api/me failed: ${response.status}`
+                );
             }
 
+            const data =
+                await response.json();
 
-            res.json({
+            meCache = data;
+            meCacheTime = Date.now();
 
-                success: true,
-
-                message:
-                    `Role changed to ${newRole}.`,
-
-                user:
-                    updated
-
-            });
-
+            return data;
 
         } catch (error) {
 
             console.error(
-                "CHANGE ROLE ERROR:",
+                "ME CACHE ERROR:",
                 error
             );
 
-            res.status(500).json({
-                error:
-                    error.message ||
-                    "Server error while changing role."
-            });
+            if (meCache) {
+                return meCache;
+            }
+
+            return {
+                loggedIn: false,
+                user: null
+            };
+
+        } finally {
+
+            meRequest = null;
 
         }
 
+    })();
+
+    return meRequest;
+}
+
+
+// ==================================================
+// FORCE REFRESH ME
+// ==================================================
+
+async function refreshMe() {
+
+    meCache = null;
+    meCacheTime = 0;
+
+    return getMeCached(true);
+}
+
+
+// ==================================================
+// CLEAR ME CACHE
+// ==================================================
+
+function clearMeCache() {
+
+    meCache = null;
+    meCacheTime = 0;
+
+}
+
+
+/* ==================================================
+   ESCAPE HTML
+================================================== */
+
+function escapeHtml(text) {
+
+    const div =
+        document.createElement("div");
+
+    div.textContent =
+        text ?? "";
+
+    return div.innerHTML;
+
+}
+
+
+/* ==================================================
+   SAFE JSON RESPONSE
+================================================== */
+
+async function getJsonResponse(response) {
+
+    const contentType =
+        response.headers.get("content-type") || "";
+
+    if (
+        contentType.includes("application/json")
+    ) {
+
+        return await response.json();
+
     }
-);
-// ==================================================
-// TEST
-// ==================================================
 
-app.get("/api/test", (req, res) => {
+    const text =
+        await response.text();
 
-    res.json({
-        success: true,
-        message: "ShrekBook server is alive 🧌"
-    });
+    return {
+        error:
+            text ||
+            `Request failed with status ${response.status}`
+    };
 
-});
+}
 
-app.get("/api/health", (req, res) => {
 
-    res.json({
-        ok: true,
-        loggedIn: !!req.session.user
-    });
+/* ==================================================
+   INVENTORY
+================================================== */
 
-});
-
-// ==================================================
-// SIGNUP
-// ==================================================
-
-app.post("/api/signup", async (req, res) => {
+async function loadInventory() {
 
     try {
 
-        const username =
-            String(
-                req.body.username || ""
-            ).trim();
-
-        const display_name =
-            String(
-                req.body.display_name ||
-                username
-            ).trim();
-
-        const email =
-            normalizeEmail(
-                req.body.email
+        const response =
+            await fetch(
+                "/api/shop/inventory",
+                {
+                    credentials: "include",
+                    headers: {
+                        "Accept": "application/json"
+                    }
+                }
             );
 
-        const password =
-            String(
-                req.body.password || ""
+        const data =
+            await getJsonResponse(response);
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Failed to load inventory."
             );
 
-        if (
-            !username ||
-            !email ||
-            !password
-        ) {
-            return res.status(400).json({
-                error:
-                    "Username, email, and password are required."
-            });
         }
 
-        // Check banned email BEFORE creating account
-        const emailBan =
-            await getActiveBanByEmail(
-                email
+        const inventory =
+            data.items || [];
+
+        const container =
+            document.getElementById(
+                "inventory"
             );
 
-        if (emailBan) {
-            return res.status(403).json({
-                error:
-                    "This email address is banned from ShrekBook."
-            });
+        if (!container) {
+            return;
         }
 
-        const {
-            data: existing,
-            error: usernameError
-        } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq("username", username)
-            .maybeSingle();
+        if (!inventory.length) {
 
-        if (usernameError) {
-            return res.status(500).json({
-                error:
-                    usernameError.message
-            });
+            container.innerHTML =
+                "<p>You don't own any items yet. 🧌</p>";
+
+            return;
         }
 
-        if (existing) {
-            return res.status(400).json({
-                error:
-                    "That username is already taken."
-            });
-        }
+        container.innerHTML =
+            inventory.map(item => {
 
-        const {
-            data: authData,
-            error: authError
-        } = await supabase.auth.admin.createUser({
-            email,
-            password,
-            email_confirm: true
-        });
+                const shopItem =
+                    item.shop_items || {};
 
-        if (authError) {
-            return res.status(400).json({
-                error:
-                    authError.message
-            });
-        }
+                return `
 
-        const userId =
-            authData.user.id;
+                    <div class="inventory-item">
 
-        const {
-            data: profile,
-            error: profileError
-        } = await supabase
-            .from("profiles")
-            .insert({
-                id: userId,
-                username,
-                display_name:
-                    display_name || username,
-                avatar: null,
-                bio: "",
-                last_seen:
-                    new Date().toISOString()
-            })
-            .select()
-            .single();
+                        <h3>
+                            ${escapeHtml(
+                                shopItem.name || "Item"
+                            )}
+                        </h3>
 
-        if (profileError) {
+                        <p>
+                            ${escapeHtml(
+                                shopItem.description || ""
+                            )}
+                        </p>
 
-            await supabase.auth.admin
-                .deleteUser(userId);
+                    </div>
 
-            return res.status(500).json({
-                error:
-                    profileError.message
-            });
-        }
+                `;
 
-        res.status(201).json({
-
-            success: true,
-
-            user: {
-                ...profile,
-                avatar:
-                    getAvatar(
-                        profile.avatar
-                    )
-            }
-
-        });
+            }).join("");
 
     } catch (error) {
 
         console.error(
-            "SIGNUP ERROR:",
+            "INVENTORY LOAD ERROR:",
             error
         );
 
-        res.status(500).json({
-            error: "Server error."
-        });
-
     }
 
-});
-function requireLogin(req, res, next) {
-    if (!req.session || !req.session.user) {
-        return res.status(401).json({
-            error: "You must be logged in."
-        });
-    }
-
-    next();
 }
 
-// ==================================================
-// LOGIN
-// ==================================================
 
-app.post("/api/login", async (req, res) => {
+/* ==================================================
+   WARNING
+================================================== */
 
-    try {
+function warn() {
 
-        const email =
-            normalizeEmail(
-                req.body.email
-            );
+    const element =
+        document.getElementById(
+            "upload-avatar-button-warn"
+        );
 
-        const password =
-            String(
-                req.body.password || ""
-            );
+    if (element) {
 
+        element.innerHTML =
+            "When changing your avatar, do not press the Save Profile button. Instead, press Upload Avatar.";
 
-        // ==========================================
-        // CHECK INPUT
-        // ==========================================
+    }
 
-        if (!email || !password) {
+}
 
-            return res.status(400).json({
-                error:
-                    "Email and password are required."
-            });
 
-        }
+/* ==================================================
+   FILE -> BASE64
+================================================== */
 
+function fileToBase64(file) {
 
-        // ==========================================
-        // CHECK EMAIL BAN
-        // ==========================================
+    return new Promise((resolve, reject) => {
 
-        const emailBan =
-            await getActiveBanByEmail(
-                email
-            );
+        const reader =
+            new FileReader();
 
+        reader.onload = () => {
 
-        if (emailBan) {
+            const result =
+                reader.result;
 
-            return res.status(403).json({
+            const base64 =
+                result.split(",")[1];
 
-                error:
-                    "This email address is banned from ShrekBook.",
-
-                reason:
-                    emailBan.reason ||
-                    "No reason provided."
-
-            });
-
-        }
-
-
-        // ==========================================
-        // SUPABASE AUTH LOGIN
-        // ==========================================
-
-        const {
-            data: authData,
-            error: authError
-        } =
-            await supabase.auth.signInWithPassword({
-
-                email,
-                password
-
-            });
-
-
-        if (authError) {
-
-            return res.status(401).json({
-
-                error:
-                    authError.message
-
-            });
-
-        }
-
-
-        const authUser =
-            authData.user;
-
-
-        if (!authUser) {
-
-            return res.status(401).json({
-
-                error:
-                    "Login failed."
-
-            });
-
-        }
-
-
-        // ==========================================
-        // CHECK USER-ID BAN
-        // ==========================================
-
-        const userBan =
-            await getActiveBanByUserId(
-                authUser.id
-            );
-
-
-        if (userBan) {
-
-            return res.status(403).json({
-
-                error:
-                    "Your account has been banned.",
-
-                reason:
-                    userBan.reason ||
-                    "No reason provided."
-
-            });
-
-        }
-
-
-        // ==========================================
-        // LOAD PROFILE
-        // ==========================================
-
-        let {
-            data: profile,
-            error: profileError
-        } =
-            await supabase
-                .from("profiles")
-                .select("*")
-                .eq(
-                    "id",
-                    authUser.id
-                )
-                .maybeSingle();
-
-
-        if (profileError) {
-
-            console.error(
-                "LOGIN PROFILE ERROR:",
-                profileError
-            );
-
-            return res.status(500).json({
-
-                error:
-                    profileError.message
-
-            });
-
-        }
-
-
-        // ==========================================
-        // CREATE MISSING PROFILE
-        // ==========================================
-
-        if (!profile) {
-
-            let username =
-                (
-                    authUser.email ||
-                    "user"
-                )
-                    .split("@")[0]
-                    .toLowerCase()
-                    .replace(
-                        /[^a-z0-9_]/g,
-                        ""
-                    )
-                    .slice(0, 20);
-
-
-            if (!username) {
-
-                username =
-                    "user";
-
-            }
-
-
-            const original =
-                username;
-
-
-            let number =
-                1;
-
-
-            // Find unused username
-
-            while (true) {
-
-                const {
-                    data: taken
-                } =
-                    await supabase
-                        .from("profiles")
-                        .select("id")
-                        .eq(
-                            "username",
-                            username
-                        )
-                        .maybeSingle();
-
-
-                if (!taken) {
-
-                    break;
-
-                }
-
-
-                username =
-                    `${original}${number}`;
-
-
-                number++;
-
-            }
-
-
-            // ======================================
-            // CREATE PROFILE
-            // ======================================
-
-            const {
-                data: created,
-                error: createError
-            } =
-                await supabase
-                    .from("profiles")
-                    .insert({
-
-                        id:
-                            authUser.id,
-
-                        username:
-                            username,
-
-                        display_name:
-                            username,
-
-                        avatar:
-                            null,
-
-                        bio:
-                            "",
-
-                        role:
-                            "peasant",
-
-                        is_active:
-                            true,
-
-                        banned:
-                            false,
-
-                        // ==========================
-                        // SHREKCOINS
-                        // ==========================
-
-                        shrekcoins:
-                            10,
-
-                        last_shrekcoin_login:
-                            new Date()
-                                .toISOString()
-                                .slice(0, 10)
-
-                    })
-                    .select()
-                    .single();
-
-
-            if (createError) {
-
-                console.error(
-                    "CREATE PROFILE ERROR:",
-                    createError
-                );
-
-                return res.status(500).json({
-
-                    error:
-                        createError.message
-
-                });
-
-            }
-
-
-            profile =
-                created;
-
-
-            console.log(
-                `🪙 ${username} received 10 ShrekCoins for their first login.`
-            );
-
-        }
-
-
-        // ==========================================
-        // CHECK PROFILE BAN
-        // ==========================================
-
-        if (profile.banned === true) {
-
-            return res.status(403).json({
-
-                error:
-                    "Your account has been banned from ShrekBook."
-
-            });
-
-        }
-
-
-        // ==========================================
-        // CHECK PROFILE ACTIVE STATUS
-        // ==========================================
-
-        if (profile.is_active === false) {
-
-            return res.status(403).json({
-
-                error:
-                    "Your ShrekBook account is currently inactive."
-
-            });
-
-        }
-
-
-        // ==========================================
-        // DAILY LOGIN SHREKCOIN
-        //
-        // First login of each day = +10
-        // ==========================================
-
-        const today =
-            new Date()
-                .toISOString()
-                .slice(0, 10);
-
-
-        let loginCoinsAwarded =
-            0;
-
-
-        if (
-            profile.last_shrekcoin_login !==
-            today
-        ) {
-
-            const currentCoins =
-                Number(
-                    profile.shrekcoins || 0
-                );
-
-
-            const newCoinTotal =
-                currentCoins + 10;
-
-
-            const {
-                data: updatedProfile,
-                error: coinError
-            } =
-                await supabase
-                    .from("profiles")
-                    .update({
-
-                        shrekcoins:
-                            newCoinTotal,
-
-                        last_shrekcoin_login:
-                            today
-
-                    })
-                    .eq(
-                        "id",
-                        profile.id
-                    )
-                    .select()
-                    .single();
-
-
-            if (coinError) {
-
-                console.error(
-                    "SHREKCOIN LOGIN ERROR:",
-                    coinError
-                );
-
-                // Don't prevent login if the
-                // coin system happens to fail.
-                loginCoinsAwarded = 0;
-
-            } else {
-
-                profile =
-                    updatedProfile;
-
-                loginCoinsAwarded =
-                    10;
-
-
-                console.log(
-                    `🪙 ${profile.username} received 10 ShrekCoins for logging in today.`
-                );
-
-            }
-
-        }
-
-
-        // ==========================================
-        // CREATE LOGIN SESSION
-        // ==========================================
-
-        req.session.user = {
-
-            id:
-                profile.id,
-
-            username:
-                profile.username,
-
-            display_name:
-                profile.display_name,
-
-            email:
-                email
+            resolve(base64);
 
         };
 
+        reader.onerror = () => {
 
-        // ==========================================
-        // SAVE SESSION
-        // ==========================================
+            reject(
+                new Error(
+                    "Could not read image."
+                )
+            );
 
-        req.session.save(
-            error => {
+        };
 
-                if (error) {
+        reader.readAsDataURL(file);
 
-                    console.error(
-                        "SESSION SAVE ERROR:",
-                        error
-                    );
+    });
 
-                    return res.status(500).json({
-
-                        error:
-                            "Could not save login session."
-
-                    });
-
-                }
+}
 
 
-                // ==================================
-                // LOGIN SUCCESS
-                // ==================================
+/* ==================================================
+   REACTIONS
+================================================== */
 
-                res.json({
+async function giveReaction(type) {
 
-                    success:
-                        true,
+    const userId =
+        new URLSearchParams(
+            window.location.search
+        ).get("id");
 
-                    loginCoinsAwarded:
-                        loginCoinsAwarded,
+    if (!userId) {
+        return;
+    }
 
-                    shrekcoins:
-                        Number(
-                            profile.shrekcoins || 0
-                        ),
+    const validTypes = [
+        "gyatt",
+        "cat",
+        "ogred"
+    ];
 
-                    user: {
+    if (!validTypes.includes(type)) {
+        return;
+    }
 
-                        ...profile,
+    try {
 
-                        avatar:
-                            getAvatar(
-                                profile.avatar
-                            )
-
+        const response =
+            await fetch(
+                `/api/users/${encodeURIComponent(userId)}/${encodeURIComponent(type)}`,
+                {
+                    method: "POST",
+                    credentials: "include",
+                    headers: {
+                        "Accept": "application/json"
                     }
+                }
+            );
 
-                });
+        const data =
+            await getJsonResponse(response);
 
+        if (!response.ok) {
+
+            alert(
+                "❌ " +
+                (
+                    data.error ||
+                    "Could not react."
+                )
+            );
+
+            return;
+        }
+
+        if (type === "gyatt") {
+
+            const element =
+                document.getElementById(
+                    "gyatt-count"
+                );
+
+            if (element) {
+                element.textContent =
+                    data.gyatt;
             }
+
+        }
+
+        if (type === "cat") {
+
+            const element =
+                document.getElementById(
+                    "cat-count"
+                );
+
+            if (element) {
+                element.textContent =
+                    data.cat;
+            }
+
+        }
+
+        if (type === "ogred") {
+
+            const element =
+                document.getElementById(
+                    "ogred-count"
+                );
+
+            if (element) {
+                element.textContent =
+                    data.ogred;
+            }
+
+        }
+
+        loadLeaderboard(
+            currentLeaderboard
         );
 
+    } catch (error) {
+
+        console.error(
+            "REACTION ERROR:",
+            error
+        );
+
+        alert(
+            "❌ Could not react."
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   MAKE IMAGE OBJECT
+================================================== */
+
+async function prepareImage(file) {
+
+    if (!file) {
+        return null;
+    }
+
+    if (!file.type.startsWith("image/")) {
+
+        throw new Error(
+            "Selected file is not an image."
+        );
+
+    }
+
+    if (
+        file.size >
+        5 * 1024 * 1024
+    ) {
+
+        throw new Error(
+            "Image must be under 5MB."
+        );
+
+    }
+
+    const data =
+        await fileToBase64(file);
+
+    return {
+
+        data: data,
+        type: file.type,
+        name: file.name
+
+    };
+
+}
+
+
+/* ==================================================
+   LOGIN
+================================================== */
+
+async function login() {
+
+    const email =
+        document.getElementById(
+            "login-email"
+        )?.value.trim();
+
+    const password =
+        document.getElementById(
+            "login-password"
+        )?.value;
+
+    const status =
+        document.getElementById(
+            "login-status"
+        );
+
+    if (!email || !password) {
+
+        if (status) {
+
+            status.textContent =
+                "❌ Enter your email and password.";
+
+        }
+
+        return;
+
+    }
+
+    if (status) {
+        status.textContent =
+            "Logging in...";
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/login",
+                {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+                        "Accept":
+                            "application/json"
+                    },
+
+                    credentials: "include",
+
+                    body:
+                        JSON.stringify({
+
+                            email:
+                                email,
+
+                            password:
+                                password
+
+                        })
+
+                }
+            );
+
+        const data =
+            await getJsonResponse(response);
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Login failed."
+            );
+
+        }
+
+        clearMeCache();
+
+        if (status) {
+
+            status.textContent =
+                "✅ Logged in!";
+
+        }
+
+        await checkLogin();
 
     } catch (error) {
 
@@ -2011,3077 +602,802 @@ app.post("/api/login", async (req, res) => {
             error
         );
 
+        if (status) {
 
-        res.status(500).json({
-
-            error:
-                "Server error."
-
-        });
-
-    }
-
-});
-
-
-
-app.post("/api/admin/global-message", async (req, res) => {
-
-    try {
-
-        if (
-            !req.session ||
-            !req.session.user
-        ) {
-
-            return res.status(401).json({
-                error: "Not logged in"
-            });
+            status.textContent =
+                "❌ " +
+                error.message;
 
         }
 
-
-        const {
-            data: profile,
-            error
-        } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq(
-                "id",
-                req.session.user.id
-            )
-            .single();
-
-
-        if (
-            error ||
-            !profile
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "Unable to verify permissions."
-            });
-
-        }
-
-
-        // OWNER ONLY
-        if (
-            profile.role !== "owner"
-        ) {
-
-            return res.status(403).json({
-                error:
-                    "Only the owner can send global messages."
-            });
-
-        }
-
-
-        const {
-            message
-        } = req.body;
-
-
-        if (
-            !message ||
-            !message.trim()
-        ) {
-
-            return res.status(400).json({
-                error:
-                    "Message cannot be empty."
-            });
-
-        }
-
-
-        if (
-            message.length > 1000
-        ) {
-
-            return res.status(400).json({
-                error:
-                    "Message is too long."
-            });
-
-        }
-
-
-        globalMessage = {
-
-            id:
-                Date.now(),
-
-            message:
-                message.trim(),
-
-            createdAt:
-                Date.now()
-
-        };
-
-
-        res.json({
-            success: true
-        });
-
-
-    } catch (error) {
-
-        console.error(
-            "GLOBAL MESSAGE ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error:
-                "Failed to send global message."
-        });
-
     }
-
-});
-// ==================================================
-// MARK GLOBAL MESSAGE AS READ
-// ==================================================
-
-app.post("/api/global-message/read", async (req, res) => {
-
-    try {
-
-        if (
-            !req.session ||
-            !req.session.user ||
-            !req.session.user.id
-        ) {
-
-            return res.status(401).json({
-                error:
-                    "Not logged in."
-            });
-
-        }
-
-
-        if (
-            !globalMessage
-        ) {
-
-            return res.json({
-                success:
-                    true
-            });
-
-        }
-
-
-        globalMessage.readBy.add(
-            req.session.user.id
-        );
-
-
-        return res.json({
-            success:
-                true
-        });
-
-
-    } catch (error) {
-
-        console.error(
-            "GLOBAL MESSAGE READ ERROR:",
-            error
-        );
-
-        return res.status(500).json({
-            error:
-                "Failed to mark message as read."
-        });
-
-    }
-
-});
-// ==================================================
-// SEND SPECIFIC MESSAGE
-// ADMIN + OWNER ONLY
-// ==================================================
-
-app.post(
-    "/api/admin/specific-message",
-    async (req, res) => {
-
-        try {
-
-            // ------------------------------------------
-            // CHECK LOGIN
-            // ------------------------------------------
-
-            if (
-                !req.session ||
-                !req.session.user ||
-                !req.session.user.id
-            ) {
-
-                return res.status(401).json({
-                    error: "Not logged in."
-                });
-
-            }
-
-
-            const senderId =
-                req.session.user.id;
-
-
-            // ------------------------------------------
-            // GET SENDER PROFILE
-            // ------------------------------------------
-
-            const {
-                data: sender,
-                error: senderError
-            } = await supabase
-                .from("profiles")
-                .select("id, username, display_name, role")
-                .eq(
-                    "id",
-                    senderId
-                )
-                .single();
-
-
-            if (
-                senderError ||
-                !sender
-            ) {
-
-                console.error(
-                    "SENDER PROFILE ERROR:",
-                    senderError
-                );
-
-                return res.status(403).json({
-                    error:
-                        "Unable to verify your permissions."
-                });
-
-            }
-
-
-            // ------------------------------------------
-            // CHECK PERMISSIONS
-            // ------------------------------------------
-
-            if (
-                sender.role !== "administrator" &&
-                sender.role !== "owner"
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "Only administrators and owners can send specific messages."
-                });
-
-            }
-
-
-            // ------------------------------------------
-            // GET REQUEST DATA
-            // ------------------------------------------
-
-            const {
-                userId,
-                message
-            } = req.body || {};
-
-
-            // ------------------------------------------
-            // VALIDATE USER ID
-            // ------------------------------------------
-
-            if (
-                typeof userId !== "string" ||
-                !userId.trim()
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "A valid user ID is required."
-                });
-
-            }
-
-
-            const targetUserId =
-                userId.trim();
-
-
-            // ------------------------------------------
-            // PREVENT SELF MESSAGE
-            // ------------------------------------------
-
-            if (
-                targetUserId === senderId
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "You cannot send a specific message to yourself."
-                });
-
-            }
-
-
-            // ------------------------------------------
-            // VALIDATE MESSAGE
-            // ------------------------------------------
-
-            if (
-                typeof message !== "string"
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Message must be text."
-                });
-
-            }
-
-
-            const cleanMessage =
-                message.trim();
-
-
-            if (
-                !cleanMessage
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Message cannot be empty."
-                });
-
-            }
-
-
-            if (
-                cleanMessage.length > 1000
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Message cannot exceed 1000 characters."
-                });
-
-            }
-
-
-            // ------------------------------------------
-            // CHECK TARGET USER EXISTS
-            // ------------------------------------------
-
-            const {
-                data: targetUser,
-                error: targetError
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "id, username, display_name"
-                )
-                .eq(
-                    "id",
-                    targetUserId
-                )
-                .single();
-
-
-            if (
-                targetError ||
-                !targetUser
-            ) {
-
-                return res.status(404).json({
-                    error:
-                        "That user does not exist."
-                });
-
-            }
-
-
-            // ------------------------------------------
-            // CHECK EXISTING MESSAGE
-            // ------------------------------------------
-
-            const existingMessage =
-                specificMessages.get(
-                    targetUserId
-                );
-
-
-            if (
-                existingMessage
-            ) {
-
-                return res.status(409).json({
-                    error:
-                        "That user already has an unread specific message."
-                });
-
-            }
-
-
-            // ------------------------------------------
-            // CREATE MESSAGE
-            // ------------------------------------------
-
-            const now =
-                Date.now();
-
-
-            const newMessage = {
-
-                id:
-                    `${now}-${Math.random()
-                        .toString(36)
-                        .slice(2, 10)}`,
-
-                message:
-                    cleanMessage,
-
-                createdAt:
-                    now,
-
-                senderId:
-                    sender.id,
-
-                senderUsername:
-                    sender.username,
-
-                senderDisplayName:
-                    sender.display_name ||
-                    sender.username ||
-                    "Administrator"
-
-            };
-
-
-            // ------------------------------------------
-            // STORE MESSAGE
-            // ------------------------------------------
-
-            specificMessages.set(
-                targetUserId,
-                newMessage
-            );
-
-
-            // ------------------------------------------
-            // RESPONSE
-            // ------------------------------------------
-
-            console.log(
-                `📨 Specific message sent by ${sender.username} to ${targetUser.username}`
-            );
-
-
-            return res.json({
-
-                success:
-                    true,
-
-                messageId:
-                    newMessage.id,
-
-                targetUser: {
-
-                    id:
-                        targetUser.id,
-
-                    username:
-                        targetUser.username,
-
-                    display_name:
-                        targetUser.display_name
-
-                }
-
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "SPECIFIC MESSAGE ERROR:",
-                error
-            );
-
-
-            return res.status(500).json({
-                error:
-                    "Failed to send specific message."
-            });
-
-        }
-
-    }
-);
-
-
-
-/* ==================================================
-   BAN / KICK MONITOR
-================================================== */
-
-let moderationCheckRunning = false;
-
-app.get("/api/me", async (req, res) => {
-
-try {
-
-    if (!req.session.user) {
-
-        return res.json({
-            loggedIn: false
-        });
-
-    }
-
-
-    // ==========================================
-    // MESSAGE SESSION START
-    // ==========================================
-
-    if (!req.session.messageStartedAt) {
-
-        req.session.messageStartedAt =
-            Date.now();
-
-    }
-
-
-    // ==========================================
-    // LOAD PROFILE
-    // ==========================================
-
-    const {
-        data,
-        error
-    } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq(
-            "id",
-            req.session.user.id
-        )
-        .single();
-
-
-    if (error || !data) {
-
-        return res.json({
-            loggedIn: false
-        });
-
-    }
-
-
-    // ==========================================
-    // GLOBAL MESSAGE
-    // ==========================================
-
-    let pendingGlobalMessage = null;
-
-
-    if (
-        globalMessage &&
-        globalMessage.createdAt >=
-            req.session.messageStartedAt
-    ) {
-
-        pendingGlobalMessage =
-            globalMessage;
-
-    }
-
-
-    // ==========================================
-    // SPECIFIC MESSAGE
-    // ==========================================
-
-    const pendingSpecificMessage =
-        specificMessages.get(data.id) || null;
-
-
-    if (pendingSpecificMessage) {
-
-        specificMessages.delete(data.id);
-
-    }
-
-
-    // ==========================================
-    // REACTIONS
-    // ==========================================
-
-    const reactions =
-        await getReactionCounts(
-            data.id
-        );
-
-
-    // ==========================================
-    // ADMIN
-    // ==========================================
-
-    const admin =
-        await isAdmin(
-            data.id
-        );
-
-
-    // ==========================================
-    // EQUIPPED TITLE
-    // ==========================================
-
-    let equippedTitle = null;
-
-
-    if (
-        data.equipped_title_id
-    ) {
-
-        const {
-            data: title,
-            error: titleError
-        } =
-            await supabase
-                .from("shop_items")
-                .select(
-                    "id, name, description, icon, price"
-                )
-                .eq(
-                    "id",
-                    data.equipped_title_id
-                )
-                .maybeSingle();
-
-
-        if (titleError) {
-
-            console.error(
-                "EQUIPPED TITLE ERROR:",
-                titleError
-            );
-
-        } else {
-
-            equippedTitle =
-                title || null;
-
-        }
-
-    }
-
-
-    // ==========================================
-    // RESPONSE
-    // ==========================================
-
-    res.json({
-
-        loggedIn: true,
-
-        isAdmin:
-            admin,
-
-        user: {
-
-            ...data,
-
-            avatar:
-                getAvatar(
-                    data.avatar
-                ),
-
-            gyatt:
-                reactions.gyatt,
-
-            cat:
-                reactions.cat,
-
-            ogred:
-                reactions.ogred,
-
-            // ==================================
-            // EQUIPPED TITLE
-            // ==================================
-
-            equippedTitle:
-                equippedTitle
-
-        },
-
-        globalMessage:
-            pendingGlobalMessage,
-
-        specificMessage:
-            pendingSpecificMessage
-
-    });
-
-
-} catch (error) {
-
-    console.error(
-        "ME ERROR:",
-        error
-    );
-
-    res.status(500).json({
-
-        error:
-            "Server error."
-
-    });
 
 }
 
 
-});
+/* ==================================================
+   SIGNUP
+================================================== */
 
+async function signup() {
 
+    const username =
+        document.getElementById(
+            "signup-username"
+        )?.value.trim();
 
-// ==================================================
-// GET SPECIFIC MESSAGE FOR CURRENT USER
-// ==================================================
+    const displayName =
+        document.getElementById(
+            "signup-display-name"
+        )?.value.trim();
 
-app.get(
-    "/api/specific-message",
-    async (req, res) => {
+    const email =
+        document.getElementById(
+            "signup-email"
+        )?.value.trim();
 
-        try {
+    const password =
+        document.getElementById(
+            "signup-password"
+        )?.value;
 
-            if (
-                !req.session ||
-                !req.session.user ||
-                !req.session.user.id
-            ) {
-
-                return res.status(401).json({
-                    error: "Not logged in."
-                });
-
-            }
-
-            const userId =
-                req.session.user.id;
-
-            const message =
-                specificMessages.get(
-                    userId
-                );
-
-            if (!message) {
-
-                return res.json({
-                    message: null
-                });
-
-            }
-
-            return res.json({
-                message
-            });
-
-        } catch (error) {
-
-            console.error(
-                "GET SPECIFIC MESSAGE ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    "Failed to get specific message."
-            });
-
-        }
-
-    }
-);
-// ==================================================
-// ONLINE STATUS
-// ==================================================
-
-app.get("/api/online", async (req, res) => {
-
-    try {
-
-        // User is not logged in
-        if (!req.session || !req.session.user) {
-
-            return res.json({
-                online: false
-            });
-
-        }
-
-
-        // Make sure the user still exists
-        const {
-            data,
-            error
-        } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq(
-                "id",
-                req.session.user.id
-            )
-            .single();
-
-
-        if (error || !data) {
-
-            return res.json({
-                online: false
-            });
-
-        }
-
-
-        // User is logged in
-        res.json({
-            online: true,
-            userId: data.id
-        });
-
-
-    } catch (error) {
-
-        console.error(
-            "ONLINE ERROR:",
-            error
+    const status =
+        document.getElementById(
+            "signup-status"
         );
 
-        res.status(500).json({
-            online: false,
-            error: "Server error."
-        });
+    if (
+        !username ||
+        !email ||
+        !password
+    ) {
+
+        if (status) {
+
+            status.textContent =
+                "❌ Fill in all required fields.";
+
+        }
+
+        return;
 
     }
 
-});
+    if (status) {
 
+        status.textContent =
+            "Creating account...";
 
-app.post("/api/admin/kick", async (req, res) => {
+    }
 
     try {
 
-        const { userId } = req.body;
+        const response =
+            await fetch(
+                "/api/signup",
+                {
 
-        if (!userId) {
-            return res.status(400).json({
-                error: "Missing userId"
-            });
-        }
+                    method: "POST",
 
-        const { error } = await supabase
-            .from("profiles")
-            .update({
-                kicked: true
-            })
-            .eq("id", userId);
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+                        "Accept":
+                            "application/json"
+                    },
 
-        if (error) {
+                    credentials: "include",
 
-            console.error(
-                "KICK DATABASE ERROR:",
-                error
-            );
+                    body:
+                        JSON.stringify({
 
-            return res.status(500).json({
-                error: "Failed to kick user"
-            });
-        }
+                            username:
+                                username,
 
-        // Tell the client indirectly through /api/me,
-        // then clear the flag after 1 second.
-        setTimeout(async () => {
+                            display_name:
+                                displayName ||
+                                username,
 
-            try {
+                            email:
+                                email,
 
-                const { error: clearError } =
-                    await supabase
-                        .from("profiles")
-                        .update({
-                            kicked: false
+                            password:
+                                password
+
                         })
-                        .eq("id", userId);
-
-                if (clearError) {
-
-                    console.error(
-                        "CLEAR KICK ERROR:",
-                        clearError
-                    );
-
-                } else {
-
-                    console.log(
-                        `🦵 Kick cleared for ${userId}`
-                    );
 
                 }
+            );
 
-            } catch (error) {
+        const data =
+            await getJsonResponse(response);
 
-                console.error(
-                    "CLEAR KICK EXCEPTION:",
-                    error
-                );
+        if (!response.ok) {
 
-            }
+            throw new Error(
+                data.error ||
+                "Signup failed."
+            );
 
-        }, 1000);
+        }
 
+        if (status) {
 
-        res.json({
-            success: true,
-            kicked: true
-        });
+            status.textContent =
+                "✅ Account created!";
+
+        }
+
+        showLogin();
 
     } catch (error) {
 
         console.error(
-            "KICK ERROR:",
+            "SIGNUP ERROR:",
             error
         );
 
-        res.status(500).json({
-            error: "Server error"
-        });
+        if (status) {
+
+            status.textContent =
+                "❌ " +
+                error.message;
+
+        }
 
     }
 
-});
+}
 
-app.get("/api/admin/check", async (req, res) => {
 
-    try {
+/* ==================================================
+   LEADERBOARD UI
+================================================== */
 
-        if (!req.session.user) {
-            return res.status(401).json({
-                isAdmin: false,
-                error: "Not logged in."
-            });
-        }
+function createLeaderboardUI() {
 
-        const userId =
-            req.session.user.id;
+    if (
+        document.getElementById(
+            "leaderboard-section"
+        )
+    ) {
+        return;
+    }
 
-        console.log(
-            "ADMIN CHECK USER ID:",
-            userId
+    const app =
+        document.getElementById(
+            "app-section"
         );
 
-        const {
-            data,
-            error
-        } = await supabase
-            .from("admins")
-            .select("user_id")
-            .eq("user_id", userId)
-            .maybeSingle();
+    if (!app) {
+        return;
+    }
 
-        if (error) {
-
-            console.error(
-                "ADMIN TABLE ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                isAdmin: false,
-                error: error.message
-            });
-
-        }
-
-        if (!data) {
-
-            console.log(
-                "NOT AN ADMIN:",
-                userId
-            );
-
-            return res.json({
-                isAdmin: false
-            });
-
-        }
-
-        console.log(
-            "ADMIN CONFIRMED:",
-            userId
+    const section =
+        document.createElement(
+            "section"
         );
 
-        return res.json({
-            isAdmin: true
-        });
+    section.id =
+        "leaderboard-section";
 
-    } catch (error) {
+    section.className =
+        "leaderboard-section";
 
-        console.error(
-            "ADMIN CHECK ERROR:",
-            error
+    section.innerHTML = `
+
+        <h2 id="leaderboard-title">
+            🏆 Overall
+        </h2>
+
+        <div
+            class="leaderboard-switcher"
+            style="
+                display:flex;
+                gap:8px;
+                flex-wrap:wrap;
+                margin-bottom:15px;
+            "
+        >
+
+            <button
+                id="leaderboard-button-overall"
+                onclick="loadLeaderboard('overall')"
+            >
+                🏆 Overall
+            </button>
+
+            <button
+                id="leaderboard-button-posts"
+                onclick="loadLeaderboard('posts')"
+            >
+                📝 Posts
+            </button>
+
+            <button
+                id="leaderboard-button-comments"
+                onclick="loadLeaderboard('comments')"
+            >
+                💬 Comments
+            </button>
+
+            <button
+                id="leaderboard-button-cat"
+                onclick="loadLeaderboard('cat')"
+            >
+                🐱 Cat
+            </button>
+
+            <button
+                id="leaderboard-button-gyatt"
+                onclick="loadLeaderboard('gyatt')"
+            >
+                🍑 Gyatt
+            </button>
+
+            <button
+                id="leaderboard-button-ogred"
+                onclick="loadLeaderboard('ogred')"
+            >
+                🧌 Ogred
+            </button>
+
+        </div>
+
+        <div id="leaderboard">
+            Loading leaderboard... 🧌
+        </div>
+
+    `;
+
+    const peopleSection =
+        app.querySelector(
+            ".people-section"
         );
 
-        return res.status(500).json({
-            isAdmin: false,
-            error: "Could not check administrator status."
-        });
+    if (peopleSection) {
+
+        app.insertBefore(
+            section,
+            peopleSection
+        );
+
+    } else {
+
+        app.appendChild(
+            section
+        );
 
     }
 
-});
-// ==================================================
-// USERS
-// ==================================================
+}
 
-// ==================================================
-// ALL USERS
-// ==================================================
 
-app.get(
-    "/api/users",
-    async (req, res) => {
+/* ==================================================
+   LEADERBOARD TITLES
+================================================== */
 
-        try {
+const leaderboardTitles = {
 
-            // ==========================================
-            // GET USERS
-            // ==========================================
+    overall:
+        "🏆 Overall",
 
-            const {
-                data: users,
-                error: usersError
-            } = await supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar,
-                    bio,
-                    created_at,
-                    last_seen,
-                    equipped_title_id
-                `)
-                .order(
-                    "created_at",
-                    {
-                        ascending: false
-                    }
-                );
+    posts:
+        "📝 Posts",
 
+    comments:
+        "💬 Comments",
 
-            if (usersError) {
+    cat:
+        "🐱 Cat",
 
-                console.error(
-                    "USERS DATABASE ERROR:",
-                    usersError
-                );
+    gyatt:
+        "🍑 Gyatt",
 
-                return res.status(500).json({
-                    error:
-                        usersError.message
-                });
+    ogred:
+        "🧌 Ogred"
 
-            }
+};
 
 
-            // ==========================================
-            // GET SHOP ITEMS
-            // ==========================================
+/* ==================================================
+   GET LEADERBOARD SCORE
+================================================== */
 
-            const {
-                data: shopItems,
-                error: shopItemsError
-            } = await supabase
-                .from("shop_items")
-                .select(`
-                    id,
-                    name,
-                    description,
-                    price,
-                    icon,
-                    item_type
-                `);
-
-
-            if (shopItemsError) {
-
-                console.error(
-                    "SHOP ITEMS ERROR:",
-                    shopItemsError
-                );
-
-                return res.status(500).json({
-                    error:
-                        shopItemsError.message
-                });
-
-            }
-
-
-            // ==========================================
-            // CREATE ITEM LOOKUP
-            // ==========================================
-
-            const titleMap = {};
-
-
-            for (
-                const item of
-                shopItems || []
-            ) {
-
-                if (
-                    item.item_type ===
-                    "title"
-                ) {
-
-                    titleMap[
-                        item.id
-                    ] = item;
-
-                }
-
-            }
-
-
-            // ==========================================
-            // GET REACTIONS
-            // ==========================================
-
-            const {
-                data: reactions,
-                error: reactionsError
-            } = await supabase
-                .from("reactions")
-                .select(`
-                    to_user_id,
-                    type
-                `);
-
-
-            if (reactionsError) {
-
-                console.error(
-                    "REACTIONS ERROR:",
-                    reactionsError
-                );
-
-                return res.status(500).json({
-                    error:
-                        reactionsError.message
-                });
-
-            }
-
-
-            // ==========================================
-            // COUNT REACTIONS
-            // ==========================================
-
-            const reactionCounts = {};
-
-
-            for (
-                const reaction of
-                reactions || []
-            ) {
-
-                const userId =
-                    reaction.to_user_id;
-
-
-                if (
-                    !reactionCounts[userId]
-                ) {
-
-                    reactionCounts[userId] = {
-
-                        gyatt: 0,
-                        cat: 0,
-                        ogred: 0
-
-                    };
-
-                }
-
-
-                if (
-                    reaction.type ===
-                    "gyatt"
-                ) {
-
-                    reactionCounts[
-                        userId
-                    ].gyatt++;
-
-                }
-
-
-                if (
-                    reaction.type ===
-                    "cat"
-                ) {
-
-                    reactionCounts[
-                        userId
-                    ].cat++;
-
-                }
-
-
-                if (
-                    reaction.type ===
-                    "ogred"
-                ) {
-
-                    reactionCounts[
-                        userId
-                    ].ogred++;
-
-                }
-
-            }
-
-
-            // ==========================================
-            // BUILD RESULT
-            // ==========================================
-
-            const result =
-                (users || []).map(
-                    user => {
-
-                        const lastSeen =
-                            user.last_seen
-                                ? new Date(
-                                    user.last_seen
-                                ).getTime()
-                                : 0;
-
-
-                        const online =
-                            lastSeen > 0 &&
-                            (
-                                Date.now() -
-                                lastSeen
-                            ) < 60 * 1000;
-
-
-                        // ==================================
-                        // EQUIPPED TITLE
-                        // ==================================
-
-                        let equippedTitle =
-                            null;
-
-
-                        if (
-                            user.equipped_title_id
-                        ) {
-
-                            equippedTitle =
-                                titleMap[
-                                    user.equipped_title_id
-                                ] || null;
-
-                        }
-
-
-                        return {
-
-                            ...user,
-
-
-                            avatar:
-                                getAvatar(
-                                    user.avatar
-                                ),
-
-
-                            online,
-
-
-                            equippedTitle,
-
-
-                            gyatt:
-                                reactionCounts[
-                                    user.id
-                                ]?.gyatt || 0,
-
-
-                            cat:
-                                reactionCounts[
-                                    user.id
-                                ]?.cat || 0,
-
-
-                            ogred:
-                                reactionCounts[
-                                    user.id
-                                ]?.ogred || 0
-
-                        };
-
-                    }
-                );
-
-
-            // ==========================================
-            // SEND USERS
-            // ==========================================
-
-            return res.json(
-                result
-            );
-
-
-        } catch (error) {
-
-            console.error(
-                "USERS ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-
-
-// ==================================================
-// ONE USER
-// ==================================================
-
-app.get(
-    "/api/users/:id",
-    async (req, res) => {
-
-        try {
-
-            const id = req.params.id;
-
-            if (!id) {
-
-                return res.status(400).json({
-                    error: "No profile ID was provided."
-                });
-
-            }
-
-
-            // ==========================================
-            // GET PROFILE
-            // ==========================================
-
-            const {
-                data: profile,
-                error: profileError
-            } = await supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar,
-                    bio,
-                    created_at,
-                    equipped_title_id
-                `)
-                .eq(
-                    "id",
-                    id
-                )
-                .maybeSingle();
-
-
-            if (profileError) {
-
-                console.error(
-                    "PROFILE ERROR:",
-                    profileError
-                );
-
-                return res.status(500).json({
-                    error: profileError.message
-                });
-
-            }
-
-
-            if (!profile) {
-
-                return res.status(404).json({
-                    error: "User not found."
-                });
-
-            }
-
-
-            // ==========================================
-            // GET EQUIPPED TITLE
-            // ==========================================
-
-            let equippedTitle = null;
-
-
-            if (profile.equipped_title_id) {
-
-                const {
-                    data: title,
-                    error: titleError
-                } = await supabase
-                    .from("shop_items")
-                    .select(`
-                        id,
-                        name,
-                        description,
-                        price,
-                        icon,
-                        item_type
-                    `)
-                    .eq(
-                        "id",
-                        profile.equipped_title_id
-                    )
-                    .eq(
-                        "item_type",
-                        "title"
-                    )
-                    .maybeSingle();
-
-
-                if (titleError) {
-
-                    console.error(
-                        "EQUIPPED TITLE ERROR:",
-                        titleError
-                    );
-
-                } else {
-
-                    equippedTitle =
-                        title || null;
-
-                }
-
-            }
-
-
-            // ==========================================
-            // GET ALL DISPLAYED ITEMS
-            // ==========================================
-
-            let displayedItems = [];
-
-
-            const {
-                data: inventoryItems,
-                error: inventoryError
-            } = await supabase
-                .from("user_inventory")
-                .select(`
-                    id,
-                    item_id,
-                    equipped,
-                    purchased_at
-                `)
-                .eq(
-                    "user_id",
-                    id
-                )
-                .eq(
-                    "equipped",
-                    true
-                );
-
-
-            if (inventoryError) {
-
-                console.error(
-                    "DISPLAYED INVENTORY ERROR:",
-                    inventoryError
-                );
-
-            } else if (
-                inventoryItems &&
-                inventoryItems.length > 0
-            ) {
-
-
-                // ======================================
-                // GET SHOP ITEMS
-                // ======================================
-
-                const itemIds =
-                    inventoryItems.map(
-                        inventoryItem =>
-                            inventoryItem.item_id
-                    );
-
-
-                const {
-                    data: shopItems,
-                    error: shopItemsError
-                } = await supabase
-                    .from("shop_items")
-                    .select(`
-                        id,
-                        name,
-                        description,
-                        price,
-                        icon,
-                        item_type
-                    `)
-                    .in(
-                        "id",
-                        itemIds
-                    );
-
-
-                if (shopItemsError) {
-
-                    console.error(
-                        "DISPLAYED SHOP ITEMS ERROR:",
-                        shopItemsError
-                    );
-
-                } else {
-
-                    displayedItems =
-                        (shopItems || []).map(
-                            shopItem => {
-
-                                const inventoryItem =
-                                    inventoryItems.find(
-                                        inventoryItem =>
-                                            String(
-                                                inventoryItem.item_id
-                                            ) ===
-                                            String(
-                                                shopItem.id
-                                            )
-                                    );
-
-
-                                return {
-
-                                    id:
-                                        shopItem.id,
-
-                                    name:
-                                        shopItem.name,
-
-                                    description:
-                                        shopItem.description,
-
-                                    price:
-                                        shopItem.price,
-
-                                    icon:
-                                        shopItem.icon,
-
-                                    item_type:
-                                        shopItem.item_type,
-
-                                    purchased_at:
-                                        inventoryItem
-                                            ?.purchased_at
-                                            || null,
-
-                                    equipped:
-                                        true
-
-                                };
-
-                            }
-                        );
-
-                }
-
-            }
-
-
-            // ==========================================
-            // GET POSTS
-            // ==========================================
-
-            const {
-                data: posts,
-                error: postsError
-            } = await supabase
-                .from("posts")
-                .select(`
-                    id,
-                    user_id,
-                    content,
-                    image_url,
-                    created_at
-                `)
-                .eq(
-                    "user_id",
-                    id
-                )
-                .order(
-                    "created_at",
-                    {
-                        ascending: false
-                    }
-                );
-
-
-            if (postsError) {
-
-                return res.status(500).json({
-                    error: postsError.message
-                });
-
-            }
-
-
-            // ==========================================
-            // REACTIONS
-            // ==========================================
-
-            const reactions =
-                await getReactionCounts(id);
-
-
-            // ==========================================
-            // RESPONSE
-            // ==========================================
-
-            return res.json({
-
-                ...profile,
-
-                avatar:
-                    getAvatar(
-                        profile.avatar
-                    ),
-
-                equippedTitle:
-                    equippedTitle,
-
-                displayedItems:
-                    displayedItems,
-
-                gyatt:
-                    reactions.gyatt,
-
-                cat:
-                    reactions.cat,
-
-                ogred:
-                    reactions.ogred,
-
-                posts:
-                    posts || []
-
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "ONE USER ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error: "Server error."
-            });
-
-        }
-
-    }
-);
-// ==================================================
-// UPDATE PROFILE
-// ==================================================
-
-app.put(
-    "/api/profile",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session.user) {
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-            }
-
-            const display_name =
-                String(
-                    req.body.display_name ||
-                    ""
-                ).trim();
-
-            const bio =
-                String(
-                    req.body.bio ||
-                    ""
-                ).trim();
-
-            if (!display_name) {
-                return res.status(400).json({
-                    error:
-                        "Display name cannot be empty."
-                });
-            }
-
-            if (display_name.length > 50) {
-                return res.status(400).json({
-                    error:
-                        "Display name is too long."
-                });
-            }
-
-            if (bio.length > 500) {
-                return res.status(400).json({
-                    error:
-                        "Bio is too long."
-                });
-            }
-
-            const {
-                data,
-                error
-            } = await supabase
-                .from("profiles")
-                .update({
-                    display_name,
-                    bio
-                })
-                .eq(
-                    "id",
-                    req.session.user.id
-                )
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar,
-                    bio,
-                    created_at
-                `)
-                .single();
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            req.session.user.display_name =
-                data.display_name;
-
-            req.session.save(
-                sessionError => {
-
-                    if (sessionError) {
-
-                        return res.status(500).json({
-                            error:
-                                "Could not save profile session."
-                        });
-
-                    }
-
-                    res.json({
-
-                        success: true,
-
-                        user: {
-                            ...data,
-                            avatar:
-                                getAvatar(
-                                    data.avatar
-                                )
-                        }
-
-                    });
-
-                }
-            );
-
-        } catch (error) {
-
-            console.error(
-                "UPDATE PROFILE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// AVATAR UPLOAD
-// ==================================================
-
-app.post(
-    "/api/profile/avatar",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session.user) {
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-            }
-
-            const {
-                fileName,
-                fileType,
-                fileData
-            } = req.body;
-
-            if (
-                !fileName ||
-                !fileType ||
-                !fileData
-            ) {
-                return res.status(400).json({
-                    error:
-                        "Missing image data."
-                });
-            }
-
-            if (
-                !fileType.startsWith(
-                    "image/"
-                )
-            ) {
-                return res.status(400).json({
-                    error:
-                        "File must be an image."
-                });
-            }
-
-            const buffer =
-                Buffer.from(
-                    fileData,
-                    "base64"
-                );
-
-            if (
-                buffer.length >
-                5 * 1024 * 1024
-            ) {
-                return res.status(400).json({
-                    error:
-                        "Image must be under 5MB."
-                });
-            }
-
-            const extension =
-                fileName
-                    .split(".")
-                    .pop()
-                    .toLowerCase();
-
-            const allowed = [
-                "png",
-                "jpg",
-                "jpeg",
-                "webp",
-                "gif"
-            ];
-
-            if (
-                !allowed.includes(
-                    extension
-                )
-            ) {
-                return res.status(400).json({
-                    error:
-                        "Unsupported image type."
-                });
-            }
-
-            const filePath =
-                `${req.session.user.id}/${Date.now()}.${extension}`;
-
-            const {
-                error: uploadError
-            } = await supabase.storage
-                .from("avatars")
-                .upload(
-                    filePath,
-                    buffer,
-                    {
-                        contentType:
-                            fileType,
-                        upsert: true
-                    }
-                );
-
-            if (uploadError) {
-                return res.status(500).json({
-                    error:
-                        uploadError.message
-                });
-            }
-
-            const {
-                data: publicData
-            } = supabase.storage
-                .from("avatars")
-                .getPublicUrl(
-                    filePath
-                );
-
-            const avatarUrl =
-                publicData.publicUrl;
-
-            const {
-                data: profile,
-                error: profileError
-            } = await supabase
-                .from("profiles")
-                .update({
-                    avatar:
-                        avatarUrl
-                })
-                .eq(
-                    "id",
-                    req.session.user.id
-                )
-                .select()
-                .single();
-
-            if (profileError) {
-                return res.status(500).json({
-                    error:
-                        profileError.message
-                });
-            }
-
-            res.json({
-
-                success: true,
-
-                avatar:
-                    avatarUrl,
-
-                user: {
-                    ...profile,
-                    avatar:
-                        avatarUrl
-                }
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "AVATAR ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// IMAGE UPLOAD
-// ==================================================
-
-async function uploadImage(
-    fileData,
-    fileType,
-    fileName,
-    userId
+function getLeaderboardScore(
+    user,
+    type
 ) {
 
-    if (
-        !fileData ||
-        !fileType ||
-        !fileName
-    ) {
-        throw new Error(
-            "Missing image data."
-        );
+    if (!user) {
+        return 0;
     }
 
     if (
-        !fileType.startsWith(
-            "image/"
-        )
+        type === "overall" &&
+        user.score !== undefined &&
+        user.score !== null
     ) {
-        throw new Error(
-            "File must be an image."
-        );
+
+        return Number(
+            user.score
+        ) || 0;
+
     }
 
-    const buffer =
-        Buffer.from(
-            fileData,
-            "base64"
-        );
+    const possibleFields = {
 
-    if (
-        buffer.length >
-        5 * 1024 * 1024
+        posts: [
+            "posts",
+            "post_count",
+            "posts_count",
+            "count"
+        ],
+
+        comments: [
+            "comments",
+            "comment_count",
+            "comments_count",
+            "count"
+        ],
+
+        cat: [
+            "cat",
+            "cat_count",
+            "count"
+        ],
+
+        gyatt: [
+            "gyatt",
+            "gyatt_count",
+            "count"
+        ],
+
+        ogred: [
+            "ogred",
+            "ogred_count",
+            "count"
+        ]
+
+    };
+
+    const fields =
+        possibleFields[type] ||
+        [
+            "score",
+            "count",
+            "total",
+            "value"
+        ];
+
+    for (
+        const field of fields
     ) {
-        throw new Error(
-            "Image must be under 5MB."
-        );
+
+        if (
+            user[field] !== undefined &&
+            user[field] !== null
+        ) {
+
+            return Number(
+                user[field]
+            ) || 0;
+
+        }
+
     }
 
-    const extension =
-        fileName
-            .split(".")
-            .pop()
-            .toLowerCase();
+    return 0;
 
-    const allowed = [
-        "png",
-        "jpg",
-        "jpeg",
-        "webp",
-        "gif"
-    ];
-
-    if (
-        !allowed.includes(
-            extension
-        )
-    ) {
-        throw new Error(
-            "Unsupported image type."
-        );
-    }
-
-    const filePath =
-        `posts/${userId}/${Date.now()}-${Math.random()
-            .toString(36)
-            .slice(2)}.${extension}`;
-
-    const {
-        error: uploadError
-    } = await supabase.storage
-        .from("avatars")
-        .upload(
-            filePath,
-            buffer,
-            {
-                contentType:
-                    fileType,
-                upsert: false
-            }
-        );
-
-    if (uploadError) {
-        throw new Error(
-            uploadError.message
-        );
-    }
-
-    const {
-        data: publicData
-    } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(
-            filePath
-        );
-
-    return publicData.publicUrl;
 }
 
-// ==================================================
-// POSTS
-// ==================================================
-
-app.get(
-    "/api/posts",
-    async (req, res) => {
-
-        try {
-
-            const {
-                data: posts,
-                error
-            } = await supabase
-                .from("posts")
-                .select(`
-                    id,
-                    user_id,
-                    content,
-                    image_url,
-                    created_at
-                `)
-                .order(
-                    "created_at",
-                    {
-                        ascending: false
-                    }
-                )
-                .limit(100);
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-            const result = [];
-
-            for (
-                const post of
-                posts || []
-            ) {
-
-                const {
-                    data: profile
-                } = await supabase
-                    .from("profiles")
-                    .select(`
-                        username,
-                        display_name,
-                        avatar
-                    `)
-                    .eq(
-                        "id",
-                        post.user_id
-                    )
-                    .maybeSingle();
-
-                result.push({
-
-                    ...post,
-
-                    username:
-                        profile?.username ||
-                        "User",
-
-                    display_name:
-                        profile?.display_name ||
-                        profile?.username ||
-                        "User",
-
-                    avatar:
-                        getAvatar(
-                            profile?.avatar
-                        )
-
-                });
-
-            }
-
-            res.json(result);
-
-        } catch (error) {
-
-            console.error(
-                "GET POSTS ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-app.post(
-    "/api/posts",
-    async (req, res) => {
-
-        try {
-
-            // ==========================================
-            // CHECK LOGIN
-            // ==========================================
-
-            if (!req.session.user) {
-
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-
-            }
-
-
-            const userId =
-                req.session.user.id;
-
-
-            // ==========================================
-            // GET CONTENT
-            // ==========================================
-
-            const content =
-                String(
-                    req.body.content ||
-                    ""
-                ).trim();
-
-
-            if (content.length > 5000) {
-
-                return res.status(400).json({
-                    error:
-                        "Post is too long."
-                });
-
-            }
-
-
-            // ==========================================
-            // IMAGE
-            // ==========================================
-
-            let imageUrl = null;
-
-
-            if (
-                req.body.image &&
-                req.body.image.data &&
-                req.body.image.type &&
-                req.body.image.name
-            ) {
-
-                try {
-
-                    imageUrl =
-                        await uploadImage(
-                            req.body.image.data,
-                            req.body.image.type,
-                            req.body.image.name,
-                            userId
-                        );
-
-                } catch (error) {
-
-                    return res.status(400).json({
-                        error:
-                            error.message
-                    });
-
-                }
-
-            }
-
-
-            // ==========================================
-            // CHECK EMPTY POST
-            // ==========================================
-
-            if (
-                !content &&
-                !imageUrl
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Post cannot be empty."
-                });
-
-            }
-
-
-            // ==========================================
-            // CREATE POST
-            // ==========================================
-
-            const {
-                data,
-                error
-            } = await supabase
-                .from("posts")
-                .insert({
-
-                    user_id:
-                        userId,
-
-                    content,
-
-                    image_url:
-                        imageUrl
-
-                })
-                .select()
-                .single();
-
-
-            if (error) {
-
-                console.error(
-                    "POST INSERT ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            // ==========================================
-            // FIRST POST OF THE DAY
-            // UTC
-            // ==========================================
-
-            const todayUTC =
-                new Date()
-                    .toISOString()
-                    .slice(0, 10);
-
-
-            const {
-                data: profile,
-                error: profileError
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "last_post_reward_date"
-                )
-                .eq(
-                    "id",
-                    userId
-                )
-                .single();
-
-
-            if (profileError) {
-
-                console.error(
-                    "POST REWARD PROFILE ERROR:",
-                    profileError
-                );
-
-            } else {
-
-                // ======================================
-                // ONLY REWARD FIRST POST OF UTC DAY
-                // ======================================
-
-                if (
-                    profile.last_post_reward_date !==
-                    todayUTC
-                ) {
-
-                    const {
-                        error: coinError
-                    } = await supabase.rpc(
-                        "increment_shrekcoins",
-                        {
-
-                            user_id:
-                                userId,
-
-                            amount:
-                                5
-
-                        }
-                    );
-
-
-                    if (coinError) {
-
-                        console.error(
-                            "POST SHREKCOIN ERROR:",
-                            coinError
-                        );
-
-                    } else {
-
-                        // ==================================
-                        // MARK TODAY'S REWARD AS CLAIMED
-                        // ==================================
-
-                        const {
-                            error: dateError
-                        } = await supabase
-                            .from("profiles")
-                            .update({
-
-                                last_post_reward_date:
-                                    todayUTC
-
-                            })
-                            .eq(
-                                "id",
-                                userId
-                            );
-
-
-                        if (dateError) {
-
-                            console.error(
-                                "POST REWARD DATE ERROR:",
-                                dateError
-                            );
-
-                        }
-
-                    }
-
-                }
-
-            }
-
-
-            // ==========================================
-            // SUCCESS
-            // ==========================================
-
-            return res.status(201).json({
-
-                ...data
-
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "CREATE POST ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-/* ==================================================
-   LEADERBOARD
-   ================================================== */
 
 /* ==================================================
-   LEADERBOARD API
+   LOAD LEADERBOARD
 ================================================== */
 
-app.get("/api/leaderboard", async (req, res) => {
+async function loadLeaderboard(
+    type = "overall"
+) {
+
+    const container =
+        document.getElementById(
+            "leaderboard"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    currentLeaderboard =
+        type;
+
+    const title =
+        document.getElementById(
+            "leaderboard-title"
+        );
+
+    if (title) {
+
+        title.textContent =
+            leaderboardTitles[type] ||
+            "🏆 Leaderboard";
+
+    }
+
+    document
+        .querySelectorAll(
+            ".leaderboard-switcher button"
+        )
+        .forEach(button => {
+
+            button.classList.remove(
+                "active"
+            );
+
+        });
+
+    const activeButton =
+        document.getElementById(
+            `leaderboard-button-${type}`
+        );
+
+    if (activeButton) {
+
+        activeButton.classList.add(
+            "active"
+        );
+
+    }
+
+    container.innerHTML = `
+        <div class="leaderboard-loading">
+            Loading leaderboard... 🧌
+        </div>
+    `;
 
     try {
 
-        const type =
-            req.query.type || "overall";
-
-
-        const validTypes = [
-            "overall",
-            "posts",
-            "comments",
-            "cat",
-            "gyatt",
-            "ogred"
-        ];
-
-
-        if (!validTypes.includes(type)) {
-
-            return res.status(400).json({
-                error: "Invalid leaderboard type."
-            });
-
-        }
-
-
-        /* ==================================================
-           GET PROFILES
-        ================================================== */
-
-        const {
-            data: profiles,
-            error: profilesError
-        } = await supabase
-            .from("profiles")
-            .select(`
-                id,
-                username,
-                display_name,
-                avatar
-            `);
-
-
-        if (profilesError) {
-
-            console.error(
-                "LEADERBOARD PROFILES ERROR:",
-                profilesError
+        const response =
+            await fetch(
+                `/api/leaderboard?type=${encodeURIComponent(type)}`,
+                {
+                    method: "GET",
+                    credentials: "include",
+                    cache: "no-store",
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
+                }
             );
 
-            return res.status(500).json({
-                error: profilesError.message
-            });
-
-        }
-
-
-        /* ==================================================
-           GET POSTS
-        ================================================== */
-
-        const {
-            data: posts,
-            error: postsError
-        } = await supabase
-            .from("posts")
-            .select("user_id");
-
-
-        if (postsError) {
-
-            console.error(
-                "LEADERBOARD POSTS ERROR:",
-                postsError
+        const data =
+            await getJsonResponse(
+                response
             );
 
-            return res.status(500).json({
-                error: postsError.message
-            });
+        console.log(
+            "LEADERBOARD DATA:",
+            data
+        );
 
-        }
+        if (!response.ok) {
 
-
-        /* ==================================================
-           COUNT POSTS
-        ================================================== */
-
-        const postCounts = {};
-
-
-        for (const post of posts || []) {
-
-            if (!post.user_id) {
-                continue;
-            }
-
-            postCounts[post.user_id] =
-                (postCounts[post.user_id] || 0) + 1;
-
-        }
-
-
-        /* ==================================================
-           GET COMMENTS
-        ================================================== */
-
-        const {
-            data: comments,
-            error: commentsError
-        } = await supabase
-            .from("comments")
-            .select("user_id");
-
-
-        if (commentsError) {
-
-            console.error(
-                "LEADERBOARD COMMENTS ERROR:",
-                commentsError
+            throw new Error(
+                data.error ||
+                "Could not load leaderboard."
             );
 
-            return res.status(500).json({
-                error: commentsError.message
-            });
-
         }
-
-
-        /* ==================================================
-           COUNT COMMENTS
-        ================================================== */
-
-        const commentCounts = {};
-
-
-        for (const comment of comments || []) {
-
-            if (!comment.user_id) {
-                continue;
-            }
-
-            commentCounts[comment.user_id] =
-                (commentCounts[comment.user_id] || 0) + 1;
-
-        }
-
-
-        /* ==================================================
-           GET REACTIONS
-        ================================================== */
-
-        const {
-            data: reactions,
-            error: reactionsError
-        } = await supabase
-            .from("reactions")
-            .select(`
-                to_user_id,
-                type
-            `);
-
-
-        if (reactionsError) {
-
-            console.error(
-                "LEADERBOARD REACTIONS ERROR:",
-                reactionsError
-            );
-
-            return res.status(500).json({
-                error: reactionsError.message
-            });
-
-        }
-
-
-        /* ==================================================
-           COUNT REACTIONS PER USER
-        ================================================== */
-
-        const reactionCounts = {};
-
-
-        for (const reaction of reactions || []) {
-
-            const userId =
-                reaction.to_user_id;
-
-            const reactionType =
-                reaction.type;
-
-
-            if (!userId) {
-                continue;
-            }
-
-
-            if (!reactionCounts[userId]) {
-
-                reactionCounts[userId] = {
-
-                    cat: 0,
-
-                    gyatt: 0,
-
-                    ogred: 0
-
-                };
-
-            }
-
-
-            if (
-                reactionType === "cat" ||
-                reactionType === "gyatt" ||
-                reactionType === "ogred"
-            ) {
-
-                reactionCounts[userId][reactionType]++;
-
-            }
-
-        }
-
-
-        /* ==================================================
-           BUILD USERS
-        ================================================== */
 
         let users =
-            (profiles || []).map(profile => {
+            Array.isArray(data)
+                ? data
+                : (
+                    Array.isArray(
+                        data.leaderboard
+                    )
+                        ? data.leaderboard
+                        : []
+                );
 
-                const userId =
-                    profile.id;
+        let currentUser =
+            data.currentUser ||
+            null;
 
+        users =
+            users
+                .map(user => {
 
-                const postsCount =
-                    postCounts[userId] || 0;
+                    return {
 
+                        ...user,
 
-                const commentsCount =
-                    commentCounts[userId] || 0;
-
-
-                const reactionsForUser =
-                    reactionCounts[userId] || {
-
-                        cat: 0,
-
-                        gyatt: 0,
-
-                        ogred: 0
+                        leaderboardScore:
+                            getLeaderboardScore(
+                                user,
+                                type
+                            )
 
                     };
 
-
-                const cat =
-                    reactionsForUser.cat;
-
-
-                const gyatt =
-                    reactionsForUser.gyatt;
-
-
-                const ogred =
-                    reactionsForUser.ogred;
-
-
-                /* ==========================================
-                   OVERALL SCORE
-                   
-                   Posts     = 5 points
-                   Comments  = 2 points
-                   Reactions = 1 point
-                   ========================================== */
-
-                const score =
-                    (
-                        postsCount * 5
-                    ) +
-                    (
-                        commentsCount * 2
-                    ) +
-                    cat +
-                    gyatt +
-                    ogred;
-
-
-                let leaderboardScore;
-
-
-                switch (type) {
-
-                    case "posts":
-
-                        leaderboardScore =
-                            postsCount;
-
-                        break;
-
-
-                    case "comments":
-
-                        leaderboardScore =
-                            commentsCount;
-
-                        break;
-
-
-                    case "cat":
-
-                        leaderboardScore =
-                            cat;
-
-                        break;
-
-
-                    case "gyatt":
-
-                        leaderboardScore =
-                            gyatt;
-
-                        break;
-
-
-                    case "ogred":
-
-                        leaderboardScore =
-                            ogred;
-
-                        break;
-
-
-                    case "overall":
-
-                    default:
-
-                        leaderboardScore =
-                            score;
-
-                        break;
-
-                }
-
-
-                return {
-
-                    id:
-                        profile.id,
-
-                    username:
-                        profile.username,
-
-                    display_name:
-                        profile.display_name,
-
-                    avatar:
-                        profile.avatar,
-
-                    posts:
-                        postsCount,
-
-                    comments:
-                        commentsCount,
-
-                    cat:
-                        cat,
-
-                    gyatt:
-                        gyatt,
-
-                    ogred:
-                        ogred,
-
-                    score:
-                        score,
-
-                    leaderboardScore:
-                        leaderboardScore
-
-                };
-
-            });
-
-
-        /* ==================================================
-           SORT BY SCORE
-        ================================================== */
-
-        users.sort(
-            (a, b) => {
-
-                if (
-                    b.leaderboardScore !==
-                    a.leaderboardScore
-                ) {
-
-                    return (
+                })
+                .sort(
+                    (a, b) =>
                         b.leaderboardScore -
                         a.leaderboardScore
-                    );
-
-                }
-
-
-                /*
-                 * Deterministic ordering for tied users.
-                 *
-                 * THIS DOES NOT AFFECT THEIR RANK.
-                 */
-
-                return String(a.id)
-                    .localeCompare(
-                        String(b.id)
-                    );
-
-            }
-        );
-
-
-        /* ==================================================
-           TIE-AWARE RANKING
-           
-           Example:
-           
-           1 = 100
-           2 = 80
-           2 = 80
-           4 = 50
-           5 = 20
-           5 = 20
-           5 = 20
-           8 = 10
-        ================================================== */
-
-        let previousScore = null;
-
-        let previousRank = 0;
-
-
-        users.forEach(
-            (user, index) => {
-
-                const score =
-                    user.leaderboardScore;
-
-
-                if (
-                    previousScore !== null &&
-                    score === previousScore
-                ) {
-
-                    user.rank =
-                        previousRank;
-
-                }
-
-                else {
-
-                    user.rank =
-                        index + 1;
-
-                    previousRank =
-                        user.rank;
-
-                    previousScore =
-                        score;
-
-                }
-
-            }
-        );
-
-
-        /* ==================================================
-           TOP 5
-        ================================================== */
+                );
 
         const topFive =
             users.slice(0, 5);
 
+        let html = "";
 
-        /* ==================================================
-           CURRENT LOGGED-IN USER
-        ================================================== */
+        if (!topFive.length) {
 
-        let currentUser = null;
+            html = `
+                <div class="leaderboard-empty">
+                    🧌 No leaderboard data yet.
+                </div>
+            `;
 
+        } else {
 
-        const currentUserId =
-            req.session?.user?.id;
+            html =
+                topFive.map(
+                    (user, index) => {
 
+                        const rank =
+                            Number(
+                                user.rank ||
+                                index + 1
+                            );
 
-        if (currentUserId) {
+                        let medal =
+                            String(rank);
 
-            const foundUser =
-                users.find(
-                    user =>
-                        String(user.id) ===
-                        String(currentUserId)
+                        if (rank === 1) {
+                            medal = "🥇";
+                        }
+
+                        else if (rank === 2) {
+                            medal = "🥈";
+                        }
+
+                        else if (rank === 3) {
+                            medal = "🥉";
+                        }
+
+                        const avatar =
+                            user.avatar ||
+                            "/default-avatar.png";
+
+                        const displayName =
+                            user.display_name ||
+                            user.username ||
+                            "User";
+
+                        const username =
+                            user.username ||
+                            "user";
+
+                        const score =
+                            Number(
+                                user.leaderboardScore
+                            ) || 0;
+
+                        return `
+
+                            <a
+                                href="/profile.html?id=${encodeURIComponent(
+                                    user.id
+                                )}"
+                                style="
+                                    text-decoration:none;
+                                    color:inherit;
+                                "
+                            >
+
+                                <div
+                                    class="leaderboard-user"
+                                >
+
+                                    <div
+                                        class="leaderboard-rank"
+                                    >
+                                        <span
+                                            class="leaderboard-medal"
+                                        >
+                                            ${medal}
+                                        </span>
+                                    </div>
+
+                                    <img
+                                        class="leaderboard-avatar"
+                                        src="${escapeHtml(
+                                            avatar
+                                        )}"
+                                        alt="${escapeHtml(
+                                            displayName
+                                        )} avatar"
+                                        onerror="
+                                            this.src='/default-avatar.png';
+                                        "
+                                    >
+
+                                    <div
+                                        class="leaderboard-info"
+                                    >
+
+                                        <div
+                                            class="leaderboard-name"
+                                        >
+                                            ${escapeHtml(
+                                                displayName
+                                            )}
+                                        </div>
+
+                                        <div
+                                            class="leaderboard-username"
+                                        >
+                                            @${escapeHtml(
+                                                username
+                                            )}
+                                        </div>
+
+                                    </div>
+
+                                    <div
+                                        class="leaderboard-score"
+                                    >
+                                        ${score.toLocaleString()}
+                                    </div>
+
+                                </div>
+
+                            </a>
+
+                        `;
+
+                    }
+                ).join("");
+
+        }
+
+        if (currentUser) {
+
+            const currentRank =
+                currentUser.rank ||
+                (
+                    users.findIndex(
+                        user =>
+                            String(user.id) ===
+                            String(currentUser.id)
+                    ) + 1
                 );
 
+            const currentScore =
+                Number(
+                    currentUser.leaderboardScore ??
+                    getLeaderboardScore(
+                        currentUser,
+                        type
+                    )
+                ) || 0;
 
-            if (foundUser) {
+            const alreadyVisible =
+                topFive.some(
+                    user =>
+                        String(user.id) ===
+                        String(currentUser.id)
+                );
 
-                currentUser = {
+            if (!alreadyVisible) {
 
-                    id:
-                        foundUser.id,
+                html += `
 
-                    username:
-                        foundUser.username,
+                    <div
+                        style="
+                            margin-top:18px;
+                            padding-top:18px;
+                            border-top:2px solid #ddd;
+                        "
+                    >
 
-                    display_name:
-                        foundUser.display_name,
+                        <div
+                            style="
+                                font-weight:bold;
+                                margin-bottom:8px;
+                            "
+                        >
+                            🧌 Your position
+                        </div>
 
-                    avatar:
-                        foundUser.avatar,
+                        <a
+                            href="/profile.html?id=${encodeURIComponent(
+                                currentUser.id
+                            )}"
+                            style="
+                                text-decoration:none;
+                                color:inherit;
+                            "
+                        >
 
-                    posts:
-                        foundUser.posts,
+                            <div
+                                class="leaderboard-user"
+                                style="
+                                    border:2px solid #333;
+                                "
+                            >
 
-                    comments:
-                        foundUser.comments,
+                                <div
+                                    class="leaderboard-rank"
+                                >
+                                    #${currentRank}
+                                </div>
 
-                    cat:
-                        foundUser.cat,
+                                <img
+                                    class="leaderboard-avatar"
+                                    src="${escapeHtml(
+                                        currentUser.avatar ||
+                                        "/default-avatar.png"
+                                    )}"
+                                    alt="${escapeHtml(
+                                        currentUser.display_name ||
+                                        currentUser.username ||
+                                        "You"
+                                    )} avatar"
+                                    onerror="
+                                        this.src='/default-avatar.png';
+                                    "
+                                >
 
-                    gyatt:
-                        foundUser.gyatt,
+                                <div
+                                    class="leaderboard-info"
+                                >
 
-                    ogred:
-                        foundUser.ogred,
+                                    <div
+                                        class="leaderboard-name"
+                                    >
+                                        ${escapeHtml(
+                                            currentUser.display_name ||
+                                            currentUser.username ||
+                                            "You"
+                                        )}
+                                    </div>
 
-                    score:
-                        foundUser.score,
+                                    <div
+                                        class="leaderboard-username"
+                                    >
+                                        @${escapeHtml(
+                                            currentUser.username ||
+                                            "user"
+                                        )}
+                                    </div>
 
-                    leaderboardScore:
-                        foundUser.leaderboardScore,
+                                </div>
 
-                    rank:
-                        foundUser.rank
+                                <div
+                                    class="leaderboard-score"
+                                >
+                                    ${currentScore.toLocaleString()}
+                                </div>
 
-                };
+                            </div>
+
+                        </a>
+
+                    </div>
+
+                `;
 
             }
 
         }
 
-
-        /* ==================================================
-           RETURN
-        ================================================== */
-
-        return res.json({
-
-            leaderboard:
-                topFive,
-
-            currentUser:
-                currentUser,
-
-            totalUsers:
-                users.length
-
-        });
-
+        container.innerHTML =
+            html;
 
     } catch (error) {
 
@@ -5090,4966 +1406,3330 @@ app.get("/api/leaderboard", async (req, res) => {
             error
         );
 
+        container.innerHTML = `
 
-        return res.status(500).json({
+            <div
+                class="leaderboard-empty"
+            >
+                ❌ ${escapeHtml(
+                    error.message
+                )}
+            </div>
 
-            error:
-                "Could not load leaderboard."
-
-        });
+        `;
 
     }
 
-});
-// ==================================================
-// COMMENTS
-// ==================================================
+}
 
-app.get(
-    "/api/posts/:postId/comments",
-    async (req, res) => {
 
-        try {
+/* ==================================================
+   SHOW APP
+================================================== */
 
-            const {
-                data: comments,
-                error
-            } = await supabase
-                .from("comments")
-                .select(`
-                    id,
-                    post_id,
-                    user_id,
-                    content,
-                    image_url,
-                    created_at
-                `)
-                .eq(
-                    "post_id",
-                    req.params.postId
+function showApp() {
+
+    const auth =
+        document.getElementById(
+            "auth-section"
+        );
+
+    const app =
+        document.getElementById(
+            "app-section"
+        );
+
+    const logoutButton =
+        document.getElementById(
+            "logout-button"
+        );
+
+    if (auth) {
+        auth.style.display =
+            "none";
+    }
+
+    if (app) {
+        app.style.display =
+            "block";
+    }
+
+    if (logoutButton) {
+
+        logoutButton.style.display =
+            "inline-block";
+
+    }
+
+    createLeaderboardUI();
+
+    loadPosts();
+
+    loadPeople();
+
+    loadLeaderboard(
+        "overall"
+    );
+
+    loadInventory();
+
+    startOnlineHeartbeat();
+
+    checkAdmin();
+
+}
+
+
+/* ==================================================
+   LOGOUT
+================================================== */
+
+async function logout() {
+
+    try {
+
+        await fetch(
+            "/api/logout",
+            {
+                method: "POST",
+                credentials: "include"
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "LOGOUT ERROR:",
+            error
+        );
+
+    }
+
+    clearMeCache();
+
+    showAuth();
+
+}
+
+
+/* ==================================================
+   MENTION SYSTEM
+================================================== */
+
+let mentionUsers = null;
+let mentionUsersPromise = null;
+
+
+/* ==================================================
+   LOAD USERS FOR MENTIONS
+================================================== */
+
+async function loadMentionUsers() {
+
+    if (mentionUsers !== null) {
+        return mentionUsers;
+    }
+
+    if (mentionUsersPromise) {
+        return mentionUsersPromise;
+    }
+
+    mentionUsersPromise =
+        (async () => {
+
+            try {
+
+                const response =
+                    await fetch(
+                        "/api/users",
+                        {
+                            credentials: "include",
+                            cache: "no-store",
+                            headers: {
+                                "Accept":
+                                    "application/json"
+                            }
+                        }
+                    );
+
+                if (!response.ok) {
+
+                    console.error(
+                        "MENTION USERS REQUEST FAILED:",
+                        response.status
+                    );
+
+                    mentionUsers = [];
+
+                    return mentionUsers;
+
+                }
+
+                const users =
+                    await response.json();
+
+                if (!Array.isArray(users)) {
+
+                    mentionUsers = [];
+
+                    return mentionUsers;
+
+                }
+
+                mentionUsers =
+                    users;
+
+                return mentionUsers;
+
+            } catch (error) {
+
+                console.error(
+                    "MENTION USERS ERROR:",
+                    error
+                );
+
+                mentionUsers = [];
+
+                return mentionUsers;
+
+            } finally {
+
+                mentionUsersPromise =
+                    null;
+
+            }
+
+        })();
+
+    return mentionUsersPromise;
+
+}
+
+
+/* ==================================================
+   FORMAT MENTIONS
+================================================== */
+
+function formatMentions(
+    text,
+    users = []
+) {
+
+    if (!text) {
+        return "";
+    }
+
+    return String(text).replace(
+        /(^|[\s.,!?;:()[\]{}"'`<>])@([A-Za-z0-9_.-]+)/g,
+        (
+            match,
+            before,
+            username
+        ) => {
+
+            const normalized =
+                username.toLowerCase();
+
+            const user =
+                users.find(
+                    u =>
+                        String(
+                            u.username || ""
+                        )
+                        .toLowerCase() ===
+                        normalized
+                );
+
+            if (!user) {
+                return match;
+            }
+
+            return (
+                before +
+                `<a
+                    class="post-mention"
+                    href="/profile.html?id=${encodeURIComponent(
+                        user.id
+                    )}"
+                >@${escapeHtml(
+                    user.username
+                )}</a>`
+            );
+
+        }
+    );
+
+}
+
+
+/* ==================================================
+   FORMAT POST CONTENT
+================================================== */
+
+async function formatPostContent(
+    content
+) {
+
+    if (
+        content === null ||
+        content === undefined
+    ) {
+        return "";
+    }
+
+    const users =
+        await loadMentionUsers();
+
+    let text =
+        String(content);
+
+    text =
+        text
+            .replace(/\r\n/g, "\n")
+            .replace(/\r/g, "\n");
+
+    text =
+        escapeHtml(text);
+
+    const lines =
+        text.split("\n");
+
+    return lines.map(
+        line => {
+
+            // ### Small
+            if (
+                line.startsWith("### ")
+            ) {
+
+                const value =
+                    line.substring(4);
+
+                return `
+                    <div
+                        class="post-heading post-heading-small"
+                    >
+                        ${formatMentions(
+                            value,
+                            users
+                        )}
+                    </div>
+                `;
+
+            }
+
+            // ## Medium
+            if (
+                line.startsWith("## ")
+            ) {
+
+                const value =
+                    line.substring(3);
+
+                return `
+                    <div
+                        class="post-heading post-heading-medium"
+                    >
+                        ${formatMentions(
+                            value,
+                            users
+                        )}
+                    </div>
+                `;
+
+            }
+
+            // # Large
+            if (
+                line.startsWith("# ")
+            ) {
+
+                const value =
+                    line.substring(2);
+
+                return `
+                    <div
+                        class="post-heading post-heading-large"
+                    >
+                        ${formatMentions(
+                            value,
+                            users
+                        )}
+                    </div>
+                `;
+
+            }
+
+            // Empty line
+            if (
+                line.trim() === ""
+            ) {
+
+                return `
+                    <div
+                        class="post-line-break"
+                    ></div>
+                `;
+
+            }
+
+            // Normal line
+            return `
+                <div
+                    class="post-line"
+                >
+                    ${formatMentions(
+                        line,
+                        users
+                    )}
+                </div>
+            `;
+
+        }
+    ).join("");
+
+}
+
+
+/* ==================================================
+   LOAD POSTS
+================================================== */
+
+async function loadPosts() {
+
+    const container =
+        document.getElementById(
+            "posts"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/posts",
+                {
+                    credentials: "include",
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
+                }
+            );
+
+        const posts =
+            await getJsonResponse(
+                response
+            );
+
+        if (!response.ok) {
+
+            throw new Error(
+                posts.error ||
+                "Could not load posts."
+            );
+
+        }
+
+        if (!Array.isArray(posts)) {
+
+            throw new Error(
+                "Invalid posts response."
+            );
+
+        }
+
+        if (!posts.length) {
+
+            container.innerHTML =
+                "<p>No posts yet. Be the first! 🧌</p>";
+
+            return;
+
+        }
+
+        const renderedPosts =
+            await Promise.all(
+                posts.map(
+                    async post => {
+
+                        const avatar =
+                            post.avatar ||
+                            "/default-avatar.png";
+
+                        const displayName =
+                            post.display_name ||
+                            post.username ||
+                            "User";
+
+                        let imageHTML =
+                            "";
+
+                        if (
+                            post.image_url
+                        ) {
+
+                            imageHTML = `
+
+                                <div
+                                    class="post-image-container"
+                                    style="
+                                        margin-top:12px;
+                                    "
+                                >
+
+                                    <img
+                                        src="${escapeHtml(
+                                            post.image_url
+                                        )}"
+                                        alt="Post image"
+                                        style="
+                                            max-width:100%;
+                                            max-height:600px;
+                                            border-radius:12px;
+                                            object-fit:contain;
+                                            display:block;
+                                        "
+                                        onerror="
+                                            this.style.display='none';
+                                        "
+                                    >
+
+                                </div>
+
+                            `;
+
+                        }
+
+                        const formattedContent =
+                            post.content
+                                ? await formatPostContent(
+                                    post.content
+                                )
+                                : "";
+
+                        return `
+
+                            <article
+                                class="post"
+                            >
+
+                                <div
+                                    class="post-header"
+                                    style="
+                                        display:flex;
+                                        align-items:center;
+                                        gap:10px;
+                                    "
+                                >
+
+                                    <img
+                                        src="${escapeHtml(
+                                            avatar
+                                        )}"
+                                        alt="Avatar"
+                                        style="
+                                            width:45px;
+                                            height:45px;
+                                            border-radius:50%;
+                                            object-fit:cover;
+                                        "
+                                        onerror="
+                                            this.src='/default-avatar.png';
+                                        "
+                                    >
+
+                                    <a
+                                        href="/profile.html?id=${encodeURIComponent(
+                                            post.user_id
+                                        )}"
+                                        style="
+                                            text-decoration:none;
+                                            color:inherit;
+                                        "
+                                    >
+
+                                        <strong>
+                                            ${escapeHtml(
+                                                displayName
+                                            )}
+                                        </strong>
+
+                                        <div>
+                                            @${escapeHtml(
+                                                post.username ||
+                                                "user"
+                                            )}
+                                        </div>
+
+                                    </a>
+
+                                </div>
+
+                                ${
+                                    formattedContent
+                                        ? `
+                                            <div
+                                                class="post-content"
+                                                style="
+                                                    margin-top:10px;
+                                                "
+                                            >
+                                                ${formattedContent}
+                                            </div>
+                                        `
+                                        : ""
+                                }
+
+                                ${imageHTML}
+
+                                <button
+                                    onclick="
+                                        toggleComments(
+                                            '${escapeHtml(
+                                                String(post.id)
+                                            )}'
+                                        )
+                                    "
+                                >
+                                    💬 Comments
+                                </button>
+
+                                <div
+                                    id="comments-${escapeHtml(
+                                        String(post.id)
+                                    )}"
+                                    class="comments"
+                                    style="
+                                        display:none;
+                                    "
+                                >
+
+                                    <div
+                                        id="comment-list-${escapeHtml(
+                                            String(post.id)
+                                        )}"
+                                    >
+                                        Loading...
+                                    </div>
+
+                                    <div
+                                        class="comment-form"
+                                        style="
+                                            margin-top:10px;
+                                        "
+                                    >
+
+                                        <input
+                                            id="comment-input-${escapeHtml(
+                                                String(post.id)
+                                            )}"
+                                            placeholder="Write a comment..."
+                                            maxlength="500"
+                                        >
+
+                                        <input
+                                            id="comment-image-${escapeHtml(
+                                                String(post.id)
+                                            )}"
+                                            type="file"
+                                            accept="
+                                                image/png,
+                                                image/jpeg,
+                                                image/webp,
+                                                image/gif
+                                            "
+                                        >
+
+                                        <button
+                                            onclick="
+                                                submitComment(
+                                                    '${escapeHtml(
+                                                        String(post.id)
+                                                    )}'
+                                                )
+                                            "
+                                        >
+                                            Send
+                                        </button>
+
+                                        <div
+                                            id="comment-preview-${escapeHtml(
+                                                String(post.id)
+                                            )}"
+                                            style="
+                                                display:none;
+                                                margin-top:8px;
+                                            "
+                                        >
+
+                                            <img
+                                                id="comment-preview-image-${escapeHtml(
+                                                    String(post.id)
+                                                )}"
+                                                alt="Comment image preview"
+                                                style="
+                                                    max-width:200px;
+                                                    max-height:200px;
+                                                    border-radius:10px;
+                                                "
+                                            >
+
+                                            <br>
+
+                                            <button
+                                                type="button"
+                                                onclick="
+                                                    clearCommentImage(
+                                                        '${escapeHtml(
+                                                            String(post.id)
+                                                        )}'
+                                                    )
+                                                "
+                                            >
+                                                ❌ Remove image
+                                            </button>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </article>
+
+                        `;
+
+                    }
                 )
-                .order(
-                    "created_at",
-                    {
-                        ascending: true
+            );
+
+        container.innerHTML =
+            renderedPosts.join("");
+
+        posts.forEach(
+            post => {
+
+                const input =
+                    document.getElementById(
+                        `comment-image-${post.id}`
+                    );
+
+                const preview =
+                    document.getElementById(
+                        `comment-preview-${post.id}`
+                    );
+
+                const previewImage =
+                    document.getElementById(
+                        `comment-preview-image-${post.id}`
+                    );
+
+                if (
+                    !input ||
+                    !preview ||
+                    !previewImage
+                ) {
+                    return;
+                }
+
+                input.addEventListener(
+                    "change",
+                    () => {
+
+                        const file =
+                            input.files[0];
+
+                        if (!file) {
+
+                            preview.style.display =
+                                "none";
+
+                            return;
+
+                        }
+
+                        if (
+                            !file.type.startsWith(
+                                "image/"
+                            )
+                        ) {
+
+                            alert(
+                                "❌ Please choose an image."
+                            );
+
+                            input.value =
+                                "";
+
+                            return;
+
+                        }
+
+                        if (
+                            file.size >
+                            5 * 1024 * 1024
+                        ) {
+
+                            alert(
+                                "❌ Image must be under 5MB."
+                            );
+
+                            input.value =
+                                "";
+
+                            return;
+
+                        }
+
+                        const reader =
+                            new FileReader();
+
+                        reader.onload =
+                            event => {
+
+                                previewImage.src =
+                                    event.target.result;
+
+                                preview.style.display =
+                                    "block";
+
+                            };
+
+                        reader.readAsDataURL(
+                            file
+                        );
+
                     }
                 );
 
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
             }
+        );
 
-            const result = [];
+    } catch (error) {
 
-            for (
-                const comment of
-                comments || []
-            ) {
+        console.error(
+            "POST ERROR:",
+            error
+        );
 
-                const {
-                    data: profile
-                } = await supabase
-                    .from("profiles")
-                    .select(
-                        "username, display_name, avatar"
-                    )
-                    .eq(
-                        "id",
-                        comment.user_id
-                    )
-                    .maybeSingle();
+        container.innerHTML =
+            `<p>❌ ${escapeHtml(
+                error.message
+            )}</p>`;
 
-                result.push({
+    }
 
-                    ...comment,
+}
 
-                    username:
-                        profile?.username ||
-                        "User",
 
-                    display_name:
-                        profile?.display_name ||
-                        profile?.username ||
-                        "User",
+/* ==================================================
+   LOGIN / SIGNUP UI
+================================================== */
 
-                    avatar:
-                        getAvatar(
-                            profile?.avatar
-                        )
+function showSignup() {
 
-                });
+    console.log(
+        "🧌 Switching to signup UI..."
+    );
 
-            }
+    const loginBox =
+        document.getElementById(
+            "login-box"
+        );
 
-            res.json(result);
+    const signupBox =
+        document.getElementById(
+            "signup-box"
+        );
 
-        } catch (error) {
+    if (!loginBox || !signupBox) {
 
-            console.error(
-                "COMMENTS ERROR:",
-                error
+        console.error(
+            "❌ Login or signup box not found."
+        );
+
+        return;
+    }
+
+    loginBox.style.display =
+        "none";
+
+    signupBox.style.display =
+        "block";
+
+    const loginStatus =
+        document.getElementById(
+            "login-status"
+        );
+
+    if (loginStatus) {
+        loginStatus.textContent =
+            "";
+    }
+
+    const signupStatus =
+        document.getElementById(
+            "signup-status"
+        );
+
+    if (signupStatus) {
+        signupStatus.textContent =
+            "";
+    }
+
+    const username =
+        document.getElementById(
+            "signup-username"
+        );
+
+    if (username) {
+
+        setTimeout(
+            () => username.focus(),
+            50
+        );
+
+    }
+
+}
+
+
+function showLogin() {
+
+    console.log(
+        "🧌 Switching to login UI..."
+    );
+
+    const loginBox =
+        document.getElementById(
+            "login-box"
+        );
+
+    const signupBox =
+        document.getElementById(
+            "signup-box"
+        );
+
+    if (!loginBox || !signupBox) {
+
+        console.error(
+            "❌ Login or signup box not found."
+        );
+
+        return;
+    }
+
+    signupBox.style.display =
+        "none";
+
+    loginBox.style.display =
+        "block";
+
+    const signupStatus =
+        document.getElementById(
+            "signup-status"
+        );
+
+    if (signupStatus) {
+        signupStatus.textContent =
+            "";
+    }
+
+    const email =
+        document.getElementById(
+            "login-email"
+        );
+
+    if (email) {
+
+        setTimeout(
+            () => email.focus(),
+            50
+        );
+
+    }
+
+}
+
+
+window.showSignup =
+    showSignup;
+
+window.showLogin =
+    showLogin;
+
+
+/* ==================================================
+   CREATE POST
+================================================== */
+
+async function createPost() {
+
+    const input =
+        document.getElementById(
+            "post-content"
+        );
+
+    const imageInput =
+        document.getElementById(
+            "post-image"
+        );
+
+    const status =
+        document.getElementById(
+            "post-status"
+        );
+
+    const content =
+        input?.value.trim() ||
+        "";
+
+    const file =
+        imageInput?.files?.[0] ||
+        null;
+
+    if (!content && !file) {
+
+        if (status) {
+
+            status.textContent =
+                "❌ Write something or select an image.";
+
+        }
+
+        return;
+
+    }
+
+    if (status) {
+
+        status.textContent =
+            "Posting...";
+
+    }
+
+    try {
+
+        const image =
+            await prepareImage(
+                file
             );
 
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
+        const response =
+            await fetch(
+                "/api/posts",
+                {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+                        "Accept":
+                            "application/json"
+                    },
+
+                    credentials: "include",
+
+                    body:
+                        JSON.stringify({
+
+                            content:
+                                content,
+
+                            image:
+                                image
+
+                        })
+
+                }
+            );
+
+        const data =
+            await getJsonResponse(
+                response
+            );
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not create post."
+            );
+
+        }
+
+        if (input) {
+            input.value =
+                "";
+        }
+
+        if (imageInput) {
+            imageInput.value =
+                "";
+        }
+
+        const preview =
+            document.getElementById(
+                "post-image-preview"
+            );
+
+        const previewImage =
+            document.getElementById(
+                "post-preview-image"
+            );
+
+        if (preview) {
+            preview.style.display =
+                "none";
+        }
+
+        if (previewImage) {
+            previewImage.src =
+                "";
+        }
+
+        if (status) {
+
+            status.textContent =
+                "✅ Posted!";
+
+        }
+
+        loadPosts();
+
+        loadLeaderboard(
+            currentLeaderboard
+        );
+
+    } catch (error) {
+
+        console.error(
+            "CREATE POST ERROR:",
+            error
+        );
+
+        if (status) {
+
+            status.textContent =
+                "❌ " +
+                error.message;
+
+        }
+
+    }
+
+}
+
+
+/* ==================================================
+   TOGGLE COMMENTS
+================================================== */
+
+async function toggleComments(
+    postId
+) {
+
+    const box =
+        document.getElementById(
+            `comments-${postId}`
+        );
+
+    if (!box) {
+        return;
+    }
+
+    if (
+        box.style.display ===
+        "none"
+    ) {
+
+        box.style.display =
+            "block";
+
+        loadComments(
+            postId
+        );
+
+    } else {
+
+        box.style.display =
+            "none";
+
+    }
+
+}
+
+
+/* ==================================================
+   LOAD COMMENTS
+================================================== */
+
+async function loadComments(
+    postId
+) {
+
+    const list =
+        document.getElementById(
+            `comment-list-${postId}`
+        );
+
+    if (!list) {
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/posts/${encodeURIComponent(postId)}/comments`,
+                {
+                    credentials: "include",
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
+                }
+            );
+
+        const comments =
+            await getJsonResponse(
+                response
+            );
+
+        if (!response.ok) {
+
+            throw new Error(
+                comments.error ||
+                "Could not load comments."
+            );
+
+        }
+
+        if (!Array.isArray(comments)) {
+
+            throw new Error(
+                "Invalid comments response."
+            );
+
+        }
+
+        if (!comments.length) {
+
+            list.innerHTML =
+                "<p>No comments yet 😼</p>";
+
+            return;
+
+        }
+
+        const commentHTML =
+            await Promise.all(
+                comments.map(
+                    async comment => {
+
+                        const avatar =
+                            comment.avatar ||
+                            "/default-avatar.png";
+
+                        const displayName =
+                            comment.display_name ||
+                            comment.username ||
+                            "User";
+
+                        let imageHTML =
+                            "";
+
+                        if (
+                            comment.image_url
+                        ) {
+
+                            imageHTML = `
+
+                                <img
+                                    src="${escapeHtml(
+                                        comment.image_url
+                                    )}"
+                                    alt="Comment image"
+                                    style="
+                                        max-width:300px;
+                                        max-height:300px;
+                                        border-radius:10px;
+                                        margin-top:8px;
+                                        display:block;
+                                    "
+                                    onerror="
+                                        this.style.display='none';
+                                    "
+                                >
+
+                            `;
+
+                        }
+
+                        const formattedContent =
+                            comment.content
+                                ? await formatPostContent(
+                                    comment.content
+                                )
+                                : "";
+
+                        return `
+
+                            <div
+                                class="comment"
+                                style="
+                                    padding:10px;
+                                    margin-bottom:10px;
+                                "
+                            >
+
+                                <div
+                                    style="
+                                        display:flex;
+                                        align-items:center;
+                                        gap:8px;
+                                    "
+                                >
+
+                                    <img
+                                        src="${escapeHtml(
+                                            avatar
+                                        )}"
+                                        alt="Avatar"
+                                        style="
+                                            width:35px;
+                                            height:35px;
+                                            border-radius:50%;
+                                            object-fit:cover;
+                                        "
+                                        onerror="
+                                            this.src='/default-avatar.png';
+                                        "
+                                    >
+
+                                    <strong>
+                                        ${escapeHtml(
+                                            displayName
+                                        )}
+                                    </strong>
+
+                                </div>
+
+                                ${
+                                    formattedContent
+                                        ? `
+                                            <div
+                                                class="comment-content"
+                                            >
+                                                ${formattedContent}
+                                            </div>
+                                        `
+                                        : ""
+                                }
+
+                                ${imageHTML}
+
+                            </div>
+
+                        `;
+
+                    }
+                )
+            );
+
+        list.innerHTML =
+            commentHTML.join("");
+
+    } catch (error) {
+
+        console.error(
+            "COMMENTS ERROR:",
+            error
+        );
+
+        list.innerHTML =
+            `<p>❌ ${escapeHtml(
+                error.message
+            )}</p>`;
+
+    }
+
+}
+
+
+/* ==================================================
+   SUBMIT COMMENT
+================================================== */
+
+async function submitComment(
+    postId
+) {
+
+    const input =
+        document.getElementById(
+            `comment-input-${postId}`
+        );
+
+    const imageInput =
+        document.getElementById(
+            `comment-image-${postId}`
+        );
+
+    const content =
+        input?.value.trim() ||
+        "";
+
+    const file =
+        imageInput?.files?.[0] ||
+        null;
+
+    if (!content && !file) {
+        return;
+    }
+
+    try {
+
+        const image =
+            await prepareImage(
+                file
+            );
+
+        const response =
+            await fetch(
+                `/api/posts/${encodeURIComponent(postId)}/comments`,
+                {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+                        "Accept":
+                            "application/json"
+                    },
+
+                    credentials: "include",
+
+                    body:
+                        JSON.stringify({
+
+                            content:
+                                content,
+
+                            image:
+                                image
+
+                        })
+
+                }
+            );
+
+        const data =
+            await getJsonResponse(
+                response
+            );
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not comment."
+            );
+
+        }
+
+        if (input) {
+            input.value =
+                "";
+        }
+
+        if (imageInput) {
+            imageInput.value =
+                "";
+        }
+
+        clearCommentImage(
+            postId
+        );
+
+        loadComments(
+            postId
+        );
+
+        loadLeaderboard(
+            currentLeaderboard
+        );
+
+    } catch (error) {
+
+        console.error(
+            "COMMENT ERROR:",
+            error
+        );
+
+        alert(
+            "❌ " +
+            error.message
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   CLEAR COMMENT IMAGE
+================================================== */
+
+function clearCommentImage(
+    postId
+) {
+
+    const input =
+        document.getElementById(
+            `comment-image-${postId}`
+        );
+
+    const preview =
+        document.getElementById(
+            `comment-preview-${postId}`
+        );
+
+    const previewImage =
+        document.getElementById(
+            `comment-preview-image-${postId}`
+        );
+
+    if (input) {
+        input.value =
+            "";
+    }
+
+    if (previewImage) {
+        previewImage.src =
+            "";
+    }
+
+    if (preview) {
+        preview.style.display =
+            "none";
+    }
+
+}
+
+
+/* ==================================================
+   CLEAR POST IMAGE
+================================================== */
+
+function clearPostImage() {
+
+    const input =
+        document.getElementById(
+            "post-image"
+        );
+
+    const preview =
+        document.getElementById(
+            "post-image-preview"
+        );
+
+    const previewImage =
+        document.getElementById(
+            "post-preview-image"
+        );
+
+    if (input) {
+        input.value =
+            "";
+    }
+
+    if (previewImage) {
+        previewImage.src =
+            "";
+    }
+
+    if (preview) {
+        preview.style.display =
+            "none";
+    }
+
+}
+
+
+/* ==================================================
+   PEOPLE
+================================================== */
+
+async function loadPeople() {
+
+    const container =
+        document.getElementById(
+            "people"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/users",
+                {
+                    credentials: "include",
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    }
+                }
+            );
+
+        const users =
+            await getJsonResponse(
+                response
+            );
+
+        if (!response.ok) {
+
+            throw new Error(
+                users.error ||
+                "Could not load people."
+            );
+
+        }
+
+        if (!Array.isArray(users)) {
+
+            throw new Error(
+                "Invalid users response."
+            );
+
+        }
+
+        if (!users.length) {
+
+            container.innerHTML =
+                "<p>No users yet. 🧌</p>";
+
+            return;
+
+        }
+
+        container.innerHTML =
+            users.map(
+                user => {
+
+                    const avatar =
+                        user.avatar ||
+                        "/default-avatar.png";
+
+                    const displayName =
+                        user.display_name ||
+                        user.username ||
+                        "User";
+
+                    const isOnline =
+                        user.last_seen &&
+                        (
+                            Date.now() -
+                            new Date(
+                                user.last_seen
+                            ).getTime()
+                        ) < 120000;
+
+                    return `
+
+                        <a
+                            href="/profile.html?id=${encodeURIComponent(
+                                user.id
+                            )}"
+                            class="person"
+                            style="
+                                text-decoration:none;
+                                color:inherit;
+                                display:flex;
+                                align-items:center;
+                                gap:12px;
+                            "
+                        >
+
+                            <div
+                                style="
+                                    position:relative;
+                                    width:50px;
+                                    height:50px;
+                                    flex-shrink:0;
+                                "
+                            >
+
+                                <img
+                                    class="avatar"
+                                    src="${escapeHtml(
+                                        avatar
+                                    )}"
+                                    alt="Avatar"
+                                    style="
+                                        width:50px;
+                                        height:50px;
+                                        border-radius:50%;
+                                        object-fit:cover;
+                                        display:block;
+                                    "
+                                    onerror="
+                                        this.src='/default-avatar.png';
+                                    "
+                                >
+
+                                <span
+                                    title="${
+                                        isOnline
+                                            ? "Online"
+                                            : "Offline"
+                                    }"
+                                    style="
+                                        position:absolute;
+                                        right:-2px;
+                                        bottom:-2px;
+                                        width:14px;
+                                        height:14px;
+                                        border-radius:50%;
+                                        background:${
+                                            isOnline
+                                                ? "#22c55e"
+                                                : "#888"
+                                        };
+                                        border:2px solid white;
+                                        box-sizing:border-box;
+                                    "
+                                ></span>
+
+                            </div>
+
+                            <div>
+
+                                <strong>
+                                    ${escapeHtml(
+                                        displayName
+                                    )}
+                                </strong>
+
+                                <p>
+                                    @${escapeHtml(
+                                        user.username ||
+                                        "user"
+                                    )}
+                                </p>
+
+                            </div>
+
+                        </a>
+
+                    `;
+
+                }
+            ).join("");
+
+    } catch (error) {
+
+        console.error(
+            "PEOPLE ERROR:",
+            error
+        );
+
+        container.innerHTML =
+            `<p>❌ ${escapeHtml(
+                error.message
+            )}</p>`;
+
+    }
+
+}
+
+
+/* ==================================================
+   SHREKBOOK POPUP MESSAGE
+================================================== */
+
+function showShrekBookMessage(
+    title,
+    message
+) {
+
+    const existing =
+        document.getElementById(
+            "shrekbook-message-popup"
+        );
+
+    if (existing) {
+        existing.remove();
+    }
+
+    const popup =
+        document.createElement(
+            "div"
+        );
+
+    popup.id =
+        "shrekbook-message-popup";
+
+    popup.innerHTML = `
+
+        <div class="shrekbook-message-box">
+
+            <h2>
+                ${escapeHtml(title)}
+            </h2>
+
+            <p>
+                ${escapeHtml(message)}
+            </p>
+
+            <button
+                id="closeShrekMessage"
+            >
+                OK
+            </button>
+
+        </div>
+
+    `;
+
+    document.body.appendChild(
+        popup
+    );
+
+    const closeButton =
+        document.getElementById(
+            "closeShrekMessage"
+        );
+
+    if (closeButton) {
+
+        closeButton.onclick =
+            () => {
+
+                popup.remove();
+
+            };
+
+    }
+
+}
+
+
+/* ==================================================
+   MESSAGE TRACKING
+================================================== */
+
+let lastGlobalMessageId =
+    localStorage.getItem(
+        "shrekbook_last_global_message_id"
+    );
+
+let lastSpecificMessageId =
+    localStorage.getItem(
+        "shrekbook_last_specific_message_id"
+    );
+
+
+/* ==================================================
+   SHREKCOIN DISPLAY
+================================================== */
+
+async function loadShrekCoins() {
+
+    const display =
+        document.getElementById(
+            "shrekcoin-display"
+        );
+
+    const count =
+        document.getElementById(
+            "shrekcoin-count"
+        );
+
+    if (!display || !count) {
+        return;
+    }
+
+    try {
+
+        // getMeCached() already returns parsed data.
+        const data =
+            await getMeCached();
+
+        if (
+            !data ||
+            !data.loggedIn
+        ) {
+
+            display.style.display =
+                "none";
+
+            return;
+        }
+
+        const coins =
+            Number(
+                data.user?.shrekcoins ??
+                data.shrekcoins ??
+                0
+            );
+
+        count.textContent =
+            coins.toLocaleString();
+
+        display.style.display =
+            "block";
+
+    } catch (error) {
+
+        console.error(
+            "SHREKCOIN LOAD ERROR:",
+            error
+        );
+
+        display.style.display =
+            "none";
+
+    }
+
+}
+
+
+// Load immediately
+loadShrekCoins();
+
+
+// Refresh every 5 seconds
+setInterval(
+    loadShrekCoins,
+    5000
+);
+
+
+/* ==================================================
+   CHECK MESSAGES
+================================================== */
+
+async function checkMessages() {
+
+    try {
+
+        // IMPORTANT:
+        // getMeCached() returns DATA.
+        // It does NOT return Response.
+
+        const data =
+            await getMeCached();
+
+        if (
+            !data ||
+            !data.loggedIn
+        ) {
+            return;
+        }
+
+        // GLOBAL MESSAGE
+
+        if (
+            data.globalMessage &&
+            data.globalMessage.id !==
+                lastGlobalMessageId
+        ) {
+
+            lastGlobalMessageId =
+                data.globalMessage.id;
+
+            localStorage.setItem(
+                "shrekbook_last_global_message_id",
+                String(
+                    data.globalMessage.id
+                )
+            );
+
+            showShrekBookMessage(
+                "📢 ShrekBook Announcement",
+                data.globalMessage.message
+            );
+
+        }
+
+        // SPECIFIC MESSAGE
+
+        if (
+            data.specificMessage &&
+            data.specificMessage.id !==
+                lastSpecificMessageId
+        ) {
+
+            lastSpecificMessageId =
+                data.specificMessage.id;
+
+            localStorage.setItem(
+                "shrekbook_last_specific_message_id",
+                String(
+                    data.specificMessage.id
+                )
+            );
+
+            showShrekBookMessage(
+                "📨 ShrekBook Message",
+                data.specificMessage.message
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "MESSAGE CHECK ERROR:",
+            error
+        );
+
+    }
+
+}
+
+
+// Check immediately
+checkMessages();
+
+
+// Check every 2 seconds
+setInterval(
+    checkMessages,
+    2000
+);
+
+
+/* ==================================================
+   ENTER KEY FOR COMMENTS
+================================================== */
+
+document.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key !== "Enter" ||
+            event.shiftKey
+        ) {
+            return;
+        }
+
+        const target =
+            event.target;
+
+        if (
+            target &&
+            target.id &&
+            target.id.startsWith(
+                "comment-input-"
+            )
+        ) {
+
+            event.preventDefault();
+
+            const postId =
+                target.id.replace(
+                    "comment-input-",
+                    ""
+                );
+
+            submitComment(
+                postId
+            );
 
         }
 
     }
 );
 
-app.post(
-    "/api/posts/:postId/comments",
-    async (req, res) => {
 
-        try {
+/* ==================================================
+   ONLINE STATUS
+================================================== */
 
-            // ==========================================
-            // CHECK LOGIN
-            // ==========================================
+async function updateOnlineStatus() {
 
-            if (!req.session.user) {
+    try {
 
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
+        const response =
+            await fetch(
+                "/api/online",
+                {
 
-            }
+                    method: "POST",
+
+                    credentials: "include",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+                        "Accept":
+                            "application/json"
+                    }
+
+                }
+            );
+
+        // 401 = not logged in.
+        // Do not spam console.
+        if (
+            response.status === 401
+        ) {
+            return;
+        }
+
+        if (!response.ok) {
+
+            console.warn(
+                "Online status request failed:",
+                response.status
+            );
+
+            return;
+        }
+
+    } catch (error) {
+
+        console.warn(
+            "Online heartbeat unavailable."
+        );
+
+    }
+
+}
 
 
-            const userId =
-                req.session.user.id;
+/* ==================================================
+   ONLINE HEARTBEAT
+================================================== */
+
+function startOnlineHeartbeat() {
+
+    if (onlineHeartbeatStarted) {
+        return;
+    }
+
+    onlineHeartbeatStarted =
+        true;
+
+    updateOnlineStatus();
+
+    setInterval(
+        updateOnlineStatus,
+        30000
+    );
+
+}
 
 
-            // ==========================================
-            // GET CONTENT
-            // ==========================================
+/* ==================================================
+   ROLE SYSTEM
+================================================== */
 
-            const content =
-                String(
-                    req.body.content ||
-                    ""
-                ).trim();
+function getUserRole(
+    user
+) {
+
+    if (!user) {
+        return "peasant";
+    }
+
+    let role =
+        user.role ||
+        user.user_role ||
+        user.rank ||
+        "peasant";
+
+    role =
+        String(role)
+            .toLowerCase()
+            .trim()
+            .replace(
+                /[\s-]+/g,
+                "_"
+            );
+
+    const validRoles = [
+        "owner",
+        "admin",
+        "administrator",
+        "senior_moderator",
+        "junior_moderator",
+        "moderator",
+        "peasant"
+    ];
+
+    if (
+        !validRoles.includes(
+            role
+        )
+    ) {
+        return "peasant";
+    }
+
+    // Treat administrator as admin internally.
+    if (
+        role === "administrator"
+    ) {
+        return "admin";
+    }
+
+    return role;
+
+}
 
 
-            if (content.length > 500) {
+/* ==================================================
+   ROLE PERMISSIONS
+================================================== */
 
-                return res.status(400).json({
-                    error:
-                        "Comment is too long."
-                });
+function hasRole(
+    user,
+    requiredRole
+) {
 
-            }
+    const roleLevels = {
+
+        peasant:
+            0,
+
+        moderator:
+            1,
+
+        junior_moderator:
+            1,
+
+        senior_moderator:
+            2,
+
+        admin:
+            3,
+
+        owner:
+            4
+
+    };
+
+    const userRole =
+        getUserRole(
+            user
+        );
+
+    const userLevel =
+        roleLevels[userRole] ??
+        0;
+
+    const requiredLevel =
+        roleLevels[requiredRole] ??
+        0;
+
+    return (
+        userLevel >=
+        requiredLevel
+    );
+
+}
 
 
-            // ==========================================
-            // IMAGE
-            // ==========================================
+/* ==================================================
+   INDIVIDUAL ROLE CHECKS
+================================================== */
 
-            let imageUrl = null;
+function isOwner(
+    user
+) {
+
+    return hasRole(
+        user,
+        "owner"
+    );
+
+}
 
 
-            if (
-                req.body.image &&
-                req.body.image.data &&
-                req.body.image.type &&
-                req.body.image.name
-            ) {
+function isAdmin(
+    user
+) {
+
+    return hasRole(
+        user,
+        "admin"
+    );
+
+}
+
+
+function isSeniorModerator(
+    user
+) {
+
+    return hasRole(
+        user,
+        "senior_moderator"
+    );
+
+}
+
+
+function isJuniorModerator(
+    user
+) {
+
+    return hasRole(
+        user,
+        "junior_moderator"
+    );
+
+}
+
+
+/* ==================================================
+   ADMIN PANEL ACCESS
+================================================== */
+
+function canAccessAdminPanel(
+    user
+) {
+
+    if (!user) {
+        return false;
+    }
+
+    const role =
+        getUserRole(
+            user
+        );
+
+    return (
+        role === "owner" ||
+        role === "admin"
+    );
+
+}
+
+
+/* ==================================================
+   MODERATION ACCESS
+================================================== */
+
+function canModerate(
+    user
+) {
+
+    if (!user) {
+        return false;
+    }
+
+    return hasRole(
+        user,
+        "moderator"
+    );
+
+}
+
+
+/* ==================================================
+   ADMIN NAVIGATION
+================================================== */
+
+function setupAdminNav(
+    user
+) {
+
+    let adminNav =
+        document.getElementById(
+            "admin-nav"
+        );
+
+    if (!user) {
+
+        if (adminNav) {
+            adminNav.style.display =
+                "none";
+        }
+
+        return;
+    }
+
+    const role =
+        getUserRole(
+            user
+        );
+
+    const allowed =
+        canAccessAdminPanel(
+            user
+        );
+
+    if (!allowed) {
+
+        if (adminNav) {
+            adminNav.style.display =
+                "none";
+        }
+
+        return;
+    }
+
+    if (adminNav) {
+
+        adminNav.style.display =
+            "flex";
+
+        return;
+
+    }
+
+    adminNav =
+        document.createElement(
+            "nav"
+        );
+
+    adminNav.id =
+        "admin-nav";
+
+    adminNav.style.cssText = `
+        display:flex;
+        align-items:center;
+        gap:12px;
+        padding:10px 15px;
+        margin-bottom:15px;
+        background:#222;
+        border:1px solid #444;
+        border-radius:10px;
+        box-sizing:border-box;
+        width:100%;
+    `;
+
+    let roleLabel =
+        "Admin";
+
+    if (role === "owner") {
+        roleLabel =
+            "Owner";
+    }
+
+    adminNav.innerHTML = `
+
+        <strong
+            style="
+                color:#ffcc00;
+                white-space:nowrap;
+            "
+        >
+            🛡️ ${roleLabel}
+        </strong>
+
+        <a
+            href="/admin.html"
+            style="
+                color:inherit;
+                text-decoration:none;
+                font-weight:bold;
+            "
+        >
+            Admin Panel
+        </a>
+
+        <span style="opacity:0.5;">
+            |
+        </span>
+
+        <a
+            href="/"
+            style="
+                color:inherit;
+                text-decoration:none;
+            "
+        >
+            Home
+        </a>
+
+    `;
+
+    const app =
+        document.getElementById(
+            "app-section"
+        );
+
+    if (app) {
+
+        app.insertBefore(
+            adminNav,
+            app.firstChild
+        );
+
+    } else {
+
+        document.body.prepend(
+            adminNav
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   SPECIFIC ADMIN MESSAGE
+================================================== */
+
+let showingSpecificMessageCheck =
+    false;
+
+
+/* ==================================================
+   CHECK SPECIFIC MESSAGE
+================================================== */
+
+async function checkSpecificMessages() {
+
+    if (
+        showingSpecificMessageCheck
+    ) {
+        return;
+    }
+
+    showingSpecificMessageCheck =
+        true;
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/specific-message",
+                {
+                    method: "GET",
+                    credentials: "include",
+                    cache: "no-store",
+                    headers: {
+                        "Accept":
+                            "application/json",
+                        "Cache-Control":
+                            "no-cache"
+                    }
+                }
+            );
+
+        if (
+            response.status === 401
+        ) {
+            return;
+        }
+
+        if (!response.ok) {
+            return;
+        }
+
+        const data =
+            await getJsonResponse(
+                response
+            );
+
+        const message =
+            data.message;
+
+        if (!message) {
+            return;
+        }
+
+        if (
+            lastSpecificMessageId ===
+            message.id
+        ) {
+            return;
+        }
+
+        lastSpecificMessageId =
+            message.id;
+
+        localStorage.setItem(
+            "shrekbook_last_specific_message_id",
+            String(
+                message.id
+            )
+        );
+
+        showSpecificMessage(
+            message
+        );
+
+    } catch (error) {
+
+        console.error(
+            "SPECIFIC MESSAGE CHECK ERROR:",
+            error
+        );
+
+    } finally {
+
+        showingSpecificMessageCheck =
+            false;
+
+    }
+
+}
+
+
+/* ==================================================
+   SHOW SPECIFIC MESSAGE
+================================================== */
+
+function showSpecificMessage(
+    message
+) {
+
+    showingSpecificMessage =
+        true;
+
+    const sender =
+        message.senderDisplayName ||
+        message.senderUsername ||
+        "Administrator";
+
+    const overlay =
+        document.createElement(
+            "div"
+        );
+
+    overlay.id =
+        "specific-message-overlay";
+
+    overlay.style.cssText = `
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,0.65);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        z-index:999999;
+        padding:20px;
+    `;
+
+    const box =
+        document.createElement(
+            "div"
+        );
+
+    box.style.cssText = `
+        background:white;
+        width:100%;
+        max-width:500px;
+        border-radius:18px;
+        padding:30px;
+        box-shadow:0 10px 40px rgba(0,0,0,0.3);
+        text-align:center;
+    `;
+
+    box.innerHTML = `
+
+        <div
+            style="
+                font-size:50px;
+                margin-bottom:10px;
+            "
+        >
+            🧌
+        </div>
+
+        <h2>
+            ShrekBook Message
+        </h2>
+
+        <p
+            style="
+                color:#666;
+                margin-bottom:20px;
+            "
+        >
+            Message from
+            <strong>
+                ${escapeHtml(
+                    sender
+                )}
+            </strong>
+        </p>
+
+        <div
+            style="
+                background:#f5f5f5;
+                border-radius:12px;
+                padding:18px;
+                text-align:left;
+                white-space:pre-wrap;
+                overflow-wrap:anywhere;
+                margin-bottom:25px;
+            "
+        >
+            ${escapeHtml(
+                message.message
+            )}
+        </div>
+
+        <button
+            id="specific-message-close"
+            style="
+                padding:12px 25px;
+                border:none;
+                border-radius:10px;
+                cursor:pointer;
+                font-weight:bold;
+            "
+        >
+            Got it
+        </button>
+
+    `;
+
+    overlay.appendChild(
+        box
+    );
+
+    document.body.appendChild(
+        overlay
+    );
+
+    const closeButton =
+        document.getElementById(
+            "specific-message-close"
+        );
+
+    if (closeButton) {
+
+        closeButton.onclick =
+            async () => {
 
                 try {
 
-                    imageUrl =
-                        await uploadImage(
-                            req.body.image.data,
-                            req.body.image.type,
-                            req.body.image.name,
-                            userId
-                        );
+                    await fetch(
+                        "/api/specific-message",
+                        {
+                            method: "DELETE",
+                            credentials:
+                                "include"
+                        }
+                    );
 
                 } catch (error) {
 
-                    return res.status(400).json({
-                        error:
-                            error.message
-                    });
-
-                }
-
-            }
-
-
-            // ==========================================
-            // CHECK EMPTY COMMENT
-            // ==========================================
-
-            if (
-                !content &&
-                !imageUrl
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Comment cannot be empty."
-                });
-
-            }
-
-
-            // ==========================================
-            // CREATE COMMENT
-            // ==========================================
-
-            const {
-                data,
-                error
-            } = await supabase
-                .from("comments")
-                .insert({
-
-                    post_id:
-                        req.params.postId,
-
-                    user_id:
-                        userId,
-
-                    content,
-
-                    image_url:
-                        imageUrl
-
-                })
-                .select()
-                .single();
-
-
-            if (error) {
-
-                console.error(
-                    "COMMENT INSERT ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            // ==========================================
-            // FIRST COMMENT OF THE DAY
-            // UTC
-            // ==========================================
-
-            const todayUTC =
-                new Date()
-                    .toISOString()
-                    .slice(0, 10);
-
-
-            const {
-                data: profile,
-                error: profileError
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "last_comment_reward_date"
-                )
-                .eq(
-                    "id",
-                    userId
-                )
-                .single();
-
-
-            if (profileError) {
-
-                console.error(
-                    "COMMENT REWARD PROFILE ERROR:",
-                    profileError
-                );
-
-            } else {
-
-                // ======================================
-                // ONLY REWARD FIRST COMMENT OF UTC DAY
-                // ======================================
-
-                if (
-                    profile.last_comment_reward_date !==
-                    todayUTC
-                ) {
-
-                    const {
-                        error: coinError
-                    } = await supabase.rpc(
-                        "increment_shrekcoins",
-                        {
-
-                            user_id:
-                                userId,
-
-                            amount:
-                                5
-
-                        }
-                    );
-
-
-                    if (coinError) {
-
-                        console.error(
-                            "COMMENT SHREKCOIN ERROR:",
-                            coinError
-                        );
-
-                    } else {
-
-                        // ==================================
-                        // MARK TODAY'S REWARD AS CLAIMED
-                        // ==================================
-
-                        const {
-                            error: dateError
-                        } = await supabase
-                            .from("profiles")
-                            .update({
-
-                                last_comment_reward_date:
-                                    todayUTC
-
-                            })
-                            .eq(
-                                "id",
-                                userId
-                            );
-
-
-                        if (dateError) {
-
-                            console.error(
-                                "COMMENT REWARD DATE ERROR:",
-                                dateError
-                            );
-
-                        }
-
-                    }
-
-                }
-
-            }
-
-
-            // ==========================================
-            // SUCCESS
-            // ==========================================
-
-            return res.status(201).json({
-
-                ...data
-
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "COMMENT ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-// ==================================================
-// BUY SHOP ITEM
-// ==================================================
-
-app.post(
-    "/api/shop/buy",
-    async (req, res) => {
-
-        try {
-
-            // ==========================================
-            // CHECK LOGIN
-            // ==========================================
-
-            if (
-                !req.session ||
-                !req.session.user ||
-                !req.session.user.id
-            ) {
-
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-
-            }
-
-
-            const userId =
-                req.session.user.id;
-
-
-            // ==========================================
-            // GET ITEM ID
-            // ==========================================
-
-            const itemId =
-                req.body &&
-                req.body.item_id;
-
-
-            if (
-                itemId === undefined ||
-                itemId === null ||
-                itemId === ""
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "A valid item ID is required."
-                });
-
-            }
-
-
-            const numericItemId =
-                Number(itemId);
-
-
-            if (
-                !Number.isInteger(numericItemId) ||
-                numericItemId <= 0
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Invalid item ID."
-                });
-
-            }
-
-
-            // ==========================================
-            // PURCHASE
-            // ==========================================
-
-            const {
-                data,
-                error
-            } =
-                await supabase.rpc(
-                    "buy_shop_item",
-                    {
-                        p_user_id:
-                            userId,
-
-                        p_item_id:
-                            numericItemId
-                    }
-                );
-
-
-            // ==========================================
-            // DATABASE ERROR
-            // ==========================================
-
-            if (error) {
-
-                console.error(
-                    "SHOP PURCHASE ERROR:",
-                    error
-                );
-
-
-                const message =
-                    error.message ||
-                    "Purchase failed.";
-
-
-                // Not enough coins
-
-                if (
-                    message.toLowerCase()
-                        .includes(
-                            "not enough"
-                        )
-                ) {
-
-                    return res.status(400).json({
-                        error:
-                            "You don't have enough ShrekCoins."
-                    });
-
-                }
-
-
-                // Already owns item
-
-                if (
-                    message.toLowerCase()
-                        .includes(
-                            "already own"
-                        )
-                ) {
-
-                    return res.status(400).json({
-                        error:
-                            "You already own this item."
-                    });
-
-                }
-
-
-                // Item doesn't exist
-
-                if (
-                    message.toLowerCase()
-                        .includes(
-                            "not found"
-                        ) ||
-                    message.toLowerCase()
-                        .includes(
-                            "unavailable"
-                        )
-                ) {
-
-                    return res.status(404).json({
-                        error:
-                            "That item is unavailable."
-                    });
-
-                }
-
-
-                return res.status(500).json({
-                    error:
-                        "Purchase failed."
-                });
-
-            }
-
-
-            // ==========================================
-            // GET NEW COIN BALANCE
-            // ==========================================
-
-            const {
-                data: profile,
-                error: profileError
-            } =
-                await supabase
-                    .from("profiles")
-                    .select("shrekcoins")
-                    .eq(
-                        "id",
-                        userId
-                    )
-                    .single();
-
-
-            if (profileError) {
-
-                console.error(
-                    "COIN BALANCE ERROR:",
-                    profileError
-                );
-
-            }
-
-
-            // ==========================================
-            // SUCCESS
-            // ==========================================
-
-            return res.json({
-
-                success:
-                    true,
-
-                purchase:
-                    data,
-
-                shrekcoins:
-                    profile
-                        ? profile.shrekcoins
-                        : null
-
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "SHOP BUY ERROR:",
-                error
-            );
-
-
-            return res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-// ==================================================
-// SHOP INVENTORY
-// ==================================================
-
-
-// ==================================================
-// SHOP INVENTORY
-// ==================================================
-
-// ==================================================
-// SHOP INVENTORY
-// ==================================================
-
-app.get(
-    "/api/users/:id",
-    async (req, res) => {
-
-        try {
-
-            const id =
-                req.params.id;
-
-
-            if (!id) {
-
-                return res.status(400).json({
-                    error:
-                        "No profile ID was provided."
-                });
-
-            }
-
-
-            // ==========================================
-            // GET PROFILE
-            // ==========================================
-
-            const {
-                data: profile,
-                error: profileError
-            } =
-                await supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar,
-                        bio,
-                        created_at,
-                        equipped_title_id
-                    `)
-                    .eq(
-                        "id",
-                        id
-                    )
-                    .maybeSingle();
-
-
-            if (profileError) {
-
-                console.error(
-                    "PROFILE ERROR:",
-                    profileError
-                );
-
-                return res.status(500).json({
-                    error:
-                        profileError.message
-                });
-
-            }
-
-
-            if (!profile) {
-
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-
-            }
-
-
-            // ==========================================
-            // GET EQUIPPED TITLE
-            // ==========================================
-
-            let equippedTitle =
-                null;
-
-
-            if (
-                profile.equipped_title_id
-            ) {
-
-                const {
-                    data: title,
-                    error: titleError
-                } =
-                    await supabase
-                        .from("shop_items")
-                        .select(`
-                            id,
-                            name,
-                            description,
-                            price,
-                            icon,
-                            item_type
-                        `)
-                        .eq(
-                            "id",
-                            profile.equipped_title_id
-                        )
-                        .eq(
-                            "item_type",
-                            "title"
-                        )
-                        .maybeSingle();
-
-
-                if (titleError) {
-
                     console.error(
-                        "EQUIPPED TITLE ERROR:",
-                        titleError
+                        "CLEAR SPECIFIC MESSAGE ERROR:",
+                        error
                     );
-
-                } else {
-
-                    equippedTitle =
-                        title || null;
 
                 }
 
-            }
+                overlay.remove();
 
+                showingSpecificMessage =
+                    false;
 
-            // ==========================================
-            // GET ALL DISPLAYED ITEMS
-            // ==========================================
-
-            let displayedItems = [];
-
-
-            const {
-                data: ownedItems,
-                error: ownedError
-            } =
-                await supabase
-                    .from("user_shop_items")
-                    .select(`
-                        purchased_at,
-                        equipped,
-                        shop_items (
-                            id,
-                            name,
-                            description,
-                            icon,
-                            price,
-                            item_type
-                        )
-                    `)
-                    .eq(
-                        "user_id",
-                        id
-                    );
-
-
-            if (ownedError) {
-
-                console.error(
-                    "DISPLAYED ITEMS ERROR:",
-                    ownedError
-                );
-
-            } else {
-
-                // ======================================
-                // ONLY DISPLAY NORMAL EQUIPPED ITEMS
-                // TITLES ARE HANDLED SEPARATELY
-                // ======================================
-
-                displayedItems =
-                    (ownedItems || [])
-                        .filter(
-                            row =>
-                                row.shop_items &&
-                                row.shop_items.item_type !== "title" &&
-                                row.equipped === true
-                        )
-                        .map(
-                            row => ({
-
-                                id:
-                                    row.shop_items.id,
-
-                                name:
-                                    row.shop_items.name,
-
-                                description:
-                                    row.shop_items.description,
-
-                                icon:
-                                    row.shop_items.icon,
-
-                                price:
-                                    row.shop_items.price,
-
-                                item_type:
-                                    row.shop_items.item_type,
-
-                                purchased_at:
-                                    row.purchased_at,
-
-                                equipped:
-                                    true
-
-                            })
-                        );
-
-            }
-
-
-            // ==========================================
-            // LIMIT DISPLAYED ITEMS
-            // ==========================================
-
-            displayedItems =
-                displayedItems.slice(
-                    0,
-                    5
-                );
-
-
-            console.log(
-                "PROFILE DISPLAYED ITEMS:",
-                id,
-                displayedItems
-            );
-
-
-            // ==========================================
-            // GET POSTS
-            // ==========================================
-
-            const {
-                data: posts,
-                error: postsError
-            } =
-                await supabase
-                    .from("posts")
-                    .select(`
-                        id,
-                        user_id,
-                        content,
-                        image_url,
-                        created_at
-                    `)
-                    .eq(
-                        "user_id",
-                        id
-                    )
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
-                    );
-
-
-            if (postsError) {
-
-                return res.status(500).json({
-                    error:
-                        postsError.message
-                });
-
-            }
-
-
-            // ==========================================
-            // REACTIONS
-            // ==========================================
-
-            const reactions =
-                await getReactionCounts(
-                    id
-                );
-
-
-            // ==========================================
-            // RESPONSE
-            // ==========================================
-
-            return res.json({
-
-                ...profile,
-
-                avatar:
-                    getAvatar(
-                        profile.avatar
-                    ),
-
-                equippedTitle:
-                    equippedTitle,
-
-                displayedItems:
-                    displayedItems,
-
-                displayedCount:
-                    displayedItems.length,
-
-                maxDisplayed:
-                    5,
-
-                gyatt:
-                    reactions.gyatt,
-
-                cat:
-                    reactions.cat,
-
-                ogred:
-                    reactions.ogred,
-
-                posts:
-                    posts || []
-
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "ONE USER ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
+            };
 
     }
-);
-// ==================================================
-// EQUIP SHOP TITLE
-// ==================================================
 
-// ==================================================
-// EQUIP / DISPLAY SHOP ITEM
-// ==================================================
+}
 
 
-// ==================================================
-// EQUIP SHOP ITEM
-// ==================================================
+/* ==================================================
+   MODERATION STATUS
+   ONLY ONE VERSION OF THIS FUNCTION
+================================================== */
 
-app.post(
-    "/api/shop/equip",
-    async (req, res) => {
+async function checkModerationStatus() {
 
-        try {
-
-            // ==========================================
-            // CHECK LOGIN
-            // ==========================================
-
-            if (
-                !req.session ||
-                !req.session.user ||
-                !req.session.user.id
-            ) {
-
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-
-            }
-
-
-            const userId =
-                req.session.user.id;
-
-
-            // ==========================================
-            // GET ITEM ID
-            // ==========================================
-
-            const itemId =
-                req.body &&
-                req.body.item_id;
-
-
-            const numericItemId =
-                Number(itemId);
-
-
-            if (
-                !Number.isInteger(
-                    numericItemId
-                ) ||
-                numericItemId <= 0
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "A valid item ID is required."
-                });
-
-            }
-
-
-            // ==========================================
-            // CHECK OWNERSHIP
-            // ==========================================
-
-            const {
-                data: ownership,
-                error: ownershipError
-            } =
-                await supabase
-                    .from("user_shop_items")
-                    .select(`
-                        user_id,
-                        item_id,
-                        equipped
-                    `)
-                    .eq(
-                        "user_id",
-                        userId
-                    )
-                    .eq(
-                        "item_id",
-                        numericItemId
-                    )
-                    .maybeSingle();
-
-
-            if (ownershipError) {
-
-                console.error(
-                    "OWNERSHIP CHECK ERROR:",
-                    ownershipError
-                );
-
-                return res.status(500).json({
-                    error:
-                        ownershipError.message
-                });
-
-            }
-
-
-            if (!ownership) {
-
-                return res.status(403).json({
-                    error:
-                        "You do not own this item."
-                });
-
-            }
-
-
-            // ==========================================
-            // GET SHOP ITEM
-            // ==========================================
-
-            const {
-                data: item,
-                error: itemError
-            } =
-                await supabase
-                    .from("shop_items")
-                    .select(`
-                        id,
-                        name,
-                        description,
-                        icon,
-                        price,
-                        item_type
-                    `)
-                    .eq(
-                        "id",
-                        numericItemId
-                    )
-                    .maybeSingle();
-
-
-            if (itemError) {
-
-                console.error(
-                    "SHOP ITEM ERROR:",
-                    itemError
-                );
-
-                return res.status(500).json({
-                    error:
-                        itemError.message
-                });
-
-            }
-
-
-            if (!item) {
-
-                return res.status(404).json({
-                    error:
-                        "Shop item not found."
-                });
-
-            }
-
-
-            // ==========================================
-            // TITLE
-            // ==========================================
-
-            if (
-                item.item_type ===
-                "title"
-            ) {
-
-                const {
-                    error: updateError
-                } =
-                    await supabase
-                        .from("profiles")
-                        .update({
-
-                            equipped_title_id:
-                                numericItemId
-
-                        })
-                        .eq(
-                            "id",
-                            userId
-                        );
-
-
-                if (updateError) {
-
-                    console.error(
-                        "EQUIP TITLE ERROR:",
-                        updateError
-                    );
-
-                    return res.status(500).json({
-                        error:
-                            "Could not equip title."
-                    });
-
-                }
-
-
-                return res.json({
-
-                    success:
-                        true,
-
-                    type:
-                        "title",
-
-                    equipped:
-                        item
-
-                });
-
-            }
-
-
-            // ==========================================
-            // CHECK IF ALREADY EQUIPPED
-            // ==========================================
-
-            if (
-                ownership.equipped
-            ) {
-
-                return res.json({
-
-                    success:
-                        true,
-
-                    type:
-                        "item",
-
-                    alreadyEquipped:
-                        true,
-
-                    displayed:
-                        item
-
-                });
-
-            }
-
-
-            // ==========================================
-            // COUNT EQUIPPED ITEMS
-            // ==========================================
-
-            const {
-                count,
-                error: countError
-            } =
-                await supabase
-                    .from("user_shop_items")
-                    .select(
-                        "item_id",
-                        {
-                            count:
-                                "exact",
-                            head:
-                                true
-                        }
-                    )
-                    .eq(
-                        "user_id",
-                        userId
-                    )
-                    .eq(
-                        "equipped",
-                        true
-                    );
-
-
-            if (countError) {
-
-                console.error(
-                    "EQUIPPED COUNT ERROR:",
-                    countError
-                );
-
-                return res.status(500).json({
-                    error:
-                        countError.message
-                });
-
-            }
-
-
-            // ==========================================
-            // MAXIMUM 5 ITEMS
-            // ==========================================
-
-            if (
-                (count || 0) >= 5
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "You can only display 5 items at once."
-                });
-
-            }
-
-
-            // ==========================================
-            // EQUIP ITEM
-            // ==========================================
-
-            const {
-                error: equipError
-            } =
-                await supabase
-                    .from("user_shop_items")
-                    .update({
-
-                        equipped:
-                            true
-
-                    })
-                    .eq(
-                        "user_id",
-                        userId
-                    )
-                    .eq(
-                        "item_id",
-                        numericItemId
-                    );
-
-
-            if (equipError) {
-
-                console.error(
-                    "EQUIP ITEM ERROR:",
-                    equipError
-                );
-
-                return res.status(500).json({
-                    error:
-                        "Could not display item."
-                });
-
-            }
-
-
-            return res.json({
-
-                success:
-                    true,
-
-                type:
-                    "item",
-
-                displayed:
-                    item
-
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "SHOP EQUIP ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    "Failed to equip item."
-            });
-
-        }
-
+    if (moderationCheckRunning) {
+        return;
     }
-);
-// ==================================================
-// UNDISPLAY SHOP ITEM
-// ==================================================
 
-app.post(
-    "/api/shop/undisplay",
-    async (req, res) => {
-
-        try {
-
-            // ==========================================
-            // CHECK LOGIN
-            // ==========================================
-
-            if (
-                !req.session ||
-                !req.session.user ||
-                !req.session.user.id
-            ) {
-
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-
-            }
-
-
-            const userId =
-                req.session.user.id;
-
-
-            // ==========================================
-            // GET ITEM ID
-            // ==========================================
-
-            const itemId =
-                req.body &&
-                req.body.item_id;
-
-
-            const numericItemId =
-                Number(itemId);
-
-
-            if (
-                !Number.isInteger(
-                    numericItemId
-                ) ||
-                numericItemId <= 0
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "A valid item ID is required."
-                });
-
-            }
-
-
-            // ==========================================
-            // CHECK OWNERSHIP
-            // ==========================================
-
-            const {
-                data: ownership,
-                error: ownershipError
-            } =
-                await supabase
-                    .from("user_shop_items")
-                    .select(
-                        "item_id, equipped"
-                    )
-                    .eq(
-                        "user_id",
-                        userId
-                    )
-                    .eq(
-                        "item_id",
-                        numericItemId
-                    )
-                    .maybeSingle();
-
-
-            if (ownershipError) {
-
-                console.error(
-                    "UNDISPLAY OWNERSHIP ERROR:",
-                    ownershipError
-                );
-
-                return res.status(500).json({
-                    error:
-                        ownershipError.message
-                });
-
-            }
-
-
-            if (!ownership) {
-
-                return res.status(403).json({
-                    error:
-                        "You do not own this item."
-                });
-
-            }
-
-
-            // ==========================================
-            // UNDISPLAY
-            // ==========================================
-
-            const {
-                error: updateError
-            } =
-                await supabase
-                    .from("user_shop_items")
-                    .update({
-
-                        equipped:
-                            false
-
-                    })
-                    .eq(
-                        "user_id",
-                        userId
-                    )
-                    .eq(
-                        "item_id",
-                        numericItemId
-                    );
-
-
-            if (updateError) {
-
-                console.error(
-                    "UNDISPLAY ITEM ERROR:",
-                    updateError
-                );
-
-                return res.status(500).json({
-                    error:
-                        "Could not undisplay item."
-                });
-
-            }
-
-
-            return res.json({
-
-                success:
-                    true
-
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "UNDISPLAY ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    "Failed to undisplay item."
-            });
-
-        }
-
-    }
-);
-// ==================================================
-// UNEQUIP / HIDE SHOP ITEM
-// ==================================================
-
-app.post(
-    "/api/shop/unequip",
-    async (req, res) => {
-
-        try {
-
-            if (
-                !req.session ||
-                !req.session.user ||
-                !req.session.user.id
-            ) {
-
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-
-            }
-
-
-            const userId =
-                req.session.user.id;
-
-
-            const itemId =
-                req.body &&
-                req.body.item_id;
-
-
-            // ==========================================
-            // IF NO ITEM ID → UNEQUIP TITLE
-            // ==========================================
-
-            if (
-                itemId === undefined ||
-                itemId === null
-            ) {
-
-                const {
-                    error
-                } =
-                    await supabase
-                        .from("profiles")
-                        .update({
-
-                            equipped_title_id:
-                                null
-
-                        })
-                        .eq(
-                            "id",
-                            userId
-                        );
-
-
-                if (error) {
-
-                    return res.status(500).json({
-                        error:
-                            error.message
-                    });
-
-                }
-
-
-                return res.json({
-                    success:
-                        true
-                });
-
-            }
-
-
-            const numericItemId =
-                Number(itemId);
-
-
-            if (
-                !Number.isInteger(
-                    numericItemId
-                )
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Invalid item ID."
-                });
-
-            }
-
-
-            // ==========================================
-            // CHECK ITEM TYPE
-            // ==========================================
-
-            const {
-                data: item,
-                error: itemError
-            } =
-                await supabase
-                    .from("shop_items")
-                    .select(
-                        "id, item_type"
-                    )
-                    .eq(
-                        "id",
-                        numericItemId
-                    )
-                    .maybeSingle();
-
-
-            if (itemError || !item) {
-
-                return res.status(404).json({
-                    error:
-                        "Shop item not found."
-                });
-
-            }
-
-
-            // ==========================================
-            // HIDE NORMAL ITEM
-            // ==========================================
-
-            if (
-                item.item_type !==
-                "title"
-            ) {
-
-                const {
-                    error
-                } =
-                    await supabase
-                        .from("profiles")
-                        .update({
-
-                            displayed_item_id:
-                                null
-
-                        })
-                        .eq(
-                            "id",
-                            userId
-                        );
-
-
-                if (error) {
-
-                    return res.status(500).json({
-                        error:
-                            error.message
-                    });
-
-                }
-
-
-                return res.json({
-                    success:
-                        true
-                });
-
-            }
-
-
-            // ==========================================
-            // UNEQUIP TITLE
-            // ==========================================
-
-            const {
-                error
-            } =
-                await supabase
-                    .from("profiles")
-                    .update({
-
-                        equipped_title_id:
-                            null
-
-                    })
-                    .eq(
-                        "id",
-                        userId
-                    );
-
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            return res.json({
-                success:
-                    true
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "UNEQUIP/HIDE ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    "Failed to unequip or hide item."
-            });
-
-        }
-
-    }
-);
-// ==================================================
-// GET SHOP ITEMS
-// ==================================================
-
-app.get(
-    "/api/shop/items",
-    async (req, res) => {
-
-        try {
-
-            const {
-                data: items,
-                error
-            } = await supabase
-                .from("shop_items")
-                .select("*")
-                .order("id", {
-                    ascending: true
-                });
-
-
-            if (error) {
-
-                console.error(
-                    "SHOP ITEMS ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        "Failed to load shop items."
-                });
-
-            }
-
-
-            let ownedIds = [];
-
-
-            // Get user's owned items
-            if (
-                req.session &&
-                req.session.user
-            ) {
-
-                const {
-                    data: owned,
-                    error: ownedError
-                } =
-                    await supabase
-                        .from("user_shop_items")
-                        .select("item_id")
-                        .eq(
-                            "user_id",
-                            req.session.user.id
-                        );
-
-
-                if (!ownedError && owned) {
-
-                    ownedIds =
-                        owned.map(
-                            item =>
-                                Number(
-                                    item.item_id
-                                )
-                        );
-
-                }
-
-            }
-
-
-            const formattedItems =
-                (items || []).map(
-                    item => ({
-
-                        ...item,
-
-                        owned:
-                            ownedIds.includes(
-                                Number(item.id)
-                            )
-
-                    })
-                );
-
-
-            return res.json({
-
-                success:
-                    true,
-
-                items:
-                    formattedItems
-
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "SHOP ITEMS ERROR:",
-                error
-            );
-
-
-            return res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-// ==================================================
-// GET MY SHOP ITEMS
-// ==================================================
-
-app.get(
-    "/api/shop/my-items",
-    async (req, res) => {
-
-        try {
-
-            if (
-                !req.session ||
-                !req.session.user
-            ) {
-
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-
-            }
-
-
-            const userId =
-                req.session.user.id;
-
-
-            const {
-                data,
-                error
-            } =
-                await supabase
-                    .from("user_items")
-                    .select(`
-                        id,
-                        purchased_at,
-                        item:shop_items (
-                            id,
-                            name,
-                            description,
-                            item_type,
-                            price,
-                            item_value
-                        )
-                    `)
-                    .eq(
-                        "user_id",
-                        userId
-                    )
-                    .order(
-                        "purchased_at",
-                        {
-                            ascending: false
-                        }
-                    );
-
-
-            if (error) {
-
-                console.error(
-                    "MY ITEMS ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        "Failed to load your items."
-                });
-
-            }
-
-
-            return res.json({
-                items:
-                    data || []
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "MY ITEMS ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-// ==================================================
-// REACTIONS
-// ==================================================
-
-// ==================================================
-// ADD REACTION + SHREKCOIN REWARD
-// ==================================================
-
-async function addReaction(
-    req,
-    res,
-    type
-) {
+    moderationCheckRunning =
+        true;
 
     try {
 
-        // ==========================================
-        // CHECK LOGIN
-        // ==========================================
-
-        if (!req.session.user) {
-
-            return res.status(401).json({
-                error:
-                    "You must be logged in."
-            });
-
-        }
-
-
-        const fromUserId =
-            req.session.user.id;
-
-        const toUserId =
-            req.params.id;
-
-
-        // ==========================================
-        // PREVENT SELF REACTION
-        // ==========================================
+        const data =
+            await getMeCached();
 
         if (
-            fromUserId ===
-            toUserId
+            !data ||
+            !data.loggedIn
         ) {
-
-            return res.status(400).json({
-                error:
-                    "You cannot react to yourself."
-            });
-
+            return;
         }
 
-
-        // ==========================================
-        // VALIDATE REACTION TYPE
-        // ==========================================
-
-        const validTypes = [
-            "gyatt",
-            "cat",
-            "ogred"
-        ];
-
+        /* ==========================================
+           BAN
+        ========================================== */
 
         if (
-            !validTypes.includes(type)
+            data.banned === true ||
+            (
+                data.user &&
+                data.user.banned === true
+            )
         ) {
 
-            return res.status(400).json({
-                error:
-                    "Invalid reaction type."
-            });
-
-        }
-
-
-        // ==========================================
-        // CHECK TARGET USER
-        // ==========================================
-
-        const {
-            data: targetUser,
-            error: targetError
-        } = await supabase
-            .from("profiles")
-            .select(
-                "id, shrekcoins"
-            )
-            .eq(
-                "id",
-                toUserId
-            )
-            .maybeSingle();
-
-
-        if (targetError) {
-
-            console.error(
-                "TARGET USER ERROR:",
-                targetError
+            console.log(
+                "🚫 BAN DETECTED"
             );
 
-            return res.status(500).json({
-                error:
-                    targetError.message
-            });
-
-        }
-
-
-        if (!targetUser) {
-
-            return res.status(404).json({
-                error:
-                    "User not found."
-            });
-
-        }
-
-
-        // ==========================================
-        // CREATE REACTION
-        // ==========================================
-
-        const {
-            error: insertError
-        } = await supabase
-            .from("reactions")
-            .insert({
-
-                from_user_id:
-                    fromUserId,
-
-                to_user_id:
-                    toUserId,
-
-                type
-
-            });
-
-
-        // ==========================================
-        // DUPLICATE REACTION
-        // ==========================================
-
-        if (insertError) {
-
-            if (
-                insertError.code ===
-                "23505"
-            ) {
-
-                const names = {
-
-                    gyatt:
-                        "Gyatt",
-
-                    cat:
-                        "Cat",
-
-                    ogred:
-                        "Ogred"
-
-                };
-
-
-                return res.status(400).json({
-
-                    error:
-                        `You already gave this person a ${names[type]}.`
-
-                });
-
-            }
-
-
-            console.error(
-                "REACTION INSERT ERROR:",
-                insertError
+            window.location.replace(
+                "/login.html"
             );
 
-
-            return res.status(500).json({
-                error:
-                    insertError.message
-            });
-
+            return;
         }
 
 
-        // ==========================================
-        // GIVE TARGET USER +1 SHREKCOIN
-        // ==========================================
+        /* ==========================================
+           KICK
+        ========================================== */
 
-        const {
-            error: coinError
-        } = await supabase.rpc(
-            "increment_shrekcoins",
-            {
-                user_id:
-                    toUserId,
-
-                amount:
-                    1
-            }
-        );
-
-
-        if (coinError) {
-
-            console.error(
-                "SHREKCOIN REWARD ERROR:",
-                coinError
-            );
-
-            // The reaction was already created.
-            // Don't undo it here.
-            //
-            // This means the reaction still works
-            // even if the coin reward has a problem.
-
-        }
-
-
-        // ==========================================
-        // GET UPDATED REACTION COUNT
-        // ==========================================
-
-        const {
-            count,
-            error: countError
-        } = await supabase
-            .from("reactions")
-            .select(
-                "*",
-                {
-                    count:
-                        "exact",
-                    head:
-                        true
-                }
+        if (
+            data.kicked === true ||
+            (
+                data.user &&
+                data.user.kicked === true
             )
-            .eq(
-                "to_user_id",
-                toUserId
-            )
-            .eq(
-                "type",
-                type
+        ) {
+
+            console.log(
+                "🦵 KICK DETECTED"
             );
 
+            window.location.replace(
+                "/kicked.html"
+            );
 
-        if (countError) {
-
-            return res.status(500).json({
-                error:
-                    countError.message
-            });
-
+            return;
         }
-
-
-        // ==========================================
-        // SUCCESS
-        // ==========================================
-
-        res.json({
-
-            success:
-                true,
-
-            [type]:
-                count || 0,
-
-            shrekcoinEarned:
-                1
-
-        });
-
 
     } catch (error) {
 
         console.error(
-            `${type.toUpperCase()} ERROR:`,
+            "MODERATION CHECK ERROR:",
             error
         );
 
+    } finally {
 
-        res.status(500).json({
-            error:
-                "Server error."
-        });
+        moderationCheckRunning =
+            false;
 
     }
 
 }
-app.post(
-    "/api/users/:id/gyatt",
-    async (req, res) => {
 
-        await addReaction(
-            req,
-            res,
-            "gyatt"
-        );
 
-    }
-);
-
-app.post(
-    "/api/users/:id/cat",
-    async (req, res) => {
-
-        await addReaction(
-            req,
-            res,
-            "cat"
-        );
-
-    }
-);
-
-app.post(
-    "/api/users/:id/ogred",
-    async (req, res) => {
-
-        await addReaction(
-            req,
-            res,
-            "ogred"
-        );
-
-    }
-);
-
-// ==================================================
-// SHREKCHAT - ROOMS
-// ==================================================
-
-app.get(
-    "/api/chat/rooms",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session.user) {
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-            }
-
-            const userId =
-                req.session.user.id;
-
-            const {
-                data: rooms,
-                error: roomError
-            } = await supabase
-                .from("chat_rooms")
-                .select(`
-                    id,
-                    name,
-                    created_by,
-                    is_private,
-                    created_at
-                `)
-                .order(
-                    "created_at",
-                    {
-                        ascending: true
-                    }
-                );
-
-            if (roomError) {
-                return res.status(500).json({
-                    error:
-                        roomError.message
-                });
-            }
-
-            const {
-                data: memberships,
-                error: memberError
-            } = await supabase
-                .from("chat_members")
-                .select(
-                    "room_id"
-                )
-                .eq(
-                    "user_id",
-                    userId
-                );
-
-            if (memberError) {
-                return res.status(500).json({
-                    error:
-                        memberError.message
-                });
-            }
-
-            const memberRooms =
-                new Set(
-                    (memberships || [])
-                        .map(
-                            member =>
-                                member.room_id
-                        )
-                );
-
-            const visibleRooms =
-                (rooms || [])
-                    .filter(room => {
-
-                        if (
-                            !room.is_private
-                        ) {
-                            return true;
-                        }
-
-                        return (
-                            room.created_by ===
-                            userId ||
-                            memberRooms.has(
-                                room.id
-                            )
-                        );
-
-                    });
-
-            res.json(
-                visibleRooms
-            );
-
-        } catch (error) {
-
-            console.error(
-                "GET ROOMS ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// CREATE ROOM
-// ==================================================
-
-app.post(
-    "/api/chat/rooms",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session.user) {
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-            }
-
-            const name =
-                String(
-                    req.body.name ||
-                    ""
-                ).trim();
-
-            const isPrivate =
-                req.body.is_private ===
-                true;
-
-            if (!name) {
-                return res.status(400).json({
-                    error:
-                        "Room name cannot be empty."
-                });
-            }
-
-            if (name.length > 50) {
-                return res.status(400).json({
-                    error:
-                        "Room name is too long."
-                });
-            }
-
-            const {
-                data: room,
-                error
-            } = await supabase
-                .from("chat_rooms")
-                .insert({
-                    name,
-
-                    created_by:
-                        req.session.user.id,
-
-                    is_private:
-                        isPrivate
-                })
-                .select()
-                .single();
-
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            const {
-                error: memberError
-            } = await supabase
-                .from("chat_members")
-                .insert({
-                    room_id:
-                        room.id,
-
-                    user_id:
-                        req.session.user.id
-                });
-
-            if (memberError) {
-
-                await supabase
-                    .from("chat_rooms")
-                    .delete()
-                    .eq(
-                        "id",
-                        room.id
-                    );
-
-                return res.status(500).json({
-                    error:
-                        memberError.message
-                });
-            }
-
-            res.status(201).json(
-                room
-            );
-
-        } catch (error) {
-
-            console.error(
-                "CREATE ROOM ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// JOIN ROOM
-// ==================================================
-
-app.post(
-    "/api/chat/rooms/:roomId/join",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session.user) {
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-            }
-
-            const roomId =
-                req.params.roomId;
-
-            const userId =
-                req.session.user.id;
-
-            const {
-                data: room,
-                error
-            } = await supabase
-                .from("chat_rooms")
-                .select(`
-                    id,
-                    created_by,
-                    is_private
-                `)
-                .eq(
-                    "id",
-                    roomId
-                )
-                .maybeSingle();
-
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            if (!room) {
-                return res.status(404).json({
-                    error:
-                        "Room not found."
-                });
-            }
-
-            if (room.is_private) {
-
-                const {
-                    data: membership
-                } = await supabase
-                    .from("chat_members")
-                    .select(
-                        "room_id"
-                    )
-                    .eq(
-                        "room_id",
-                        roomId
-                    )
-                    .eq(
-                        "user_id",
-                        userId
-                    )
-                    .maybeSingle();
-
-                if (
-                    !membership &&
-                    room.created_by !==
-                    userId
-                ) {
-
-                    return res.status(403).json({
-                        error:
-                            "🔒 You need an invitation to enter this room."
-                    });
-
-                }
-
-            }
-
-            const {
-                error: joinError
-            } = await supabase
-                .from("chat_members")
-                .upsert(
-                    {
-                        room_id:
-                            roomId,
-
-                        user_id:
-                            userId
-                    },
-                    {
-                        onConflict:
-                            "room_id,user_id"
-                    }
-                );
-
-            if (joinError) {
-                return res.status(500).json({
-                    error:
-                        joinError.message
-                });
-            }
-
-            res.json({
-                success: true
-            });
-
-        } catch (error) {
-
-            console.error(
-                "JOIN ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// LEAVE ROOM
-// ==================================================
-
-app.post(
-    "/api/chat/rooms/:roomId/leave",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session.user) {
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-            }
-
-            const {
-                error
-            } = await supabase
-                .from("chat_members")
-                .delete()
-                .eq(
-                    "room_id",
-                    req.params.roomId
-                )
-                .eq(
-                    "user_id",
-                    req.session.user.id
-                );
-
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            res.json({
-                success: true
-            });
-
-        } catch (error) {
-
-            console.error(
-                "LEAVE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// DELETE ROOM
-// ==================================================
-
-app.delete(
-    "/api/chat/rooms/:roomId",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session.user) {
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-            }
-
-            const {
-                data: room
-            } = await supabase
-                .from("chat_rooms")
-                .select(
-                    "created_by"
-                )
-                .eq(
-                    "id",
-                    req.params.roomId
-                )
-                .maybeSingle();
-
-            if (!room) {
-                return res.status(404).json({
-                    error:
-                        "Room not found."
-                });
-            }
-
-            if (
-                room.created_by !==
-                req.session.user.id
-            ) {
-                return res.status(403).json({
-                    error:
-                        "Only the room creator can delete it."
-                });
-            }
-
-            const {
-                error
-            } = await supabase
-                .from("chat_rooms")
-                .delete()
-                .eq(
-                    "id",
-                    req.params.roomId
-                );
-
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            res.json({
-                success: true
-            });
-
-        } catch (error) {
-
-            console.error(
-                "DELETE ROOM ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// INVITABLE USERS
-// ==================================================
-
-app.get(
-    "/api/chat/rooms/:roomId/invite-users",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session.user) {
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-            }
-
-            const roomId =
-                req.params.roomId;
-
-            const {
-                data: room
-            } = await supabase
-                .from("chat_rooms")
-                .select(`
-                    created_by,
-                    is_private
-                `)
-                .eq(
-                    "id",
-                    roomId
-                )
-                .maybeSingle();
-
-            if (!room) {
-                return res.status(404).json({
-                    error:
-                        "Room not found."
-                });
-            }
-
-            if (
-                room.created_by !==
-                req.session.user.id
-            ) {
-                return res.status(403).json({
-                    error:
-                        "Only the creator can invite people."
-                });
-            }
-
-            const {
-                data: members
-            } = await supabase
-                .from("chat_members")
-                .select(
-                    "user_id"
-                )
-                .eq(
-                    "room_id",
-                    roomId
-                );
-
-            const memberIds =
-                new Set(
-                    (members || [])
-                        .map(
-                            member =>
-                                member.user_id
-                        )
-                );
-
-            const {
-                data: users,
-                error
-            } = await supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar
-                `)
-                .order(
-                    "username",
-                    {
-                        ascending: true
-                    }
-                );
-
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            const result =
-                (users || [])
-                    .filter(
-                        user =>
-                            !memberIds.has(
-                                user.id
-                            )
-                    )
-                    .map(
-                        user => ({
-                            ...user,
-                            avatar:
-                                getAvatar(
-                                    user.avatar
-                                )
-                        })
-                    );
-
-            res.json(result);
-
-        } catch (error) {
-
-            console.error(
-                "INVITE USERS ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// INVITE USER
-// ==================================================
-
-app.post(
-    "/api/chat/rooms/:roomId/invite",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session.user) {
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-            }
-
-            const roomId =
-                req.params.roomId;
-
-            const invitedUserId =
-                req.body.user_id;
-
-            if (!invitedUserId) {
-                return res.status(400).json({
-                    error:
-                        "No user selected."
-                });
-            }
-
-            const {
-                data: room
-            } = await supabase
-                .from("chat_rooms")
-                .select(`
-                    created_by,
-                    is_private
-                `)
-                .eq(
-                    "id",
-                    roomId
-                )
-                .maybeSingle();
-
-            if (!room) {
-                return res.status(404).json({
-                    error:
-                        "Room not found."
-                });
-            }
-
-            if (
-                room.created_by !==
-                req.session.user.id
-            ) {
-                return res.status(403).json({
-                    error:
-                        "Only the creator can invite people."
-                });
-            }
-
-            const {
-                data: user
-            } = await supabase
-                .from("profiles")
-                .select("id")
-                .eq(
-                    "id",
-                    invitedUserId
-                )
-                .maybeSingle();
-
-            if (!user) {
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-            }
-
-            const {
-                error
-            } = await supabase
-                .from("chat_members")
-                .upsert(
-                    {
-                        room_id:
-                            roomId,
-
-                        user_id:
-                            invitedUserId
-                    },
-                    {
-                        onConflict:
-                            "room_id,user_id"
-                    }
-                );
-
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            res.json({
-                success: true
-            });
-
-        } catch (error) {
-
-            console.error(
-                "INVITE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// GET MESSAGES
-// ==================================================
-
-app.get(
-    "/api/chat/rooms/:roomId/messages",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session.user) {
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-            }
-
-            const roomId =
-                req.params.roomId;
-
-            const userId =
-                req.session.user.id;
-
-            const {
-                data: membership
-            } = await supabase
-                .from("chat_members")
-                .select(
-                    "room_id"
-                )
-                .eq(
-                    "room_id",
-                    roomId
-                )
-                .eq(
-                    "user_id",
-                    userId
-                )
-                .maybeSingle();
-
-            if (!membership) {
-                return res.status(403).json({
-                    error:
-                        "You are not a member of this room."
-                });
-            }
-
-            const {
-                data: messages,
-                error
-            } = await supabase
-                .from("chat_messages")
-                .select(`
-                    id,
-                    room_id,
-                    user_id,
-                    content,
-                    created_at
-                `)
-                .eq(
-                    "room_id",
-                    roomId
-                )
-                .order(
-                    "created_at",
-                    {
-                        ascending: true
-                    }
-                )
-                .limit(200);
-
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            const result = [];
-
-            for (
-                const message of
-                messages || []
-            ) {
-
-                const {
-                    data: profile
-                } = await supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar
-                    `)
-                    .eq(
-                        "id",
-                        message.user_id
-                    )
-                    .maybeSingle();
-
-                let reactions = {
-                    gyatt: 0,
-                    cat: 0,
-                    ogred: 0
-                };
-
-                try {
-
-                    reactions =
-                        await getReactionCounts(
-                            message.user_id
-                        );
-
-                } catch (reactionError) {
-
-                    console.error(
-                        "MESSAGE REACTION ERROR:",
-                        reactionError
-                    );
-
-                }
-
-                result.push({
-
-                    ...message,
-
-                    username:
-                        profile?.username ||
-                        "User",
-
-                    display_name:
-                        profile?.display_name ||
-                        profile?.username ||
-                        "User",
-
-                    avatar:
-                        getAvatar(
-                            profile?.avatar
-                        ),
-
-                    cat:
-                        reactions.cat,
-
-                    gyatt:
-                        reactions.gyatt,
-
-                    ogred:
-                        reactions.ogred
-
-                });
-
-            }
-
-            res.json(result);
-
-        } catch (error) {
-
-            console.error(
-                "MESSAGES ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// SEND MESSAGE
-// ==================================================
-
-app.post(
-    "/api/chat/rooms/:roomId/messages",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session.user) {
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-            }
-
-            const roomId =
-                req.params.roomId;
-
-            const userId =
-                req.session.user.id;
-
-            const {
-                data: membership
-            } = await supabase
-                .from("chat_members")
-                .select(
-                    "room_id"
-                )
-                .eq(
-                    "room_id",
-                    roomId
-                )
-                .eq(
-                    "user_id",
-                    userId
-                )
-                .maybeSingle();
-
-            if (!membership) {
-                return res.status(403).json({
-                    error:
-                        "You are not a member of this room."
-                });
-            }
-
-            const content =
-                String(
-                    req.body.content ||
-                    ""
-                ).trim();
-
-            if (!content) {
-                return res.status(400).json({
-                    error:
-                        "Message cannot be empty."
-                });
-            }
-
-            if (content.length > 1000) {
-                return res.status(400).json({
-                    error:
-                        "Message is too long."
-                });
-            }
-
-            const {
-                data,
-                error
-            } = await supabase
-                .from("chat_messages")
-                .insert({
-                    room_id:
-                        roomId,
-
-                    user_id:
-                        userId,
-
-                    content
-                })
-                .select()
-                .single();
-
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            res.status(201).json(data);
-
-        } catch (error) {
-
-            console.error(
-                "SEND MESSAGE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// HEARTBEAT
-// ==================================================
-
-app.post(
-    "/api/heartbeat",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session.user) {
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-            }
-
-            const {
-                error
-            } = await supabase
-                .from("profiles")
-                .update({
-                    last_seen:
-                        new Date()
-                            .toISOString()
-                })
-                .eq(
-                    "id",
-                    req.session.user.id
-                );
-
-            if (error) {
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-            }
-
-            res.json({
-                success: true
-            });
-
-        } catch (error) {
-
-            console.error(
-                "HEARTBEAT ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// SHREKBOOK ADMIN SYSTEM
-// ==================================================
-
-const ROLE_LEVELS = {
-    peasant: 0,
-    junior_moderator: 1,
-    senior_moderator: 2,
-    administrator: 3,
-    owner: 4
-};
-
-const ADMIN_ROLES = [
-    "owner",
-    "administrator",
-    "senior_moderator",
-    "junior_moderator"
-];
-
-const VALID_ROLES = [
-    "owner",
-    "administrator",
-    "senior_moderator",
-    "junior_moderator",
-    "peasant"
-];
-
-
-// ==================================================
-// REQUIRE LOGIN
-// ==================================================
-
-function requireLogin(req, res, next) {
-
-    if (!req.session?.user?.id) {
-
-        return res.status(401).json({
-            error: "Not logged in."
-        });
-
-    }
-
-    next();
-
-}
-
-
-// ==================================================
-// GET CURRENT ADMIN
-// ==================================================
-
-async function getAdminActor(req) {
-
-    const userId =
-        req.session?.user?.id;
-
-    if (!userId) {
-
-        return {
-            actor: null,
-            error: "Not logged in."
-        };
-
-    }
-
-
-    const {
-        data: actor,
-        error
-    } = await supabase
-        .from("profiles")
-        .select(
-            "id, username, display_name, role, banned, kicked"
-        )
-        .eq(
-            "id",
-            userId
-        )
-        .maybeSingle();
-
-
-    if (error) {
-
-        console.error(
-            "GET ADMIN ACTOR ERROR:",
-            error
-        );
-
-        return {
-            actor: null,
-            error: error.message
-        };
-
-    }
-
-
-    if (!actor) {
-
-        return {
-            actor: null,
-            error: "Profile not found."
-        };
-
-    }
-
-
-    return {
-        actor,
-        error: null
-    };
-
-}
-
-
-// ==================================================
-// REQUIRE ADMIN
-// ==================================================
-
-async function requireAdmin(req, res) {
-
-    const {
-        actor,
-        error
-    } = await getAdminActor(req);
-
-
-    if (!actor) {
-
-        res.status(403).json({
-            error:
-                error ||
-                "Admin access required."
-        });
-
-        return null;
-
-    }
-
-
-    if (actor.banned) {
-
-        res.status(403).json({
-            error:
-                "Your account is banned."
-        });
-
-        return null;
-
-    }
-
-
-    if (!ADMIN_ROLES.includes(actor.role)) {
-
-        res.status(403).json({
-            error:
-                "Admin access required."
-        });
-
-        return null;
-
-    }
-
-
-    return actor;
-
-}
-
-
-// ==================================================
-// CAN MANAGE
-// ==================================================
-
-function canManageRole(
-    actorRole,
-    targetRole
+/* ==================================================
+   START MODERATION MONITOR
+================================================== */
+
+const currentPath =
+    window.location.pathname
+        .toLowerCase();
+
+if (
+    !currentPath.endsWith(
+        "/login.html"
+    ) &&
+    !currentPath.endsWith(
+        "/kicked.html"
+    )
 ) {
 
-    return (
-        ROLE_LEVELS[actorRole] >
-        ROLE_LEVELS[targetRole]
+    checkModerationStatus();
+
+    setInterval(
+        checkModerationStatus,
+        2000
     );
 
 }
 
 
-// ==================================================
-// ADMIN AUTH
-// ==================================================
+/* ==================================================
+   ADMIN BUTTON / ROLE CHECK
+================================================== */
 
-app.get(
-    "/api/admin/auth",
-    requireLogin,
-    async (req, res) => {
+async function checkAdmin() {
 
-        try {
+    const adminButton =
+        document.getElementById(
+            "admin-button"
+        );
 
-            const actor =
-                await requireAdmin(
-                    req,
-                    res
-                );
-
-
-            if (!actor) {
-                return;
-            }
-
-
-            res.json({
-                success: true,
-                authorized: true,
-                user: actor
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "ADMIN AUTH ERROR:",
-                error
-            );
-
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
+    if (!adminButton) {
+        return;
     }
-);
 
-
-// ==================================================
-// ADMIN USER LIST
-// ==================================================
-
-app.get(
-    "/api/admin/users",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const actor =
-                await requireAdmin(
-                    req,
-                    res
-                );
-
-
-            if (!actor) {
-                return;
-            }
-
-
-            const {
-                data: users,
-                error
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "id, username, display_name, avatar, role, banned, kicked"
-                )
-                .order(
-                    "username",
-                    {
-                        ascending: true
-                    }
-                );
-
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            res.json(
-                users || []
-            );
-
-
-        } catch (error) {
-
-            console.error(
-                "ADMIN USERS ERROR:",
-                error
-            );
-
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// CHANGE ROLE
-// ==================================================
-
-app.put(
-    "/api/admin/users/:id/role",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const actor =
-                await requireAdmin(
-                    req,
-                    res
-                );
-
-
-            if (!actor) {
-                return;
-            }
-
-
-            const targetId =
-                req.params.id;
-
-
-            const newRole =
-                String(
-                    req.body?.role || ""
-                )
-                .trim()
-                .toLowerCase();
-
-
-            if (
-                !VALID_ROLES.includes(
-                    newRole
-                )
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Invalid role."
-                });
-
-            }
-
-
-            const {
-                data: target,
-                error
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "id, username, role"
-                )
-                .eq(
-                    "id",
-                    targetId
-                )
-                .maybeSingle();
-
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            if (!target) {
-
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-
-            }
-
-
-            if (
-                target.id === actor.id
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot change your own role."
-                });
-
-            }
-
-
-            if (
-                !canManageRole(
-                    actor.role,
-                    target.role
-                )
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot manage this user."
-                });
-
-            }
-
-
-            // Only owner can assign owner.
-
-            if (
-                newRole === "owner" &&
-                actor.role !== "owner"
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "Only the owner can assign owner."
-                });
-
-            }
-
-
-            // Non-owner cannot assign
-            // equal or higher role.
-
-            if (
-                actor.role !== "owner" &&
-                ROLE_LEVELS[newRole] >=
-                ROLE_LEVELS[actor.role]
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot assign a role equal to or above your own."
-                });
-
-            }
-
-
-            const {
-                error: updateError
-            } = await supabase
-                .from("profiles")
-                .update({
-                    role:
-                        newRole
-                })
-                .eq(
-                    "id",
-                    target.id
-                );
-
-
-            if (updateError) {
-
-                console.error(
-                    "ROLE UPDATE ERROR:",
-                    updateError
-                );
-
-                return res.status(500).json({
-                    error:
-                        updateError.message
-                });
-
-            }
-
-
-            console.log(
-                `ADMIN: ${actor.username} changed ${target.username} to ${newRole}`
-            );
-
-
-            res.json({
-                success: true,
-                username:
-                    target.username,
-                role:
-                    newRole
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "ROLE CHANGE ERROR:",
-                error
-            );
-
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// BAN
-// ==================================================
-
-app.post(
-    "/api/admin/users/:id/ban",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const actor =
-                await requireAdmin(
-                    req,
-                    res
-                );
-
-
-            if (!actor) {
-                return;
-            }
-
-
-            const {
-                data: target,
-                error
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "id, username, role"
-                )
-                .eq(
-                    "id",
-                    req.params.id
-                )
-                .maybeSingle();
-
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            if (!target) {
-
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-
-            }
-
-
-            if (
-                target.id === actor.id
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot ban yourself."
-                });
-
-            }
-
-
-            if (
-                !canManageRole(
-                    actor.role,
-                    target.role
-                )
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot ban this user."
-                });
-
-            }
-
-
-            const {
-                error: updateError
-            } = await supabase
-                .from("profiles")
-                .update({
-                    banned: true,
-                    kicked: false
-                })
-                .eq(
-                    "id",
-                    target.id
-                );
-
-
-            if (updateError) {
-
-                console.error(
-                    "BAN ERROR:",
-                    updateError
-                );
-
-                return res.status(500).json({
-                    error:
-                        updateError.message
-                });
-
-            }
-
-
-            console.log(
-                `ADMIN: ${actor.username} banned ${target.username}`
-            );
-
-
-            res.json({
-                success: true,
-                banned: true
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "BAN ROUTE ERROR:",
-                error
-            );
-
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// UNBAN
-// ==================================================
-
-app.post(
-    "/api/admin/users/:id/unban",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            // ==========================================
-            // ROLES ALLOWED TO UNBAN
-            // ==========================================
-
-            const canUnban = [
-                "administrator",
-                "owner"
-            ];
-
-
-            // ==========================================
-            // GET ACTOR
-            // ==========================================
-
-            const actor =
-                await requireAdmin(
-                    req,
-                    res
-                );
-
-
-            if (!actor) {
-                return;
-            }
-
-
-            // ==========================================
-            // CHECK ACTOR PERMISSION
-            // ==========================================
-
-            if (
-                !canUnban.includes(
-                    actor.role
-                )
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You must be an administrator or higher to ban/unban people."
-                });
-
-            }
-
-
-            // ==========================================
-            // GET TARGET USER
-            // ==========================================
-
-            const {
-                data: target,
-                error
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "id, username, role, banned"
-                )
-                .eq(
-                    "id",
-                    req.params.id
-                )
-                .maybeSingle();
-
-
-            if (error) {
-
-                console.error(
-                    "UNBAN TARGET ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            // ==========================================
-            // USER NOT FOUND
-            // ==========================================
-
-            if (!target) {
-
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-
-            }
-
-
-            // ==========================================
-            // PREVENT SELF-UNBAN
-            // ==========================================
-
-            if (
-                target.id === actor.id
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot unban yourself."
-                });
-
-            }
-
-
-            // ==========================================
-            // CHECK ROLE MANAGEMENT
-            // ==========================================
-
-            if (
-                !canManageRole(
-                    actor.role,
-                    target.role
-                )
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot unban this user."
-                });
-
-            }
-
-
-            // ==========================================
-            // UNBAN USER
-            // ==========================================
-
-            const {
-                error: updateError
-            } = await supabase
-                .from("profiles")
-                .update({
-                    banned: false
-                })
-                .eq(
-                    "id",
-                    target.id
-                );
-
-
-            if (updateError) {
-
-                console.error(
-                    "UNBAN UPDATE ERROR:",
-                    updateError
-                );
-
-                return res.status(500).json({
-                    error:
-                        updateError.message
-                });
-
-            }
-
-
-            // ==========================================
-            // SUCCESS
-            // ==========================================
-
-            console.log(
-                `🔓 ${actor.username} unbanned ${target.username}`
-            );
-
-
-            return res.json({
-
-                success:
-                    true,
-
-                banned:
-                    false
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "🔥 UNBAN ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    error.message ||
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// KICK
-// ==================================================
-
-app.post(
-    "/api/admin/users/:id/kick",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const actor =
-                await requireAdmin(
-                    req,
-                    res
-                );
-
-
-            if (!actor) {
-                return;
-            }
-
-
-            const {
-                data: target,
-                error
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "id, username, role"
-                )
-                .eq(
-                    "id",
-                    req.params.id
-                )
-                .maybeSingle();
-
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            if (!target) {
-
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-
-            }
-
-
-            if (
-                target.id === actor.id
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot kick yourself."
-                });
-
-            }
-
-
-            if (
-                !canManageRole(
-                    actor.role,
-                    target.role
-                )
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot kick this user."
-                });
-
-            }
-
-
-            const {
-                error: updateError
-            } = await supabase
-                .from("profiles")
-                .update({
-                    kicked: true,
-                    banned: false
-                })
-                .eq(
-                    "id",
-                    target.id
-                );
-
-
-            if (updateError) {
-
-                console.error(
-                    "KICK ERROR:",
-                    updateError
-                );
-
-                return res.status(500).json({
-                    error:
-                        updateError.message
-                });
-
-            }
-
-
-            console.log(
-                `ADMIN: ${actor.username} kicked ${target.username}`
-            );
-
-
-            res.json({
-                success: true,
-                kicked: true
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "KICK ROUTE ERROR:",
-                error
-            );
-
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// CLEAR KICK
-// ==================================================
-//
-// This is NOT a "reactivate" system.
-// It simply clears the temporary kick flag.
-//
-// Your admin panel doesn't have to expose this.
-// ==================================================
-
-app.post(
-    "/api/admin/users/:id/clear-kick",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const actor =
-                await requireAdmin(
-                    req,
-                    res
-                );
-
-
-            if (!actor) {
-                return;
-            }
-
-
-            const {
-                data: target,
-                error
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "id, username, role"
-                )
-                .eq(
-                    "id",
-                    req.params.id
-                )
-                .maybeSingle();
-
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            if (!target) {
-
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-
-            }
-
-
-            if (
-                target.id === actor.id
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot do this to yourself."
-                });
-
-            }
-
-
-            if (
-                !canManageRole(
-                    actor.role,
-                    target.role
-                )
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot manage this user."
-                });
-
-            }
-
-
-            const {
-                error: updateError
-            } = await supabase
-                .from("profiles")
-                .update({
-                    kicked: false
-                })
-                .eq(
-                    "id",
-                    target.id
-                );
-
-
-            if (updateError) {
-
-                return res.status(500).json({
-                    error:
-                        updateError.message
-                });
-
-            }
-
-
-            res.json({
-                success: true
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "CLEAR KICK ERROR:",
-                error
-            );
-
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-
-// ==================================================
-// MODERATION STATUS
-// ==================================================
-//
-// THIS is what makes existing open pages
-// detect bans/kicks.
-//
-// Login system is NOT touched.
-// ==================================================
-
-app.get(
-    "/api/moderation/status",
-    requireLogin,
-    async (req, res) => {
-
-        try {
-
-            const userId =
-                req.session.user.id;
-
-
-            const {
-                data: profile,
-                error
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "banned, kicked"
-                )
-                .eq(
-                    "id",
-                    userId
-                )
-                .maybeSingle();
-
-
-            if (error) {
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            if (!profile) {
-
-                return res.status(404).json({
-                    error:
-                        "Profile not found."
-                });
-
-            }
-
-
-            res.json({
-                banned:
-                    profile.banned === true,
-
-                kicked:
-                    profile.kicked === true
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "MODERATION STATUS ERROR:",
-                error
-            );
-
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-app.post("/api/admin/reset-password", async (req, res) => {
-    try {
-        // Make sure someone is actually logged in
-        if (!req.session || !req.session.user) {
-            return res.status(401).json({
-                error: "Not logged in"
-            });
-        }
-
-        // Get the currently logged-in admin's profile
-        const { data: admin, error: adminError } = await supabase
-            .from("profiles")
-            .select("id, role")
-            .eq("id", req.session.user.id)
-            .single();
-
-        if (adminError || !admin) {
-            return res.status(403).json({
-                error: "Unable to verify administrator"
-            });
-        }
-
-        // Only administrators and owner can reset passwords
-        if (admin.role !== "administrator" && admin.role !== "owner") {
-            return res.status(403).json({
-                error: "You do not have permission to reset passwords"
-            });
-        }
-
-        const { userId, newPassword } = req.body;
-
-        if (!userId || !newPassword) {
-            return res.status(400).json({
-                error: "User ID and new password are required"
-            });
-        }
-
-        if (newPassword.length < 6) {
-            return res.status(400).json({
-                error: "Password must be at least 6 characters"
-            });
-        }
-
-        // Change the user's Supabase Auth password
-        const { data, error } =
-            await supabase.auth.admin.updateUserById(
-                userId,
-                {
-                    password: newPassword
-                }
-            );
-
-        if (error) {
-            console.error("Password reset error:", error);
-
-            return res.status(500).json({
-                error: error.message
-            });
-        }
-
-        return res.json({
-            success: true,
-            message: "Password reset successfully"
-        });
-
-    } catch (error) {
-
-        console.error("Admin password reset error:", error);
-
-        return res.status(500).json({
-            error: "Internal server error"
-        });
-    }
-});
-// ==================================================
-// SHOP INVENTORY
-// ==================================================
-
-app.get("/api/shop/inventory", async (req, res) => {
+    adminButton.style.display =
+        "none";
 
     try {
 
-        // ==========================================
-        // CHECK LOGIN
-        // ==========================================
+        const data =
+            await getMeCached();
 
         if (
-            !req.session ||
-            !req.session.user ||
-            !req.session.user.id
+            !data ||
+            !data.loggedIn
         ) {
-
-            return res.status(401).json({
-                error: "You must be logged in."
-            });
-
+            return;
         }
 
-        const userId = req.session.user.id;
+        const user =
+            data.user ||
+            null;
 
+        if (!user) {
+            return;
+        }
 
-        // ==========================================
-        // GET OWNED ITEMS
-        // ==========================================
-
-        const {
-            data: ownedItems,
-            error: ownedError
-        } = await supabase
-            .from("user_shop_items")
-            .select(`
-                purchased_at,
-                equipped,
-                shop_items (
-                    id,
-                    name,
-                    description,
-                    icon,
-                    price,
-                    item_type
-                )
-            `)
-            .eq("user_id", userId);
-
-
-        if (ownedError) {
-
-            console.error(
-                "INVENTORY OWNED ITEMS ERROR:",
-                ownedError
+        const role =
+            getUserRole(
+                user
             );
 
-            return res.status(500).json({
-                error: ownedError.message
-            });
-
-        }
-
-
-        // ==========================================
-        // GET PROFILE
-        // ==========================================
-
-        const {
-            data: profile,
-            error: profileError
-        } = await supabase
-            .from("profiles")
-            .select(`
-                equipped_title_id,
-                displayed_item_id
-            `)
-            .eq("id", userId)
-            .maybeSingle();
-
-
-        if (profileError) {
-
-            console.error(
-                "INVENTORY PROFILE ERROR:",
-                profileError
+        const allowed =
+            canAccessAdminPanel(
+                user
             );
 
-            return res.status(500).json({
-                error: profileError.message
-            });
+        if (allowed) {
+
+            adminButton.style.display =
+                "inline-block";
+
+            console.log(
+                "🛡️ Admin Panel access granted:",
+                role
+            );
+
+        } else {
+
+            adminButton.style.display =
+                "none";
+
+            console.log(
+                "👤 Admin Panel access denied:",
+                role
+            );
 
         }
-
-
-        // ==========================================
-        // GET EQUIPPED TITLE
-        // ==========================================
-
-        let equippedTitle = null;
-
-        if (
-            profile &&
-            profile.equipped_title_id
-        ) {
-
-            const {
-                data: title,
-                error: titleError
-            } = await supabase
-                .from("shop_items")
-                .select(`
-                    id,
-                    name,
-                    description,
-                    icon,
-                    price,
-                    item_type
-                `)
-                .eq(
-                    "id",
-                    profile.equipped_title_id
-                )
-                .eq(
-                    "item_type",
-                    "title"
-                )
-                .maybeSingle();
-
-
-            if (titleError) {
-
-                console.error(
-                    "EQUIPPED TITLE ERROR:",
-                    titleError
-                );
-
-            } else {
-
-                equippedTitle =
-                    title || null;
-
-            }
-
-        }
-
-
-        // ==========================================
-        // FORMAT INVENTORY
-        // ==========================================
-
-        const items =
-            (ownedItems || [])
-                .map(row => {
-
-                    if (!row.shop_items) {
-                        return null;
-                    }
-
-                    return {
-
-                        id:
-                            row.shop_items.id,
-
-                        name:
-                            row.shop_items.name,
-
-                        description:
-                            row.shop_items.description,
-
-                        icon:
-                            row.shop_items.icon,
-
-                        price:
-                            row.shop_items.price,
-
-                        item_type:
-                            row.shop_items.item_type,
-
-                        purchased_at:
-                            row.purchased_at,
-
-                        equipped:
-                            row.equipped === true
-
-                    };
-
-                })
-                .filter(Boolean);
-
-
-        // ==========================================
-        // DISPLAYED ITEMS
-        // ==========================================
-
-        const displayedItems =
-            items.filter(item => {
-
-                return (
-                    item.item_type !== "title" &&
-                    item.equipped === true
-                );
-
-            });
-
-
-        // ==========================================
-        // RESPONSE
-        // ==========================================
-
-        return res.json({
-
-            success: true,
-
-            items,
-
-            equipped:
-                equippedTitle,
-
-            displayedItems,
-
-            displayedCount:
-                displayedItems.length,
-
-            maxDisplayed:
-                5
-
-        });
-
 
     } catch (error) {
 
         console.error(
-            "SHOP INVENTORY ERROR:",
+            "ADMIN BUTTON ERROR:",
             error
         );
 
-        return res.status(500).json({
-            error:
-                "Failed to load inventory."
-        });
+        adminButton.style.display =
+            "none";
 
     }
 
-});
-// ==================================================
-// START
-// ==================================================
+}
 
 
-app.listen(PORT, () => {
+/* ==================================================
+   MODERATION UI
+================================================== */
+
+function setupModerationUI(
+    user
+) {
+
+    if (!user) {
+        return;
+    }
+
+    const moderationElements =
+        document.querySelectorAll(
+            "[data-moderator-only]"
+        );
+
+    const allowed =
+        canModerate(
+            user
+        );
+
+    moderationElements.forEach(
+        element => {
+
+            element.style.display =
+                allowed
+                    ? ""
+                    : "none";
+
+        }
+    );
+
+}
+
+
+/* ==================================================
+   ROLE UI
+================================================== */
+
+function setupRoleUI(
+    user
+) {
+
+    if (!user) {
+        return;
+    }
+
+    const role =
+        getUserRole(
+            user
+        );
+
+    document
+        .querySelectorAll(
+            "[data-role-display]"
+        )
+        .forEach(
+            element => {
+
+                element.textContent =
+                    role
+                        .replace(
+                            /_/g,
+                            " "
+                        )
+                        .replace(
+                            /\b\w/g,
+                            c =>
+                                c.toUpperCase()
+                        );
+
+            }
+        );
+
+
+    // Owner-only
+    document
+        .querySelectorAll(
+            "[data-owner-only]"
+        )
+        .forEach(
+            element => {
+
+                element.style.display =
+                    role === "owner"
+                        ? ""
+                        : "none";
+
+            }
+        );
+
+
+    // Admin+
+    document
+        .querySelectorAll(
+            "[data-admin-only]"
+        )
+        .forEach(
+            element => {
+
+                element.style.display =
+                    canAccessAdminPanel(
+                        user
+                    )
+                        ? ""
+                        : "none";
+
+            }
+        );
+
+
+    // Moderator+
+    document
+        .querySelectorAll(
+            "[data-moderator-only]"
+        )
+        .forEach(
+            element => {
+
+                element.style.display =
+                    canModerate(
+                        user
+                    )
+                        ? ""
+                        : "none";
+
+            }
+        );
+
+}
+
+
+/* ==================================================
+   SESSION CHECK
+================================================== */
+
+async function checkLogin() {
+
+    try {
+
+        // IMPORTANT:
+        // getMeCached() returns parsed data.
+
+        const data =
+            await getMeCached();
+
+        if (
+            data &&
+            data.loggedIn &&
+            data.user
+        ) {
+
+            setupAdminNav(
+                data.user
+            );
+
+            setupModerationUI(
+                data.user
+            );
+
+            setupRoleUI(
+                data.user
+            );
+
+            checkAdmin();
+
+            showApp();
+
+        } else {
+
+            showAuth();
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "SESSION ERROR:",
+            error
+        );
+
+        showAuth();
+
+    }
+
+}
+
+
+/* ==================================================
+   SHOW AUTH
+================================================== */
+
+function showAuth() {
+
+    const auth =
+        document.getElementById(
+            "auth-section"
+        );
+
+    const app =
+        document.getElementById(
+            "app-section"
+        );
+
+    const logoutButton =
+        document.getElementById(
+            "logout-button"
+        );
+
+    const adminNav =
+        document.getElementById(
+            "admin-nav"
+        );
+
+    const adminButton =
+        document.getElementById(
+            "admin-button"
+        );
+
+    if (auth) {
+
+        auth.style.display =
+            "block";
+
+    }
+
+    if (app) {
+
+        app.style.display =
+            "none";
+
+    }
+
+    if (logoutButton) {
+
+        logoutButton.style.display =
+            "none";
+
+    }
+
+    if (adminNav) {
+
+        adminNav.style.display =
+            "none";
+
+    }
+
+    if (adminButton) {
+
+        adminButton.style.display =
+            "none";
+
+    }
+
+}
+
+
+/* ==================================================
+   ROLE DEBUG
+================================================== */
+
+function debugUserRole(
+    user
+) {
+
+    if (!user) {
+
+        console.log(
+            "👤 No user logged in."
+        );
+
+        return;
+
+    }
+
+    const role =
+        getUserRole(
+            user
+        );
 
     console.log(
-        `🧌 ShrekBook server running on port ${PORT}`
+        "👤 User:",
+        user.username ||
+        user.display_name ||
+        user.id
     );
 
-});
+    console.log(
+        "🎖️ Role:",
+        role
+    );
+
+    console.log(
+        "👑 Owner:",
+        isOwner(user)
+    );
+
+    console.log(
+        "🛡️ Admin:",
+        isAdmin(user)
+    );
+
+    console.log(
+        "⭐ Senior Moderator:",
+        isSeniorModerator(user)
+    );
+
+    console.log(
+        "🔨 Junior Moderator:",
+        isJuniorModerator(user)
+    );
+
+    console.log(
+        "📋 Admin Panel:",
+        canAccessAdminPanel(user)
+    );
+
+    console.log(
+        "🔨 Moderation:",
+        canModerate(user)
+    );
+
+}
+
+
+/* ==================================================
+   START
+================================================== */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        checkLogin();
+
+    }
+);
+
+
+/* ==================================================
+   OPTIONAL GLOBAL FUNCTIONS
+   Makes HTML onclick handlers work reliably.
+================================================== */
+
+window.login =
+    login;
+
+window.signup =
+    signup;
+
+window.logout =
+    logout;
+
+window.createPost =
+    createPost;
+
+window.giveReaction =
+    giveReaction;
+
+window.toggleComments =
+    toggleComments;
+
+window.submitComment =
+    submitComment;
+
+window.clearCommentImage =
+    clearCommentImage;
+
+window.clearPostImage =
+    clearPostImage;
+
+window.loadLeaderboard =
+    loadLeaderboard;
+
+window.loadPeople =
+    loadPeople;
+
+window.loadPosts =
+    loadPosts;
+
+window.loadInventory =
+    loadInventory;
+
+window.warn =
+    warn;
+
+window.debugUserRole =
+    debugUserRole;
