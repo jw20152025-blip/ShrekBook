@@ -530,7 +530,90 @@
 /* ==================================================
    LOAD INVENTORY
 ================================================== */
+// ==================================================
+// DISPLAY DISPLAYED ITEM
+// ==================================================
 
+function renderDisplayedItem() {
+
+    const itemElement =
+        document.getElementById(
+            "displayed-item"
+        );
+
+    const iconElement =
+        document.getElementById(
+            "displayed-item-icon"
+        );
+
+    const nameElement =
+        document.getElementById(
+            "displayed-item-name"
+        );
+
+
+    if (
+        !itemElement ||
+        !iconElement ||
+        !nameElement
+    ) {
+        return;
+    }
+
+
+    // ==========================================
+    // GET DISPLAYED ITEMS
+    // ==========================================
+
+    const items =
+        profileUser &&
+        Array.isArray(
+            profileUser.displayedItems
+        )
+            ? profileUser.displayedItems
+            : [];
+
+
+    // ==========================================
+    // NO ITEMS
+    // ==========================================
+
+    if (items.length === 0) {
+
+        itemElement.style.display =
+            "none";
+
+        return;
+
+    }
+
+
+    // ==========================================
+    // SHOW ITEMS
+    // ==========================================
+
+    itemElement.style.display =
+        "inline-flex";
+
+
+    iconElement.textContent =
+        items
+            .map(
+                item =>
+                    item.icon || "🎁"
+            )
+            .join(" ");
+
+
+    nameElement.textContent =
+        items
+            .map(
+                item =>
+                    item.name || "Item"
+            )
+            .join(" • ");
+
+}
 async function loadInventory() {
 
     const status =
