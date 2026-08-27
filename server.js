@@ -3490,7 +3490,7 @@ app.get(
                 data: inventoryItems,
                 error: inventoryError
             } = await supabase
-                .from("user_inventory")
+                .from("user_shop_items")
                 .select(`
                     id,
                     item_id,
@@ -9926,7 +9926,52 @@ app.get("/api/shop/inventory", async (req, res) => {
             }
 
         }
+        // ==========================================
+        // GET DISPLAYED ITEM
+        // ==========================================
 
+        let displayedItem = null;
+
+        if (
+            profile &&
+            profile.displayed_item_id
+        ) {
+
+            const {
+                data: item,
+                error: itemError
+            } = await supabase
+                .from("shop_items")
+                .select(`
+                    id,
+                    name,
+                    description,
+                    icon,
+                    price,
+                    item_type
+                `)
+                .eq(
+                    "id",
+                    profile.displayed_item_id
+                )
+                .maybeSingle();
+
+
+            if (itemError) {
+
+                console.error(
+                    "DISPLAYED ITEM ERROR:",
+                    itemError
+                );
+
+            } else {
+
+                displayedItem =
+                    item || null;
+
+            }
+
+        }
 
         // ==========================================
         // FORMAT INVENTORY
