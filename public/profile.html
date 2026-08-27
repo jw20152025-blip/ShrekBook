@@ -82,7 +82,38 @@
             margin: 10px auto 20px;
             color: #666;
         }
+        /* ==================================================
+        DISPLAYED ITEM
+        ================================================== */
 
+        .displayed-item {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+
+            margin: 4px auto 12px;
+
+            padding: 6px 12px;
+
+            border-radius: 999px;
+
+            background: rgba(0, 0, 0, 0.06);
+
+            font-size: 14px;
+            font-weight: 700;
+
+            width: fit-content;
+        }
+
+        .displayed-item-icon {
+            font-size: 22px;
+            line-height: 1;
+        }
+
+        .displayed-item-name {
+            line-height: 1.2;
+        }
 
         /* ==================================================
            REACTIONS
@@ -537,7 +568,59 @@ function renderEquippedTitle() {
 
 }
 
+// ==================================================
+// DISPLAY ITEM
+// ==================================================
 
+function renderDisplayedItem() {
+
+    const itemElement =
+        document.getElementById(
+            "displayed-item"
+        );
+
+    const iconElement =
+        document.getElementById(
+            "displayed-item-icon"
+        );
+
+    const nameElement =
+        document.getElementById(
+            "displayed-item-name"
+        );
+
+    if (
+        !itemElement ||
+        !iconElement ||
+        !nameElement
+    ) {
+        return;
+    }
+
+    const item =
+        profileUser &&
+        profileUser.displayedItem;
+
+    // No item displayed
+    if (!item) {
+
+        itemElement.style.display =
+            "none";
+
+        return;
+
+    }
+
+    iconElement.textContent =
+        item.icon || "🎁";
+
+    nameElement.textContent =
+        item.name || "Item";
+
+    itemElement.style.display =
+        "inline-flex";
+
+}
 
 // ==================================================
 // LOAD PROFILE
@@ -629,7 +712,7 @@ async function loadProfile() {
         // ==================================================
 
         renderEquippedTitle();
-
+        renderDisplayedItem();
 
 
         // ==================================================
