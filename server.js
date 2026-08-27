@@ -1500,528 +1500,684 @@ function requireLogin(req, res, next) {
 // LOGIN
 // ==================================================
 
-app.post("/api/login", async (req, res) => {
+// ==================================================
+// LOGIN
+// ==================================================
 
-    try {
+app.post(
+    "/api/login",
+    async (req, res) => {
 
-        const email =
-            normalizeEmail(
-                req.body.email
-            );
+        console.time("LOGIN TOTAL");
 
-        const password =
-            String(
-                req.body.password || ""
-            );
+        try {
 
+            // ==========================================
+            // INPUT
+            // ==========================================
 
-        // ==========================================
-        // CHECK INPUT
-        // ==========================================
-
-        if (!email || !password) {
-
-            return res.status(400).json({
-                error:
-                    "Email and password are required."
-            });
-
-        }
-
-
-        // ==========================================
-        // CHECK EMAIL BAN
-        // ==========================================
-
-        const emailBan =
-            await getActiveBanByEmail(
-                email
-            );
-
-
-        if (emailBan) {
-
-            return res.status(403).json({
-
-                error:
-                    "This email address is banned from ShrekBook.",
-
-                reason:
-                    emailBan.reason ||
-                    "No reason provided."
-
-            });
-
-        }
-
-
-        // ==========================================
-        // SUPABASE AUTH LOGIN
-        // ==========================================
-
-        const {
-            data: authData,
-            error: authError
-        } =
-            await supabase.auth.signInWithPassword({
-
-                email,
-                password
-
-            });
-
-
-        if (authError) {
-
-            return res.status(401).json({
-
-                error:
-                    authError.message
-
-            });
-
-        }
-
-
-        const authUser =
-            authData.user;
-
-
-        if (!authUser) {
-
-            return res.status(401).json({
-
-                error:
-                    "Login failed."
-
-            });
-
-        }
-
-
-        // ==========================================
-        // CHECK USER-ID BAN
-        // ==========================================
-
-        const userBan =
-            await getActiveBanByUserId(
-                authUser.id
-            );
-
-
-        if (userBan) {
-
-            return res.status(403).json({
-
-                error:
-                    "Your account has been banned.",
-
-                reason:
-                    userBan.reason ||
-                    "No reason provided."
-
-            });
-
-        }
-
-
-        // ==========================================
-        // LOAD PROFILE
-        // ==========================================
-
-        let {
-            data: profile,
-            error: profileError
-        } =
-            await supabase
-                .from("profiles")
-                .select("*")
-                .eq(
-                    "id",
-                    authUser.id
-                )
-                .maybeSingle();
-
-
-        if (profileError) {
-
-            console.error(
-                "LOGIN PROFILE ERROR:",
-                profileError
-            );
-
-            return res.status(500).json({
-
-                error:
-                    profileError.message
-
-            });
-
-        }
-
-
-        // ==========================================
-        // CREATE MISSING PROFILE
-        // ==========================================
-
-        if (!profile) {
-
-            let username =
-                (
-                    authUser.email ||
-                    "user"
-                )
-                    .split("@")[0]
-                    .toLowerCase()
-                    .replace(
-                        /[^a-z0-9_]/g,
-                        ""
-                    )
-                    .slice(0, 20);
-
-
-            if (!username) {
-
-                username =
-                    "user";
-
-            }
-
-
-            const original =
-                username;
-
-
-            let number =
-                1;
-
-
-            // Find unused username
-
-            while (true) {
-
-                const {
-                    data: taken
-                } =
-                    await supabase
-                        .from("profiles")
-                        .select("id")
-                        .eq(
-                            "username",
-                            username
-                        )
-                        .maybeSingle();
-
-
-                if (!taken) {
-
-                    break;
-
-                }
-
-
-                username =
-                    `${original}${number}`;
-
-
-                number++;
-
-            }
-
-
-            // ======================================
-            // CREATE PROFILE
-            // ======================================
-
-            const {
-                data: created,
-                error: createError
-            } =
-                await supabase
-                    .from("profiles")
-                    .insert({
-
-                        id:
-                            authUser.id,
-
-                        username:
-                            username,
-
-                        display_name:
-                            username,
-
-                        avatar:
-                            null,
-
-                        bio:
-                            "",
-
-                        role:
-                            "peasant",
-
-                        is_active:
-                            true,
-
-                        banned:
-                            false,
-
-                        // ==========================
-                        // SHREKCOINS
-                        // ==========================
-
-                        shrekcoins:
-                            10,
-
-                        last_shrekcoin_login:
-                            new Date()
-                                .toISOString()
-                                .slice(0, 10)
-
-                    })
-                    .select()
-                    .single();
-
-
-            if (createError) {
-
-                console.error(
-                    "CREATE PROFILE ERROR:",
-                    createError
+            const email =
+                normalizeEmail(
+                    req.body.email
                 );
 
-                return res.status(500).json({
+            const password =
+                String(
+                    req.body.password || ""
+                );
+
+
+            if (!email || !password) {
+
+                return res.status(400).json({
+                    error:
+                        "Email and password are required."
+                });
+
+            }
+
+
+            // ==========================================
+            // CHECK EMAIL BAN
+            // ==========================================
+
+            console.time("LOGIN EMAIL BAN");
+
+            const emailBan =
+                await getActiveBanByEmail(
+                    email
+                );
+
+            console.timeEnd("LOGIN EMAIL BAN");
+
+
+            if (emailBan) {
+
+                return res.status(403).json({
 
                     error:
-                        createError.message
+                        "This email address is banned from ShrekBook.",
+
+                    reason:
+                        emailBan.reason ||
+                        "No reason provided."
 
                 });
 
             }
 
 
-            profile =
-                created;
+            // ==========================================
+            // SUPABASE AUTH
+            // ==========================================
 
-
-            console.log(
-                `🪙 ${username} received 10 ShrekCoins for their first login.`
-            );
-
-        }
-
-
-        // ==========================================
-        // CHECK PROFILE BAN
-        // ==========================================
-
-        if (profile.banned === true) {
-
-            return res.status(403).json({
-
-                error:
-                    "Your account has been banned from ShrekBook."
-
-            });
-
-        }
-
-
-        // ==========================================
-        // CHECK PROFILE ACTIVE STATUS
-        // ==========================================
-
-        if (profile.is_active === false) {
-
-            return res.status(403).json({
-
-                error:
-                    "Your ShrekBook account is currently inactive."
-
-            });
-
-        }
-
-
-        // ==========================================
-        // DAILY LOGIN SHREKCOIN
-        //
-        // First login of each day = +10
-        // ==========================================
-
-        const today =
-            new Date()
-                .toISOString()
-                .slice(0, 10);
-
-
-        let loginCoinsAwarded =
-            0;
-
-
-        if (
-            profile.last_shrekcoin_login !==
-            today
-        ) {
-
-            const currentCoins =
-                Number(
-                    profile.shrekcoins || 0
-                );
-
-
-            const newCoinTotal =
-                currentCoins + 10;
-
+            console.time("LOGIN SUPABASE AUTH");
 
             const {
-                data: updatedProfile,
-                error: coinError
+                data: authData,
+                error: authError
             } =
-                await supabase
-                    .from("profiles")
-                    .update({
+                await supabase.auth.signInWithPassword({
 
-                        shrekcoins:
-                            newCoinTotal,
+                    email,
+                    password
 
-                        last_shrekcoin_login:
-                            today
+                });
 
-                    })
-                    .eq(
-                        "id",
-                        profile.id
-                    )
-                    .select()
-                    .single();
+            console.timeEnd("LOGIN SUPABASE AUTH");
 
 
-            if (coinError) {
+            if (authError) {
 
-                console.error(
-                    "SHREKCOIN LOGIN ERROR:",
-                    coinError
-                );
+                return res.status(401).json({
 
-                // Don't prevent login if the
-                // coin system happens to fail.
-                loginCoinsAwarded = 0;
+                    error:
+                        authError.message
 
-            } else {
-
-                profile =
-                    updatedProfile;
-
-                loginCoinsAwarded =
-                    10;
-
-
-                console.log(
-                    `🪙 ${profile.username} received 10 ShrekCoins for logging in today.`
-                );
+                });
 
             }
 
-        }
+
+            const authUser =
+                authData &&
+                authData.user;
 
 
-        // ==========================================
-        // CREATE LOGIN SESSION
-        // ==========================================
+            if (!authUser) {
 
-        req.session.user = {
+                return res.status(401).json({
 
-            id:
-                profile.id,
+                    error:
+                        "Login failed."
 
-            username:
-                profile.username,
+                });
 
-            display_name:
-                profile.display_name,
-
-            email:
-                email
-
-        };
+            }
 
 
-        // ==========================================
-        // SAVE SESSION
-        // ==========================================
+            // ==========================================
+            // CHECK USER ID BAN
+            // ==========================================
 
-        req.session.save(
-            error => {
+            console.time("LOGIN USER BAN");
 
-                if (error) {
+            const userBan =
+                await getActiveBanByUserId(
+                    authUser.id
+                );
+
+            console.timeEnd("LOGIN USER BAN");
+
+
+            if (userBan) {
+
+                return res.status(403).json({
+
+                    error:
+                        "Your account has been banned.",
+
+                    reason:
+                        userBan.reason ||
+                        "No reason provided."
+
+                });
+
+            }
+
+
+            // ==========================================
+            // LOAD PROFILE
+            // ==========================================
+
+            console.time("LOGIN PROFILE");
+
+            let {
+                data: profile,
+                error: profileError
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(`
+                        id,
+                        username,
+                        display_name,
+                        avatar,
+                        bio,
+                        role,
+                        is_active,
+                        banned,
+                        shrekcoins,
+                        last_shrekcoin_login,
+                        equipped_title_id,
+                        displayed_item_id,
+                        created_at
+                    `)
+                    .eq(
+                        "id",
+                        authUser.id
+                    )
+                    .maybeSingle();
+
+            console.timeEnd("LOGIN PROFILE");
+
+
+            if (profileError) {
+
+                console.error(
+                    "LOGIN PROFILE ERROR:",
+                    profileError
+                );
+
+                console.timeEnd("LOGIN TOTAL");
+
+                return res.status(500).json({
+
+                    error:
+                        profileError.message
+
+                });
+
+            }
+
+
+            // ==========================================
+            // CREATE MISSING PROFILE
+            // ==========================================
+
+            if (!profile) {
+
+                console.time(
+                    "LOGIN CREATE PROFILE"
+                );
+
+
+                let username =
+                    (
+                        authUser.email ||
+                        "user"
+                    )
+                        .split("@")[0]
+                        .toLowerCase()
+                        .replace(
+                            /[^a-z0-9_]/g,
+                            ""
+                        )
+                        .slice(0, 20);
+
+
+                if (!username) {
+
+                    username =
+                        "user";
+
+                }
+
+
+                const original =
+                    username;
+
+                let number = 1;
+
+
+                // ======================================
+                // FIND AVAILABLE USERNAME
+                // ======================================
+
+                while (true) {
+
+                    const {
+                        data: taken,
+                        error: usernameError
+                    } =
+                        await supabase
+                            .from("profiles")
+                            .select("id")
+                            .eq(
+                                "username",
+                                username
+                            )
+                            .maybeSingle();
+
+
+                    if (usernameError) {
+
+                        console.error(
+                            "USERNAME CHECK ERROR:",
+                            usernameError
+                        );
+
+                        console.timeEnd(
+                            "LOGIN CREATE PROFILE"
+                        );
+
+                        console.timeEnd(
+                            "LOGIN TOTAL"
+                        );
+
+                        return res.status(500).json({
+
+                            error:
+                                usernameError.message
+
+                        });
+
+                    }
+
+
+                    if (!taken) {
+
+                        break;
+
+                    }
+
+
+                    username =
+                        `${original}${number}`;
+
+                    number++;
+
+                }
+
+
+                // ======================================
+                // CREATE PROFILE
+                // ======================================
+
+                const {
+                    data: created,
+                    error: createError
+                } =
+                    await supabase
+                        .from("profiles")
+                        .insert({
+
+                            id:
+                                authUser.id,
+
+                            username:
+                                username,
+
+                            display_name:
+                                username,
+
+                            avatar:
+                                null,
+
+                            bio:
+                                "",
+
+                            role:
+                                "peasant",
+
+                            is_active:
+                                true,
+
+                            banned:
+                                false,
+
+                            shrekcoins:
+                                10,
+
+                            last_shrekcoin_login:
+                                new Date()
+                                    .toISOString()
+                                    .slice(0, 10)
+
+                        })
+                        .select(`
+                            id,
+                            username,
+                            display_name,
+                            avatar,
+                            bio,
+                            role,
+                            is_active,
+                            banned,
+                            shrekcoins,
+                            last_shrekcoin_login,
+                            equipped_title_id,
+                            displayed_item_id,
+                            created_at
+                        `)
+                        .single();
+
+
+                if (createError) {
 
                     console.error(
-                        "SESSION SAVE ERROR:",
-                        error
+                        "CREATE PROFILE ERROR:",
+                        createError
+                    );
+
+                    console.timeEnd(
+                        "LOGIN CREATE PROFILE"
+                    );
+
+                    console.timeEnd(
+                        "LOGIN TOTAL"
                     );
 
                     return res.status(500).json({
 
                         error:
-                            "Could not save login session."
+                            createError.message
 
                     });
 
                 }
 
 
-                // ==================================
-                // LOGIN SUCCESS
-                // ==================================
+                profile =
+                    created;
 
-                res.json({
 
-                    success:
-                        true,
+                console.log(
+                    `🪙 ${username} received 10 ShrekCoins for their first login.`
+                );
 
-                    loginCoinsAwarded:
-                        loginCoinsAwarded,
 
-                    shrekcoins:
-                        Number(
-                            profile.shrekcoins || 0
-                        ),
+                console.timeEnd(
+                    "LOGIN CREATE PROFILE"
+                );
 
-                    user: {
+            }
 
-                        ...profile,
 
-                        avatar:
-                            getAvatar(
-                                profile.avatar
-                            )
+            // ==========================================
+            // PROFILE BAN
+            // ==========================================
 
-                    }
+            if (
+                profile.banned === true
+            ) {
+
+                console.timeEnd(
+                    "LOGIN TOTAL"
+                );
+
+                return res.status(403).json({
+
+                    error:
+                        "Your account has been banned from ShrekBook."
 
                 });
 
             }
-        );
 
 
-    } catch (error) {
+            // ==========================================
+            // PROFILE ACTIVE STATUS
+            // ==========================================
 
-        console.error(
-            "LOGIN ERROR:",
-            error
-        );
+            if (
+                profile.is_active === false
+            ) {
+
+                console.timeEnd(
+                    "LOGIN TOTAL"
+                );
+
+                return res.status(403).json({
+
+                    error:
+                        "Your ShrekBook account is currently inactive."
+
+                });
+
+            }
 
 
-        res.status(500).json({
+            // ==========================================
+            // DAILY SHREKCOINS
+            // ==========================================
 
-            error:
-                "Server error."
+            const today =
+                new Date()
+                    .toISOString()
+                    .slice(0, 10);
 
-        });
+
+            let loginCoinsAwarded = 0;
+
+
+            if (
+                profile.last_shrekcoin_login !==
+                today
+            ) {
+
+                console.time(
+                    "LOGIN SHREKCOIN UPDATE"
+                );
+
+
+                const currentCoins =
+                    Number(
+                        profile.shrekcoins || 0
+                    );
+
+
+                const newCoinTotal =
+                    currentCoins + 10;
+
+
+                const {
+                    data: updatedProfile,
+                    error: coinError
+                } =
+                    await supabase
+                        .from("profiles")
+                        .update({
+
+                            shrekcoins:
+                                newCoinTotal,
+
+                            last_shrekcoin_login:
+                                today
+
+                        })
+                        .eq(
+                            "id",
+                            profile.id
+                        )
+                        .select(`
+                            id,
+                            username,
+                            display_name,
+                            avatar,
+                            bio,
+                            role,
+                            is_active,
+                            banned,
+                            shrekcoins,
+                            last_shrekcoin_login,
+                            equipped_title_id,
+                            displayed_item_id,
+                            created_at
+                        `)
+                        .single();
+
+
+                console.timeEnd(
+                    "LOGIN SHREKCOIN UPDATE"
+                );
+
+
+                if (coinError) {
+
+                    console.error(
+                        "SHREKCOIN LOGIN ERROR:",
+                        coinError
+                    );
+
+                    loginCoinsAwarded =
+                        0;
+
+                } else {
+
+                    profile =
+                        updatedProfile;
+
+                    loginCoinsAwarded =
+                        10;
+
+
+                    console.log(
+                        `🪙 ${profile.username} received 10 ShrekCoins for logging in today.`
+                    );
+
+                }
+
+            }
+
+
+            // ==========================================
+            // CREATE SESSION
+            // ==========================================
+
+            console.time(
+                "LOGIN SESSION SAVE"
+            );
+
+
+            req.session.user = {
+
+                id:
+                    profile.id,
+
+                username:
+                    profile.username,
+
+                display_name:
+                    profile.display_name,
+
+                email:
+                    email
+
+            };
+
+
+            // ==========================================
+            // SAVE SESSION
+            // ==========================================
+
+            req.session.save(
+                error => {
+
+                    console.timeEnd(
+                        "LOGIN SESSION SAVE"
+                    );
+
+
+                    if (error) {
+
+                        console.error(
+                            "SESSION SAVE ERROR:",
+                            error
+                        );
+
+                        console.timeEnd(
+                            "LOGIN TOTAL"
+                        );
+
+                        return res.status(500).json({
+
+                            error:
+                                "Could not save login session."
+
+                        });
+
+                    }
+
+
+                    // ==================================
+                    // SUCCESS
+                    // ==================================
+
+                    console.log(
+                        `✅ Login successful: ${profile.username}`
+                    );
+
+
+                    console.timeEnd(
+                        "LOGIN TOTAL"
+                    );
+
+
+                    return res.json({
+
+                        success:
+                            true,
+
+                        loginCoinsAwarded:
+                            loginCoinsAwarded,
+
+                        shrekcoins:
+                            Number(
+                                profile.shrekcoins || 0
+                            ),
+
+                        user: {
+
+                            ...profile,
+
+                            avatar:
+                                getAvatar(
+                                    profile.avatar
+                                )
+
+                        }
+
+                    });
+
+                }
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "LOGIN ERROR:",
+                error
+            );
+
+
+            console.timeEnd(
+                "LOGIN TOTAL"
+            );
+
+
+            return res.status(500).json({
+
+                error:
+                    "Server error."
+
+            });
+
+        }
 
     }
-
-});
+);
 
 
 
