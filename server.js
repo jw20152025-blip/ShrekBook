@@ -5767,11 +5767,19 @@ app.get(
 // EQUIP SHOP TITLE
 // ==================================================
 
+// ==================================================
+// EQUIP / DISPLAY SHOP ITEM
+// ==================================================
+
 app.post(
     "/api/shop/equip",
     async (req, res) => {
 
         try {
+
+            // ==========================================
+            // CHECK LOGIN
+            // ==========================================
 
             if (
                 !req.session ||
@@ -5790,6 +5798,10 @@ app.post(
             const userId =
                 req.session.user.id;
 
+
+            // ==========================================
+            // GET ITEM ID
+            // ==========================================
 
             const itemId =
                 req.body &&
@@ -5825,7 +5837,9 @@ app.post(
             } =
                 await supabase
                     .from("user_shop_items")
-                    .select("user_id, item_id")
+                    .select(
+                        "user_id, item_id"
+                    )
                     .eq(
                         "user_id",
                         userId
@@ -5863,7 +5877,7 @@ app.post(
 
 
             // ==========================================
-            // CHECK ITEM EXISTS
+            // GET SHOP ITEM
             // ==========================================
 
             const {
@@ -5873,7 +5887,7 @@ app.post(
                 await supabase
                     .from("shop_items")
                     .select(
-                        "id, name, description, icon"
+                        "id, name, description, icon, item_type"
                     )
                     .eq(
                         "id",
@@ -5882,10 +5896,22 @@ app.post(
                     .maybeSingle();
 
 
-            if (
-                itemError ||
-                !item
-            ) {
+            if (itemError) {
+
+                console.error(
+                    "SHOP ITEM ERROR:",
+                    itemError
+                );
+
+                return res.status(500).json({
+                    error:
+                        itemError.message
+                });
+
+            }
+
+
+            if (!item) {
 
                 return res.status(404).json({
                     error:
@@ -5896,17 +5922,74 @@ app.post(
 
 
             // ==========================================
-            // EQUIP
+            // TITLE
+            // ==========================================
+
+            if (
+                item.item_type ===
+                "title"
+            ) {
+
+                const {
+                    error: updateError
+                } =
+                    await supabase
+                        .from("profiles")
+                        .update({
+
+                            equipped_title_id:
+                                numericItemId
+
+                        })
+                        .eq(
+                            "id",
+                            userId
+                        );
+
+
+                if (updateError) {
+
+                    console.error(
+                        "EQUIP TITLE ERROR:",
+                        updateError
+                    );
+
+                    return res.status(500).json({
+                        error:
+                            "Could not equip title."
+                    });
+
+                }
+
+
+                return res.json({
+
+                    success:
+                        true,
+
+                    type:
+                        "title",
+
+                    equipped:
+                        item
+
+                });
+
+            }
+
+
+            // ==========================================
+            // NON-TITLE ITEM
             // ==========================================
 
             const {
-                error: updateError
+                error: displayError
             } =
                 await supabase
                     .from("profiles")
                     .update({
 
-                        equipped_title_id:
+                        displayed_item_id:
                             numericItemId
 
                     })
@@ -5916,16 +5999,16 @@ app.post(
                     );
 
 
-            if (updateError) {
+            if (displayError) {
 
                 console.error(
-                    "EQUIP UPDATE ERROR:",
-                    updateError
+                    "DISPLAY ITEM ERROR:",
+                    displayError
                 );
 
                 return res.status(500).json({
                     error:
-                        "Could not equip title."
+                        "Could not display item."
                 });
 
             }
@@ -5936,7 +6019,10 @@ app.post(
                 success:
                     true,
 
-                equipped:
+                type:
+                    "item",
+
+                displayed:
                     item
 
             });
@@ -5945,13 +6031,13 @@ app.post(
         } catch (error) {
 
             console.error(
-                "EQUIP TITLE ERROR:",
+                "SHOP EQUIP/DISPLAY ERROR:",
                 error
             );
 
             return res.status(500).json({
                 error:
-                    "Failed to equip title."
+                    "Failed to equip or display item."
             });
 
         }
@@ -5959,7 +6045,7 @@ app.post(
     }
 );
 // ==================================================
-// UNEQUIP SHOP TITLE
+// UNEQUIP / HIDE SHOP ITEM
 // ==================================================
 
 app.post(
@@ -5986,6 +6072,151 @@ app.post(
                 req.session.user.id;
 
 
+            const itemId =
+                req.body &&
+                req.body.item_id;
+
+
+            // ==========================================
+            // IF NO ITEM ID → UNEQUIP TITLE
+            // ==========================================
+
+            if (
+                itemId === undefined ||
+                itemId === null
+            ) {
+
+                const {
+                    error
+                } =
+                    await supabase
+                        .from("profiles")
+                        .update({
+
+                            equipped_title_id:
+                                null
+
+                        })
+                        .eq(
+                            "id",
+                            userId
+                        );
+
+
+                if (error) {
+
+                    return res.status(500).json({
+                        error:
+                            error.message
+                    });
+
+                }
+
+
+                return res.json({
+                    success:
+                        true
+                });
+
+            }
+
+
+            const numericItemId =
+                Number(itemId);
+
+
+            if (
+                !Number.isInteger(
+                    numericItemId
+                )
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Invalid item ID."
+                });
+
+            }
+
+
+            // ==========================================
+            // CHECK ITEM TYPE
+            // ==========================================
+
+            const {
+                data: item,
+                error: itemError
+            } =
+                await supabase
+                    .from("shop_items")
+                    .select(
+                        "id, item_type"
+                    )
+                    .eq(
+                        "id",
+                        numericItemId
+                    )
+                    .maybeSingle();
+
+
+            if (itemError || !item) {
+
+                return res.status(404).json({
+                    error:
+                        "Shop item not found."
+                });
+
+            }
+
+
+            // ==========================================
+            // HIDE NORMAL ITEM
+            // ==========================================
+
+            if (
+                item.item_type !==
+                "title"
+            ) {
+
+                const {
+                    error
+                } =
+                    await supabase
+                        .from("profiles")
+                        .update({
+
+                            displayed_item_id:
+                                null
+
+                        })
+                        .eq(
+                            "id",
+                            userId
+                        );
+
+
+                if (error) {
+
+                    return res.status(500).json({
+                        error:
+                            error.message
+                    });
+
+                }
+
+
+                return res.json({
+                    success:
+                        true
+                });
+
+            }
+
+
+            // ==========================================
+            // UNEQUIP TITLE
+            // ==========================================
+
             const {
                 error
             } =
@@ -6005,37 +6236,30 @@ app.post(
 
             if (error) {
 
-                console.error(
-                    "UNEQUIP ERROR:",
-                    error
-                );
-
                 return res.status(500).json({
                     error:
-                        "Could not unequip title."
+                        error.message
                 });
 
             }
 
 
             return res.json({
-
                 success:
                     true
-
             });
 
 
         } catch (error) {
 
             console.error(
-                "UNEQUIP TITLE ERROR:",
+                "UNEQUIP/HIDE ERROR:",
                 error
             );
 
             return res.status(500).json({
                 error:
-                    "Failed to unequip title."
+                    "Failed to unequip or hide item."
             });
 
         }

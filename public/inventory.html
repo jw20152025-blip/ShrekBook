@@ -601,7 +601,69 @@ async function loadInventory() {
 
 }
 
+async function equipItem(itemId) {
 
+    const response =
+        await fetch(
+            "/api/shop/equip",
+            {
+                method: "POST",
+
+                credentials: "include",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+                    item_id:
+                        itemId
+                })
+            }
+        );
+
+
+    const data =
+        await response.json();
+
+
+    if (!response.ok) {
+
+        alert(
+            "❌ " +
+            (
+                data.error ||
+                "Could not equip item."
+            )
+        );
+
+        return;
+
+    }
+
+
+    if (
+        data.type ===
+        "title"
+    ) {
+
+        alert(
+            "👑 Title equipped!"
+        );
+
+    } else {
+
+        alert(
+            "✨ Item displayed!"
+        );
+
+    }
+
+
+    loadInventory();
+
+}
 /* ==================================================
    EQUIP TITLE
 ================================================== */
