@@ -6,6 +6,99 @@ let showingSpecificMessage = false;
 let onlineHeartbeatStarted = false;
 
 let currentLeaderboard = "overall";
+// ==================================================
+// CACHED /api/me
+// ==================================================
+
+let cachedMe = null;
+let cachedMeTime = 0;
+
+const ME_CACHE_DURATION = 10 * 1000; // 10 seconds
+
+
+async function getMeCached(forceRefresh = false) {
+
+    const now = Date.now();
+
+    // Return cached result if it's still fresh
+    if (
+        !forceRefresh &&
+        cachedMe &&
+        now - cachedMeTime < ME_CACHE_DURATION
+    ) {
+        return cachedMe;
+    }
+
+
+    try {
+
+        const response =
+            me = await getMeCached();
+
+
+        // Logged out
+        if (
+            response.status === 401 ||
+            response.status === 403
+        ) {
+
+            cachedMe = {
+                loggedIn: false,
+                user: null
+            };
+
+            cachedMeTime = now;
+
+            return cachedMe;
+        }
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `HTTP ${response.status}`
+            );
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        cachedMe =
+            data;
+
+        cachedMeTime =
+            now;
+
+
+        return data;
+
+
+    } catch (error) {
+
+        console.error(
+            "ME CACHE ERROR:",
+            error
+        );
+
+
+        // Don't destroy a valid cached session
+        // just because one request failed.
+        if (cachedMe) {
+            return cachedMe;
+        }
+
+
+        return {
+            loggedIn: false,
+            user: null
+        };
+
+    }
+
+}
 /* ==================================================
    ESCAPE HTML
 ================================================== */
@@ -3030,15 +3123,7 @@ async function loadShrekCoins() {
 
     try {
 
-        const response =
-            await fetch(
-                "/api/me",
-                {
-                    credentials: "include",
-                    cache: "no-store"
-                }
-            );
-
+        const me = await getMeCached();
 
         if (!response.ok) {
 
@@ -3109,16 +3194,7 @@ async function checkMessages() {
     try {
 
         const response =
-            await fetch(
-                "/api/me",
-                {
-                    credentials:
-                        "include",
-
-                    cache:
-                        "no-store"
-                }
-            );
+            me = await getMeCached();
 
 
         if (!response.ok) {
@@ -3923,13 +3999,7 @@ async function checkModerationStatus() {
 
     try {
 
-        const response = await fetch(
-            "/api/me",
-            {
-                credentials: "include",
-                cache: "no-store"
-            }
-        );
+        const me = await getMeCached();
 
         if (!response.ok) {
             return;
@@ -4010,17 +4080,7 @@ async function checkAdmin() {
     try {
 
         const response =
-            await fetch(
-                "/api/me",
-                {
-                    method: "GET",
-                    credentials: "include",
-                    cache: "no-store",
-                    headers: {
-                        "Accept": "application/json"
-                    }
-                }
-            );
+            me = await getMeCached();
 
         if (!response.ok) {
             return;
@@ -4285,19 +4345,7 @@ async function checkModerationStatus() {
     try {
 
         const response =
-            await fetch(
-                "/api/me",
-                {
-                    method: "GET",
-                    credentials: "include",
-                    cache: "no-store",
-
-                    headers: {
-                        "Accept":
-                            "application/json"
-                    }
-                }
-            );
+            me = await getMeCached();
 
 
         if (!response.ok) {
@@ -4404,17 +4452,7 @@ async function checkLogin() {
     try {
 
         const response =
-            await fetch(
-                "/api/me",
-                {
-                    credentials: "include",
-                    cache: "no-store",
-                    headers: {
-                        "Accept":
-                            "application/json"
-                    }
-                }
-            );
+            me = await getMeCached();
 
 
         const data =
