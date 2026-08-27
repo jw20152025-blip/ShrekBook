@@ -3070,6 +3070,8 @@ function clearPostImage() {
    PEOPLE
 ================================================== */
 
+let allPeople = [];
+
 async function loadPeople() {
 
     const container =
@@ -3093,133 +3095,25 @@ async function loadPeople() {
             await getJsonResponse(response);
 
         if (!response.ok) {
+
             throw new Error(
                 users.error ||
                 "Could not load people."
             );
+
         }
 
         if (!Array.isArray(users)) {
+
             throw new Error(
                 "Invalid users response."
             );
+
         }
 
-        if (!users.length) {
-            container.innerHTML =
-                "<p>No users yet. 🧌</p>";
-            return;
-        }
+        allPeople = users;
 
-        container.innerHTML =
-            users.map(user => {
-
-                const avatar =
-                    user.avatar ||
-                    "/default-avatar.png";
-
-                const displayName =
-                    user.display_name ||
-                    user.username ||
-                    "User";
-
-                const lastSeen =
-                    user.last_seen
-                        ? new Date(
-                            user.last_seen
-                        ).getTime()
-                        : 0;
-
-                const isOnline =
-                    lastSeen > 0 &&
-                    (
-                        Date.now() - lastSeen
-                    ) < 30000;
-
-                return `
-
-                    <a
-                        href="/profile.html?id=${encodeURIComponent(user.id)}"
-                        class="person"
-                        style="
-                            text-decoration:none;
-                            color:inherit;
-                            display:flex;
-                            align-items:center;
-                            gap:12px;
-                        "
-                    >
-
-                        <div
-                            style="
-                                position:relative;
-                                width:50px;
-                                height:50px;
-                                flex-shrink:0;
-                            "
-                        >
-
-                            <img
-                                class="avatar"
-                                src="${escapeHtml(avatar)}"
-                                alt="Avatar"
-                                style="
-                                    width:50px;
-                                    height:50px;
-                                    border-radius:50%;
-                                    object-fit:cover;
-                                    display:block;
-                                "
-                                onerror="
-                                    this.src='/default-avatar.png';
-                                "
-                            >
-
-                            <span
-                                title="${
-                                    isOnline
-                                        ? "Online"
-                                        : "Offline"
-                                }"
-                                style="
-                                    position:absolute;
-                                    right:-2px;
-                                    bottom:-2px;
-                                    width:14px;
-                                    height:14px;
-                                    border-radius:50%;
-                                    background:${
-                                        isOnline
-                                            ? "#22c55e"
-                                            : "#888"
-                                    };
-                                    border:2px solid white;
-                                    box-sizing:border-box;
-                                "
-                            ></span>
-
-                        </div>
-
-                        <div>
-
-                            <strong>
-                                ${escapeHtml(displayName)}
-                            </strong>
-
-                            <p>
-                                @${escapeHtml(
-                                    user.username ||
-                                    "user"
-                                )}
-                            </p>
-
-                        </div>
-
-                    </a>
-
-                `;
-
-            }).join("");
+        renderPeople(allPeople);
 
     } catch (error) {
 
@@ -3236,12 +3130,212 @@ async function loadPeople() {
     }
 
 }
+
+
+function renderPeople(users) {
+
+    const container =
+        document.getElementById("people");
+
+    if (!container) {
+        return;
+    }
+
+    if (!users.length) {
+
+        container.innerHTML =
+            "<p>No users found. 🧌</p>";
+
+        return;
+
+    }
+
+    container.innerHTML =
+        users.map(user => {
+
+            const avatar =
+                user.avatar ||
+                "/default-avatar.png";
+
+            const displayName =
+                user.display_name ||
+                user.username ||
+                "User";
+
+            const lastSeen =
+                user.last_seen
+                    ? new Date(
+                        user.last_seen
+                    ).getTime()
+                    : 0;
+
+            const isOnline =
+                lastSeen > 0 &&
+                (
+                    Date.now() -
+                    lastSeen
+                ) < 30000;
+
+            return `
+
+                <a
+                    href="/profile.html?id=${encodeURIComponent(
+                        user.id
+                    )}"
+                    class="person"
+                    style="
+                        text-decoration:none;
+                        color:inherit;
+                        display:flex;
+                        align-items:center;
+                        gap:12px;
+                    "
+                >
+
+                    <div
+                        style="
+                            position:relative;
+                            width:50px;
+                            height:50px;
+                            flex-shrink:0;
+                        "
+                    >
+
+                        <img
+                            class="avatar"
+                            src="${escapeHtml(
+                                avatar
+                            )}"
+                            alt="Avatar"
+                            style="
+                                width:50px;
+                                height:50px;
+                                border-radius:50%;
+                                object-fit:cover;
+                                display:block;
+                            "
+                            onerror="
+                                this.src='/default-avatar.png';
+                            "
+                        >
+
+                        <span
+                            title="${
+                                isOnline
+                                    ? "Online"
+                                    : "Offline"
+                            }"
+                            style="
+                                position:absolute;
+                                right:-2px;
+                                bottom:-2px;
+                                width:14px;
+                                height:14px;
+                                border-radius:50%;
+                                background:${
+                                    isOnline
+                                        ? "#22c55e"
+                                        : "#888"
+                                };
+                                border:2px solid white;
+                                box-sizing:border-box;
+                            "
+                        ></span>
+
+                    </div>
+
+                    <div>
+
+                        <strong>
+                            ${escapeHtml(
+                                displayName
+                            )}
+                        </strong>
+
+                        <p>
+                            @${escapeHtml(
+                                user.username ||
+                                "user"
+                            )}
+                        </p>
+
+                    </div>
+
+                </a>
+
+            `;
+
+        }).join("");
+
+}
+
+
+function searchPeople(query) {
+
+    query =
+        query
+            .trim()
+            .toLowerCase();
+
+    if (!query) {
+
+        renderPeople(
+            allPeople
+        );
+
+        return;
+
+    }
+
+    const results =
+        allPeople.filter(user => {
+
+            const username =
+                (
+                    user.username ||
+                    ""
+                ).toLowerCase();
+
+            const displayName =
+                (
+                    user.display_name ||
+                    ""
+                ).toLowerCase();
+
+            return (
+                username.includes(query) ||
+                displayName.includes(query)
+            );
+
+        });
+
+    renderPeople(results);
+
+}
 loadPeople();
 
 setInterval(() => {
     loadPeople();
 }, 10000);
+const peopleSearch =
+    document.getElementById(
+        "people-search"
+    );
 
+if (peopleSearch) {
+
+    peopleSearch.addEventListener(
+        "input",
+        () => {
+
+            searchPeople(
+                peopleSearch.value
+            );
+
+        }
+    );
+
+}
 /* ==================================================
    SHREKBOOK POPUP MESSAGE
 ================================================== */
