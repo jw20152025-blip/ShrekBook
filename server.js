@@ -5282,29 +5282,14 @@ app.get(
         try {
 
             const {
-                data,
+                data: items,
                 error
-            } =
-                await supabase
-                    .from("shop_items")
-                    .select(`
-                        id,
-                        name,
-                        description,
-                        item_type,
-                        price,
-                        item_value
-                    `)
-                    .eq(
-                        "active",
-                        true
-                    )
-                    .order(
-                        "price",
-                        {
-                            ascending: true
-                        }
-                    );
+            } = await supabase
+                .from("shop_items")
+                .select("*")
+                .order("id", {
+                    ascending: true
+                });
 
 
             if (error) {
@@ -5316,15 +5301,72 @@ app.get(
 
                 return res.status(500).json({
                     error:
-                        "Failed to load shop."
+                        "Failed to load shop items."
                 });
 
             }
 
 
+            let ownedIds = [];
+
+
+            // Get user's owned items
+            if (
+                req.session &&
+                req.session.user
+            ) {
+
+                const {
+                    data: owned,
+                    error: ownedError
+                } =
+                    await supabase
+                        .from("user_shop_items")
+                        .select("item_id")
+                        .eq(
+                            "user_id",
+                            req.session.user.id
+                        );
+
+
+                if (!ownedError && owned) {
+
+                    ownedIds =
+                        owned.map(
+                            item =>
+                                Number(
+                                    item.item_id
+                                )
+                        );
+
+                }
+
+            }
+
+
+            const formattedItems =
+                (items || []).map(
+                    item => ({
+
+                        ...item,
+
+                        owned:
+                            ownedIds.includes(
+                                Number(item.id)
+                            )
+
+                    })
+                );
+
+
             return res.json({
+
+                success:
+                    true,
+
                 items:
-                    data || []
+                    formattedItems
+
             });
 
 
@@ -5334,6 +5376,7 @@ app.get(
                 "SHOP ITEMS ERROR:",
                 error
             );
+
 
             return res.status(500).json({
                 error:

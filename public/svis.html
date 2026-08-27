@@ -1,4 +1,427 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>ShrekBook Virtual Items Shop 🧌</title>
+
+    <link
+        rel="icon"
+        type="image/png"
+        href="/favicon.png">
+
+    <link
+        rel="stylesheet"
+        href="/styles.css">
+
+    <style>
+
+        /* ==================================================
+           SHOP
+        ================================================== */
+
+        .shop-container {
+
+            max-width: 1100px;
+
+            margin: 40px auto;
+
+            padding: 20px;
+
+        }
+
+
+        .shop-header {
+
+            text-align: center;
+
+            margin-bottom: 35px;
+
+        }
+
+
+        .shop-header h1 {
+
+            font-size: 40px;
+
+            margin-bottom: 10px;
+
+        }
+
+
+        .shop-header p {
+
+            color: #666;
+
+            font-size: 17px;
+
+        }
+
+
+        /* ==================================================
+           COINS
+        ================================================== */
+
+        .coin-balance {
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            gap: 10px;
+
+            margin: 25px auto;
+
+            padding: 15px 25px;
+
+            max-width: 300px;
+
+            border-radius: 15px;
+
+            background: #f5f5f5;
+
+            font-size: 22px;
+
+            font-weight: bold;
+
+        }
+
+
+        #shrekcoins {
+
+            font-size: 25px;
+
+        }
+
+
+        /* ==================================================
+           STATUS
+        ================================================== */
+
+        #shop-status {
+
+            text-align: center;
+
+            margin: 20px 0;
+
+            font-weight: bold;
+
+        }
+
+
+        /* ==================================================
+           SHOP GRID
+        ================================================== */
+
+        .shop-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(
+                    auto-fit,
+                    minmax(220px, 1fr)
+                );
+
+            gap: 20px;
+
+        }
+
+
+        /* ==================================================
+           ITEM
+        ================================================== */
+
+        .shop-item {
+
+            background: white;
+
+            border-radius: 18px;
+
+            padding: 25px;
+
+            text-align: center;
+
+            box-shadow:
+                0 3px 12px
+                rgba(0, 0, 0, 0.08);
+
+            transition:
+                transform 0.2s ease;
+
+        }
+
+
+        .shop-item:hover {
+
+            transform:
+                translateY(-4px);
+
+        }
+
+
+        .item-icon {
+
+            font-size: 60px;
+
+            margin-bottom: 10px;
+
+        }
+
+
+        .shop-item h2 {
+
+            margin: 10px 0;
+
+        }
+
+
+        .item-description {
+
+            color: #666;
+
+            min-height: 50px;
+
+            line-height: 1.4;
+
+        }
+
+
+        .item-price {
+
+            font-size: 20px;
+
+            font-weight: bold;
+
+            margin: 15px 0;
+
+        }
+
+
+        .buy-button {
+
+            width: 100%;
+
+            padding: 12px;
+
+            border: none;
+
+            border-radius: 10px;
+
+            cursor: pointer;
+
+            font-size: 16px;
+
+            font-weight: bold;
+
+            background: #eeeeee;
+
+        }
+
+
+        .buy-button:hover {
+
+            opacity: 0.8;
+
+        }
+
+
+        .buy-button:disabled {
+
+            opacity: 0.5;
+
+            cursor: not-allowed;
+
+        }
+
+
+        /* ==================================================
+           LOADING
+        ================================================== */
+
+        .shop-loading {
+
+            text-align: center;
+
+            padding: 40px;
+
+            color: #777;
+
+            font-size: 18px;
+
+        }
+
+
+        .shop-error {
+
+            text-align: center;
+
+            padding: 40px;
+
+            color: #c00;
+
+        }
+
+
+        /* ==================================================
+           MOBILE
+        ================================================== */
+
+        @media (
+            max-width: 600px
+        ) {
+
+            .shop-header h1 {
+
+                font-size: 30px;
+
+            }
+
+            .shop-container {
+
+                padding: 15px;
+
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<!-- ==================================================
+     NAVBAR
+================================================== -->
+
+<header class="navbar">
+
+    <div class="navbar-inner">
+
+        <a
+            href="/"
+            class="logo">
+
+            🧌 ShrekBook
+
+        </a>
+
+
+        <nav>
+
+            <a href="/">
+                Home
+            </a>
+
+            <a href="/profile.html">
+                Profile
+            </a>
+
+            <a href="/shrekchat.html">
+                💬 ShrekChat
+            </a>
+
+        </nav>
+
+    </div>
+
+</header>
+
+
+<!-- ==================================================
+     SHOP
+================================================== -->
+
+<main class="shop-container">
+
+
+    <div class="shop-header">
+
+        <h1>
+            🛒 ShrekBook Virtual Items Shop
+        </h1>
+
+
+        <p>
+            Spend your hard-earned ShrekCoins
+            on completely unnecessary virtual items. 🧌
+        </p>
+
+
+        <div class="coin-balance">
+
+            🪙
+
+            <span id="shrekcoins">
+                Loading...
+            </span>
+
+            ShrekCoins
+
+        </div>
+
+    </div>
+
+
+    <p id="shop-status"></p>
+
+
+    <!-- ==================================================
+         SHOP ITEMS
+    ================================================== -->
+
+    <div
+        id="shop-grid"
+        class="shop-grid">
+
+        <div class="shop-loading">
+
+            🧌 Loading the swamp shop...
+
+        </div>
+
+    </div>
+
+
+</main>
+
+
 <script>
+
+/* ==================================================
+   GLOBAL
+================================================== */
+
+let shopItems = [];
+
+
+/* ==================================================
+   ESCAPE HTML
+================================================== */
+
+function escapeHtml(value) {
+
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
+
 
 /* ==================================================
    LOAD SHREKCOINS
@@ -16,8 +439,10 @@ async function loadShrekCoins() {
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (
             !response.ok ||
@@ -30,7 +455,9 @@ async function loadShrekCoins() {
                 "Not logged in";
 
             return;
+
         }
+
 
         const coins =
             data.user &&
@@ -38,10 +465,12 @@ async function loadShrekCoins() {
                 ? data.user.shrekcoins
                 : 0;
 
+
         document.getElementById(
             "shrekcoins"
         ).textContent =
             coins;
+
 
     } catch (error) {
 
@@ -50,10 +479,268 @@ async function loadShrekCoins() {
             error
         );
 
+
         document.getElementById(
             "shrekcoins"
         ).textContent =
             "Error";
+
+    }
+
+}
+
+
+/* ==================================================
+   LOAD SHOP ITEMS
+================================================== */
+
+async function loadShop() {
+
+    const grid =
+        document.getElementById(
+            "shop-grid"
+        );
+
+
+    try {
+
+        grid.innerHTML = `
+
+            <div class="shop-loading">
+
+                🧌 Loading the swamp shop...
+
+            </div>
+
+        `;
+
+
+        const response =
+            await fetch(
+                "/api/shop/items",
+                {
+                    credentials:
+                        "include"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        console.log(
+            "🛒 SHOP ITEMS:",
+            data
+        );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Failed to load shop."
+            );
+
+        }
+
+
+        /*
+         * Support either:
+         *
+         * { items: [...] }
+         *
+         * or
+         *
+         * [...]
+         */
+
+        shopItems =
+            Array.isArray(data)
+                ? data
+                : (
+                    Array.isArray(data.items)
+                        ? data.items
+                        : []
+                );
+
+
+        if (
+            shopItems.length === 0
+        ) {
+
+            grid.innerHTML = `
+
+                <div class="shop-loading">
+
+                    🧌 The shop is empty.
+
+                </div>
+
+            `;
+
+            return;
+
+        }
+
+
+        grid.innerHTML = "";
+
+
+        shopItems.forEach(
+            item => {
+
+                /*
+                 * DATABASE ID
+                 *
+                 * This is the actual
+                 * shop_items.id.
+                 */
+
+                const databaseId =
+                    Number(item.id);
+
+
+                /*
+                 * Automatically get
+                 * the database values.
+                 */
+
+                const name =
+                    item.name ||
+                    "Unnamed Item";
+
+
+                const description =
+                    item.description ||
+                    "No description available.";
+
+
+                const price =
+                    Number(item.price) || 0;
+
+
+                const icon =
+                    item.icon ||
+                    "🧌";
+
+
+                const owned =
+                    item.owned === true;
+
+
+                const card =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                card.className =
+                    "shop-item";
+
+
+                card.innerHTML = `
+
+                    <div class="item-icon">
+
+                        ${escapeHtml(icon)}
+
+                    </div>
+
+
+                    <h2>
+
+                        ${escapeHtml(name)}
+
+                    </h2>
+
+
+                    <p class="item-description">
+
+                        ${escapeHtml(
+                            description
+                        )}
+
+                    </p>
+
+
+                    <div class="item-price">
+
+                        🪙 ${price}
+
+                    </div>
+
+
+                    <button
+                        class="buy-button"
+                        data-item-id="${databaseId}"
+                        ${owned ? "disabled" : ""}>
+
+                        ${
+                            owned
+                                ? "✅ Owned"
+                                : "Buy"
+                        }
+
+                    </button>
+
+                `;
+
+
+                const button =
+                    card.querySelector(
+                        ".buy-button"
+                    );
+
+
+                if (!owned) {
+
+                    button.addEventListener(
+                        "click",
+                        () => {
+
+                            buyItem(
+                                databaseId
+                            );
+
+                        }
+                    );
+
+                }
+
+
+                grid.appendChild(
+                    card
+                );
+
+            }
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "SHOP LOAD ERROR:",
+            error
+        );
+
+
+        grid.innerHTML = `
+
+            <div class="shop-error">
+
+                ❌ Failed to load the shop.
+
+                <br><br>
+
+                ${escapeHtml(
+                    error.message
+                )}
+
+            </div>
+
+        `;
+
     }
 
 }
@@ -71,13 +758,35 @@ async function buyItem(itemId) {
     );
 
 
-    if (!itemId) {
+    const numericItemId =
+        Number(itemId);
 
-        alert(
-            "❌ This item does not have a valid ID."
+
+    /*
+     * Make absolutely sure
+     * we're sending shop_items.id.
+     */
+
+    if (
+        !Number.isInteger(
+            numericItemId
+        ) ||
+        numericItemId <= 0
+    ) {
+
+        console.error(
+            "❌ INVALID SHOP ITEM ID:",
+            itemId
         );
 
+
+        alert(
+            "❌ Invalid shop item ID."
+        );
+
+
         return;
+
     }
 
 
@@ -93,16 +802,20 @@ async function buyItem(itemId) {
                         "include",
 
                     headers: {
+
                         "Content-Type":
                             "application/json"
+
                     },
 
-                    body: JSON.stringify({
+                    body:
+                        JSON.stringify({
 
-                        item_id:
-                            itemId
+                            item_id:
+                                numericItemId
 
-                    })
+                        })
+
                 }
             );
 
@@ -127,21 +840,21 @@ async function buyItem(itemId) {
                 )
             );
 
+
             return;
+
         }
 
 
-        alert(
-            "✅ Item purchased!"
-        );
-
-
-        /* ------------------------------------------
-           Update coins immediately
-        ------------------------------------------ */
+        /*
+         * Update coin balance
+         */
 
         if (
-            data.shrekcoins !== undefined
+            data.shrekcoins !==
+                undefined &&
+            data.shrekcoins !==
+                null
         ) {
 
             document.getElementById(
@@ -155,12 +868,27 @@ async function buyItem(itemId) {
 
         }
 
+
+        alert(
+            "✅ Item purchased!"
+        );
+
+
+        /*
+         * Reload shop so the item
+         * becomes "Owned".
+         */
+
+        await loadShop();
+
+
     } catch (error) {
 
         console.error(
             "🛒 SHOP ERROR:",
             error
         );
+
 
         alert(
             "❌ Could not connect to the shop."
@@ -177,4 +905,11 @@ async function buyItem(itemId) {
 
 loadShrekCoins();
 
+loadShop();
+
 </script>
+
+</body>
+
+</html>
+
