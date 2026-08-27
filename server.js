@@ -3052,297 +3052,327 @@ app.get("/api/admin/check", async (req, res) => {
 // USERS
 // ==================================================
 
-app.get("/api/users", async (req, res) => {
+// ==================================================
+// ALL USERS
+// ==================================================
 
-try {
+app.get(
+    "/api/users",
+    async (req, res) => {
 
-    // ==========================================
-    // GET USERS
-    // ==========================================
+        try {
 
-    const {
-        data: users,
-        error: usersError
-    } = await supabase
-        .from("profiles")
-        .select(`
-            id,
-            username,
-            display_name,
-            avatar,
-            bio,
-            created_at,
-            last_seen,
-            equipped_title_id
-        `)
-        .order(
-            "created_at",
-            {
-                ascending: false
+            // ==========================================
+            // GET USERS
+            // ==========================================
+
+            const {
+                data: users,
+                error: usersError
+            } = await supabase
+                .from("profiles")
+                .select(`
+                    id,
+                    username,
+                    display_name,
+                    avatar,
+                    bio,
+                    created_at,
+                    last_seen,
+                    equipped_title_id
+                `)
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                );
+
+
+            if (usersError) {
+
+                console.error(
+                    "USERS DATABASE ERROR:",
+                    usersError
+                );
+
+                return res.status(500).json({
+                    error:
+                        usersError.message
+                });
+
             }
-        );
 
 
-    if (usersError) {
+            // ==========================================
+            // GET SHOP ITEMS
+            // ==========================================
 
-        return res.status(500).json({
-            error:
-                usersError.message
-        });
-
-    }
-
-
-    // ==========================================
-    // GET ALL SHOP ITEMS
-    // ==========================================
-
-    const {
-        data: shopItems,
-        error: shopItemsError
-    } = await supabase
-        .from("shop_items")
-        .select(`
-            id,
-            name,
-            description,
-            price
-        `);
+            const {
+                data: shopItems,
+                error: shopItemsError
+            } = await supabase
+                .from("shop_items")
+                .select(`
+                    id,
+                    name,
+                    description,
+                    price,
+                    icon,
+                    item_type
+                `);
 
 
-    if (shopItemsError) {
+            if (shopItemsError) {
 
-        console.error(
-            "SHOP ITEMS ERROR:",
-            shopItemsError
-        );
+                console.error(
+                    "SHOP ITEMS ERROR:",
+                    shopItemsError
+                );
 
-        return res.status(500).json({
-            error:
-                shopItemsError.message
-        });
+                return res.status(500).json({
+                    error:
+                        shopItemsError.message
+                });
 
-    }
-
-
-    // ==========================================
-    // CREATE TITLE LOOKUP
-    // ==========================================
-
-    const titleMap = {};
+            }
 
 
-    for (
-        const item of
-        shopItems || []
-    ) {
+            // ==========================================
+            // CREATE ITEM LOOKUP
+            // ==========================================
 
-        titleMap[item.id] =
-            item;
-
-    }
+            const titleMap = {};
 
 
-    // ==========================================
-    // GET REACTIONS
-    // ==========================================
+            for (
+                const item of
+                shopItems || []
+            ) {
 
-    const {
-        data: reactions,
-        error: reactionsError
-    } = await supabase
-        .from("reactions")
-        .select(`
-            to_user_id,
-            type
-        `);
+                if (
+                    item.item_type ===
+                    "title"
+                ) {
 
+                    titleMap[
+                        item.id
+                    ] = item;
 
-    if (reactionsError) {
+                }
 
-        return res.status(500).json({
-            error:
-                reactionsError.message
-        });
-
-    }
+            }
 
 
-    // ==========================================
-    // COUNT REACTIONS
-    // ==========================================
+            // ==========================================
+            // GET REACTIONS
+            // ==========================================
 
-    const reactionCounts = {};
-
-
-    for (
-        const reaction of
-        reactions || []
-    ) {
-
-        const userId =
-            reaction.to_user_id;
-
-
-        if (
-            !reactionCounts[userId]
-        ) {
-
-            reactionCounts[userId] = {
-
-                gyatt: 0,
-                cat: 0,
-                ogred: 0
-
-            };
-
-        }
+            const {
+                data: reactions,
+                error: reactionsError
+            } = await supabase
+                .from("reactions")
+                .select(`
+                    to_user_id,
+                    type
+                `);
 
 
-        if (
-            reaction.type ===
-            "gyatt"
-        ) {
+            if (reactionsError) {
 
-            reactionCounts[
-                userId
-            ].gyatt++;
+                console.error(
+                    "REACTIONS ERROR:",
+                    reactionsError
+                );
 
-        }
+                return res.status(500).json({
+                    error:
+                        reactionsError.message
+                });
 
-
-        if (
-            reaction.type ===
-            "cat"
-        ) {
-
-            reactionCounts[
-                userId
-            ].cat++;
-
-        }
+            }
 
 
-        if (
-            reaction.type ===
-            "ogred"
-        ) {
+            // ==========================================
+            // COUNT REACTIONS
+            // ==========================================
 
-            reactionCounts[
-                userId
-            ].ogred++;
-
-        }
-
-    }
+            const reactionCounts = {};
 
 
-    // ==========================================
-    // BUILD RESULT
-    // ==========================================
+            for (
+                const reaction of
+                reactions || []
+            ) {
 
-    const result =
-        (users || []).map(
-            user => {
+                const userId =
+                    reaction.to_user_id;
 
-                const lastSeen =
-                    user.last_seen
-                        ? new Date(
+
+                if (
+                    !reactionCounts[userId]
+                ) {
+
+                    reactionCounts[userId] = {
+
+                        gyatt: 0,
+                        cat: 0,
+                        ogred: 0
+
+                    };
+
+                }
+
+
+                if (
+                    reaction.type ===
+                    "gyatt"
+                ) {
+
+                    reactionCounts[
+                        userId
+                    ].gyatt++;
+
+                }
+
+
+                if (
+                    reaction.type ===
+                    "cat"
+                ) {
+
+                    reactionCounts[
+                        userId
+                    ].cat++;
+
+                }
+
+
+                if (
+                    reaction.type ===
+                    "ogred"
+                ) {
+
+                    reactionCounts[
+                        userId
+                    ].ogred++;
+
+                }
+
+            }
+
+
+            // ==========================================
+            // BUILD RESULT
+            // ==========================================
+
+            const result =
+                (users || []).map(
+                    user => {
+
+                        const lastSeen =
                             user.last_seen
-                        ).getTime()
-                        : 0;
+                                ? new Date(
+                                    user.last_seen
+                                ).getTime()
+                                : 0;
 
 
-                const online =
-                    lastSeen > 0 &&
-                    Date.now() -
-                        lastSeen <
-                        60 * 1000;
+                        const online =
+                            lastSeen > 0 &&
+                            (
+                                Date.now() -
+                                lastSeen
+                            ) < 60 * 1000;
 
 
-                // ------------------------------
-                // GET EQUIPPED TITLE
-                // ------------------------------
+                        // ==================================
+                        // EQUIPPED TITLE
+                        // ==================================
 
-                const equippedTitle =
-                    user.equipped_title_id
-                        ? titleMap[
+                        let equippedTitle =
+                            null;
+
+
+                        if (
                             user.equipped_title_id
-                        ] || null
-                        : null;
+                        ) {
+
+                            equippedTitle =
+                                titleMap[
+                                    user.equipped_title_id
+                                ] || null;
+
+                        }
 
 
-                return {
+                        return {
 
-                    ...user,
-
-                    avatar:
-                        getAvatar(
-                            user.avatar
-                        ),
-
-                    online,
+                            ...user,
 
 
-                    // --------------------------
-                    // TITLE
-                    // --------------------------
-
-                    equippedTitle,
-
-
-                    // --------------------------
-                    // REACTIONS
-                    // --------------------------
-
-                    gyatt:
-                        reactionCounts[
-                            user.id
-                        ]?.gyatt ||
-                        0,
-
-                    cat:
-                        reactionCounts[
-                            user.id
-                        ]?.cat ||
-                        0,
-
-                    ogred:
-                        reactionCounts[
-                            user.id
-                        ]?.ogred ||
-                        0
-
-                };
-
-            }
-        );
+                            avatar:
+                                getAvatar(
+                                    user.avatar
+                                ),
 
 
-    // ==========================================
-    // SEND USERS
-    // ==========================================
-
-    res.json(result);
+                            online,
 
 
-} catch (error) {
-
-    console.error(
-        "USERS ERROR:",
-        error
-    );
+                            equippedTitle,
 
 
-    res.status(500).json({
-        error:
-            "Server error."
-    });
-
-}
+                            gyatt:
+                                reactionCounts[
+                                    user.id
+                                ]?.gyatt || 0,
 
 
-});
+                            cat:
+                                reactionCounts[
+                                    user.id
+                                ]?.cat || 0,
+
+
+                            ogred:
+                                reactionCounts[
+                                    user.id
+                                ]?.ogred || 0
+
+                        };
+
+                    }
+                );
+
+
+            // ==========================================
+            // SEND USERS
+            // ==========================================
+
+            return res.json(
+                result
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "USERS ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
+
 
 
 // ==================================================
@@ -3350,33 +3380,33 @@ try {
 // ==================================================
 
 app.get(
-"/api/users/:id",
-async (req, res) => {
+    "/api/users/:id",
+    async (req, res) => {
 
-    try {
+        try {
 
-        const id =
-            req.params.id;
-
-        if (!id) {
-
-            return res.status(400).json({
-                error:
-                    "No profile ID was provided."
-            });
-
-        }
+            const id =
+                req.params.id;
 
 
-        // ==========================================
-        // GET PROFILE
-        // ==========================================
+            if (!id) {
 
-        const {
-            data: profile,
-            error: profileError
-        } =
-            await supabase
+                return res.status(400).json({
+                    error:
+                        "No profile ID was provided."
+                });
+
+            }
+
+
+            // ==========================================
+            // GET PROFILE
+            // ==========================================
+
+            const {
+                data: profile,
+                error: profileError
+            } = await supabase
                 .from("profiles")
                 .select(`
                     id,
@@ -3394,87 +3424,92 @@ async (req, res) => {
                 .maybeSingle();
 
 
-        if (profileError) {
+            if (profileError) {
 
-            console.error(
-                "PROFILE ERROR:",
-                profileError
-            );
+                console.error(
+                    "PROFILE ERROR:",
+                    profileError
+                );
 
-            return res.status(500).json({
-                error:
-                    profileError.message
-            });
+                return res.status(500).json({
+                    error:
+                        profileError.message
+                });
 
-        }
-
-
-        if (!profile) {
-
-            return res.status(404).json({
-                error:
-                    "User not found."
-            });
-
-        }
+            }
 
 
-        // ==========================================
-        // GET EQUIPPED TITLE
-        // ==========================================
+            if (!profile) {
 
-        let equippedTitle = null;
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+
+            }
 
 
-        if (
-            profile.equipped_title_id
-        ) {
+            // ==========================================
+            // GET EQUIPPED TITLE
+            // ==========================================
 
-            const {
-                data: title,
-                error: titleError
-            } =
-                await supabase
+            let equippedTitle =
+                null;
+
+
+            if (
+                profile.equipped_title_id
+            ) {
+
+                const {
+                    data: title,
+                    error: titleError
+                } = await supabase
                     .from("shop_items")
                     .select(`
                         id,
                         name,
                         description,
-                        price
+                        price,
+                        icon,
+                        item_type
                     `)
                     .eq(
                         "id",
                         profile.equipped_title_id
                     )
+                    .eq(
+                        "item_type",
+                        "title"
+                    )
                     .maybeSingle();
 
 
-            if (titleError) {
+                if (titleError) {
 
-                console.error(
-                    "EQUIPPED TITLE ERROR:",
-                    titleError
-                );
+                    console.error(
+                        "EQUIPPED TITLE ERROR:",
+                        titleError
+                    );
 
-            } else {
+                } else {
 
-                equippedTitle =
-                    title || null;
+                    equippedTitle =
+                        title || null;
+
+                }
 
             }
 
-        }
 
+            // ==========================================
+            // GET POSTS
+            // ==========================================
 
-        // ==========================================
-        // GET POSTS
-        // ==========================================
-
-        const {
-            data: posts,
-            error: postsError
-        } =
-            await supabase
+            const {
+                data: posts,
+                error: postsError
+            } = await supabase
                 .from("posts")
                 .select(`
                     id,
@@ -3495,76 +3530,79 @@ async (req, res) => {
                 );
 
 
-        if (postsError) {
+            if (postsError) {
+
+                return res.status(500).json({
+                    error:
+                        postsError.message
+                });
+
+            }
+
+
+            // ==========================================
+            // REACTIONS
+            // ==========================================
+
+            const reactions =
+                await getReactionCounts(
+                    id
+                );
+
+
+            // ==========================================
+            // RESPONSE
+            // ==========================================
+
+            return res.json({
+
+                ...profile,
+
+
+                avatar:
+                    getAvatar(
+                        profile.avatar
+                    ),
+
+
+                equippedTitle:
+                    equippedTitle,
+
+
+                gyatt:
+                    reactions.gyatt,
+
+
+                cat:
+                    reactions.cat,
+
+
+                ogred:
+                    reactions.ogred,
+
+
+                posts:
+                    posts || []
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "ONE USER ERROR:",
+                error
+            );
 
             return res.status(500).json({
                 error:
-                    postsError.message
+                    "Server error."
             });
 
         }
 
-
-        // ==========================================
-        // REACTIONS
-        // ==========================================
-
-        const reactions =
-            await getReactionCounts(
-                id
-            );
-
-
-        // ==========================================
-        // RESPONSE
-        // ==========================================
-
-        res.json({
-
-            ...profile,
-
-            avatar:
-                getAvatar(
-                    profile.avatar
-                ),
-
-            equippedTitle:
-                equippedTitle,
-
-            gyatt:
-                reactions.gyatt,
-
-            cat:
-                reactions.cat,
-
-            ogred:
-                reactions.ogred,
-
-            posts:
-                posts || []
-
-        });
-
-
-    } catch (error) {
-
-        console.error(
-            "ONE USER ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error:
-                "Server error."
-        });
-
     }
-
-}
-
-
 );
-
 
 // ==================================================
 // UPDATE PROFILE
