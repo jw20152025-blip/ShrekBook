@@ -2611,21 +2611,11 @@ try {
     // REACTIONS
     // ==========================================
 
-    const reactions =
-        await getReactionCounts(
-            data.id
-        );
-
-
-    // ==========================================
-    // ADMIN
-    // ==========================================
-
-    const admin =
-        await isAdmin(
-            data.id
-        );
-
+    const [reactions, admin] =
+        await Promise.all([
+            getReactionCounts(data.id),
+            isAdmin(data.id)
+        ]);
 
     // ==========================================
     // EQUIPPED TITLE
