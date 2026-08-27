@@ -541,21 +541,11 @@ async function loadInventory() {
                BUTTON
             ====================================== */
 
-            let buttonText =
-                "Use Item";
+            let buttonText;
+            let buttonAction;
+            let disabled = false;
 
-
-            let buttonAction =
-                `equipItem('${escapeAttribute(
-                    item.id
-                )}')`;
-
-
-            let disabled =
-                false;
-
-
-            if (isTitle) {
+            if (item.item_type === "title") {
 
                 if (isEquippedTitle) {
 
@@ -570,22 +560,28 @@ async function loadInventory() {
                     buttonText =
                         "🏷️ Equip Title";
 
+                    buttonAction =
+                        `equipItem('${escapeAttribute(item.id)}')`;
+
                 }
 
             } else {
 
-                if (isDisplayedItem) {
+                if (item.equipped === true) {
 
                     buttonText =
-                        "✅ Displayed";
+                        "❌ Undisplay";
 
-                    disabled =
-                        true;
+                    buttonAction =
+                        `equipItem('${escapeAttribute(item.id)}')`;
 
                 } else {
 
                     buttonText =
                         "✨ Display Item";
+
+                    buttonAction =
+                        `equipItem('${escapeAttribute(item.id)}')`;
 
                 }
 
