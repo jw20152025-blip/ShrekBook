@@ -2,7 +2,7 @@
    SHREKBOOK CLIENT SCRIPT
 ================================================== */
 let moderationCheckRunning = false;
-
+let showingSpecificMessage = false;
 /* ==================================================
    ESCAPE HTML
 ================================================== */
@@ -3791,7 +3791,7 @@ function setupAdminNav(user) {
 // ==================================================
 
 let lastSpecificMessageId = null;
-let showingSpecificMessage = false;
+
 
 
 // ==================================================

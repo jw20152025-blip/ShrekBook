@@ -4,7 +4,7 @@ require("dotenv").config();
 // ==================================================
 // GLOBAL / SPECIFIC MESSAGES
 // ==================================================
-
+let showingSpecificMessage = false;
 let globalMessage = null;
 
 const specificMessages = new Map();
