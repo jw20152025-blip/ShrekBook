@@ -1605,7 +1605,111 @@ async function loadMentionUsers() {
 
 }
 
+async function sendHeartbeat() {
 
+    try {
+
+        await fetch("/api/heartbeat", {
+            method: "POST",
+            credentials: "include"
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Heartbeat failed:",
+            error
+        );
+
+    }
+
+}
+sendHeartbeat();
+
+setInterval(
+    sendHeartbeat,
+    10000
+);
+async function loadOnlineUsers() {
+
+    try {
+
+        const response = await fetch("/api/online", {
+            credentials: "include"
+        });
+
+        if (!response.ok) {
+            console.error(
+                "Failed to load online users:",
+                response.status
+            );
+            return;
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+            return;
+        }
+
+        // Update every online indicator on the page
+        document.querySelectorAll("[data-user-id]").forEach(element => {
+
+            const userId =
+                element.getAttribute("data-user-id");
+
+            const user =
+                data.users.find(
+                    u => String(u.id) === String(userId)
+                );
+
+            if (!user) {
+                return;
+            }
+
+            const dot =
+                element.querySelector(".online-dot");
+
+            if (!dot) {
+                return;
+            }
+
+            if (user.online) {
+
+                dot.classList.add("online");
+
+                dot.classList.remove("offline");
+
+                dot.title = "Online";
+
+            } else {
+
+                dot.classList.add("offline");
+
+                dot.classList.remove("online");
+
+                dot.title = "Offline";
+
+            }
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "ONLINE STATUS ERROR:",
+            error
+        );
+
+    }
+
+}
+loadOnlineUsers();
+
+setInterval(
+    loadOnlineUsers,
+    10000
+);
 /* ==================================================
    FORMAT MENTIONS
 ================================================== */
@@ -2969,9 +3073,7 @@ function clearPostImage() {
 async function loadPeople() {
 
     const container =
-        document.getElementById(
-            "people"
-        );
+        document.getElementById("people");
 
     if (!container) {
         return;
@@ -2980,161 +3082,144 @@ async function loadPeople() {
     try {
 
         const response =
-            await fetch(
-                "/api/users",
-                {
-                    credentials: "include",
-                    headers: {
-                        "Accept":
-                            "application/json"
-                    }
+            await fetch("/api/users", {
+                credentials: "include",
+                headers: {
+                    "Accept": "application/json"
                 }
-            );
+            });
 
         const users =
-            await getJsonResponse(
-                response
-            );
+            await getJsonResponse(response);
 
         if (!response.ok) {
-
             throw new Error(
                 users.error ||
                 "Could not load people."
             );
-
         }
 
         if (!Array.isArray(users)) {
-
             throw new Error(
                 "Invalid users response."
             );
-
         }
 
         if (!users.length) {
-
             container.innerHTML =
                 "<p>No users yet. 🧌</p>";
-
             return;
-
         }
 
         container.innerHTML =
-            users.map(
-                user => {
+            users.map(user => {
 
-                    const avatar =
-                        user.avatar ||
-                        "/default-avatar.png";
+                const avatar =
+                    user.avatar ||
+                    "/default-avatar.png";
 
-                    const displayName =
-                        user.display_name ||
-                        user.username ||
-                        "User";
+                const displayName =
+                    user.display_name ||
+                    user.username ||
+                    "User";
 
-                    const isOnline =
-                        user.last_seen &&
-                        (
-                            Date.now() -
-                            new Date(
-                                user.last_seen
-                            ).getTime()
-                        ) < 120000;
+                const lastSeen =
+                    user.last_seen
+                        ? new Date(
+                            user.last_seen
+                        ).getTime()
+                        : 0;
 
-                    return `
+                const isOnline =
+                    lastSeen > 0 &&
+                    (
+                        Date.now() - lastSeen
+                    ) < 30000;
 
-                        <a
-                            href="/profile.html?id=${encodeURIComponent(
-                                user.id
-                            )}"
-                            class="person"
+                return `
+
+                    <a
+                        href="/profile.html?id=${encodeURIComponent(user.id)}"
+                        class="person"
+                        style="
+                            text-decoration:none;
+                            color:inherit;
+                            display:flex;
+                            align-items:center;
+                            gap:12px;
+                        "
+                    >
+
+                        <div
                             style="
-                                text-decoration:none;
-                                color:inherit;
-                                display:flex;
-                                align-items:center;
-                                gap:12px;
+                                position:relative;
+                                width:50px;
+                                height:50px;
+                                flex-shrink:0;
                             "
                         >
 
-                            <div
+                            <img
+                                class="avatar"
+                                src="${escapeHtml(avatar)}"
+                                alt="Avatar"
                                 style="
-                                    position:relative;
                                     width:50px;
                                     height:50px;
-                                    flex-shrink:0;
+                                    border-radius:50%;
+                                    object-fit:cover;
+                                    display:block;
+                                "
+                                onerror="
+                                    this.src='/default-avatar.png';
                                 "
                             >
 
-                                <img
-                                    class="avatar"
-                                    src="${escapeHtml(
-                                        avatar
-                                    )}"
-                                    alt="Avatar"
-                                    style="
-                                        width:50px;
-                                        height:50px;
-                                        border-radius:50%;
-                                        object-fit:cover;
-                                        display:block;
-                                    "
-                                    onerror="
-                                        this.src='/default-avatar.png';
-                                    "
-                                >
-
-                                <span
-                                    title="${
+                            <span
+                                title="${
+                                    isOnline
+                                        ? "Online"
+                                        : "Offline"
+                                }"
+                                style="
+                                    position:absolute;
+                                    right:-2px;
+                                    bottom:-2px;
+                                    width:14px;
+                                    height:14px;
+                                    border-radius:50%;
+                                    background:${
                                         isOnline
-                                            ? "Online"
-                                            : "Offline"
-                                    }"
-                                    style="
-                                        position:absolute;
-                                        right:-2px;
-                                        bottom:-2px;
-                                        width:14px;
-                                        height:14px;
-                                        border-radius:50%;
-                                        background:${
-                                            isOnline
-                                                ? "#22c55e"
-                                                : "#888"
-                                        };
-                                        border:2px solid white;
-                                        box-sizing:border-box;
-                                    "
-                                ></span>
+                                            ? "#22c55e"
+                                            : "#888"
+                                    };
+                                    border:2px solid white;
+                                    box-sizing:border-box;
+                                "
+                            ></span>
 
-                            </div>
+                        </div>
 
-                            <div>
+                        <div>
 
-                                <strong>
-                                    ${escapeHtml(
-                                        displayName
-                                    )}
-                                </strong>
+                            <strong>
+                                ${escapeHtml(displayName)}
+                            </strong>
 
-                                <p>
-                                    @${escapeHtml(
-                                        user.username ||
-                                        "user"
-                                    )}
-                                </p>
+                            <p>
+                                @${escapeHtml(
+                                    user.username ||
+                                    "user"
+                                )}
+                            </p>
 
-                            </div>
+                        </div>
 
-                        </a>
+                    </a>
 
-                    `;
+                `;
 
-                }
-            ).join("");
+            }).join("");
 
     } catch (error) {
 
@@ -3151,7 +3236,11 @@ async function loadPeople() {
     }
 
 }
+loadPeople();
 
+setInterval(() => {
+    loadPeople();
+}, 10000);
 
 /* ==================================================
    SHREKBOOK POPUP MESSAGE

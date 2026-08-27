@@ -418,29 +418,66 @@ app.get("/api/moderation/status", async (req, res) => {
     }
 
 });
-app.post("/api/online", async (req, res) => {
+app.get("/api/online", async (req, res) => {
 
     try {
 
-        // Not logged in = simply don't track them
-        if (
-            !req.session ||
-            !req.session.user ||
-            !req.session.user.id
-        ) {
-            return res.json({
-                success: false,
-                loggedIn: false
+        const {
+            data: users,
+            error
+        } = await supabase
+            .from("profiles")
+            .select(`
+                id,
+                username,
+                display_name,
+                avatar,
+                last_seen
+            `);
+
+        if (error) {
+
+            console.error(
+                "ONLINE USERS ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error: error.message
             });
+
         }
 
-        const userId = req.session.user.id;
+        const now = Date.now();
 
-        // Your existing online logic here...
+        // User is considered online if
+        // their heartbeat was within the last 30 seconds.
+        const onlineUsers = (users || [])
+            .map(user => {
+
+                const lastSeen =
+                    user.last_seen
+                        ? new Date(user.last_seen).getTime()
+                        : 0;
+
+                const online =
+                    lastSeen > 0 &&
+                    now - lastSeen < 30000;
+
+                return {
+                    id: user.id,
+                    username: user.username,
+                    display_name: user.display_name,
+                    avatar: getAvatar(user.avatar),
+                    last_seen: user.last_seen,
+                    online
+                };
+
+            });
 
         return res.json({
             success: true,
-            loggedIn: true
+            users: onlineUsers
         });
 
     } catch (error) {
@@ -451,7 +488,7 @@ app.post("/api/online", async (req, res) => {
         );
 
         return res.status(500).json({
-            error: "Failed to update online status."
+            error: "Failed to load online users."
         });
 
     }
