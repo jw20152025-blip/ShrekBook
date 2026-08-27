@@ -251,7 +251,8 @@
         </div>
         <div
             id="displayed-items"
-            class="displayed-items">
+            class="displayed-items"
+            style="display:none;">
         </div>
 
         <p id="profile-bio">
@@ -560,12 +561,17 @@ function renderEquippedTitle() {
 // ==================================================
 
 
+// ==================================================
+// DISPLAY MULTIPLE ITEMS
+// ==================================================
+
 function renderDisplayedItem() {
 
     const container =
         document.getElementById(
             "displayed-items"
         );
+
 
     if (!container) {
 
@@ -580,10 +586,6 @@ function renderDisplayedItem() {
 
     container.innerHTML = "";
 
-
-    // ==================================================
-    // GET DISPLAYED ITEMS
-    // ==================================================
 
     const items =
         profileUser &&
@@ -600,9 +602,9 @@ function renderDisplayedItem() {
     );
 
 
-    // ==================================================
-    // NOTHING DISPLAYED
-    // ==================================================
+    // ==========================================
+    // NO ITEMS
+    // ==========================================
 
     if (
         items.length === 0
@@ -616,25 +618,12 @@ function renderDisplayedItem() {
     }
 
 
-    // ==================================================
-    // SHOW CONTAINER
-    // ==================================================
-
-    container.style.display =
-        "flex";
-
-
-    // ==================================================
-    // CREATE EACH ITEM
-    // ==================================================
+    // ==========================================
+    // DISPLAY ITEMS
+    // ==========================================
 
     items.forEach(
         item => {
-
-            if (!item) {
-                return;
-            }
-
 
             const itemElement =
                 document.createElement(
@@ -645,10 +634,6 @@ function renderDisplayedItem() {
             itemElement.className =
                 "displayed-item";
 
-
-            // ==========================================
-            // ICON
-            // ==========================================
 
             const iconElement =
                 document.createElement(
@@ -665,10 +650,6 @@ function renderDisplayedItem() {
                 "🎁";
 
 
-            // ==========================================
-            // NAME
-            // ==========================================
-
             const nameElement =
                 document.createElement(
                     "span"
@@ -684,13 +665,10 @@ function renderDisplayedItem() {
                 "Item";
 
 
-            // ==========================================
-            // BUILD ITEM
-            // ==========================================
-
             itemElement.appendChild(
                 iconElement
             );
+
 
             itemElement.appendChild(
                 nameElement
@@ -704,8 +682,11 @@ function renderDisplayedItem() {
         }
     );
 
-}
 
+    container.style.display =
+        "flex";
+
+}
 // ==================================================
 // LOAD PROFILE
 // ==================================================

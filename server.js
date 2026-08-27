@@ -3379,25 +3379,18 @@ app.get(
 // ONE USER
 // ==================================================
 
-// ==================================================
-// ONE USER
-// ==================================================
-
 app.get(
     "/api/users/:id",
     async (req, res) => {
 
         try {
 
-            const id =
-                req.params.id;
-
+            const id = req.params.id;
 
             if (!id) {
 
                 return res.status(400).json({
-                    error:
-                        "No profile ID was provided."
+                    error: "No profile ID was provided."
                 });
 
             }
@@ -3436,8 +3429,7 @@ app.get(
                 );
 
                 return res.status(500).json({
-                    error:
-                        profileError.message
+                    error: profileError.message
                 });
 
             }
@@ -3446,8 +3438,7 @@ app.get(
             if (!profile) {
 
                 return res.status(404).json({
-                    error:
-                        "User not found."
+                    error: "User not found."
                 });
 
             }
@@ -3457,13 +3448,10 @@ app.get(
             // GET EQUIPPED TITLE
             // ==========================================
 
-            let equippedTitle =
-                null;
+            let equippedTitle = null;
 
 
-            if (
-                profile.equipped_title_id
-            ) {
+            if (profile.equipped_title_id) {
 
                 const {
                     data: title,
@@ -3514,13 +3502,15 @@ app.get(
 
 
             const {
-                data: displayedInventory,
-                error: displayedInventoryError
+                data: inventoryItems,
+                error: inventoryError
             } = await supabase
                 .from("user_inventory")
                 .select(`
+                    id,
                     item_id,
-                    equipped
+                    equipped,
+                    purchased_at
                 `)
                 .eq(
                     "user_id",
@@ -3532,63 +3522,106 @@ app.get(
                 );
 
 
-            if (displayedInventoryError) {
+            if (inventoryError) {
 
                 console.error(
                     "DISPLAYED INVENTORY ERROR:",
-                    displayedInventoryError
+                    inventoryError
                 );
 
             } else if (
-                displayedInventory &&
-                displayedInventory.length > 0
+                inventoryItems &&
+                inventoryItems.length > 0
             ) {
 
+
+                // ======================================
+                // GET SHOP ITEMS
+                // ======================================
+
                 const itemIds =
-                    displayedInventory
-                        .map(
-                            inventoryItem =>
-                                inventoryItem.item_id
-                        )
-                        .filter(Boolean);
+                    inventoryItems.map(
+                        inventoryItem =>
+                            inventoryItem.item_id
+                    );
 
 
-                if (
-                    itemIds.length > 0
-                ) {
+                const {
+                    data: shopItems,
+                    error: shopItemsError
+                } = await supabase
+                    .from("shop_items")
+                    .select(`
+                        id,
+                        name,
+                        description,
+                        price,
+                        icon,
+                        item_type
+                    `)
+                    .in(
+                        "id",
+                        itemIds
+                    );
 
-                    const {
-                        data: items,
-                        error: itemsError
-                    } = await supabase
-                        .from("shop_items")
-                        .select(`
-                            id,
-                            name,
-                            description,
-                            icon,
-                            price,
-                            item_type
-                        `)
-                        .in(
-                            "id",
-                            itemIds
+
+                if (shopItemsError) {
+
+                    console.error(
+                        "DISPLAYED SHOP ITEMS ERROR:",
+                        shopItemsError
+                    );
+
+                } else {
+
+                    displayedItems =
+                        (shopItems || []).map(
+                            shopItem => {
+
+                                const inventoryItem =
+                                    inventoryItems.find(
+                                        inventoryItem =>
+                                            String(
+                                                inventoryItem.item_id
+                                            ) ===
+                                            String(
+                                                shopItem.id
+                                            )
+                                    );
+
+
+                                return {
+
+                                    id:
+                                        shopItem.id,
+
+                                    name:
+                                        shopItem.name,
+
+                                    description:
+                                        shopItem.description,
+
+                                    price:
+                                        shopItem.price,
+
+                                    icon:
+                                        shopItem.icon,
+
+                                    item_type:
+                                        shopItem.item_type,
+
+                                    purchased_at:
+                                        inventoryItem
+                                            ?.purchased_at
+                                            || null,
+
+                                    equipped:
+                                        true
+
+                                };
+
+                            }
                         );
-
-
-                    if (itemsError) {
-
-                        console.error(
-                            "DISPLAYED ITEMS ERROR:",
-                            itemsError
-                        );
-
-                    } else {
-
-                        displayedItems =
-                            items || [];
-
-                    }
 
                 }
 
@@ -3626,8 +3659,7 @@ app.get(
             if (postsError) {
 
                 return res.status(500).json({
-                    error:
-                        postsError.message
+                    error: postsError.message
                 });
 
             }
@@ -3638,9 +3670,7 @@ app.get(
             // ==========================================
 
             const reactions =
-                await getReactionCounts(
-                    id
-                );
+                await getReactionCounts(id);
 
 
             // ==========================================
@@ -3651,32 +3681,25 @@ app.get(
 
                 ...profile,
 
-
                 avatar:
                     getAvatar(
                         profile.avatar
                     ),
 
-
                 equippedTitle:
                     equippedTitle,
-
 
                 displayedItems:
                     displayedItems,
 
-
                 gyatt:
                     reactions.gyatt,
-
 
                 cat:
                     reactions.cat,
 
-
                 ogred:
                     reactions.ogred,
-
 
                 posts:
                     posts || []
@@ -3692,15 +3715,13 @@ app.get(
             );
 
             return res.status(500).json({
-                error:
-                    "Server error."
+                error: "Server error."
             });
 
         }
 
     }
 );
-
 // ==================================================
 // UPDATE PROFILE
 // ==================================================
