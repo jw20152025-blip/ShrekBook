@@ -9795,24 +9795,261 @@ app.post("/api/admin/reset-password", async (req, res) => {
         });
     }
 });
+// ==================================================
+// SHOP INVENTORY
+// ==================================================
 
+app.get("/api/shop/inventory", async (req, res) => {
+
+    try {
+
+        // ==========================================
+        // CHECK LOGIN
+        // ==========================================
+
+        if (
+            !req.session ||
+            !req.session.user ||
+            !req.session.user.id
+        ) {
+
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+
+        }
+
+        const userId = req.session.user.id;
+
+
+        // ==========================================
+        // GET OWNED ITEMS
+        // ==========================================
+
+        const {
+            data: ownedItems,
+            error: ownedError
+        } = await supabase
+            .from("user_shop_items")
+            .select(`
+                purchased_at,
+                equipped,
+                shop_items (
+                    id,
+                    name,
+                    description,
+                    icon,
+                    price,
+                    item_type
+                )
+            `)
+            .eq("user_id", userId);
+
+
+        if (ownedError) {
+
+            console.error(
+                "INVENTORY OWNED ITEMS ERROR:",
+                ownedError
+            );
+
+            return res.status(500).json({
+                error: ownedError.message
+            });
+
+        }
+
+
+        // ==========================================
+        // GET PROFILE
+        // ==========================================
+
+        const {
+            data: profile,
+            error: profileError
+        } = await supabase
+            .from("profiles")
+            .select(`
+                equipped_title_id,
+                displayed_item_id
+            `)
+            .eq("id", userId)
+            .maybeSingle();
+
+
+        if (profileError) {
+
+            console.error(
+                "INVENTORY PROFILE ERROR:",
+                profileError
+            );
+
+            return res.status(500).json({
+                error: profileError.message
+            });
+
+        }
+
+
+        // ==========================================
+        // GET EQUIPPED TITLE
+        // ==========================================
+
+        let equippedTitle = null;
+
+        if (
+            profile &&
+            profile.equipped_title_id
+        ) {
+
+            const {
+                data: title,
+                error: titleError
+            } = await supabase
+                .from("shop_items")
+                .select(`
+                    id,
+                    name,
+                    description,
+                    icon,
+                    price,
+                    item_type
+                `)
+                .eq(
+                    "id",
+                    profile.equipped_title_id
+                )
+                .eq(
+                    "item_type",
+                    "title"
+                )
+                .maybeSingle();
+
+
+            if (titleError) {
+
+                console.error(
+                    "EQUIPPED TITLE ERROR:",
+                    titleError
+                );
+
+            } else {
+
+                equippedTitle =
+                    title || null;
+
+            }
+
+        }
+
+
+        // ==========================================
+        // FORMAT INVENTORY
+        // ==========================================
+
+        const items =
+            (ownedItems || [])
+                .map(row => {
+
+                    if (!row.shop_items) {
+                        return null;
+                    }
+
+                    return {
+
+                        id:
+                            row.shop_items.id,
+
+                        name:
+                            row.shop_items.name,
+
+                        description:
+                            row.shop_items.description,
+
+                        icon:
+                            row.shop_items.icon,
+
+                        price:
+                            row.shop_items.price,
+
+                        item_type:
+                            row.shop_items.item_type,
+
+                        purchased_at:
+                            row.purchased_at,
+
+                        equipped:
+                            row.equipped === true
+
+                    };
+
+                })
+                .filter(Boolean);
+
+
+        // ==========================================
+        // DISPLAYED ITEMS
+        // ==========================================
+
+        const displayedItems =
+            items.filter(item => {
+
+                return (
+                    item.item_type !== "title" &&
+                    item.equipped === true
+                );
+
+            });
+
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
+        return res.json({
+
+            success: true,
+
+            items,
+
+            equipped:
+                equippedTitle,
+
+            displayedItems,
+
+            displayedCount:
+                displayedItems.length,
+
+            maxDisplayed:
+                5
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "SHOP INVENTORY ERROR:",
+            error
+        );
+
+        return res.status(500).json({
+            error:
+                "Failed to load inventory."
+        });
+
+    }
+
+});
 // ==================================================
 // START
 // ==================================================
 
 
-server.listen(
-    PORT,
-    () => {
+app.listen(PORT, () => {
 
-        console.log(
-            `ShrekBook running on port ${PORT}`
-        );
+    console.log(
+        `🧌 ShrekBook server running on port ${PORT}`
+    );
 
-        console.log(
-            `Moderation WebSocket: /moderation`
-        );
-
-    }
-);
-
+});
