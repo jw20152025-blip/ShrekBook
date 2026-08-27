@@ -2144,7 +2144,8 @@ async function loadPosts() {
                                                 image/png,
                                                 image/jpeg,
                                                 image/webp,
-                                                image/gif
+                                                image/gif,
+                                                video/mp4
                                             "
                                         >
 
@@ -2496,18 +2497,61 @@ async function createPost() {
         imageInput?.files?.[0] ||
         null;
 
+
+    // ==========================================
+    // CHECK POST
+    // ==========================================
+
     if (!content && !file) {
 
         if (status) {
 
             status.textContent =
-                "❌ Write something or select an image.";
+                "❌ Write something or select an image/video.";
 
         }
 
         return;
 
     }
+
+
+    // ==========================================
+    // CHECK FILE TYPE
+    // ==========================================
+
+    if (file) {
+
+        const allowedTypes = [
+
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "image/gif",
+            "image/bmp",
+            "video/mp4"
+
+        ];
+
+        if (
+            !allowedTypes.includes(
+                file.type
+            )
+        ) {
+
+            if (status) {
+
+                status.textContent =
+                    "❌ Only images and MP4 videos are allowed.";
+
+            }
+
+            return;
+
+        }
+
+    }
+
 
     if (status) {
 
@@ -2516,12 +2560,46 @@ async function createPost() {
 
     }
 
+
     try {
 
-        const image =
-            await prepareImage(
-                file
-            );
+        let image = null;
+
+
+        // ==========================================
+        // PREPARE FILE
+        // ==========================================
+
+        if (file) {
+
+            // MP4 files must NOT go through
+            // image compression/resizing.
+
+            if (
+                file.type ===
+                "video/mp4"
+            ) {
+
+                image =
+                    await fileToBase64(
+                        file
+                    );
+
+            } else {
+
+                image =
+                    await prepareImage(
+                        file
+                    );
+
+            }
+
+        }
+
+
+        // ==========================================
+        // CREATE POST
+        // ==========================================
 
         const response =
             await fetch(
@@ -2531,13 +2609,17 @@ async function createPost() {
                     method: "POST",
 
                     headers: {
+
                         "Content-Type":
                             "application/json",
+
                         "Accept":
                             "application/json"
+
                     },
 
-                    credentials: "include",
+                    credentials:
+                        "include",
 
                     body:
                         JSON.stringify({
@@ -2546,17 +2628,24 @@ async function createPost() {
                                 content,
 
                             image:
-                                image
+                                image,
+
+                            mediaType:
+                                file
+                                    ? file.type
+                                    : null
 
                         })
 
                 }
             );
 
+
         const data =
             await getJsonResponse(
                 response
             );
+
 
         if (!response.ok) {
 
@@ -2567,15 +2656,25 @@ async function createPost() {
 
         }
 
+
+        // ==========================================
+        // CLEAR FORM
+        // ==========================================
+
         if (input) {
+
             input.value =
                 "";
+
         }
 
         if (imageInput) {
+
             imageInput.value =
                 "";
+
         }
+
 
         const preview =
             document.getElementById(
@@ -2587,15 +2686,22 @@ async function createPost() {
                 "post-preview-image"
             );
 
+
         if (preview) {
+
             preview.style.display =
                 "none";
+
         }
 
+
         if (previewImage) {
+
             previewImage.src =
                 "";
+
         }
+
 
         if (status) {
 
@@ -2604,11 +2710,17 @@ async function createPost() {
 
         }
 
+
+        // ==========================================
+        // RELOAD
+        // ==========================================
+
         loadPosts();
 
         loadLeaderboard(
             currentLeaderboard
         );
+
 
     } catch (error) {
 
@@ -2628,7 +2740,6 @@ async function createPost() {
     }
 
 }
-
 
 /* ==================================================
    TOGGLE COMMENTS
@@ -2745,35 +2856,84 @@ async function loadComments(
                             comment.username ||
                             "User";
 
-                        let imageHTML =
-                            "";
+let imageHTML = "";
 
-                        if (
-                            comment.image_url
-                        ) {
+if (post.image_url) {
 
-                            imageHTML = `
+    const mediaURL =
+        escapeHtml(post.image_url);
 
-                                <img
-                                    src="${escapeHtml(
-                                        comment.image_url
-                                    )}"
-                                    alt="Comment image"
-                                    style="
-                                        max-width:300px;
-                                        max-height:300px;
-                                        border-radius:10px;
-                                        margin-top:8px;
-                                        display:block;
-                                    "
-                                    onerror="
-                                        this.style.display='none';
-                                    "
-                                >
+    const lowerURL =
+        post.image_url.toLowerCase();
 
-                            `;
+    const isVideo =
+        lowerURL.includes(".mp4") ||
+        lowerURL.includes("video/mp4");
 
-                        }
+    if (isVideo) {
+
+        imageHTML = `
+
+            <div
+                class="post-image-container"
+                style="
+                    margin-top:12px;
+                "
+            >
+
+                <video
+                    src="${mediaURL}"
+                    controls
+                    preload="metadata"
+                    style="
+                        max-width:100%;
+                        max-height:600px;
+                        width:100%;
+                        border-radius:12px;
+                        object-fit:contain;
+                        display:block;
+                    "
+                >
+                    Your browser does not support video playback.
+                </video>
+
+            </div>
+
+        `;
+
+    } else {
+
+        imageHTML = `
+
+            <div
+                class="post-image-container"
+                style="
+                    margin-top:12px;
+                "
+            >
+
+                <img
+                    src="${mediaURL}"
+                    alt="Post image"
+                    style="
+                        max-width:100%;
+                        max-height:600px;
+                        border-radius:12px;
+                        object-fit:contain;
+                        display:block;
+                    "
+                    onerror="
+                        this.style.display='none';
+                    "
+                >
+
+            </div>
+
+        `;
+
+    }
+
+}
 
                         const formattedContent =
                             comment.content
