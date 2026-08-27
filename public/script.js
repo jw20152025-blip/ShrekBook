@@ -138,125 +138,79 @@ function warn() {
 let checkingSpecificMessage = false;
 
 
-async function checkSpecificMessages() {
+app.get(
+    "/api/specific-message",
+    async (req, res) => {
 
-    try {
+        try {
 
-        // ==========================================
-        // CHECK LOGIN FIRST
-        // ==========================================
+            // ==========================================
+            // LOGGED OUT
+            // ==========================================
 
-        const meResponse =
-            await fetch(
-                "/api/me",
-                {
-                    credentials: "include"
-                }
+            if (
+                !req.session ||
+                !req.session.user ||
+                !req.session.user.id
+            ) {
+
+                return res.json({
+                    loggedIn: false,
+                    message: null
+                });
+
+            }
+
+
+            // ==========================================
+            // USER IS LOGGED IN
+            // ==========================================
+
+            const userId =
+                req.session.user.id;
+
+
+            // ==========================================
+            // YOUR EXISTING SPECIFIC MESSAGE CODE
+            // STARTS HERE
+            // ==========================================
+
+            // IMPORTANT:
+            // Keep whatever code you currently have
+            // below this point that finds the message.
+
+
+            // Example:
+            //
+            // const { data: message, error } =
+            //     await supabase
+            //         .from("specific_messages")
+            //         .select("*")
+            //         .eq("user_id", userId)
+            //         .eq("read", false)
+            //         .maybeSingle();
+
+
+            // ==========================================
+            // RETURN YOUR EXISTING RESULT
+            // ==========================================
+
+        } catch (error) {
+
+            console.error(
+                "SPECIFIC MESSAGE ERROR:",
+                error
             );
 
-
-        // If /api/me says we're not logged in,
-        // don't even request specific messages.
-        if (!meResponse.ok) {
-
-            return;
+            return res.status(500).json({
+                error:
+                    "Could not check specific message."
+            });
 
         }
-
-
-        const me =
-            await meResponse.json();
-
-
-        if (
-            !me ||
-            me.loggedIn !== true ||
-            !me.user
-        ) {
-
-            return;
-
-        }
-
-
-        // ==========================================
-        // NOW CHECK SPECIFIC MESSAGE
-        // ==========================================
-
-        const response =
-            await fetch(
-                "/api/specific-message",
-                {
-                    credentials: "include"
-                }
-            );
-
-
-        // 401 can happen if the session expires
-        // between the two requests.
-        if (response.status === 401) {
-
-            return;
-
-        }
-
-
-        if (!response.ok) {
-
-            console.warn(
-                "Specific message request failed:",
-                response.status
-            );
-
-            return;
-
-        }
-
-
-        const data =
-            await response.json();
-
-
-        // ==========================================
-        // NO MESSAGE
-        // ==========================================
-
-        if (
-            !data ||
-            !data.message
-        ) {
-
-            return;
-
-        }
-
-
-        // ==========================================
-        // SHOW MESSAGE
-        // ==========================================
-
-        // Keep your existing message-display
-        // code here if you have additional logic.
-        console.log(
-            "📩 Specific message:",
-            data.message
-        );
-
-
-    } catch (error) {
-
-        // Don't spam the console if the user
-        // is simply logged out or the session
-        // disappears.
-        console.debug(
-            "Specific message check skipped:",
-            error
-        );
 
     }
-
-}
-
+);
 
 checkSpecificMessages();
 
