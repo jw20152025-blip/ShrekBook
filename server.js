@@ -5598,11 +5598,16 @@ app.post(
 // SHOP INVENTORY
 // ==================================================
 
+
 app.get(
     "/api/shop/inventory",
     async (req, res) => {
 
         try {
+
+            // ==========================================
+            // CHECK LOGIN
+            // ==========================================
 
             if (
                 !req.session ||
@@ -5634,12 +5639,14 @@ app.get(
                     .from("user_shop_items")
                     .select(`
                         purchased_at,
+                        equipped,
                         shop_items (
                             id,
                             name,
                             description,
                             icon,
-                            price
+                            price,
+                            item_type
                         )
                     `)
                     .eq(
@@ -5706,9 +5713,14 @@ app.get(
                 } =
                     await supabase
                         .from("shop_items")
-                        .select(
-                            "id, name, description, icon, price"
-                        )
+                        .select(`
+                            id,
+                            name,
+                            description,
+                            icon,
+                            price,
+                            item_type
+                        `)
                         .eq(
                             "id",
                             profile.equipped_title_id
@@ -5747,6 +5759,7 @@ app.get(
                             return null;
                         }
 
+
                         return {
 
                             id:
@@ -5764,6 +5777,12 @@ app.get(
                             price:
                                 row.shop_items.price,
 
+                            item_type:
+                                row.shop_items.item_type,
+
+                            equipped:
+                                row.equipped === true,
+
                             purchased_at:
                                 row.purchased_at
 
@@ -5772,6 +5791,10 @@ app.get(
                     })
                     .filter(Boolean);
 
+
+            // ==========================================
+            // RETURN INVENTORY
+            // ==========================================
 
             return res.json({
 
@@ -5801,6 +5824,8 @@ app.get(
 
     }
 );
+
+
 // ==================================================
 // EQUIP SHOP TITLE
 // ==================================================
@@ -5810,36 +5835,26 @@ app.get(
 // ==================================================
 
 
+
 app.post(
     "/api/shop/equip",
     async (req, res) => {
 
         try {
 
-            // ==========================================
-            // CHECK LOGIN
-            // ==========================================
-
             if (
                 !req.session ||
                 !req.session.user ||
                 !req.session.user.id
             ) {
-
                 return res.status(401).json({
                     error:
                         "You must be logged in."
                 });
-
             }
 
             const userId =
                 req.session.user.id;
-
-
-            // ==========================================
-            // GET ITEM ID
-            // ==========================================
 
             const itemId =
                 req.body &&
@@ -5854,59 +5869,10 @@ app.post(
                 ) ||
                 numericItemId <= 0
             ) {
-
                 return res.status(400).json({
                     error:
                         "A valid item ID is required."
                 });
-
-            }
-
-
-            // ==========================================
-            // CHECK OWNERSHIP
-            // ==========================================
-
-            const {
-                data: ownership,
-                error: ownershipError
-            } =
-                await supabase
-                    .from("user_shop_items")
-                    .select(
-                        "user_id, item_id, equipped"
-                    )
-                    .eq(
-                        "user_id",
-                        userId
-                    )
-                    .eq(
-                        "item_id",
-                        numericItemId
-                    )
-                    .maybeSingle();
-
-            if (ownershipError) {
-
-                console.error(
-                    "OWNERSHIP CHECK ERROR:",
-                    ownershipError
-                );
-
-                return res.status(500).json({
-                    error:
-                        ownershipError.message
-                });
-
-            }
-
-            if (!ownership) {
-
-                return res.status(403).json({
-                    error:
-                        "You do not own this item."
-                });
-
             }
 
 
@@ -5934,26 +5900,57 @@ app.post(
                     .maybeSingle();
 
             if (itemError) {
-
-                console.error(
-                    "SHOP ITEM ERROR:",
-                    itemError
-                );
-
                 return res.status(500).json({
                     error:
                         itemError.message
                 });
-
             }
 
             if (!item) {
-
                 return res.status(404).json({
                     error:
                         "Shop item not found."
                 });
+            }
 
+
+            // ==========================================
+            // CHECK OWNERSHIP
+            // ==========================================
+
+            const {
+                data: ownership,
+                error: ownershipError
+            } =
+                await supabase
+                    .from("user_shop_items")
+                    .select(`
+                        user_id,
+                        item_id,
+                        equipped
+                    `)
+                    .eq(
+                        "user_id",
+                        userId
+                    )
+                    .eq(
+                        "item_id",
+                        numericItemId
+                    )
+                    .maybeSingle();
+
+            if (ownershipError) {
+                return res.status(500).json({
+                    error:
+                        ownershipError.message
+                });
+            }
+
+            if (!ownership) {
+                return res.status(403).json({
+                    error:
+                        "You do not own this item."
+                });
             }
 
 
@@ -5981,21 +5978,13 @@ app.post(
                         );
 
                 if (updateError) {
-
-                    console.error(
-                        "EQUIP TITLE ERROR:",
-                        updateError
-                    );
-
                     return res.status(500).json({
                         error:
-                            "Could not equip title."
+                            updateError.message
                     });
-
                 }
 
                 return res.json({
-
                     success:
                         true,
 
@@ -6004,7 +5993,6 @@ app.post(
 
                     equipped:
                         item
-
                 });
 
             }
@@ -6024,30 +6012,25 @@ app.post(
                     ownership.equipped ===
                     true
                 ) {
-
                     return res.status(400).json({
                         error:
                             "This item is already displayed."
                     });
-
                 }
 
 
-                // Count currently displayed items
+                // ======================================
+                // COUNT DISPLAYED ITEMS
+                // ======================================
+
                 const {
-                    count,
-                    error: countError
+                    data: displayedItems,
+                    error: displayedError
                 } =
                     await supabase
                         .from("user_shop_items")
                         .select(
-                            "*",
-                            {
-                                count:
-                                    "exact",
-                                head:
-                                    true
-                            }
+                            "item_id"
                         )
                         .eq(
                             "user_id",
@@ -6058,38 +6041,34 @@ app.post(
                             true
                         );
 
-
-                if (countError) {
-
-                    console.error(
-                        "DISPLAY COUNT ERROR:",
-                        countError
-                    );
-
+                if (displayedError) {
                     return res.status(500).json({
                         error:
-                            countError.message
+                            displayedError.message
                     });
-
                 }
 
 
-                // Maximum 5 items
-                if (
-                    (count || 0) >= 5
-                ) {
+                // ======================================
+                // MAXIMUM 5
+                // ======================================
 
+                if (
+                    (displayedItems || []).length >= 5
+                ) {
                     return res.status(400).json({
                         error:
                             "You can only display 5 items at once."
                     });
-
                 }
 
 
-                // Display item
+                // ======================================
+                // DISPLAY ITEM
+                // ======================================
+
                 const {
-                    error: displayError
+                    error: equipError
                 } =
                     await supabase
                         .from("user_shop_items")
@@ -6106,24 +6085,14 @@ app.post(
                             numericItemId
                         );
 
-
-                if (displayError) {
-
-                    console.error(
-                        "DISPLAY ITEM ERROR:",
-                        displayError
-                    );
-
+                if (equipError) {
                     return res.status(500).json({
                         error:
-                            "Could not display item."
+                            equipError.message
                     });
-
                 }
 
-
                 return res.json({
-
                     success:
                         true,
 
@@ -6132,19 +6101,18 @@ app.post(
 
                     displayed:
                         item
-
                 });
 
             }
 
 
             // ==========================================
-            // INVALID ITEM TYPE
+            // INVALID TYPE
             // ==========================================
 
             return res.status(400).json({
                 error:
-                    "Invalid shop item type."
+                    "This shop item has an invalid item type."
             });
 
 
@@ -6164,6 +6132,7 @@ app.post(
 
     }
 );
+
 
 
 // ==================================================
@@ -8697,94 +8666,7 @@ app.post(
     }
 );
 
-app.get(
-    "/api/shop/inventory",
-    async (req, res) => {
 
-        try {
-
-            if (
-                !req.session ||
-                !req.session.user ||
-                !req.session.user.id
-            ) {
-
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-
-            }
-
-            const userId =
-                req.session.user.id;
-
-
-            const {
-                data,
-                error
-            } = await supabase
-                .from("user_items")
-                .select(`
-                    id,
-                    item_id,
-                    purchased_at,
-                    shop_items (
-                        id,
-                        name,
-                        description,
-                        price
-                    )
-                `)
-                .eq(
-                    "user_id",
-                    userId
-                )
-                .order(
-                    "purchased_at",
-                    {
-                        ascending: false
-                    }
-                );
-
-
-            if (error) {
-
-                console.error(
-                    "INVENTORY ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            return res.json({
-                success: true,
-                items: data || []
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "INVENTORY ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    "Failed to load inventory."
-            });
-
-        }
-
-    }
-);
 // ==================================================
 // UNBAN
 // ==================================================

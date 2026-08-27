@@ -1,9 +1,9 @@
+
 <!DOCTYPE html>
 
 <html lang="en">
 
 <head>
-
 
 <meta charset="UTF-8">
 
@@ -24,236 +24,225 @@
 
 <style>
 
-    .inventory-container {
+.inventory-container {
 
-        max-width: 1100px;
+    max-width: 1100px;
 
-        margin: 40px auto;
+    margin: 40px auto;
 
-        padding: 20px;
+    padding: 20px;
 
-    }
+}
 
+.inventory-header {
 
-    .inventory-header {
+    text-align: center;
 
-        text-align: center;
+    margin-bottom: 35px;
 
-        margin-bottom: 35px;
+}
 
-    }
+.inventory-header h1 {
 
+    font-size: 40px;
+
+    margin-bottom: 10px;
+
+}
+
+.inventory-header p {
+
+    color: #666;
+
+}
+
+.equipped-box {
+
+    background: white;
+
+    border-radius: 18px;
+
+    padding: 25px;
+
+    margin-bottom: 30px;
+
+    box-shadow:
+        0 3px 12px
+        rgba(0, 0, 0, 0.08);
+
+    text-align: center;
+
+}
+
+.equipped-title {
+
+    font-size: 28px;
+
+    font-weight: bold;
+
+    margin-top: 10px;
+
+}
+
+.inventory-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            auto-fit,
+            minmax(230px, 1fr)
+        );
+
+    gap: 20px;
+
+}
+
+.inventory-item {
+
+    background: white;
+
+    border-radius: 18px;
+
+    padding: 25px;
+
+    text-align: center;
+
+    box-shadow:
+        0 3px 12px
+        rgba(0, 0, 0, 0.08);
+
+}
+
+.item-icon {
+
+    font-size: 55px;
+
+    margin-bottom: 10px;
+
+}
+
+.inventory-item h2 {
+
+    margin: 10px 0;
+
+}
+
+.inventory-item p {
+
+    color: #666;
+
+    min-height: 45px;
+
+}
+
+.item-date {
+
+    font-size: 13px;
+
+    color: #888;
+
+    margin-bottom: 15px;
+
+}
+
+.inventory-button {
+
+    width: 100%;
+
+    padding: 12px;
+
+    border: none;
+
+    border-radius: 10px;
+
+    cursor: pointer;
+
+    font-weight: bold;
+
+    font-size: 15px;
+
+}
+
+.inventory-button:hover {
+
+    opacity: 0.8;
+
+}
+
+.inventory-button:disabled {
+
+    opacity: 0.5;
+
+    cursor: not-allowed;
+
+}
+
+.unequip-button {
+
+    margin-top: 15px;
+
+    padding: 10px 20px;
+
+    border: none;
+
+    border-radius: 10px;
+
+    cursor: pointer;
+
+    font-weight: bold;
+
+}
+
+.empty-inventory {
+
+    text-align: center;
+
+    padding: 50px 20px;
+
+    background: white;
+
+    border-radius: 18px;
+
+    box-shadow:
+        0 3px 12px
+        rgba(0, 0, 0, 0.08);
+
+}
+
+#inventory-status {
+
+    text-align: center;
+
+    margin: 20px;
+
+    font-weight: bold;
+
+}
+
+@media (max-width: 600px) {
 
     .inventory-header h1 {
 
-        font-size: 40px;
-
-        margin-bottom: 10px;
+        font-size: 30px;
 
     }
 
+    .inventory-container {
 
-    .inventory-header p {
-
-        color: #666;
-
-    }
-
-
-    .equipped-box {
-
-        background: white;
-
-        border-radius: 18px;
-
-        padding: 25px;
-
-        margin-bottom: 30px;
-
-        box-shadow:
-            0 3px 12px
-            rgba(0, 0, 0, 0.08);
-
-        text-align: center;
+        padding: 15px;
 
     }
 
-
-    .equipped-title {
-
-        font-size: 28px;
-
-        font-weight: bold;
-
-        margin-top: 10px;
-
-    }
-
-
-    .inventory-grid {
-
-        display: grid;
-
-        grid-template-columns:
-            repeat(
-                auto-fit,
-                minmax(230px, 1fr)
-            );
-
-        gap: 20px;
-
-    }
-
-
-    .inventory-item {
-
-        background: white;
-
-        border-radius: 18px;
-
-        padding: 25px;
-
-        text-align: center;
-
-        box-shadow:
-            0 3px 12px
-            rgba(0, 0, 0, 0.08);
-
-    }
-
-
-    .item-icon {
-
-        font-size: 55px;
-
-        margin-bottom: 10px;
-
-    }
-
-
-    .inventory-item h2 {
-
-        margin: 10px 0;
-
-    }
-
-
-    .inventory-item p {
-
-        color: #666;
-
-        min-height: 45px;
-
-    }
-
-
-    .item-date {
-
-        font-size: 13px;
-
-        color: #888;
-
-        margin-bottom: 15px;
-
-    }
-
-
-    .inventory-button {
-
-        width: 100%;
-
-        padding: 12px;
-
-        border: none;
-
-        border-radius: 10px;
-
-        cursor: pointer;
-
-        font-weight: bold;
-
-        font-size: 15px;
-
-    }
-
-
-    .inventory-button:hover {
-
-        opacity: 0.8;
-
-    }
-
-
-    .unequip-button {
-
-        margin-top: 15px;
-
-        padding: 10px 20px;
-
-        border: none;
-
-        border-radius: 10px;
-
-        cursor: pointer;
-
-        font-weight: bold;
-
-    }
-
-
-    .empty-inventory {
-
-        text-align: center;
-
-        padding: 50px 20px;
-
-        background: white;
-
-        border-radius: 18px;
-
-        box-shadow:
-            0 3px 12px
-            rgba(0, 0, 0, 0.08);
-
-    }
-
-
-    #inventory-status {
-
-        text-align: center;
-
-        margin: 20px;
-
-        font-weight: bold;
-
-    }
-
-
-    @media (max-width: 600px) {
-
-        .inventory-header h1 {
-
-            font-size: 30px;
-
-        }
-
-        .inventory-container {
-
-            padding: 15px;
-
-        }
-
-    }
+}
 
 </style>
-
 
 </head>
 
 <body>
 
 <header class="navbar">
-
 
 <div class="navbar-inner">
 
@@ -264,7 +253,6 @@
         🧌 ShrekBook
 
     </a>
-
 
     <nav>
 
@@ -284,11 +272,10 @@
 
 </div>
 
-
 </header>
 
-<main class="inventory-container">
 
+<main class="inventory-container">
 
 <div class="inventory-header">
 
@@ -327,7 +314,6 @@
 
     </div>
 
-
     <button
         id="unequip-button"
         class="unequip-button"
@@ -351,7 +337,6 @@
         🎒 Your Items
     </h2>
 
-
     <div
         id="inventory"
         class="inventory-grid">
@@ -360,10 +345,11 @@
 
 </section>
 
-
 </main>
 
+
 <script>
+
 
 /* ==================================================
    LOAD INVENTORY
@@ -398,12 +384,6 @@ async function loadInventory() {
             await response.json();
 
 
-        console.log(
-            "🎒 INVENTORY:",
-            data
-        );
-
-
         if (!response.ok) {
 
             status.textContent =
@@ -418,14 +398,15 @@ async function loadInventory() {
         }
 
 
-        status.textContent = "";
+        status.textContent =
+            "";
 
 
-        /* ------------------------------------------
+        /* ==========================================
            EQUIPPED TITLE
-        ------------------------------------------ */
+        ========================================== */
 
-        const equipped =
+        const equippedTitle =
             data.equipped;
 
 
@@ -441,15 +422,18 @@ async function loadInventory() {
             );
 
 
-        if (equipped) {
+        if (equippedTitle) {
 
             equippedElement.textContent =
                 (
-                    equipped.icon ||
+                    equippedTitle.icon ||
                     "🏷️"
                 ) +
                 " " +
-                equipped.name;
+                (
+                    equippedTitle.name ||
+                    "Unknown Title"
+                );
 
             unequipButton.style.display =
                 "inline-block";
@@ -465,9 +449,9 @@ async function loadInventory() {
         }
 
 
-        /* ------------------------------------------
+        /* ==========================================
            ITEMS
-        ------------------------------------------ */
+        ========================================== */
 
         inventory.innerHTML = "";
 
@@ -486,7 +470,7 @@ async function loadInventory() {
                     </h2>
 
                     <p>
-                        Go buy some damn titles.
+                        Go buy some damn items.
                         🧌
                     </p>
 
@@ -503,6 +487,10 @@ async function loadInventory() {
         }
 
 
+        /* ==========================================
+           CREATE CARDS
+        ========================================== */
+
         data.items.forEach(item => {
 
             const card =
@@ -515,11 +503,98 @@ async function loadInventory() {
                 "inventory-item";
 
 
-            const isEquipped =
-                equipped &&
-                String(equipped.id) ===
-                String(item.id);
+            /* ======================================
+               DETERMINE ITEM TYPE
+            ====================================== */
 
+            const isTitle =
+                item.item_type ===
+                "title";
+
+
+            const isNormalItem =
+                item.item_type ===
+                "item";
+
+
+            /* ======================================
+               EQUIPPED / DISPLAYED
+            ====================================== */
+
+            const isEquippedTitle =
+                isTitle &&
+                equippedTitle &&
+                String(
+                    equippedTitle.id
+                ) ===
+                String(
+                    item.id
+                );
+
+
+            const isDisplayedItem =
+                isNormalItem &&
+                item.equipped === true;
+
+
+            /* ======================================
+               BUTTON
+            ====================================== */
+
+            let buttonText =
+                "Use Item";
+
+
+            let buttonAction =
+                `equipItem('${escapeAttribute(
+                    item.id
+                )}')`;
+
+
+            let disabled =
+                false;
+
+
+            if (isTitle) {
+
+                if (isEquippedTitle) {
+
+                    buttonText =
+                        "✅ Equipped";
+
+                    disabled =
+                        true;
+
+                } else {
+
+                    buttonText =
+                        "🏷️ Equip Title";
+
+                }
+
+            } else {
+
+                if (isDisplayedItem) {
+
+                    buttonText =
+                        "✅ Displayed";
+
+                    disabled =
+                        true;
+
+                } else {
+
+                    buttonText =
+                        "✨ Display Item";
+
+                }
+
+            }
+
+
+            /* ======================================
+               CARD
+            ====================================== */
 
             card.innerHTML = `
 
@@ -527,7 +602,7 @@ async function loadInventory() {
 
                     ${escapeHtml(
                         item.icon ||
-                        "🏷️"
+                        "🎁"
                     )}
 
                 </div>
@@ -565,14 +640,10 @@ async function loadInventory() {
 
                 <button
                     class="inventory-button"
-                    onclick="equipTitle('${escapeAttribute(item.id)}')"
-                    ${isEquipped ? "disabled" : ""}>
+                    onclick="${buttonAction}"
+                    ${disabled ? "disabled" : ""}>
 
-                    ${
-                        isEquipped
-                            ? "✅ Equipped"
-                            : "🏷️ Equip Title"
-                    }
+                    ${buttonText}
 
                 </button>
 
@@ -593,7 +664,6 @@ async function loadInventory() {
             error
         );
 
-
         status.textContent =
             "❌ Could not load inventory.";
 
@@ -601,74 +671,12 @@ async function loadInventory() {
 
 }
 
-async function equipItem(itemId) {
 
-    const response =
-        await fetch(
-            "/api/shop/equip",
-            {
-                method: "POST",
-
-                credentials: "include",
-
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
-
-                body: JSON.stringify({
-                    item_id:
-                        itemId
-                })
-            }
-        );
-
-
-    const data =
-        await response.json();
-
-
-    if (!response.ok) {
-
-        alert(
-            "❌ " +
-            (
-                data.error ||
-                "Could not equip item."
-            )
-        );
-
-        return;
-
-    }
-
-
-    if (
-        data.type ===
-        "title"
-    ) {
-
-        alert(
-            "👑 Title equipped!"
-        );
-
-    } else {
-
-        alert(
-            "✨ Item displayed!"
-        );
-
-    }
-
-
-    loadInventory();
-
-}
 /* ==================================================
-   EQUIP TITLE
+   EQUIP / DISPLAY ITEM
 ================================================== */
 
-async function equipTitle(itemId) {
+async function equipItem(itemId) {
 
     try {
 
@@ -712,7 +720,7 @@ async function equipTitle(itemId) {
                 "❌ " +
                 (
                     data.error ||
-                    "Could not equip title."
+                    "Could not equip item."
                 )
             );
 
@@ -721,13 +729,25 @@ async function equipTitle(itemId) {
         }
 
 
-        alert(
-            "🏷️ Title equipped!"
-        );
+        if (
+            data.type ===
+            "title"
+        ) {
+
+            alert(
+                "👑 Title equipped!"
+            );
+
+        } else {
+
+            alert(
+                "✨ Item displayed!"
+            );
+
+        }
 
 
         loadInventory();
-
 
     } catch (error) {
 
@@ -736,9 +756,8 @@ async function equipTitle(itemId) {
             error
         );
 
-
         alert(
-            "❌ Could not equip title."
+            "❌ Could not equip item."
         );
 
     }
@@ -802,7 +821,6 @@ async function unequipTitle() {
             "UNEQUIP ERROR:",
             error
         );
-
 
         alert(
             "❌ Could not unequip title."
@@ -899,3 +917,4 @@ loadInventory();
 </body>
 
 </html>
+
