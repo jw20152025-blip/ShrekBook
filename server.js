@@ -8351,7 +8351,94 @@ app.post(
     }
 );
 
+app.get(
+    "/api/shop/inventory",
+    async (req, res) => {
 
+        try {
+
+            if (
+                !req.session ||
+                !req.session.user ||
+                !req.session.user.id
+            ) {
+
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+
+            }
+
+            const userId =
+                req.session.user.id;
+
+
+            const {
+                data,
+                error
+            } = await supabase
+                .from("user_items")
+                .select(`
+                    id,
+                    item_id,
+                    purchased_at,
+                    shop_items (
+                        id,
+                        name,
+                        description,
+                        price
+                    )
+                `)
+                .eq(
+                    "user_id",
+                    userId
+                )
+                .order(
+                    "purchased_at",
+                    {
+                        ascending: false
+                    }
+                );
+
+
+            if (error) {
+
+                console.error(
+                    "INVENTORY ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+
+            return res.json({
+                success: true,
+                items: data || []
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "INVENTORY ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Failed to load inventory."
+            });
+
+        }
+
+    }
+);
 // ==================================================
 // UNBAN
 // ==================================================

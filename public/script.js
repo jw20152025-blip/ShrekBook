@@ -17,7 +17,98 @@ function escapeHtml(text) {
 
 }
 
+async function loadInventory() {
 
+    try {
+
+        const response =
+            await fetch(
+                "/api/shop/inventory",
+                {
+                    credentials: "include"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Failed to load inventory."
+            );
+
+        }
+
+
+        const inventory =
+            data.items || [];
+
+
+        const container =
+            document.getElementById(
+                "inventory"
+            );
+
+
+        if (!container) {
+            return;
+        }
+
+
+        if (inventory.length === 0) {
+
+            container.innerHTML =
+                "<p>You don't own any items yet. 🧌</p>";
+
+            return;
+
+        }
+
+
+        container.innerHTML =
+            inventory.map(item => {
+
+                const shopItem =
+                    item.shop_items;
+
+
+                return `
+
+                    <div class="inventory-item">
+
+                        <h3>
+                            ${escapeHtml(
+                                shopItem.name
+                            )}
+                        </h3>
+
+                        <p>
+                            ${escapeHtml(
+                                shopItem.description || ""
+                            )}
+                        </p>
+
+                    </div>
+
+                `;
+
+            }).join("");
+
+
+    } catch (error) {
+
+        console.error(
+            "INVENTORY LOAD ERROR:",
+            error
+        );
+
+    }
+
+}
 /* ==================================================
    WARNING
 ================================================== */
@@ -2920,22 +3011,16 @@ async function loadPeople() {
                             <div>
 
                                 <strong>
-                                    ${escapeHtml(displayName)}
-
-                                ${
-                                    user.equippedTitle &&
-                                    user.equippedTitle.name
-                                        ? ` 【${escapeHtml(user.equippedTitle.name)}】`
-                                        : ""
-                                }
-
-
+                                    ${escapeHtml(
+                                        displayName
+                                    )}
                                 </strong>
 
                                 <p>
-                                    @${escapeHtml(user.username)}
+                                    @${escapeHtml(
+                                        user.username
+                                    )}
                                 </p>
-
 
                             </div>
 
