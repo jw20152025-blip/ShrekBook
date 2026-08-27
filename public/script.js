@@ -2920,16 +2920,22 @@ async function loadPeople() {
                             <div>
 
                                 <strong>
-                                    ${escapeHtml(
-                                        displayName
-                                    )}
+                                    ${escapeHtml(displayName)}
+
+                                ${
+                                    user.equippedTitle &&
+                                    user.equippedTitle.name
+                                        ? ` 【${escapeHtml(user.equippedTitle.name)}】`
+                                        : ""
+                                }
+
+
                                 </strong>
 
                                 <p>
-                                    @${escapeHtml(
-                                        user.username
-                                    )}
+                                    @${escapeHtml(user.username)}
                                 </p>
+
 
                             </div>
 
