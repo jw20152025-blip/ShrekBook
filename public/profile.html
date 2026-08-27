@@ -584,15 +584,9 @@ function renderDisplayedItem() {
             "displayed-item-icon"
         );
 
-    const nameElement =
-        document.getElementById(
-            "displayed-item-name"
-        );
-
     if (
         !itemElement ||
-        !iconElement ||
-        !nameElement
+        !iconElement
     ) {
         return;
     }
@@ -611,11 +605,9 @@ function renderDisplayedItem() {
 
     }
 
+    // Show the item's icon
     iconElement.textContent =
         item.icon || "🎁";
-
-    nameElement.textContent =
-        item.name || "Item";
 
     itemElement.style.display =
         "inline-flex";

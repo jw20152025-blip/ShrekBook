@@ -3501,13 +3501,19 @@ app.get(
                 }
 
             }
+
+
             // ==========================================
             // GET DISPLAYED ITEM
             // ==========================================
 
-            let displayedItem = null;
+            let displayedItem =
+                null;
 
-            if (profile.displayed_item_id) {
+
+            if (
+                profile.displayed_item_id
+            ) {
 
                 const {
                     data: item,
@@ -3518,8 +3524,8 @@ app.get(
                         id,
                         name,
                         description,
-                        icon,
                         price,
+                        icon,
                         item_type
                     `)
                     .eq(
@@ -3527,6 +3533,7 @@ app.get(
                         profile.displayed_item_id
                     )
                     .maybeSingle();
+
 
                 if (itemError) {
 
@@ -3543,6 +3550,7 @@ app.get(
                 }
 
             }
+
 
             // ==========================================
             // GET POSTS
@@ -3574,6 +3582,11 @@ app.get(
 
             if (postsError) {
 
+                console.error(
+                    "POSTS ERROR:",
+                    postsError
+                );
+
                 return res.status(500).json({
                     error:
                         postsError.message
@@ -3598,30 +3611,66 @@ app.get(
 
             return res.json({
 
-                ...profile,
+                id:
+                    profile.id,
 
+                username:
+                    profile.username,
+
+                display_name:
+                    profile.display_name,
 
                 avatar:
                     getAvatar(
                         profile.avatar
                     ),
 
+                bio:
+                    profile.bio,
+
+                created_at:
+                    profile.created_at,
+
+                equipped_title_id:
+                    profile.equipped_title_id,
+
+                displayed_item_id:
+                    profile.displayed_item_id,
+
+
+                // --------------------------------------
+                // EQUIPPED TITLE
+                // --------------------------------------
 
                 equippedTitle:
                     equippedTitle,
 
 
+                // --------------------------------------
+                // DISPLAYED ITEM
+                // --------------------------------------
+
+                displayedItem:
+                    displayedItem,
+
+
+                // --------------------------------------
+                // REACTIONS
+                // --------------------------------------
+
                 gyatt:
                     reactions.gyatt,
-
 
                 cat:
                     reactions.cat,
 
-
                 ogred:
                     reactions.ogred,
 
+
+                // --------------------------------------
+                // POSTS
+                // --------------------------------------
 
                 posts:
                     posts || []
