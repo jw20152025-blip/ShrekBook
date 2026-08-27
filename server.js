@@ -5809,6 +5809,7 @@ app.get(
 // EQUIP / DISPLAY SHOP ITEM
 // ==================================================
 
+
 app.post(
     "/api/shop/equip",
     async (req, res) => {
@@ -5832,7 +5833,6 @@ app.post(
 
             }
 
-
             const userId =
                 req.session.user.id;
 
@@ -5845,10 +5845,8 @@ app.post(
                 req.body &&
                 req.body.item_id;
 
-
             const numericItemId =
                 Number(itemId);
-
 
             if (
                 !Number.isInteger(
@@ -5876,7 +5874,7 @@ app.post(
                 await supabase
                     .from("user_shop_items")
                     .select(
-                        "user_id, item_id"
+                        "user_id, item_id, equipped"
                     )
                     .eq(
                         "user_id",
@@ -5887,7 +5885,6 @@ app.post(
                         numericItemId
                     )
                     .maybeSingle();
-
 
             if (ownershipError) {
 
@@ -5902,7 +5899,6 @@ app.post(
                 });
 
             }
-
 
             if (!ownership) {
 
@@ -5924,15 +5920,18 @@ app.post(
             } =
                 await supabase
                     .from("shop_items")
-                    .select(
-                        "id, name, description, icon, item_type"
-                    )
+                    .select(`
+                        id,
+                        name,
+                        description,
+                        icon,
+                        item_type
+                    `)
                     .eq(
                         "id",
                         numericItemId
                     )
                     .maybeSingle();
-
 
             if (itemError) {
 
@@ -5947,7 +5946,6 @@ app.post(
                 });
 
             }
-
 
             if (!item) {
 
@@ -5974,16 +5972,13 @@ app.post(
                     await supabase
                         .from("profiles")
                         .update({
-
                             equipped_title_id:
                                 numericItemId
-
                         })
                         .eq(
                             "id",
                             userId
                         );
-
 
                 if (updateError) {
 
@@ -5998,7 +5993,6 @@ app.post(
                     });
 
                 }
-
 
                 return res.json({
 
@@ -6017,71 +6011,161 @@ app.post(
 
 
             // ==========================================
-            // NON-TITLE ITEM
+            // NORMAL ITEM
             // ==========================================
 
-            const {
-                error: displayError
-            } =
-                await supabase
-                    .from("profiles")
-                    .update({
+            if (
+                item.item_type ===
+                "item"
+            ) {
 
-                        displayed_item_id:
-                            numericItemId
+                // Already displayed
+                if (
+                    ownership.equipped ===
+                    true
+                ) {
 
-                    })
-                    .eq(
-                        "id",
-                        userId
+                    return res.status(400).json({
+                        error:
+                            "This item is already displayed."
+                    });
+
+                }
+
+
+                // Count currently displayed items
+                const {
+                    count,
+                    error: countError
+                } =
+                    await supabase
+                        .from("user_shop_items")
+                        .select(
+                            "*",
+                            {
+                                count:
+                                    "exact",
+                                head:
+                                    true
+                            }
+                        )
+                        .eq(
+                            "user_id",
+                            userId
+                        )
+                        .eq(
+                            "equipped",
+                            true
+                        );
+
+
+                if (countError) {
+
+                    console.error(
+                        "DISPLAY COUNT ERROR:",
+                        countError
                     );
 
+                    return res.status(500).json({
+                        error:
+                            countError.message
+                    });
 
-            if (displayError) {
+                }
 
-                console.error(
-                    "DISPLAY ITEM ERROR:",
-                    displayError
-                );
 
-                return res.status(500).json({
-                    error:
-                        "Could not display item."
+                // Maximum 5 items
+                if (
+                    (count || 0) >= 5
+                ) {
+
+                    return res.status(400).json({
+                        error:
+                            "You can only display 5 items at once."
+                    });
+
+                }
+
+
+                // Display item
+                const {
+                    error: displayError
+                } =
+                    await supabase
+                        .from("user_shop_items")
+                        .update({
+                            equipped:
+                                true
+                        })
+                        .eq(
+                            "user_id",
+                            userId
+                        )
+                        .eq(
+                            "item_id",
+                            numericItemId
+                        );
+
+
+                if (displayError) {
+
+                    console.error(
+                        "DISPLAY ITEM ERROR:",
+                        displayError
+                    );
+
+                    return res.status(500).json({
+                        error:
+                            "Could not display item."
+                    });
+
+                }
+
+
+                return res.json({
+
+                    success:
+                        true,
+
+                    type:
+                        "item",
+
+                    displayed:
+                        item
+
                 });
 
             }
 
 
-            return res.json({
+            // ==========================================
+            // INVALID ITEM TYPE
+            // ==========================================
 
-                success:
-                    true,
-
-                type:
-                    "item",
-
-                displayed:
-                    item
-
+            return res.status(400).json({
+                error:
+                    "Invalid shop item type."
             });
 
 
         } catch (error) {
 
             console.error(
-                "SHOP EQUIP/DISPLAY ERROR:",
+                "SHOP EQUIP ERROR:",
                 error
             );
 
             return res.status(500).json({
                 error:
-                    "Failed to equip or display item."
+                    "Failed to equip item."
             });
 
         }
 
     }
 );
+
+
 // ==================================================
 // UNEQUIP / HIDE SHOP ITEM
 // ==================================================

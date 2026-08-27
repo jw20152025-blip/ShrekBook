@@ -3,23 +3,150 @@
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
 
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0">
 
-    <title>Profile 🧌</title>
-    <title>ShrekBook Profile</title>
-    <meta name="description" content="View a user profile on ShrekBook, a social network for sharing posts and connecting with friends.">
-    <meta name="robots" content="index, follow">
+    <title>ShrekBook Profile 🧌</title>
+
+    <meta
+        name="description"
+        content="View a user profile on ShrekBook, a social network for sharing posts and connecting with friends.">
+
+    <meta
+        name="robots"
+        content="index, follow">
 
     <link
         rel="stylesheet"
         href="/styles.css">
+
+    <style>
+
+        /* ==================================================
+           PROFILE TITLE
+        ================================================== */
+
+        .profile-username-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 6px 0 12px;
+        }
+
+        .profile-username {
+            margin: 0;
+        }
+
+        .equipped-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.06);
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .equipped-title-icon {
+            font-size: 16px;
+        }
+
+
+        /* ==================================================
+           PROFILE CARD
+        ================================================== */
+
+        .profile-card {
+            text-align: center;
+        }
+
+        .profile-avatar {
+            width: 130px;
+            height: 130px;
+            object-fit: cover;
+            border-radius: 50%;
+            display: block;
+            margin: 0 auto 15px;
+        }
+
+        #profile-bio {
+            max-width: 600px;
+            margin: 10px auto 20px;
+            color: #666;
+        }
+
+
+        /* ==================================================
+           REACTIONS
+        ================================================== */
+
+        .profile-reactions {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .profile-reactions button {
+            border: none;
+            border-radius: 12px;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.15s ease;
+        }
+
+        .profile-reactions button:hover {
+            transform: translateY(-2px);
+        }
+
+
+        /* ==================================================
+           POSTS
+        ================================================== */
+
+        #profile-posts {
+            margin-top: 20px;
+        }
+
+
+        /* ==================================================
+           MOBILE
+        ================================================== */
+
+        @media (max-width: 600px) {
+
+            .profile-avatar {
+                width: 105px;
+                height: 105px;
+            }
+
+            .equipped-title {
+                font-size: 13px;
+            }
+
+        }
+
+    </style>
+
 </head>
 
+
 <body>
+
+
+<!-- ==================================================
+     NAVBAR
+================================================== -->
 
 <header class="navbar">
 
@@ -28,12 +155,22 @@
         <a
             href="/"
             class="logo">
+
             🧌 ShrekBook
+
         </a>
 
+
         <nav>
-            <a href="/">Home</a>
-            <a href="/profile.html">Profile</a>
+
+            <a href="/">
+                Home
+            </a>
+
+            <a href="/profile.html">
+                Profile
+            </a>
+
         </nav>
 
     </div>
@@ -41,9 +178,17 @@
 </header>
 
 
+
+<!-- ==================================================
+     MAIN
+================================================== -->
+
 <main class="container">
 
-    <!-- PROFILE -->
+
+    <!-- ==================================================
+         PROFILE
+    ================================================== -->
 
     <section class="profile-card">
 
@@ -51,20 +196,37 @@
             id="profile-avatar"
             class="profile-avatar"
             src="/default-avatar.png"
-            alt="Profile avatar">
+            alt="Profile avatar"
+            onerror="this.src='/default-avatar.png';">
+
 
         <h1 id="profile-display-name">
             Loading...
         </h1>
 
-        <p id="profile-username">
-            Loading...
+
+        <!-- USERNAME + TITLE -->
+
+        <div class="profile-username-row">
+
+            <p
+                id="profile-username"
+                class="profile-username">
+
+                Loading...
+
+            </p>
+
+        </div>
+
+
+        <p id="profile-bio">
         </p>
 
-        <p id="profile-bio"></p>
 
-
-        <!-- REACTIONS -->
+        <!-- ==================================================
+             REACTIONS
+        ================================================== -->
 
         <div class="profile-reactions">
 
@@ -106,6 +268,8 @@
         </div>
 
 
+        <!-- EDIT -->
+
         <button
             id="edit-button"
             onclick="showEditProfile()"
@@ -118,7 +282,10 @@
     </section>
 
 
-    <!-- EDIT PROFILE -->
+
+    <!-- ==================================================
+         EDIT PROFILE
+    ================================================== -->
 
     <section
         id="edit-profile"
@@ -130,7 +297,7 @@
         </h2>
 
 
-        <label>
+        <label for="edit-display-name">
             Display name
         </label>
 
@@ -140,7 +307,7 @@
             maxlength="50">
 
 
-        <label>
+        <label for="edit-bio">
             Bio
         </label>
 
@@ -153,6 +320,7 @@
         <h3>
             🖼️ Change Avatar
         </h3>
+
 
         <input
             id="avatar-input"
@@ -185,12 +353,16 @@
         </button>
 
 
-        <p id="profile-status"></p>
+        <p id="profile-status">
+        </p>
 
     </section>
 
 
-    <!-- POSTS -->
+
+    <!-- ==================================================
+         POSTS
+    ================================================== -->
 
     <section>
 
@@ -198,8 +370,11 @@
             Posts
         </h2>
 
+
         <div id="profile-posts">
+
             Loading posts...
+
         </div>
 
     </section>
@@ -207,9 +382,12 @@
 </main>
 
 
+
 <script>
 
+
 let profileUser = null;
+
 
 
 // ==================================================
@@ -224,7 +402,9 @@ function getProfileId() {
         );
 
     return params.get("id");
+
 }
+
 
 
 // ==================================================
@@ -240,7 +420,107 @@ function escapeHtml(text) {
         text ?? "";
 
     return div.innerHTML;
+
 }
+
+
+
+// ==================================================
+// DISPLAY EQUIPPED TITLE
+// ==================================================
+
+function renderEquippedTitle() {
+
+    const usernameElement =
+        document.getElementById(
+            "profile-username"
+        );
+
+
+    if (!usernameElement) {
+        return;
+    }
+
+
+    /*
+     * Clear previous title.
+     */
+
+    const oldTitle =
+        document.getElementById(
+            "equipped-title-display"
+        );
+
+    if (oldTitle) {
+        oldTitle.remove();
+    }
+
+
+    const title =
+        profileUser &&
+        profileUser.equippedTitle;
+
+
+    /*
+     * No title equipped.
+     */
+
+    if (!title) {
+        return;
+    }
+
+
+    const titleElement =
+        document.createElement(
+            "span"
+        );
+
+
+    titleElement.id =
+        "equipped-title-display";
+
+    titleElement.className =
+        "equipped-title";
+
+
+    const icon =
+        title.icon ||
+        "👑";
+
+
+    const name =
+        title.name ||
+        "Unknown Title";
+
+
+    titleElement.innerHTML = `
+
+        <span
+            class="equipped-title-icon">
+
+            ${escapeHtml(icon)}
+
+        </span>
+
+        <span>
+
+            ${escapeHtml(name)}
+
+        </span>
+
+    `;
+
+
+    usernameElement.appendChild(
+        document.createTextNode(" ")
+    );
+
+    usernameElement.appendChild(
+        titleElement
+    );
+
+}
+
 
 
 // ==================================================
@@ -252,18 +532,27 @@ async function loadProfile() {
     const id =
         getProfileId();
 
+
     const url =
         id
             ? `/api/users/${encodeURIComponent(id)}`
             : "/api/me";
 
+
     try {
 
         const response =
-            await fetch(url);
+            await fetch(
+                url,
+                {
+                    credentials: "include"
+                }
+            );
+
 
         const data =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -290,25 +579,46 @@ async function loadProfile() {
         }
 
 
+
+        // ==================================================
         // DISPLAY NAME
+        // ==================================================
 
         document.getElementById(
             "profile-display-name"
         ).textContent =
             profileUser.display_name ||
-            profileUser.username;
+            profileUser.username ||
+            "User";
 
 
+
+        // ==================================================
         // USERNAME
+        // ==================================================
 
         document.getElementById(
             "profile-username"
         ).textContent =
             "@" +
-            profileUser.username;
+            (
+                profileUser.username ||
+                "user"
+            );
 
 
+
+        // ==================================================
+        // TITLE
+        // ==================================================
+
+        renderEquippedTitle();
+
+
+
+        // ==================================================
         // BIO
+        // ==================================================
 
         document.getElementById(
             "profile-bio"
@@ -317,7 +627,10 @@ async function loadProfile() {
             "No bio yet.";
 
 
+
+        // ==================================================
         // AVATAR
+        // ==================================================
 
         document.getElementById(
             "profile-avatar"
@@ -326,7 +639,10 @@ async function loadProfile() {
             "/default-avatar.png";
 
 
+
+        // ==================================================
         // REACTIONS
+        // ==================================================
 
         document.getElementById(
             "gyatt-count"
@@ -346,10 +662,19 @@ async function loadProfile() {
             profileUser.ogred || 0;
 
 
+
+        // ==================================================
         // CHECK IF THIS IS OUR PROFILE
+        // ==================================================
 
         const meResponse =
-            await fetch("/api/me");
+            await fetch(
+                "/api/me",
+                {
+                    credentials: "include"
+                }
+            );
+
 
         const me =
             await meResponse.json();
@@ -369,7 +694,10 @@ async function loadProfile() {
         }
 
 
+
+        // ==================================================
         // POSTS
+        // ==================================================
 
         loadProfilePosts(
             profileUser.posts || []
@@ -383,14 +711,17 @@ async function loadProfile() {
             error
         );
 
+
         document.getElementById(
             "profile-display-name"
         ).textContent =
-            "❌ " + error.message;
+            "❌ " +
+            error.message;
 
     }
 
 }
+
 
 
 // ==================================================
@@ -403,8 +734,10 @@ async function giveReaction(type) {
         return;
     }
 
+
     const id =
         profileUser.id;
+
 
     try {
 
@@ -412,7 +745,8 @@ async function giveReaction(type) {
             await fetch(
                 `/api/users/${encodeURIComponent(id)}/${type}`,
                 {
-                    method: "POST"
+                    method: "POST",
+                    credentials: "include"
                 }
             );
 
@@ -429,7 +763,9 @@ async function giveReaction(type) {
             );
 
             return;
+
         }
+
 
 
         if (type === "gyatt") {
@@ -469,6 +805,7 @@ async function giveReaction(type) {
             error
         );
 
+
         alert(
             "Could not give reaction."
         );
@@ -476,6 +813,7 @@ async function giveReaction(type) {
     }
 
 }
+
 
 
 // ==================================================
@@ -487,6 +825,7 @@ function showEditProfile() {
     if (!profileUser) {
         return;
     }
+
 
     document.getElementById(
         "edit-profile"
@@ -511,6 +850,7 @@ function showEditProfile() {
 }
 
 
+
 // ==================================================
 // HIDE EDIT
 // ==================================================
@@ -523,6 +863,7 @@ function hideEditProfile() {
         "none";
 
 }
+
 
 
 // ==================================================
@@ -571,6 +912,8 @@ async function saveProfile() {
                 {
                     method: "PUT",
 
+                    credentials: "include",
+
                     headers: {
                         "Content-Type":
                             "application/json"
@@ -598,11 +941,10 @@ async function saveProfile() {
         }
 
 
-        profileUser =
-            {
-                ...profileUser,
-                ...data.user
-            };
+        profileUser = {
+            ...profileUser,
+            ...data.user
+        };
 
 
         document.getElementById(
@@ -616,6 +958,9 @@ async function saveProfile() {
         ).textContent =
             profileUser.bio ||
             "No bio yet.";
+
+
+        renderEquippedTitle();
 
 
         status.textContent =
@@ -635,6 +980,7 @@ async function saveProfile() {
             error
         );
 
+
         status.textContent =
             "❌ " +
             error.message;
@@ -642,6 +988,7 @@ async function saveProfile() {
     }
 
 }
+
 
 
 // ==================================================
@@ -676,7 +1023,10 @@ async function uploadAvatar() {
     }
 
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (
+        file.size >
+        5 * 1024 * 1024
+    ) {
 
         status.textContent =
             "❌ Image must be under 5MB.";
@@ -694,92 +1044,97 @@ async function uploadAvatar() {
         new FileReader();
 
 
-    reader.onload = async function () {
+    reader.onload =
+        async function () {
 
-        try {
+            try {
 
-            const base64 =
-                reader.result
-                    .split(",")[1];
+                const base64 =
+                    reader.result
+                        .split(",")[1];
 
 
-            const response =
-                await fetch(
-                    "/api/profile/avatar",
-                    {
-                        method: "POST",
+                const response =
+                    await fetch(
+                        "/api/profile/avatar",
+                        {
+                            method: "POST",
 
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
+                            credentials: "include",
 
-                        body: JSON.stringify({
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
 
-                            fileName:
-                                file.name,
+                            body: JSON.stringify({
 
-                            fileType:
-                                file.type,
+                                fileName:
+                                    file.name,
 
-                            fileData:
-                                base64
+                                fileType:
+                                    file.type,
 
-                        })
-                    }
+                                fileData:
+                                    base64
+
+                            })
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        data.error ||
+                        "Avatar upload failed."
+                    );
+
+                }
+
+
+                profileUser.avatar =
+                    data.avatar;
+
+
+                document.getElementById(
+                    "profile-avatar"
+                ).src =
+                    data.avatar;
+
+
+                status.textContent =
+                    "✅ Avatar updated!";
+
+
+                input.value = "";
+
+
+            } catch (error) {
+
+                console.error(
+                    "AVATAR ERROR:",
+                    error
                 );
 
 
-            const data =
-                await response.json();
-
-
-            if (!response.ok) {
-
-                throw new Error(
-                    data.error ||
-                    "Avatar upload failed."
-                );
+                status.textContent =
+                    "❌ " +
+                    error.message;
 
             }
 
-
-            profileUser.avatar =
-                data.avatar;
-
-
-            document.getElementById(
-                "profile-avatar"
-            ).src =
-                data.avatar;
-
-
-            status.textContent =
-                "✅ Avatar updated!";
-
-
-            input.value = "";
-
-
-        } catch (error) {
-
-            console.error(
-                "AVATAR ERROR:",
-                error
-            );
-
-            status.textContent =
-                "❌ " +
-                error.message;
-
-        }
-
-    };
+        };
 
 
     reader.readAsDataURL(file);
 
 }
+
 
 
 // ==================================================
@@ -805,35 +1160,43 @@ function loadProfilePosts(posts) {
 
 
     container.innerHTML =
-        posts.map(post => `
+        posts.map(
+            post => `
 
-            <article class="post">
+                <article
+                    class="post">
 
-                <div class="post-header">
+                    <div
+                        class="post-header">
 
-                    <strong>
+                        <strong>
+
+                            ${escapeHtml(
+                                profileUser.display_name ||
+                                profileUser.username
+                            )}
+
+                        </strong>
+
+                    </div>
+
+
+                    <div
+                        class="post-content">
+
                         ${escapeHtml(
-                            profileUser.display_name ||
-                            profileUser.username
+                            post.content || ""
                         )}
-                    </strong>
 
-                </div>
+                    </div>
 
+                </article>
 
-                <div class="post-content">
-
-                    ${escapeHtml(
-                        post.content
-                    )}
-
-                </div>
-
-            </article>
-
-        `).join("");
+            `
+        ).join("");
 
 }
+
 
 
 // ==================================================
@@ -845,5 +1208,6 @@ loadProfile();
 </script>
 
 </body>
+
 </html>
 
