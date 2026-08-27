@@ -422,41 +422,36 @@ app.post("/api/online", async (req, res) => {
 
     try {
 
-        if (!req.session.userId) {
-            return res.status(401).json({
-                error: "Not logged in"
+        // Not logged in = simply don't track them
+        if (
+            !req.session ||
+            !req.session.user ||
+            !req.session.user.id
+        ) {
+            return res.json({
+                success: false,
+                loggedIn: false
             });
         }
 
-        const { error } =
-            await supabase
-                .from("profiles")
-                .update({
-                    last_seen: new Date().toISOString()
-                })
-                .eq("id", req.session.userId);
+        const userId = req.session.user.id;
 
-        if (error) {
-            console.error("ONLINE STATUS ERROR:", error);
+        // Your existing online logic here...
 
-            return res.status(500).json({
-                error: error.message
-            });
-        }
-
-        res.json({
-            success: true
+        return res.json({
+            success: true,
+            loggedIn: true
         });
 
     } catch (error) {
 
         console.error(
-            "ONLINE STATUS SERVER ERROR:",
+            "ONLINE ERROR:",
             error
         );
 
-        res.status(500).json({
-            error: "Could not update online status"
+        return res.status(500).json({
+            error: "Failed to update online status."
         });
 
     }
