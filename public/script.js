@@ -140,52 +140,38 @@ let checkingSpecificMessage = false;
 
 async function checkSpecificMessages() {
 
-    if (checkingSpecificMessage) {
-        return;
-    }
-
-
-    checkingSpecificMessage = true;
-
-
     try {
 
-        const response =
+        // ==========================================
+        // CHECK LOGIN FIRST
+        // ==========================================
+
+        const meResponse =
             await fetch(
-                "/api/messages/specific",
+                "/api/me",
                 {
-                    method: "GET",
-
-                    credentials:
-                        "include",
-
-                    cache:
-                        "no-store"
+                    credentials: "include"
                 }
             );
 
 
-        if (!response.ok) {
+        // If /api/me says we're not logged in,
+        // don't even request specific messages.
+        if (!meResponse.ok) {
+
             return;
+
         }
 
 
-        const data =
-            await response.json();
-
-
-        const message =
-            data.message;
-
-
-        if (!message) {
-            return;
-        }
+        const me =
+            await meResponse.json();
 
 
         if (
-            message.id ===
-            lastSpecificMessageId
+            !me ||
+            me.loggedIn !== true ||
+            !me.user
         ) {
 
             return;
@@ -193,59 +179,79 @@ async function checkSpecificMessages() {
         }
 
 
-        lastSpecificMessageId =
-            message.id;
+        // ==========================================
+        // NOW CHECK SPECIFIC MESSAGE
+        // ==========================================
 
-
-        console.log(
-            "📨 NEW SPECIFIC MESSAGE:",
-            message
-        );
-
-
-        showShrekBookMessage(
-            "📨 ShrekBook Message",
-            message.message
-        );
-
-
-        const ackResponse =
+        const response =
             await fetch(
-                "/api/messages/specific/ack",
+                "/api/specific-message",
                 {
-                    method:
-                        "POST",
-
-                    credentials:
-                        "include",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    }
+                    credentials: "include"
                 }
             );
 
 
-        if (ackResponse.ok) {
+        // 401 can happen if the session expires
+        // between the two requests.
+        if (response.status === 401) {
 
-            console.log(
-                "✅ Specific message acknowledged."
-            );
+            return;
 
         }
 
-    } catch (error) {
 
-        console.error(
-            "❌ SPECIFIC MESSAGE ERROR:",
-            error
+        if (!response.ok) {
+
+            console.warn(
+                "Specific message request failed:",
+                response.status
+            );
+
+            return;
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        // ==========================================
+        // NO MESSAGE
+        // ==========================================
+
+        if (
+            !data ||
+            !data.message
+        ) {
+
+            return;
+
+        }
+
+
+        // ==========================================
+        // SHOW MESSAGE
+        // ==========================================
+
+        // Keep your existing message-display
+        // code here if you have additional logic.
+        console.log(
+            "📩 Specific message:",
+            data.message
         );
 
-    } finally {
 
-        checkingSpecificMessage =
-            false;
+    } catch (error) {
+
+        // Don't spam the console if the user
+        // is simply logged out or the session
+        // disappears.
+        console.debug(
+            "Specific message check skipped:",
+            error
+        );
 
     }
 
