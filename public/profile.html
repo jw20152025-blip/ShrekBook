@@ -569,48 +569,110 @@ function renderEquippedTitle() {
 }
 
 // ==================================================
-// DISPLAY ITEM
+// DISPLAY MULTIPLE ITEMS
 // ==================================================
 
-function renderDisplayedItem() {
+function renderDisplayedItems() {
 
-    const itemElement =
+    const container =
         document.getElementById(
-            "displayed-item"
+            "displayed-items"
         );
 
-    const iconElement =
-        document.getElementById(
-            "displayed-item-icon"
-        );
+
+    if (!container) {
+        return;
+    }
+
+
+    container.innerHTML = "";
+
+
+    const items =
+        profileUser &&
+        Array.isArray(
+            profileUser.displayedItems
+        )
+            ? profileUser.displayedItems
+            : [];
+
+
+    // ==========================================
+    // NO ITEMS
+    // ==========================================
 
     if (
-        !itemElement ||
-        !iconElement
+        items.length === 0
     ) {
-        return;
-    }
-
-    const item =
-        profileUser &&
-        profileUser.displayedItem;
-
-    // No item displayed
-    if (!item) {
-
-        itemElement.style.display =
-            "none";
 
         return;
 
     }
 
-    // Show the item's icon
-    iconElement.textContent =
-        item.icon || "🎁";
 
-    itemElement.style.display =
-        "inline-flex";
+    // ==========================================
+    // DISPLAY ITEMS
+    // ==========================================
+
+    items.forEach(
+        item => {
+
+            const itemElement =
+                document.createElement(
+                    "div"
+                );
+
+
+            itemElement.className =
+                "displayed-item";
+
+
+            const iconElement =
+                document.createElement(
+                    "span"
+                );
+
+
+            iconElement.className =
+                "displayed-item-icon";
+
+
+            iconElement.textContent =
+                item.icon ||
+                "🎁";
+
+
+            const nameElement =
+                document.createElement(
+                    "span"
+                );
+
+
+            nameElement.className =
+                "displayed-item-name";
+
+
+            nameElement.textContent =
+                item.name ||
+                "Item";
+
+
+            itemElement.appendChild(
+                iconElement
+            );
+
+
+            itemElement.appendChild(
+                nameElement
+            );
+
+
+            container.appendChild(
+                itemElement
+            );
+
+        }
+    );
 
 }
 

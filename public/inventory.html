@@ -23,7 +23,63 @@
     href="/styles.css">
 
 <style>
+/* ==================================================
+   DISPLAYED ITEMS
+================================================== */
 
+.displayed-items {
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    flex-wrap: wrap;
+
+    gap: 8px;
+
+    margin: 5px auto 15px;
+
+    max-width: 700px;
+
+}
+
+.displayed-item {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 6px;
+
+    padding: 6px 12px;
+
+    border-radius: 999px;
+
+    background: rgba(0, 0, 0, 0.06);
+
+    font-size: 14px;
+
+    font-weight: 700;
+
+}
+
+.displayed-item-icon {
+
+    font-size: 22px;
+
+    line-height: 1;
+
+}
+
+.displayed-item-name {
+
+    line-height: 1.2;
+
+}
 .inventory-container {
 
     max-width: 1100px;
@@ -265,7 +321,7 @@
         </a>
 
         <a href="/svis.html">
-            🛒 Shop
+            🛒 SVIS
         </a>
 
     </nav>
@@ -315,12 +371,16 @@
     </div>
 
     <button
-        id="unequip-button"
-        class="unequip-button"
-        onclick="unequipTitle()"
-        style="display:none;">
+        class="inventory-button"
+        id="equipped-item-button">
 
-        ❌ Unequip Title
+        ${
+            item.equipped
+                ? "❌ Undisplay Item"
+                : item.item_type === "title"
+                    ? "🏷️ Equip Title"
+                    : "✨ Display Item"
+        }
 
     </button>
 
@@ -668,9 +728,9 @@ async function loadInventory() {
 }
 
 
-/* ==================================================
-   EQUIP / DISPLAY ITEM
-================================================== */
+// ==================================================
+// EQUIP / DISPLAY ITEM
+// ==================================================
 
 async function equipItem(itemId) {
 
@@ -680,7 +740,6 @@ async function equipItem(itemId) {
             await fetch(
                 "/api/shop/equip",
                 {
-
                     method:
                         "POST",
 
@@ -688,20 +747,15 @@ async function equipItem(itemId) {
                         "include",
 
                     headers: {
-
                         "Content-Type":
                             "application/json"
-
                     },
 
                     body:
                         JSON.stringify({
-
                             item_id:
                                 itemId
-
                         })
-
                 }
             );
 
@@ -731,7 +785,7 @@ async function equipItem(itemId) {
         ) {
 
             alert(
-                "👑 Title equipped!"
+                "🏷️ Title equipped!"
             );
 
         } else {
@@ -745,12 +799,14 @@ async function equipItem(itemId) {
 
         loadInventory();
 
+
     } catch (error) {
 
         console.error(
             "EQUIP ERROR:",
             error
         );
+
 
         alert(
             "❌ Could not equip item."
@@ -759,7 +815,6 @@ async function equipItem(itemId) {
     }
 
 }
-
 
 /* ==================================================
    UNEQUIP TITLE
