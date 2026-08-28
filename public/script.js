@@ -460,9 +460,7 @@ async function giveReaction(type) {
 
 /* ==================================================
    MAKE IMAGE OBJECT
-================================================== */
-
-
+================================================== *
 async function prepareImage(file) {
 
     if (!file) {
@@ -2742,9 +2740,11 @@ async function createPost() {
             "post-status"
         );
 
+
     const content =
         input?.value.trim() ||
         "";
+
 
     const file =
         imageInput?.files?.[0] ||
@@ -2752,15 +2752,18 @@ async function createPost() {
 
 
     // ==========================================
-    // CHECK POST
+    // CHECK EMPTY
     // ==========================================
 
-    if (!content && !file) {
+    if (
+        !content &&
+        !file
+    ) {
 
         if (status) {
 
             status.textContent =
-                "❌ Write something or select an image/video.";
+                "❌ Write something or select a file.";
 
         }
 
@@ -2770,21 +2773,25 @@ async function createPost() {
 
 
     // ==========================================
-    // CHECK FILE TYPE
+    // CHECK FILE
     // ==========================================
 
     if (file) {
 
         const allowedTypes = [
 
-            "image/jpeg",
             "image/png",
+            "image/jpeg",
+            "image/jpg",
             "image/webp",
             "image/gif",
-            "image/bmp",
-            "video/mp4"
+
+            "video/mp4",
+            "video/webm",
+            "video/quicktime"
 
         ];
+
 
         if (
             !allowedTypes.includes(
@@ -2795,7 +2802,38 @@ async function createPost() {
             if (status) {
 
                 status.textContent =
-                    "❌ Only images and MP4 videos are allowed.";
+                    "❌ Unsupported file type.";
+
+            }
+
+            return;
+
+        }
+
+
+        const isVideo =
+            file.type.startsWith(
+                "video/"
+            );
+
+
+        const maxSize =
+            isVideo
+                ? 50 * 1024 * 1024
+                : 5 * 1024 * 1024;
+
+
+        if (
+            file.size >
+            maxSize
+        ) {
+
+            if (status) {
+
+                status.textContent =
+                    isVideo
+                        ? "❌ Video must be under 50MB."
+                        : "❌ Image must be under 5MB.";
 
             }
 
@@ -2805,6 +2843,10 @@ async function createPost() {
 
     }
 
+
+    // ==========================================
+    // STATUS
+    // ==========================================
 
     if (status) {
 
@@ -2816,79 +2858,47 @@ async function createPost() {
 
     try {
 
-        let image = null;
+        // ======================================
+        // CREATE FORM DATA
+        // ======================================
+
+        const formData =
+            new FormData();
 
 
-        // ==========================================
-        // PREPARE FILE
-        // ==========================================
+        formData.append(
+            "content",
+            content
+        );
+
 
         if (file) {
 
-            // MP4 files must NOT go through
-            // image compression/resizing.
-
-            if (
-                file.type ===
-                "video/mp4"
-            ) {
-
-                image =
-                    await fileToBase64(
-                        file
-                    );
-
-            } else {
-
-                image =
-                    await prepareImage(
-                        file
-                    );
-
-            }
+            formData.append(
+                "media",
+                file
+            );
 
         }
 
 
-        // ==========================================
-        // CREATE POST
-        // ==========================================
+        // ======================================
+        // SEND REQUEST
+        // ======================================
 
         const response =
             await fetch(
                 "/api/posts",
                 {
 
-                    method: "POST",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json",
-
-                        "Accept":
-                            "application/json"
-
-                    },
+                    method:
+                        "POST",
 
                     credentials:
                         "include",
 
                     body:
-                        JSON.stringify({
-
-                            content:
-                                content,
-
-                            image:
-                                image,
-
-                            mediaType:
-                                file
-                                    ? file.type
-                                    : null
-
-                        })
+                        formData
 
                 }
             );
@@ -2910,9 +2920,9 @@ async function createPost() {
         }
 
 
-        // ==========================================
+        // ======================================
         // CLEAR FORM
-        // ==========================================
+        // ======================================
 
         if (input) {
 
@@ -2920,6 +2930,7 @@ async function createPost() {
                 "";
 
         }
+
 
         if (imageInput) {
 
@@ -2929,10 +2940,15 @@ async function createPost() {
         }
 
 
+        // ======================================
+        // CLEAR PREVIEW
+        // ======================================
+
         const preview =
             document.getElementById(
                 "post-image-preview"
             );
+
 
         const previewImage =
             document.getElementById(
@@ -2956,6 +2972,10 @@ async function createPost() {
         }
 
 
+        // ======================================
+        // SUCCESS
+        // ======================================
+
         if (status) {
 
             status.textContent =
@@ -2964,15 +2984,27 @@ async function createPost() {
         }
 
 
-        // ==========================================
-        // RELOAD
-        // ==========================================
+        // ======================================
+        // RELOAD POSTS
+        // ======================================
 
-        loadPosts();
+        await loadPosts();
 
-        loadLeaderboard(
-            currentLeaderboard
-        );
+
+        // ======================================
+        // RELOAD LEADERBOARD
+        // ======================================
+
+        if (
+            typeof loadLeaderboard ===
+            "function"
+        ) {
+
+            loadLeaderboard(
+                currentLeaderboard
+            );
+
+        }
 
 
     } catch (error) {
@@ -2981,6 +3013,7 @@ async function createPost() {
             "CREATE POST ERROR:",
             error
         );
+
 
         if (status) {
 

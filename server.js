@@ -1,6 +1,14 @@
 
 require("dotenv").config();
+const multer = require("multer");
 
+const upload = multer({
+    storage: multer.memoryStorage(),
+
+    limits: {
+        fileSize: 50 * 1024 * 1024
+    }
+});
 // ==================================================
 // GLOBAL / SPECIFIC MESSAGES
 // ==================================================
@@ -3866,7 +3874,7 @@ app.put(
 
 
 async function uploadImage(
-    fileData,
+    fileBuffer,
     fileType,
     fileName,
     userId
@@ -3877,9 +3885,10 @@ async function uploadImage(
     // ==========================================
 
     if (
-        !fileData ||
+        !fileBuffer ||
         !fileType ||
-        !fileName
+        !fileName ||
+        !userId
     ) {
 
         throw new Error(
@@ -3924,24 +3933,11 @@ async function uploadImage(
 
 
     // ==========================================
-    // CONVERT BASE64 TO BUFFER
-    // ==========================================
-
-    const buffer =
-        Buffer.from(
-            fileData,
-            "base64"
-        );
-
-
-    // ==========================================
-    // FILE SIZE
+    // SIZE LIMIT
     // ==========================================
 
     const isVideo =
-        fileType.startsWith(
-            "video/"
-        );
+        fileType.startsWith("video/");
 
     const maxSize =
         isVideo
@@ -3950,16 +3946,14 @@ async function uploadImage(
 
 
     if (
-        buffer.length >
+        fileBuffer.length >
         maxSize
     ) {
 
         throw new Error(
-
             isVideo
                 ? "Video must be under 50MB."
                 : "Image must be under 5MB."
-
         );
 
     }
@@ -3969,7 +3963,7 @@ async function uploadImage(
     // GET EXTENSION
     // ==========================================
 
-    const extension =
+    let extension =
         fileName
             .split(".")
             .pop()
@@ -3981,19 +3975,14 @@ async function uploadImage(
     // ==========================================
 
     const allowedExtensions = [
-
-        // Images
         "png",
         "jpg",
         "jpeg",
         "webp",
         "gif",
-
-        // Videos
         "mp4",
         "webm",
         "mov"
-
     ];
 
 
@@ -4004,14 +3993,14 @@ async function uploadImage(
     ) {
 
         throw new Error(
-            "Unsupported file type."
+            "Unsupported file extension."
         );
 
     }
 
 
     // ==========================================
-    // CREATE FILE PATH
+    // CREATE STORAGE PATH
     // ==========================================
 
     const filePath =
@@ -4031,7 +4020,7 @@ async function uploadImage(
             .from("avatars")
             .upload(
                 filePath,
-                buffer,
+                fileBuffer,
                 {
                     contentType:
                         fileType,
@@ -4045,7 +4034,7 @@ async function uploadImage(
     if (uploadError) {
 
         console.error(
-            "STORAGE UPLOAD ERROR:",
+            "SUPABASE FILE UPLOAD ERROR:",
             uploadError
         );
 
@@ -4082,12 +4071,7 @@ async function uploadImage(
     }
 
 
-    // ==========================================
-    // RETURN URL
-    // ==========================================
-
     return publicData.publicUrl;
-
 }
 
 
@@ -4192,9 +4176,9 @@ app.get(
 
     }
 );
-
 app.post(
     "/api/posts",
+    upload.single("media"),
     async (req, res) => {
 
         try {
@@ -4203,7 +4187,10 @@ app.post(
             // CHECK LOGIN
             // ==========================================
 
-            if (!req.session.user) {
+            if (
+                !req.session ||
+                !req.session.user
+            ) {
 
                 return res.status(401).json({
                     error:
@@ -4228,7 +4215,10 @@ app.post(
                 ).trim();
 
 
-            if (content.length > 5000) {
+            if (
+                content.length >
+                5000
+            ) {
 
                 return res.status(400).json({
                     error:
@@ -4239,36 +4229,40 @@ app.post(
 
 
             // ==========================================
-            // IMAGE
+            // GET UPLOADED FILE
             // ==========================================
 
-            let imageUrl = null;
+            const file =
+                req.file ||
+                null;
 
-            console.log("POST IMAGE RECEIVED:", {
-                exists: !!req.body.image,
-                name: req.body.image?.name,
-                type: req.body.image?.type,
-                dataExists: !!req.body.image?.data,
-                dataLength: req.body.image?.data?.length
-            });
-            if (
-                req.body.image &&
-                req.body.image.data &&
-                req.body.image.type &&
-                req.body.image.name
-            ) {
+
+            let imageUrl =
+                null;
+
+
+            // ==========================================
+            // UPLOAD IMAGE / VIDEO
+            // ==========================================
+
+            if (file) {
 
                 try {
 
                     imageUrl =
                         await uploadImage(
-                            req.body.image.data,
-                            req.body.image.type,
-                            req.body.image.name,
+                            file.buffer,
+                            file.mimetype,
+                            file.originalname,
                             userId
                         );
 
                 } catch (error) {
+
+                    console.error(
+                        "POST FILE UPLOAD ERROR:",
+                        error
+                    );
 
                     return res.status(400).json({
                         error:
@@ -4304,21 +4298,23 @@ app.post(
             const {
                 data,
                 error
-            } = await supabase
-                .from("posts")
-                .insert({
+            } =
+                await supabase
+                    .from("posts")
+                    .insert({
 
-                    user_id:
-                        userId,
+                        user_id:
+                            userId,
 
-                    content,
+                        content:
+                            content,
 
-                    image_url:
-                        imageUrl
+                        image_url:
+                            imageUrl
 
-                })
-                .select()
-                .single();
+                    })
+                    .select()
+                    .single();
 
 
             if (error) {
@@ -4338,7 +4334,6 @@ app.post(
 
             // ==========================================
             // FIRST POST OF THE DAY
-            // UTC
             // ==========================================
 
             const todayUTC =
@@ -4350,16 +4345,17 @@ app.post(
             const {
                 data: profile,
                 error: profileError
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "last_post_reward_date"
-                )
-                .eq(
-                    "id",
-                    userId
-                )
-                .single();
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(
+                        "last_post_reward_date"
+                    )
+                    .eq(
+                        "id",
+                        userId
+                    )
+                    .single();
 
 
             if (profileError) {
@@ -4371,10 +4367,6 @@ app.post(
 
             } else {
 
-                // ======================================
-                // ONLY REWARD FIRST POST OF UTC DAY
-                // ======================================
-
                 if (
                     profile.last_post_reward_date !==
                     todayUTC
@@ -4382,18 +4374,19 @@ app.post(
 
                     const {
                         error: coinError
-                    } = await supabase.rpc(
-                        "increment_shrekcoins",
-                        {
+                    } =
+                        await supabase.rpc(
+                            "increment_shrekcoins",
+                            {
 
-                            user_id:
-                                userId,
+                                user_id:
+                                    userId,
 
-                            amount:
-                                5
+                                amount:
+                                    5
 
-                        }
-                    );
+                            }
+                        );
 
 
                     if (coinError) {
@@ -4405,24 +4398,21 @@ app.post(
 
                     } else {
 
-                        // ==================================
-                        // MARK TODAY'S REWARD AS CLAIMED
-                        // ==================================
-
                         const {
                             error: dateError
-                        } = await supabase
-                            .from("profiles")
-                            .update({
+                        } =
+                            await supabase
+                                .from("profiles")
+                                .update({
 
-                                last_post_reward_date:
-                                    todayUTC
+                                    last_post_reward_date:
+                                        todayUTC
 
-                            })
-                            .eq(
-                                "id",
-                                userId
-                            );
+                                })
+                                .eq(
+                                    "id",
+                                    userId
+                                );
 
 
                         if (dateError) {
