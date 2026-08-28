@@ -6,7 +6,7 @@
 let moderationCheckRunning = false;
 let showingSpecificMessage = false;
 let onlineHeartbeatStarted = false;
-
+let allPeople = [];
 let currentLeaderboard = "overall";
 
 
@@ -3359,7 +3359,7 @@ function clearPostImage() {
    PEOPLE
 ================================================== */
 
-let allPeople = [];
+
 
 async function loadPeople() {
 
