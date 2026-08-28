@@ -8904,7 +8904,7 @@ app.get(
             } = await supabase
                 .from("profiles")
                 .select(
-                    "id, username, display_name, avatar, role, banned, kicked"
+                    "id, username, display_name, avatar, role, banned, kicked, shrekcoins"
                 )
                 .order(
                     "username",
@@ -9947,12 +9947,20 @@ app.post("/api/admin/reset-password", async (req, res) => {
 // ==================================================
 // SHOP INVENTORY
 // ==================================================
+// ==================================================
+// ADMIN SHREKCOINS
+// ==================================================
+
 app.post(
     "/api/admin/users/:id/shrekcoins",
     requireLogin,
     async (req, res) => {
 
         try {
+
+            // ==========================================
+            // CHECK ADMIN
+            // ==========================================
 
             const actor =
                 await requireAdmin(
@@ -9965,10 +9973,13 @@ app.post(
             }
 
 
+            // ==========================================
+            // INPUT
+            // ==========================================
+
             const action =
                 String(
-                    req.body?.action ||
-                    ""
+                    req.body?.action || ""
                 )
                 .trim()
                 .toLowerCase();
@@ -9980,6 +9991,10 @@ app.post(
                 );
 
 
+            // ==========================================
+            // VALIDATE ACTION
+            // ==========================================
+
             if (
                 action !== "give" &&
                 action !== "take"
@@ -9987,11 +10002,15 @@ app.post(
 
                 return res.status(400).json({
                     error:
-                        "Invalid action."
+                        "Action must be give or take."
                 });
 
             }
 
+
+            // ==========================================
+            // VALIDATE AMOUNT
+            // ==========================================
 
             if (
                 !Number.isInteger(amount) ||
@@ -10006,7 +10025,9 @@ app.post(
             }
 
 
-            if (amount > 1000000) {
+            if (
+                amount > 1000000000
+            ) {
 
                 return res.status(400).json({
                     error:
@@ -10016,22 +10037,32 @@ app.post(
             }
 
 
+            // ==========================================
+            // GET TARGET
+            // ==========================================
+
             const {
                 data: target,
                 error: targetError
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "id, username, role, shrekcoins"
-                )
-                .eq(
-                    "id",
-                    req.params.id
-                )
-                .maybeSingle();
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(
+                        "id, username, display_name, role, shrekcoins"
+                    )
+                    .eq(
+                        "id",
+                        req.params.id
+                    )
+                    .maybeSingle();
 
 
             if (targetError) {
+
+                console.error(
+                    "SHREKCOIN TARGET ERROR:",
+                    targetError
+                );
 
                 return res.status(500).json({
                     error:
@@ -10051,23 +10082,9 @@ app.post(
             }
 
 
-            // Don't allow admins to modify
-            // themselves.
-
-            if (
-                target.id === actor.id
-            ) {
-
-                return res.status(403).json({
-                    error:
-                        "You cannot modify your own ShrekCoins."
-                });
-
-            }
-
-
-            // Don't allow lower-ranked admins
-            // to modify higher/equal-ranked admins.
+            // ==========================================
+            // PERMISSION
+            // ==========================================
 
             if (
                 !canManageRole(
@@ -10078,11 +10095,15 @@ app.post(
 
                 return res.status(403).json({
                     error:
-                        "You cannot modify this user."
+                        "You cannot modify this user's ShrekCoins."
                 });
 
             }
 
+
+            // ==========================================
+            // CALCULATE
+            // ==========================================
 
             const currentCoins =
                 Number(
@@ -10090,47 +10111,52 @@ app.post(
                 );
 
 
-            let newCoins;
+            let newBalance;
 
 
-            if (
-                action === "give"
-            ) {
+            if (action === "give") {
 
-                newCoins =
-                    currentCoins +
-                    amount;
+                newBalance =
+                    currentCoins + amount;
 
             } else {
 
-                newCoins =
-                    currentCoins -
-                    amount;
+                newBalance =
+                    currentCoins - amount;
 
             }
 
 
-            // Don't allow negative balances.
+            // Don't allow negative balance.
 
-            if (newCoins < 0) {
-                newCoins = 0;
+            if (
+                newBalance < 0
+            ) {
+
+                newBalance = 0;
+
             }
 
+
+            // ==========================================
+            // UPDATE DATABASE
+            // ==========================================
 
             const {
                 error: updateError
-            } = await supabase
-                .from("profiles")
-                .update({
+            } =
+                await supabase
+                    .from("profiles")
+                    .update({
 
-                    shrekcoins:
-                        newCoins
+                        shrekcoins:
+                            newBalance
 
-                })
-                .eq(
-                    "id",
-                    target.id
-                );
+                    })
+                    .eq(
+                        "id",
+                        target.id
+                    );
 
 
             if (updateError) {
@@ -10148,32 +10174,49 @@ app.post(
             }
 
 
+            // ==========================================
+            // LOG
+            // ==========================================
+
             console.log(
-                `🪙 ADMIN: ${actor.username} ${action} ${amount} ShrekCoins ${target.username}`
+                `🪙 ADMIN ${actor.username} ${
+                    action === "give"
+                        ? "gave"
+                        : "took"
+                } ${amount} ShrekCoins ${
+                    action === "give"
+                        ? "to"
+                        : "from"
+                } ${target.username}. Balance: ${newBalance}`
             );
 
+
+            // ==========================================
+            // SUCCESS
+            // ==========================================
 
             return res.json({
 
                 success:
                     true,
 
+                userId:
+                    target.id,
+
                 username:
                     target.username,
 
-                oldBalance:
-                    currentCoins,
-
-                newBalance:
-                    newCoins,
+                action:
+                    action,
 
                 amount:
                     amount,
 
-                action:
-                    action
+                shrekcoins:
+                    newBalance
 
             });
+
 
         } catch (error) {
 

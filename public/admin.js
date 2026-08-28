@@ -324,34 +324,43 @@ function renderUsers(users) {
 
 }
 
-async function modifyShrekCoins(userId, button) {
+async function modifyShrekCoins(
+    userId,
+    button
+) {
 
-    const container =
-        button.closest(".shrekcoin-control");
+    const control =
+        button.closest(
+            ".shrekcoin-control"
+        );
 
-    if (!container) {
-        alert("❌ Could not find coin controls.");
+    if (!control) {
         return;
     }
 
+
     const action =
-        container.querySelector(
+        control.querySelector(
             ".coin-action"
         )?.value;
 
+
     const amountInput =
-        container.querySelector(
+        control.querySelector(
             ".coin-amount"
         );
+
+
+    const status =
+        control.querySelector(
+            ".shrekcoin-status"
+        );
+
 
     const amount =
         Number(
             amountInput?.value
         );
-
-    const username =
-        container.dataset.username ||
-        "this user";
 
 
     if (
@@ -359,21 +368,22 @@ async function modifyShrekCoins(userId, button) {
         amount <= 0
     ) {
 
-        alert(
-            "❌ Enter a valid amount."
-        );
+        status.textContent =
+            "❌ Enter a valid amount.";
 
         return;
+
     }
 
 
+    button.disabled =
+        true;
+
+    status.textContent =
+        "Working...";
+
+
     try {
-
-        button.disabled = true;
-
-        button.textContent =
-            "..." ;
-
 
         const response =
             await fetch(
@@ -382,8 +392,6 @@ async function modifyShrekCoins(userId, button) {
 
                     method: "POST",
 
-                    credentials: "include",
-
                     headers: {
                         "Content-Type":
                             "application/json",
@@ -391,6 +399,9 @@ async function modifyShrekCoins(userId, button) {
                         "Accept":
                             "application/json"
                     },
+
+                    credentials:
+                        "include",
 
                     body:
                         JSON.stringify({
@@ -407,27 +418,8 @@ async function modifyShrekCoins(userId, button) {
             );
 
 
-        // Don't use getJsonResponse().
-        // Parse the response directly.
-
-        const text =
-            await response.text();
-
-        let data;
-
-        try {
-
-            data =
-                JSON.parse(text);
-
-        } catch {
-
-            throw new Error(
-                text ||
-                "Server returned an invalid response."
-            );
-
-        }
+        const data =
+            await response.json();
 
 
         if (!response.ok) {
@@ -440,36 +432,48 @@ async function modifyShrekCoins(userId, button) {
         }
 
 
-        alert(
-            `🪙 ${action === "give" ? "Gave" : "Took"} ${amount} ShrekCoins ${
+        const balance =
+            control.querySelector(
+                ".coin-balance"
+            );
+
+
+        if (balance) {
+
+            balance.textContent =
+                Number(
+                    data.shrekcoins
+                );
+
+        }
+
+
+        status.textContent =
+            `✅ ${
                 action === "give"
-                    ? "to"
-                    : "from"
-            } ${username}!\n\n` +
-            `New balance: ${data.newBalance}`
-        );
+                    ? "Gave"
+                    : "Took"
+            } ${amount} ShrekCoins.`;
 
 
         amountInput.value =
             "";
 
 
-        button.textContent =
-            "DO";
+        const user =
+            adminUsers.find(
+                u =>
+                    String(u.id) ===
+                    String(userId)
+            );
 
 
-        button.disabled =
-            false;
+        if (user) {
 
-
-        // Refresh the admin user list.
-
-        if (
-            typeof loadAdminUsers ===
-            "function"
-        ) {
-
-            await loadAdminUsers();
+            user.shrekcoins =
+                Number(
+                    data.shrekcoins
+                );
 
         }
 
@@ -481,14 +485,11 @@ async function modifyShrekCoins(userId, button) {
             error
         );
 
-        alert(
+        status.textContent =
             "❌ " +
-            error.message
-        );
+            error.message;
 
-
-        button.textContent =
-            "DO";
+    } finally {
 
         button.disabled =
             false;
@@ -496,6 +497,9 @@ async function modifyShrekCoins(userId, button) {
     }
 
 }
+
+
+
 // ==================================================
 // USER CARD
 // ==================================================
