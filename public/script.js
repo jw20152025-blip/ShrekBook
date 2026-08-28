@@ -3207,7 +3207,35 @@ async function loadComments(
 
 }
 
+function clearCommentImage(postId) {
 
+    const input =
+        document.getElementById(
+            `comment-image-${postId}`
+        );
+
+    const preview =
+        document.getElementById(
+            `comment-preview-${postId}`
+        );
+
+    const previewImage =
+        document.getElementById(
+            `comment-preview-image-${postId}`
+        );
+
+    if (input) {
+        input.value = "";
+    }
+
+    if (previewImage) {
+        previewImage.src = "";
+    }
+
+    if (preview) {
+        preview.style.display = "none";
+    }
+}
 /* ==================================================
    SUBMIT COMMENT
 ================================================== */
