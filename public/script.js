@@ -4263,19 +4263,13 @@ function isJuniorModerator(
 /* ==================================================
    ADMIN PANEL ACCESS
 ================================================== */
-
-function canAccessAdminPanel(
-    user
-) {
+function canAccessAdminPanel(user) {
 
     if (!user) {
         return false;
     }
 
-    const role =
-        getUserRole(
-            user
-        );
+    const role = getUserRole(user);
 
     return (
         role === "owner" ||
@@ -4285,8 +4279,6 @@ function canAccessAdminPanel(
     );
 
 }
-
-
 /* ==================================================
    MODERATION ACCESS
 ================================================== */
