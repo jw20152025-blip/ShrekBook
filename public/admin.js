@@ -327,19 +327,32 @@ function renderUsers(users) {
 async function modifyShrekCoins(userId, button) {
 
     const container =
-        button.parentElement;
+        button.closest(".shrekcoin-control");
+
+    if (!container) {
+        alert("❌ Could not find coin controls.");
+        return;
+    }
 
     const action =
         container.querySelector(
             ".coin-action"
-        ).value;
+        )?.value;
+
+    const amountInput =
+        container.querySelector(
+            ".coin-amount"
+        );
 
     const amount =
         Number(
-            container.querySelector(
-                ".coin-amount"
-            ).value
+            amountInput?.value
         );
+
+    const username =
+        container.dataset.username ||
+        "this user";
+
 
     if (
         !Number.isInteger(amount) ||
@@ -347,20 +360,29 @@ async function modifyShrekCoins(userId, button) {
     ) {
 
         alert(
-            "Enter a valid amount."
+            "❌ Enter a valid amount."
         );
 
         return;
-
     }
 
+
     try {
+
+        button.disabled = true;
+
+        button.textContent =
+            "..." ;
+
 
         const response =
             await fetch(
                 `/api/admin/users/${encodeURIComponent(userId)}/shrekcoins`,
                 {
+
                     method: "POST",
+
+                    credentials: "include",
 
                     headers: {
                         "Content-Type":
@@ -370,19 +392,43 @@ async function modifyShrekCoins(userId, button) {
                             "application/json"
                     },
 
-                    credentials: "include",
+                    body:
+                        JSON.stringify({
 
-                    body: JSON.stringify({
-                        action,
-                        amount
-                    })
+                            action:
+                                action,
+
+                            amount:
+                                amount
+
+                        })
+
                 }
             );
 
-        const data =
-            await getJsonResponse(
-                response
+
+        // Don't use getJsonResponse().
+        // Parse the response directly.
+
+        const text =
+            await response.text();
+
+        let data;
+
+        try {
+
+            data =
+                JSON.parse(text);
+
+        } catch {
+
+            throw new Error(
+                text ||
+                "Server returned an invalid response."
             );
+
+        }
+
 
         if (!response.ok) {
 
@@ -393,15 +439,40 @@ async function modifyShrekCoins(userId, button) {
 
         }
 
+
         alert(
-            `🪙 ${action === "give" ? "Gave" : "Took"} ${amount} ShrekCoins!`
+            `🪙 ${action === "give" ? "Gave" : "Took"} ${amount} ShrekCoins ${
+                action === "give"
+                    ? "to"
+                    : "from"
+            } ${username}!\n\n` +
+            `New balance: ${data.newBalance}`
         );
 
-        container.querySelector(
-            ".coin-amount"
-        ).value = "";
 
-        loadAdminUsers();
+        amountInput.value =
+            "";
+
+
+        button.textContent =
+            "DO";
+
+
+        button.disabled =
+            false;
+
+
+        // Refresh the admin user list.
+
+        if (
+            typeof loadAdminUsers ===
+            "function"
+        ) {
+
+            await loadAdminUsers();
+
+        }
+
 
     } catch (error) {
 
@@ -414,6 +485,13 @@ async function modifyShrekCoins(userId, button) {
             "❌ " +
             error.message
         );
+
+
+        button.textContent =
+            "DO";
+
+        button.disabled =
+            false;
 
     }
 

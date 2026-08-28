@@ -487,23 +487,49 @@
     </div>
 
 </div>
-<div class="shrekcoin-control">
+<div
+    class="shrekcoin-control"
+    data-username="${escapeHtml(user.username || user.display_name || "User")}"
+>
 
-    <strong>
-        🪙 ShrekCoins:
-        ${Number(user.shrekcoins || 0)}
-    </strong>
+    <div style="margin-bottom:6px;">
+
+        🪙 <strong>ShrekCoins</strong>
+
+        <span>
+            ${Number(user.shrekcoins || 0)}
+        </span>
+
+    </div>
 
     <div style="
         display:flex;
         gap:6px;
         align-items:center;
-        margin-top:6px;
+        flex-wrap:wrap;
     ">
 
+        <span>
+            Modify
+            <strong>
+                ${escapeHtml(
+                    user.display_name ||
+                    user.username ||
+                    "User"
+                )}
+            </strong>:
+        </span>
+
         <select class="coin-action">
-            <option value="give">Give</option>
-            <option value="take">Take</option>
+
+            <option value="give">
+                Give
+            </option>
+
+            <option value="take">
+                Take
+            </option>
+
         </select>
 
         <input
@@ -512,12 +538,13 @@
             placeholder="Amount"
             min="1"
             step="1"
+            style="width:100px;"
         >
 
         <button
             type="button"
             onclick="modifyShrekCoins(
-                '${user.id}',
+                '${escapeHtml(String(user.id))}',
                 this
             )"
         >
