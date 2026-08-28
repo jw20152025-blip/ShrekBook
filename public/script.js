@@ -3253,24 +3253,48 @@ async function submitComment(postId) {
         );
 
     const content =
-        input?.value.trim() || "";
+        input?.value.trim() ||
+        "";
 
     const file =
-        imageInput?.files?.[0] || null;
+        imageInput?.files?.[0] ||
+        null;
+
+
+    // ==========================================
+    // CHECK EMPTY
+    // ==========================================
 
     if (!content && !file) {
+
+        alert(
+            "❌ Write a comment or select a file."
+        );
+
         return;
+
     }
+
 
     try {
 
+        // ==========================================
+        // CREATE FORMDATA
+        // ==========================================
+
         const formData =
             new FormData();
+
 
         formData.append(
             "content",
             content
         );
+
+
+        // ==========================================
+        // ADD FILE
+        // ==========================================
 
         if (file) {
 
@@ -3281,25 +3305,39 @@ async function submitComment(postId) {
 
         }
 
+
+        // ==========================================
+        // SEND
+        // ==========================================
+
         const response =
             await fetch(
                 `/api/posts/${encodeURIComponent(postId)}/comments`,
                 {
-                    method: "POST",
-                    credentials: "include",
+
+                    method:
+                        "POST",
+
+                    credentials:
+                        "include",
+
                     headers: {
                         "Accept":
                             "application/json"
                     },
+
                     body:
                         formData
+
                 }
             );
+
 
         const data =
             await getJsonResponse(
                 response
             );
+
 
         if (!response.ok) {
 
@@ -3310,21 +3348,40 @@ async function submitComment(postId) {
 
         }
 
+
+        // ==========================================
+        // CLEAR
+        // ==========================================
+
         if (input) {
-            input.value = "";
+
+            input.value =
+                "";
+
         }
 
+
         if (imageInput) {
-            imageInput.value = "";
+
+            imageInput.value =
+                "";
+
         }
+
 
         clearCommentImage(
             postId
         );
 
+
+        // ==========================================
+        // RELOAD COMMENTS
+        // ==========================================
+
         await loadComments(
             postId
         );
+
 
         if (
             typeof loadLeaderboard ===
@@ -3336,6 +3393,7 @@ async function submitComment(postId) {
             );
 
         }
+
 
     } catch (error) {
 
@@ -3352,7 +3410,6 @@ async function submitComment(postId) {
     }
 
 }
-
 /* ==================================================
    CLEAR POST IMAGE
 ================================================== */
