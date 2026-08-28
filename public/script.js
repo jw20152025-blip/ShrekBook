@@ -2856,85 +2856,6 @@ async function loadComments(
                             comment.username ||
                             "User";
 
-let imageHTML = "";
-
-if (post.image_url) {
-
-    const mediaURL =
-        escapeHtml(post.image_url);
-
-    const lowerURL =
-        post.image_url.toLowerCase();
-
-    const isVideo =
-        lowerURL.includes(".mp4") ||
-        lowerURL.includes("video/mp4");
-
-    if (isVideo) {
-
-        imageHTML = `
-
-            <div
-                class="post-image-container"
-                style="
-                    margin-top:12px;
-                "
-            >
-
-                <video
-                    src="${mediaURL}"
-                    controls
-                    preload="metadata"
-                    style="
-                        max-width:100%;
-                        max-height:600px;
-                        width:100%;
-                        border-radius:12px;
-                        object-fit:contain;
-                        display:block;
-                    "
-                >
-                    Your browser does not support video playback.
-                </video>
-
-            </div>
-
-        `;
-
-    } else {
-
-        imageHTML = `
-
-            <div
-                class="post-image-container"
-                style="
-                    margin-top:12px;
-                "
-            >
-
-                <img
-                    src="${mediaURL}"
-                    alt="Post image"
-                    style="
-                        max-width:100%;
-                        max-height:600px;
-                        border-radius:12px;
-                        object-fit:contain;
-                        display:block;
-                    "
-                    onerror="
-                        this.style.display='none';
-                    "
-                >
-
-            </div>
-
-        `;
-
-    }
-
-}
-
                         const formattedContent =
                             comment.content
                                 ? await formatPostContent(
@@ -2995,8 +2916,6 @@ if (post.image_url) {
                                         `
                                         : ""
                                 }
-
-                                ${imageHTML}
 
                             </div>
 
