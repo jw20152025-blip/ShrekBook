@@ -467,67 +467,43 @@ async function prepareImage(file) {
         return null;
     }
 
-
-    // ==========================================
-    // ALLOWED FILE TYPES
-    // ==========================================
-
     const allowedTypes = [
-
-        // Images
         "image/png",
         "image/jpeg",
         "image/jpg",
         "image/webp",
         "image/gif",
-
-        // Videos
-        "video/mp4",
-        "video/webm",
-        "video/quicktime"
-
+        "video/mp4"
     ];
-
 
     if (!allowedTypes.includes(file.type)) {
 
         throw new Error(
-            "Unsupported file type. Use PNG, JPG, WEBP, GIF, MP4, WEBM, or MOV."
+            "Unsupported file type."
         );
 
     }
 
-
-    // ==========================================
-    // FILE SIZE
-    // ==========================================
+    const isVideo =
+        file.type === "video/mp4";
 
     const maxSize =
-        file.type.startsWith("video/")
+        isVideo
             ? 50 * 1024 * 1024
             : 5 * 1024 * 1024;
-
 
     if (file.size > maxSize) {
 
         throw new Error(
-
-            file.type.startsWith("video/")
+            isVideo
                 ? "Video must be under 50MB."
                 : "Image must be under 5MB."
-
         );
 
     }
 
-
-    // ==========================================
-    // CONVERT TO BASE64
-    // ==========================================
-
     const data =
         await fileToBase64(file);
-
 
     return {
 
@@ -540,8 +516,6 @@ async function prepareImage(file) {
     };
 
 }
-
-
 /* ==================================================
    LOGIN
 ================================================== */
@@ -3238,9 +3212,7 @@ async function loadComments(
    SUBMIT COMMENT
 ================================================== */
 
-async function submitComment(
-    postId
-) {
+async function submitComment(postId) {
 
     const input =
         document.getElementById(
@@ -3253,12 +3225,10 @@ async function submitComment(
         );
 
     const content =
-        input?.value.trim() ||
-        "";
+        input?.value.trim() || "";
 
     const file =
-        imageInput?.files?.[0] ||
-        null;
+        imageInput?.files?.[0] || null;
 
     if (!content && !file) {
         return;
@@ -3266,38 +3236,35 @@ async function submitComment(
 
     try {
 
-        const image =
-            await prepareImage(
+        const formData =
+            new FormData();
+
+        formData.append(
+            "content",
+            content
+        );
+
+        if (file) {
+
+            formData.append(
+                "image",
                 file
             );
+
+        }
 
         const response =
             await fetch(
                 `/api/posts/${encodeURIComponent(postId)}/comments`,
                 {
-
                     method: "POST",
-
+                    credentials: "include",
                     headers: {
-                        "Content-Type":
-                            "application/json",
                         "Accept":
                             "application/json"
                     },
-
-                    credentials: "include",
-
                     body:
-                        JSON.stringify({
-
-                            content:
-                                content,
-
-                            image:
-                                image
-
-                        })
-
+                        formData
                 }
             );
 
@@ -3316,26 +3283,31 @@ async function submitComment(
         }
 
         if (input) {
-            input.value =
-                "";
+            input.value = "";
         }
 
         if (imageInput) {
-            imageInput.value =
-                "";
+            imageInput.value = "";
         }
 
         clearCommentImage(
             postId
         );
 
-        loadComments(
+        await loadComments(
             postId
         );
 
-        loadLeaderboard(
-            currentLeaderboard
-        );
+        if (
+            typeof loadLeaderboard ===
+            "function"
+        ) {
+
+            loadLeaderboard(
+                currentLeaderboard
+            );
+
+        }
 
     } catch (error) {
 
@@ -3352,48 +3324,6 @@ async function submitComment(
     }
 
 }
-
-
-/* ==================================================
-   CLEAR COMMENT IMAGE
-================================================== */
-
-function clearCommentImage(
-    postId
-) {
-
-    const input =
-        document.getElementById(
-            `comment-image-${postId}`
-        );
-
-    const preview =
-        document.getElementById(
-            `comment-preview-${postId}`
-        );
-
-    const previewImage =
-        document.getElementById(
-            `comment-preview-image-${postId}`
-        );
-
-    if (input) {
-        input.value =
-            "";
-    }
-
-    if (previewImage) {
-        previewImage.src =
-            "";
-    }
-
-    if (preview) {
-        preview.style.display =
-            "none";
-    }
-
-}
-
 
 /* ==================================================
    CLEAR POST IMAGE
