@@ -9958,10 +9958,6 @@ app.post(
 
         try {
 
-            // ==========================================
-            // CHECK ADMIN
-            // ==========================================
-
             const actor =
                 await requireAdmin(
                     req,
@@ -9973,9 +9969,9 @@ app.post(
             }
 
 
-            // ==========================================
-            // INPUT
-            // ==========================================
+            const targetId =
+                req.params.id;
+
 
             const action =
                 String(
@@ -9991,10 +9987,6 @@ app.post(
                 );
 
 
-            // ==========================================
-            // VALIDATE ACTION
-            // ==========================================
-
             if (
                 action !== "give" &&
                 action !== "take"
@@ -10007,10 +9999,6 @@ app.post(
 
             }
 
-
-            // ==========================================
-            // VALIDATE AMOUNT
-            // ==========================================
 
             if (
                 !Number.isInteger(amount) ||
@@ -10037,24 +10025,21 @@ app.post(
             }
 
 
-            // ==========================================
-            // GET TARGET
-            // ==========================================
+            // Get target
 
             const {
                 data: target,
                 error: targetError
-            } =
-                await supabase
-                    .from("profiles")
-                    .select(
-                        "id, username, display_name, role, shrekcoins"
-                    )
-                    .eq(
-                        "id",
-                        req.params.id
-                    )
-                    .maybeSingle();
+            } = await supabase
+                .from("profiles")
+                .select(
+                    "id, username, display_name, role, shrekcoins"
+                )
+                .eq(
+                    "id",
+                    targetId
+                )
+                .maybeSingle();
 
 
             if (targetError) {
@@ -10082,9 +10067,8 @@ app.post(
             }
 
 
-            // ==========================================
-            // PERMISSION
-            // ==========================================
+            // Admin cannot modify
+            // someone with an equal/higher role.
 
             if (
                 !canManageRole(
@@ -10101,62 +10085,50 @@ app.post(
             }
 
 
-            // ==========================================
-            // CALCULATE
-            // ==========================================
-
             const currentCoins =
                 Number(
                     target.shrekcoins || 0
                 );
 
 
-            let newBalance;
+            let newCoins;
 
 
-            if (action === "give") {
+            if (
+                action === "give"
+            ) {
 
-                newBalance =
-                    currentCoins + amount;
+                newCoins =
+                    currentCoins +
+                    amount;
 
             } else {
 
-                newBalance =
-                    currentCoins - amount;
+                newCoins =
+                    currentCoins -
+                    amount;
+
+                if (
+                    newCoins < 0
+                ) {
+                    newCoins = 0;
+                }
 
             }
 
-
-            // Don't allow negative balance.
-
-            if (
-                newBalance < 0
-            ) {
-
-                newBalance = 0;
-
-            }
-
-
-            // ==========================================
-            // UPDATE DATABASE
-            // ==========================================
 
             const {
                 error: updateError
-            } =
-                await supabase
-                    .from("profiles")
-                    .update({
-
-                        shrekcoins:
-                            newBalance
-
-                    })
-                    .eq(
-                        "id",
-                        target.id
-                    );
+            } = await supabase
+                .from("profiles")
+                .update({
+                    shrekcoins:
+                        newCoins
+                })
+                .eq(
+                    "id",
+                    target.id
+                );
 
 
             if (updateError) {
@@ -10174,26 +10146,10 @@ app.post(
             }
 
 
-            // ==========================================
-            // LOG
-            // ==========================================
-
             console.log(
-                `🪙 ADMIN ${actor.username} ${
-                    action === "give"
-                        ? "gave"
-                        : "took"
-                } ${amount} ShrekCoins ${
-                    action === "give"
-                        ? "to"
-                        : "from"
-                } ${target.username}. Balance: ${newBalance}`
+                `🪙 ${actor.username} ${action} ${amount} ShrekCoins ${action === "give" ? "to" : "from"} ${target.username}`
             );
 
-
-            // ==========================================
-            // SUCCESS
-            // ==========================================
 
             return res.json({
 
@@ -10206,14 +10162,12 @@ app.post(
                 username:
                     target.username,
 
-                action:
-                    action,
+                action,
 
-                amount:
-                    amount,
+                amount,
 
                 shrekcoins:
-                    newBalance
+                    newCoins
 
             });
 
@@ -10221,7 +10175,7 @@ app.post(
         } catch (error) {
 
             console.error(
-                "SHREKCOIN ADMIN ERROR:",
+                "SHREKCOIN ROUTE ERROR:",
                 error
             );
 
