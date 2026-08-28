@@ -324,7 +324,100 @@ function renderUsers(users) {
 
 }
 
+async function modifyShrekCoins(userId, button) {
 
+    const container =
+        button.parentElement;
+
+    const action =
+        container.querySelector(
+            ".coin-action"
+        ).value;
+
+    const amount =
+        Number(
+            container.querySelector(
+                ".coin-amount"
+            ).value
+        );
+
+    if (
+        !Number.isInteger(amount) ||
+        amount <= 0
+    ) {
+
+        alert(
+            "Enter a valid amount."
+        );
+
+        return;
+
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/admin/users/${encodeURIComponent(userId)}/shrekcoins`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "Accept":
+                            "application/json"
+                    },
+
+                    credentials: "include",
+
+                    body: JSON.stringify({
+                        action,
+                        amount
+                    })
+                }
+            );
+
+        const data =
+            await getJsonResponse(
+                response
+            );
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not modify ShrekCoins."
+            );
+
+        }
+
+        alert(
+            `🪙 ${action === "give" ? "Gave" : "Took"} ${amount} ShrekCoins!`
+        );
+
+        container.querySelector(
+            ".coin-amount"
+        ).value = "";
+
+        loadAdminUsers();
+
+    } catch (error) {
+
+        console.error(
+            "SHREKCOIN ERROR:",
+            error
+        );
+
+        alert(
+            "❌ " +
+            error.message
+        );
+
+    }
+
+}
 // ==================================================
 // USER CARD
 // ==================================================

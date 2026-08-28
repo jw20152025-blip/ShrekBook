@@ -9947,7 +9947,250 @@ app.post("/api/admin/reset-password", async (req, res) => {
 // ==================================================
 // SHOP INVENTORY
 // ==================================================
+app.post(
+    "/api/admin/users/:id/shrekcoins",
+    requireLogin,
+    async (req, res) => {
 
+        try {
+
+            const actor =
+                await requireAdmin(
+                    req,
+                    res
+                );
+
+            if (!actor) {
+                return;
+            }
+
+
+            const action =
+                String(
+                    req.body?.action ||
+                    ""
+                )
+                .trim()
+                .toLowerCase();
+
+
+            const amount =
+                Number(
+                    req.body?.amount
+                );
+
+
+            if (
+                action !== "give" &&
+                action !== "take"
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Invalid action."
+                });
+
+            }
+
+
+            if (
+                !Number.isInteger(amount) ||
+                amount <= 0
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Amount must be a positive whole number."
+                });
+
+            }
+
+
+            if (amount > 1000000) {
+
+                return res.status(400).json({
+                    error:
+                        "Amount is too large."
+                });
+
+            }
+
+
+            const {
+                data: target,
+                error: targetError
+            } = await supabase
+                .from("profiles")
+                .select(
+                    "id, username, role, shrekcoins"
+                )
+                .eq(
+                    "id",
+                    req.params.id
+                )
+                .maybeSingle();
+
+
+            if (targetError) {
+
+                return res.status(500).json({
+                    error:
+                        targetError.message
+                });
+
+            }
+
+
+            if (!target) {
+
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+
+            }
+
+
+            // Don't allow admins to modify
+            // themselves.
+
+            if (
+                target.id === actor.id
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You cannot modify your own ShrekCoins."
+                });
+
+            }
+
+
+            // Don't allow lower-ranked admins
+            // to modify higher/equal-ranked admins.
+
+            if (
+                !canManageRole(
+                    actor.role,
+                    target.role
+                )
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You cannot modify this user."
+                });
+
+            }
+
+
+            const currentCoins =
+                Number(
+                    target.shrekcoins || 0
+                );
+
+
+            let newCoins;
+
+
+            if (
+                action === "give"
+            ) {
+
+                newCoins =
+                    currentCoins +
+                    amount;
+
+            } else {
+
+                newCoins =
+                    currentCoins -
+                    amount;
+
+            }
+
+
+            // Don't allow negative balances.
+
+            if (newCoins < 0) {
+                newCoins = 0;
+            }
+
+
+            const {
+                error: updateError
+            } = await supabase
+                .from("profiles")
+                .update({
+
+                    shrekcoins:
+                        newCoins
+
+                })
+                .eq(
+                    "id",
+                    target.id
+                );
+
+
+            if (updateError) {
+
+                console.error(
+                    "SHREKCOIN UPDATE ERROR:",
+                    updateError
+                );
+
+                return res.status(500).json({
+                    error:
+                        updateError.message
+                });
+
+            }
+
+
+            console.log(
+                `🪙 ADMIN: ${actor.username} ${action} ${amount} ShrekCoins ${target.username}`
+            );
+
+
+            return res.json({
+
+                success:
+                    true,
+
+                username:
+                    target.username,
+
+                oldBalance:
+                    currentCoins,
+
+                newBalance:
+                    newCoins,
+
+                amount:
+                    amount,
+
+                action:
+                    action
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "SHREKCOIN ADMIN ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
 app.get("/api/shop/inventory", async (req, res) => {
 
     try {
