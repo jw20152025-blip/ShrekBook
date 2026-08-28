@@ -4279,7 +4279,9 @@ function canAccessAdminPanel(
 
     return (
         role === "owner" ||
-        role === "admin"
+        role === "administrator" ||
+        role === "senior_moderator" ||
+        role === "junior_moderator"
     );
 
 }
