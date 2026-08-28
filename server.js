@@ -3886,7 +3886,6 @@ async function uploadImage(
 
     if (
         !fileBuffer ||
-        !fileType ||
         !fileName ||
         !userId
     ) {
@@ -3899,78 +3898,10 @@ async function uploadImage(
 
 
     // ==========================================
-    // ALLOWED MIME TYPES
-    // ==========================================
-
-    const allowedMimeTypes = [
-
-        // Images
-        "image/png",
-        "image/jpeg",
-        "image/jpg",
-        "image/webp",
-        "image/gif",
-
-        // Videos and Sounds
-        "video/mp4",
-        "video/webm",
-        "video/quicktime",
-        "video/mp3"
-
-    ];
-
-
-    if (
-        !allowedMimeTypes.includes(
-            fileType
-        )
-    ) {
-
-        throw new Error(
-            "Unsupported file type."
-        );
-
-    }
-
-
-    // ==========================================
-    // SIZE LIMIT
-    // ==========================================
-
-    const isVideo =
-        fileType.startsWith("video/");
-
-    const isAudio =
-        fileType.startsWith("audio/");
-
-    const maxSize =
-        isVideo
-            ? 50 * 1024 * 1024
-            : isAudio
-                ? 20 * 1024 * 1024
-                : 5 * 1024 * 1024;
-
-
-    if (
-        fileBuffer.length >
-        maxSize
-    ) {
-        throw new Error(
-            isVideo
-                ? "Video must be under 50MB."
-                : isAudio
-                    ? "Audio must be under 20MB."
-                    : "Image must be under 5MB."
-        );
-
-    }
-
-
-    // ==========================================
     // GET EXTENSION
     // ==========================================
 
-    let extension =
+    const extension =
         fileName
             .split(".")
             .pop()
@@ -3987,9 +3918,11 @@ async function uploadImage(
         "jpeg",
         "webp",
         "gif",
+
         "mp4",
         "webm",
         "mov",
+
         "mp3"
     ];
 
@@ -4001,14 +3934,122 @@ async function uploadImage(
     ) {
 
         throw new Error(
-            "Unsupported file extension."
+            "Unsupported file type."
         );
 
     }
 
 
     // ==========================================
-    // CREATE STORAGE PATH
+    // DETERMINE MIME TYPE
+    // ==========================================
+
+    let contentType =
+        fileType;
+
+
+    // Some browsers/clients can send an
+    // incorrect or empty MIME type.
+    // Trust the extension for known files.
+
+    if (
+        extension === "mp3"
+    ) {
+
+        contentType =
+            "audio/mpeg";
+
+    } else if (
+        extension === "mp4"
+    ) {
+
+        contentType =
+            "video/mp4";
+
+    } else if (
+        extension === "webm"
+    ) {
+
+        contentType =
+            "video/webm";
+
+    } else if (
+        extension === "mov"
+    ) {
+
+        contentType =
+            "video/quicktime";
+
+    } else if (
+        extension === "png"
+    ) {
+
+        contentType =
+            "image/png";
+
+    } else if (
+        extension === "jpg" ||
+        extension === "jpeg"
+    ) {
+
+        contentType =
+            "image/jpeg";
+
+    } else if (
+        extension === "webp"
+    ) {
+
+        contentType =
+            "image/webp";
+
+    } else if (
+        extension === "gif"
+    ) {
+
+        contentType =
+            "image/gif";
+
+    }
+
+
+    // ==========================================
+    // SIZE LIMIT
+    // ==========================================
+
+    const isVideo =
+        extension === "mp4" ||
+        extension === "webm" ||
+        extension === "mov";
+
+    const isAudio =
+        extension === "mp3";
+
+    const maxSize =
+        isVideo
+            ? 50 * 1024 * 1024
+            : isAudio
+                ? 20 * 1024 * 1024
+                : 5 * 1024 * 1024;
+
+
+    if (
+        fileBuffer.length >
+        maxSize
+    ) {
+
+        throw new Error(
+            isVideo
+                ? "Video must be under 50MB."
+                : isAudio
+                    ? "Audio must be under 20MB."
+                    : "Image must be under 5MB."
+        );
+
+    }
+
+
+    // ==========================================
+    // STORAGE PATH
     // ==========================================
 
     const filePath =
@@ -4031,7 +4072,7 @@ async function uploadImage(
                 fileBuffer,
                 {
                     contentType:
-                        fileType,
+                        contentType,
 
                     upsert:
                         false
@@ -4054,7 +4095,7 @@ async function uploadImage(
 
 
     // ==========================================
-    // GET PUBLIC URL
+    // PUBLIC URL
     // ==========================================
 
     const {
@@ -4080,9 +4121,8 @@ async function uploadImage(
 
 
     return publicData.publicUrl;
+
 }
-
-
 // ==================================================
 // POSTS
 // ==================================================
