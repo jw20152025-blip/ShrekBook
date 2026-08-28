@@ -4295,7 +4295,13 @@ app.post(
 
             let imageUrl = null;
 
-
+            console.log("POST IMAGE RECEIVED:", {
+                exists: !!req.body.image,
+                name: req.body.image?.name,
+                type: req.body.image?.type,
+                dataExists: !!req.body.image?.data,
+                dataLength: req.body.image?.data?.length
+            });
             if (
                 req.body.image &&
                 req.body.image.data &&
