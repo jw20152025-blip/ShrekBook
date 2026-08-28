@@ -462,38 +462,81 @@ async function giveReaction(type) {
    MAKE IMAGE OBJECT
 ================================================== */
 
+
 async function prepareImage(file) {
 
     if (!file) {
         return null;
     }
 
-    if (!file.type.startsWith("image/")) {
+
+    // ==========================================
+    // ALLOWED FILE TYPES
+    // ==========================================
+
+    const allowedTypes = [
+
+        // Images
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/webp",
+        "image/gif",
+
+        // Videos
+        "video/mp4",
+        "video/webm",
+        "video/quicktime"
+
+    ];
+
+
+    if (!allowedTypes.includes(file.type)) {
 
         throw new Error(
-            "Selected file is not an image."
+            "Unsupported file type. Use PNG, JPG, WEBP, GIF, MP4, WEBM, or MOV."
         );
 
     }
 
-    if (
-        file.size >
-        5 * 1024 * 1024
-    ) {
+
+    // ==========================================
+    // FILE SIZE
+    // ==========================================
+
+    const maxSize =
+        file.type.startsWith("video/")
+            ? 50 * 1024 * 1024
+            : 5 * 1024 * 1024;
+
+
+    if (file.size > maxSize) {
 
         throw new Error(
-            "Image must be under 5MB."
+
+            file.type.startsWith("video/")
+                ? "Video must be under 50MB."
+                : "Image must be under 5MB."
+
         );
 
     }
+
+
+    // ==========================================
+    // CONVERT TO BASE64
+    // ==========================================
 
     const data =
         await fileToBase64(file);
 
+
     return {
 
         data: data,
+
         type: file.type,
+
         name: file.name
 
     };
