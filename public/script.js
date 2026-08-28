@@ -1898,7 +1898,8 @@ async function formatPostContent(
 /* ==================================================
    LOAD POSTS
 ================================================== */
-
+console.log("POST IMAGE URL:", post.image_url);
+console.log("FULL POST:", post);
 async function loadPosts() {
 
     const container =
