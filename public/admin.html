@@ -512,7 +512,66 @@
     </div>
 
 </div>
+<div class="shrekcoin-control">
 
+    <div class="shrekcoin-title">
+        🪙 ShrekCoins:
+        <span id="coins-${escapeHtml(user.id)}">
+            ${Number(user.shrekcoins || 0)}
+        </span>
+    </div>
+
+    <div class="shrekcoin-controls">
+
+        <span>
+            Modify
+            <strong>
+                ${escapeHtml(
+                    user.display_name ||
+                    user.username ||
+                    "User"
+                )}
+            </strong>
+        </span>
+
+        <select
+            id="coin-action-${escapeHtml(user.id)}"
+        >
+            <option value="give">
+                Give
+            </option>
+
+            <option value="take">
+                Take
+            </option>
+        </select>
+
+        <input
+            id="coin-amount-${escapeHtml(user.id)}"
+            type="number"
+            min="1"
+            step="1"
+            placeholder="Amount"
+        >
+
+        <button
+            type="button"
+            class="shrekcoin-button"
+            onclick="modifyShrekCoins(
+                '${escapeHtml(user.id)}'
+            )"
+        >
+            DO
+        </button>
+
+    </div>
+
+    <div
+        class="shrekcoin-status"
+        id="coin-status-${escapeHtml(user.id)}"
+    ></div>
+
+</div>
 
 <script src="/admin.js"></script>
 
