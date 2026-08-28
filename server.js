@@ -3911,10 +3911,11 @@ async function uploadImage(
         "image/webp",
         "image/gif",
 
-        // Videos
+        // Videos and Sounds
         "video/mp4",
         "video/webm",
-        "video/quicktime"
+        "video/quicktime",
+        "video/mp3"
 
     ];
 
@@ -3939,21 +3940,27 @@ async function uploadImage(
     const isVideo =
         fileType.startsWith("video/");
 
+    const isAudio =
+        fileType.startsWith("audio/");
+
     const maxSize =
         isVideo
             ? 50 * 1024 * 1024
-            : 5 * 1024 * 1024;
+            : isAudio
+                ? 20 * 1024 * 1024
+                : 5 * 1024 * 1024;
 
 
     if (
         fileBuffer.length >
         maxSize
     ) {
-
         throw new Error(
             isVideo
                 ? "Video must be under 50MB."
-                : "Image must be under 5MB."
+                : isAudio
+                    ? "Audio must be under 20MB."
+                    : "Image must be under 5MB."
         );
 
     }
@@ -3982,7 +3989,8 @@ async function uploadImage(
         "gif",
         "mp4",
         "webm",
-        "mov"
+        "mov",
+        "mp3"
     ];
 
 

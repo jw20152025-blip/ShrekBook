@@ -2788,7 +2788,8 @@ async function createPost() {
 
             "video/mp4",
             "video/webm",
-            "video/quicktime"
+            "video/quicktime",
+            "audio/mpeg"
 
         ];
 
@@ -2812,15 +2813,17 @@ async function createPost() {
 
 
         const isVideo =
-            file.type.startsWith(
-                "video/"
-            );
+            file.type.startsWith("video/");
 
+        const isAudio =
+            file.type.startsWith("audio/");
 
         const maxSize =
             isVideo
                 ? 50 * 1024 * 1024
-                : 5 * 1024 * 1024;
+                : isAudio
+                    ? 20 * 1024 * 1024
+                    : 5 * 1024 * 1024;
 
 
         if (
