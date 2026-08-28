@@ -5205,6 +5205,7 @@ app.get(
 
 app.post(
     "/api/posts/:postId/comments",
+    upload.single("image"),
     async (req, res) => {
 
         try {
@@ -5225,6 +5226,9 @@ app.post(
 
             const userId =
                 req.session.user.id;
+
+            const postId =
+                req.params.postId;
 
 
             // ==========================================
@@ -5249,37 +5253,174 @@ app.post(
 
 
             // ==========================================
-            // IMAGE
+            // FILE
             // ==========================================
 
-            let imageUrl = null;
+            let imageUrl =
+                null;
 
 
-            if (
-                req.body.image &&
-                req.body.image.data &&
-                req.body.image.type &&
-                req.body.image.name
-            ) {
+            if (req.file) {
 
-                try {
+                // --------------------------------------
+                // ALLOWED FILE TYPES
+                // --------------------------------------
 
-                    imageUrl =
-                        await uploadImage(
-                            req.body.image.data,
-                            req.body.image.type,
-                            req.body.image.name,
-                            userId
-                        );
+                const allowedTypes = [
 
-                } catch (error) {
+                    "image/png",
+                    "image/jpeg",
+                    "image/webp",
+                    "image/gif",
+                    "video/mp4"
+
+                ];
+
+
+                if (
+                    !allowedTypes.includes(
+                        req.file.mimetype
+                    )
+                ) {
 
                     return res.status(400).json({
                         error:
-                            error.message
+                            "Unsupported file type."
                     });
 
                 }
+
+
+                // --------------------------------------
+                // FILE SIZE
+                // --------------------------------------
+
+                const isVideo =
+                    req.file.mimetype ===
+                    "video/mp4";
+
+
+                const maxSize =
+                    isVideo
+                        ? 50 * 1024 * 1024
+                        : 5 * 1024 * 1024;
+
+
+                if (
+                    req.file.size >
+                    maxSize
+                ) {
+
+                    return res.status(400).json({
+                        error:
+                            isVideo
+                                ? "Video must be under 50MB."
+                                : "Image must be under 5MB."
+                    });
+
+                }
+
+
+                // --------------------------------------
+                // FILE EXTENSION
+                // --------------------------------------
+
+                const extension =
+                    req.file.originalname
+                        .split(".")
+                        .pop()
+                        .toLowerCase();
+
+
+                const allowedExtensions = [
+
+                    "png",
+                    "jpg",
+                    "jpeg",
+                    "webp",
+                    "gif",
+                    "mp4"
+
+                ];
+
+
+                if (
+                    !allowedExtensions.includes(
+                        extension
+                    )
+                ) {
+
+                    return res.status(400).json({
+                        error:
+                            "Unsupported file extension."
+                    });
+
+                }
+
+
+                // --------------------------------------
+                // STORAGE PATH
+                // --------------------------------------
+
+                const filePath =
+                    `comments/${userId}/${Date.now()}-${Math.random()
+                        .toString(36)
+                        .slice(2)}.${extension}`;
+
+
+                // --------------------------------------
+                // UPLOAD TO SUPABASE
+                // --------------------------------------
+
+                const {
+                    error: uploadError
+                } =
+                    await supabase.storage
+                        .from("avatars")
+                        .upload(
+                            filePath,
+                            req.file.buffer,
+                            {
+                                contentType:
+                                    req.file.mimetype,
+
+                                upsert:
+                                    false
+                            }
+                        );
+
+
+                if (uploadError) {
+
+                    console.error(
+                        "COMMENT STORAGE ERROR:",
+                        uploadError
+                    );
+
+                    return res.status(500).json({
+                        error:
+                            uploadError.message
+                    });
+
+                }
+
+
+                // --------------------------------------
+                // GET PUBLIC URL
+                // --------------------------------------
+
+                const {
+                    data: publicData
+                } =
+                    supabase.storage
+                        .from("avatars")
+                        .getPublicUrl(
+                            filePath
+                        );
+
+
+                imageUrl =
+                    publicData.publicUrl;
 
             }
 
@@ -5308,24 +5449,25 @@ app.post(
             const {
                 data,
                 error
-            } = await supabase
-                .from("comments")
-                .insert({
+            } =
+                await supabase
+                    .from("comments")
+                    .insert({
 
-                    post_id:
-                        req.params.postId,
+                        post_id:
+                            postId,
 
-                    user_id:
-                        userId,
+                        user_id:
+                            userId,
 
-                    content,
+                        content,
 
-                    image_url:
-                        imageUrl
+                        image_url:
+                            imageUrl
 
-                })
-                .select()
-                .single();
+                    })
+                    .select()
+                    .single();
 
 
             if (error) {
@@ -5357,16 +5499,17 @@ app.post(
             const {
                 data: profile,
                 error: profileError
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "last_comment_reward_date"
-                )
-                .eq(
-                    "id",
-                    userId
-                )
-                .single();
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(
+                        "last_comment_reward_date"
+                    )
+                    .eq(
+                        "id",
+                        userId
+                    )
+                    .single();
 
 
             if (profileError) {
@@ -5379,7 +5522,7 @@ app.post(
             } else {
 
                 // ======================================
-                // ONLY REWARD FIRST COMMENT OF UTC DAY
+                // FIRST COMMENT OF UTC DAY
                 // ======================================
 
                 if (
@@ -5389,18 +5532,19 @@ app.post(
 
                     const {
                         error: coinError
-                    } = await supabase.rpc(
-                        "increment_shrekcoins",
-                        {
+                    } =
+                        await supabase.rpc(
+                            "increment_shrekcoins",
+                            {
 
-                            user_id:
-                                userId,
+                                user_id:
+                                    userId,
 
-                            amount:
-                                5
+                                amount:
+                                    5
 
-                        }
-                    );
+                            }
+                        );
 
 
                     if (coinError) {
@@ -5413,23 +5557,24 @@ app.post(
                     } else {
 
                         // ==================================
-                        // MARK TODAY'S REWARD AS CLAIMED
+                        // MARK REWARD AS CLAIMED
                         // ==================================
 
                         const {
                             error: dateError
-                        } = await supabase
-                            .from("profiles")
-                            .update({
+                        } =
+                            await supabase
+                                .from("profiles")
+                                .update({
 
-                                last_comment_reward_date:
-                                    todayUTC
+                                    last_comment_reward_date:
+                                        todayUTC
 
-                            })
-                            .eq(
-                                "id",
-                                userId
-                            );
+                                })
+                                .eq(
+                                    "id",
+                                    userId
+                                );
 
 
                         if (dateError) {
@@ -5468,6 +5613,7 @@ app.post(
 
             return res.status(500).json({
                 error:
+                    error.message ||
                     "Server error."
             });
 
@@ -5475,6 +5621,8 @@ app.post(
 
     }
 );
+
+
 // ==================================================
 // BUY SHOP ITEM
 // ==================================================
