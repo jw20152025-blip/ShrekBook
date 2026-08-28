@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -85,7 +86,8 @@
 
         button,
         select,
-        input {
+        input,
+        textarea {
             font-family: inherit;
         }
 
@@ -103,7 +105,8 @@
         }
 
         input,
-        select {
+        select,
+        textarea {
             border: 1px solid #ccc;
             background: white;
         }
@@ -123,9 +126,7 @@
             background: white;
             border-radius: 12px;
             padding: 18px;
-            box-shadow:
-                0 2px 8px
-                rgba(0, 0, 0, .08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
         }
 
         .user-top {
@@ -205,46 +206,53 @@
            SHREKCOINS
         ============================== */
 
-        .shrekcoin-control {
-            margin-top: 15px;
-            padding: 14px;
+        .shrekcoin-panel {
+            margin-top: 25px;
+            padding: 20px;
             background: #fff8d8;
             border: 1px solid #ead36a;
-            border-radius: 10px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
         }
 
-        .shrekcoin-title {
-            font-weight: bold;
-            margin-bottom: 10px;
+        .shrekcoin-panel h2 {
+            margin-top: 0;
         }
 
-        .shrekcoin-controls {
+        .shrekcoin-panel p {
+            color: #666;
+        }
+
+        .coin-row {
             display: flex;
-            gap: 7px;
+            gap: 10px;
             align-items: center;
             flex-wrap: wrap;
         }
 
-        .shrekcoin-controls select {
-            min-width: 90px;
-            padding: 9px;
-        }
-
-        .shrekcoin-controls input {
-            width: 110px;
-            padding: 9px;
+        .coin-row input,
+        .coin-row select {
+            padding: 10px;
             border-radius: 7px;
         }
 
-        .shrekcoin-button {
+        #coinUserId {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        #coinAmount {
+            width: 120px;
+        }
+
+        .coin-button {
             background: #d6a500;
             color: white;
             font-weight: bold;
         }
 
-        .shrekcoin-status {
-            margin-top: 8px;
-            font-size: 13px;
+        #coinStatus {
+            margin-top: 12px;
             font-weight: bold;
         }
 
@@ -258,9 +266,7 @@
             background: white;
             border-radius: 12px;
             padding: 20px;
-            box-shadow:
-                0 2px 8px
-                rgba(0, 0, 0, .08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
         }
 
         .admin-password-reset h3 {
@@ -285,8 +291,7 @@
 
         .message-controls {
             display: grid;
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 15px;
             margin-top: 25px;
             margin-bottom: 25px;
@@ -296,9 +301,7 @@
             background: white;
             border-radius: 12px;
             padding: 20px;
-            box-shadow:
-                0 2px 8px
-                rgba(0, 0, 0, .08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
         }
 
         .message-box h2 {
@@ -315,17 +318,13 @@
             padding: 10px;
             margin-bottom: 10px;
             resize: vertical;
-            border: 1px solid #ccc;
             border-radius: 8px;
-            font-family: inherit;
             font-size: 14px;
         }
 
         .message-box select {
             width: 100%;
             margin-bottom: 10px;
-            border: 1px solid #ccc;
-            background: white;
         }
 
         .global-message-button {
@@ -336,12 +335,6 @@
         .specific-message-button {
             background: #f29900;
             color: white;
-        }
-
-        #globalMessageStatus,
-        #specificMessageStatus {
-            font-weight: bold;
-            margin-bottom: 0;
         }
 
         .loading {
@@ -369,6 +362,16 @@
                 align-items: flex-start;
             }
 
+            .coin-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            #coinUserId,
+            #coinAmount {
+                width: 100%;
+            }
+
         }
 
     </style>
@@ -386,6 +389,9 @@
     </div>
 
     <div id="message"></div>
+
+
+    <!-- USER SEARCH -->
 
     <div class="toolbar">
 
@@ -405,6 +411,8 @@
     </div>
 
 
+    <!-- USERS -->
+
     <div
         id="users"
         class="users"
@@ -417,7 +425,64 @@
     </div>
 
 
-    <!-- PASSWORD RESET -->
+    <!-- ==============================
+         SHREKCOIN CONTROL
+         ============================== -->
+
+    <div class="shrekcoin-panel">
+
+        <h2>🪙 ShrekCoin Management</h2>
+
+        <p>
+            Give or take ShrekCoins from a specific user.
+        </p>
+
+        <div class="coin-row">
+
+            <input
+                id="coinUserId"
+                type="text"
+                placeholder="Enter user's ID"
+            >
+
+            <select id="coinAction">
+
+                <option value="give">
+                    Give ShrekCoins
+                </option>
+
+                <option value="take">
+                    Take ShrekCoins
+                </option>
+
+            </select>
+
+            <input
+                id="coinAmount"
+                type="number"
+                min="1"
+                step="1"
+                placeholder="Amount"
+            >
+
+            <button
+                type="button"
+                class="coin-button"
+                onclick="modifyShrekCoins()"
+            >
+                DO
+            </button>
+
+        </div>
+
+        <div id="coinStatus"></div>
+
+    </div>
+
+
+    <!-- ==============================
+         PASSWORD RESET
+         ============================== -->
 
     <div class="admin-password-reset">
 
@@ -444,7 +509,9 @@
     </div>
 
 
-    <!-- MESSAGES -->
+    <!-- ==============================
+         MESSAGES
+         ============================== -->
 
     <div class="message-controls">
 
@@ -512,69 +579,11 @@
     </div>
 
 </div>
-<div class="shrekcoin-control">
 
-    <div class="shrekcoin-title">
-        🪙 ShrekCoins:
-        <span id="coins-${escapeHtml(user.id)}">
-            ${Number(user.shrekcoins || 0)}
-        </span>
-    </div>
-
-    <div class="shrekcoin-controls">
-
-        <span>
-            Modify
-            <strong>
-                ${escapeHtml(
-                    user.display_name ||
-                    user.username ||
-                    "User"
-                )}
-            </strong>
-        </span>
-
-        <select
-            id="coin-action-${escapeHtml(user.id)}"
-        >
-            <option value="give">
-                Give
-            </option>
-
-            <option value="take">
-                Take
-            </option>
-        </select>
-
-        <input
-            id="coin-amount-${escapeHtml(user.id)}"
-            type="number"
-            min="1"
-            step="1"
-            placeholder="Amount"
-        >
-
-        <button
-            type="button"
-            class="shrekcoin-button"
-            onclick="modifyShrekCoins(
-                '${escapeHtml(user.id)}'
-            )"
-        >
-            DO
-        </button>
-
-    </div>
-
-    <div
-        class="shrekcoin-status"
-        id="coin-status-${escapeHtml(user.id)}"
-    ></div>
-
-</div>
 
 <script src="/admin.js"></script>
 
 </body>
 
 </html>
+

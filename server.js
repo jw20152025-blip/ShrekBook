@@ -10188,6 +10188,274 @@ app.post(
 
     }
 );
+
+// ==================================================
+// ADMIN SHREKCOIN MANAGEMENT
+// ==================================================
+
+app.post(
+    "/api/admin/shrekcoins",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            // ==========================================
+            // CHECK ADMIN
+            // ==========================================
+
+            const actor =
+                await requireAdmin(
+                    req,
+                    res
+                );
+
+            if (!actor) {
+                return;
+            }
+
+
+            // ==========================================
+            // GET INPUT
+            // ==========================================
+
+            const userId =
+                String(
+                    req.body?.userId ||
+                    ""
+                ).trim();
+
+            const action =
+                String(
+                    req.body?.action ||
+                    ""
+                ).trim().toLowerCase();
+
+            const amount =
+                Number(
+                    req.body?.amount
+                );
+
+
+            // ==========================================
+            // VALIDATE USER ID
+            // ==========================================
+
+            if (!userId) {
+
+                return res.status(400).json({
+                    error:
+                        "User ID is required."
+                });
+
+            }
+
+
+            // ==========================================
+            // VALIDATE ACTION
+            // ==========================================
+
+            if (
+                action !== "give" &&
+                action !== "take"
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Action must be give or take."
+                });
+
+            }
+
+
+            // ==========================================
+            // VALIDATE AMOUNT
+            // ==========================================
+
+            if (
+                !Number.isInteger(amount) ||
+                amount <= 0
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Amount must be a positive whole number."
+                });
+
+            }
+
+
+            // ==========================================
+            // GET TARGET USER
+            // ==========================================
+
+            const {
+                data: target,
+                error: targetError
+            } = await supabase
+                .from("profiles")
+                .select(
+                    "id, username, display_name, shrekcoins, role"
+                )
+                .eq(
+                    "id",
+                    userId
+                )
+                .maybeSingle();
+
+
+            if (targetError) {
+
+                console.error(
+                    "SHREKCOIN TARGET ERROR:",
+                    targetError
+                );
+
+                return res.status(500).json({
+                    error:
+                        targetError.message
+                });
+
+            }
+
+
+            if (!target) {
+
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+
+            }
+
+
+            // ==========================================
+            // PREVENT NEGATIVE BALANCE
+            // ==========================================
+
+            const currentBalance =
+                Number(
+                    target.shrekcoins || 0
+                );
+
+
+            let newBalance;
+
+
+            if (action === "give") {
+
+                newBalance =
+                    currentBalance +
+                    amount;
+
+            } else {
+
+                newBalance =
+                    currentBalance -
+                    amount;
+
+                if (newBalance < 0) {
+
+                    newBalance = 0;
+
+                }
+
+            }
+
+
+            // ==========================================
+            // UPDATE BALANCE
+            // ==========================================
+
+            const {
+                data: updated,
+                error: updateError
+            } = await supabase
+                .from("profiles")
+                .update({
+
+                    shrekcoins:
+                        newBalance
+
+                })
+                .eq(
+                    "id",
+                    userId
+                )
+                .select(
+                    "id, username, display_name, shrekcoins"
+                )
+                .single();
+
+
+            if (updateError) {
+
+                console.error(
+                    "SHREKCOIN UPDATE ERROR:",
+                    updateError
+                );
+
+                return res.status(500).json({
+                    error:
+                        updateError.message
+                });
+
+            }
+
+
+            // ==========================================
+            // LOG ACTION
+            // ==========================================
+
+            console.log(
+                `🪙 ADMIN: ${actor.username} ${action} ${amount} ShrekCoins ${target.username}. New balance: ${newBalance}`
+            );
+
+
+            // ==========================================
+            // SUCCESS
+            // ==========================================
+
+            return res.json({
+
+                success:
+                    true,
+
+                action:
+                    action,
+
+                amount:
+                    amount,
+
+                userId:
+                    target.id,
+
+                username:
+                    target.username,
+
+                shrekcoins:
+                    updated.shrekcoins
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "ADMIN SHREKCOIN ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
+
 app.get("/api/shop/inventory", async (req, res) => {
 
     try {

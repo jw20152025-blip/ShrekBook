@@ -324,47 +324,49 @@ function renderUsers(users) {
 
 }
 
-async function modifyShrekCoins(
-    userId
-) {
+// ==================================================
+// SHREKCOIN MANAGEMENT
+// ==================================================
 
-    const actionElement =
-        document.getElementById(
-            `coin-action-${userId}`
-        );
+async function modifyShrekCoins() {
 
-    const amountElement =
-        document.getElementById(
-            `coin-amount-${userId}`
-        );
+    const userIdInput =
+        document.getElementById("coinUserId");
 
-    const statusElement =
-        document.getElementById(
-            `coin-status-${userId}`
-        );
+    const actionInput =
+        document.getElementById("coinAction");
 
-    if (
-        !actionElement ||
-        !amountElement ||
-        !statusElement
-    ) {
+    const amountInput =
+        document.getElementById("coinAmount");
 
-        console.error(
-            "ShrekCoin controls missing."
-        );
+    const status =
+        document.getElementById("coinStatus");
 
-        return;
 
-    }
-
+    const userId =
+        userIdInput.value.trim();
 
     const action =
-        actionElement.value;
+        actionInput.value;
 
     const amount =
-        Number(
-            amountElement.value
-        );
+        Number(amountInput.value);
+
+
+    // ==========================================
+    // VALIDATION
+    // ==========================================
+
+    if (!userId) {
+
+        status.textContent =
+            "❌ Enter the user's ID.";
+
+        status.style.color =
+            "#9b1c1c";
+
+        return;
+    }
 
 
     if (
@@ -372,28 +374,46 @@ async function modifyShrekCoins(
         amount <= 0
     ) {
 
-        statusElement.textContent =
+        status.textContent =
             "❌ Enter a valid amount.";
 
-        return;
+        status.style.color =
+            "#9b1c1c";
 
+        return;
     }
 
 
-    statusElement.textContent =
-        "Processing...";
+    if (
+        action !== "give" &&
+        action !== "take"
+    ) {
+
+        status.textContent =
+            "❌ Invalid action.";
+
+        status.style.color =
+            "#9b1c1c";
+
+        return;
+    }
+
+
+    status.textContent =
+        "⏳ Processing...";
+
+    status.style.color =
+        "#666";
 
 
     try {
 
         const response =
             await fetch(
-                `/api/admin/users/${encodeURIComponent(userId)}/shrekcoins`,
+                "/api/admin/shrekcoins",
                 {
 
                     method: "POST",
-
-                    credentials: "include",
 
                     headers: {
                         "Content-Type":
@@ -403,20 +423,41 @@ async function modifyShrekCoins(
                             "application/json"
                     },
 
+                    credentials:
+                        "include",
+
                     body:
                         JSON.stringify({
-                            action,
-                            amount
+
+                            userId:
+                                userId,
+
+                            action:
+                                action,
+
+                            amount:
+                                amount
+
                         })
 
                 }
             );
 
 
-        const data =
-            await getJsonResponse(
-                response
+        let data;
+
+        try {
+
+            data =
+                await response.json();
+
+        } catch {
+
+            throw new Error(
+                "Server returned an invalid response."
             );
+
+        }
 
 
         if (!response.ok) {
@@ -429,30 +470,29 @@ async function modifyShrekCoins(
         }
 
 
-        const coinsElement =
-            document.getElementById(
-                `coins-${userId}`
-            );
+        status.textContent =
+            `✅ ${action === "give" ? "Gave" : "Took"} ${amount} ShrekCoins. New balance: ${data.shrekcoins}`;
+
+        status.style.color =
+            "#146b2d";
 
 
-        if (coinsElement) {
+        // Clear amount after successful action
 
-            coinsElement.textContent =
-                Number(
-                    data.shrekcoins
-                );
+        amountInput.value = "";
+
+
+        // Refresh users if your admin panel
+        // already has loadUsers()
+
+        if (
+            typeof loadUsers ===
+            "function"
+        ) {
+
+            loadUsers();
 
         }
-
-
-        amountElement.value =
-            "";
-
-
-        statusElement.textContent =
-            action === "give"
-                ? `✅ Gave ${amount} ShrekCoins.`
-                : `✅ Took ${amount} ShrekCoins.`;
 
     } catch (error) {
 
@@ -461,8 +501,13 @@ async function modifyShrekCoins(
             error
         );
 
-        statusElement.textContent =
-            "❌ " + error.message;
+
+        status.textContent =
+            "❌ " +
+            error.message;
+
+        status.style.color =
+            "#9b1c1c";
 
     }
 
