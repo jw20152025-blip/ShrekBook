@@ -489,26 +489,42 @@
 </div>
 <div class="shrekcoin-control">
 
-    <select class="coin-action">
-        <option value="give">Give</option>
-        <option value="take">Take</option>
-    </select>
+    <strong>
+        🪙 ShrekCoins:
+        ${Number(user.shrekcoins || 0)}
+    </strong>
 
-    <input
-        type="number"
-        class="coin-amount"
-        placeholder="Amount"
-        min="1"
-    >
+    <div style="
+        display:flex;
+        gap:6px;
+        align-items:center;
+        margin-top:6px;
+    ">
 
-    <button
-        onclick="modifyShrekCoins(
-            '${user.id}',
-            this
-        )"
-    >
-        DO
-    </button>
+        <select class="coin-action">
+            <option value="give">Give</option>
+            <option value="take">Take</option>
+        </select>
+
+        <input
+            type="number"
+            class="coin-amount"
+            placeholder="Amount"
+            min="1"
+            step="1"
+        >
+
+        <button
+            type="button"
+            onclick="modifyShrekCoins(
+                '${user.id}',
+                this
+            )"
+        >
+            DO
+        </button>
+
+    </div>
 
 </div>
 <script src="/admin.js"></script>
