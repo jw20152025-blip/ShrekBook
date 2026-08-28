@@ -4025,8 +4025,9 @@ async function uploadImage(
         extension === "mp3";
 
     const maxSize =
+
         isVideo
-            ? 50 * 1024 * 1024
+            ? 200 * 1024 * 1024
             : isAudio
                 ? 20 * 1024 * 1024
                 : 5 * 1024 * 1024;
