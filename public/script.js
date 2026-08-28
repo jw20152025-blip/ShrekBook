@@ -1969,46 +1969,88 @@ async function loadPosts() {
                             post.username ||
                             "User";
 
-                        let imageHTML =
-                            "";
+                        let imageHTML = "";
 
-                        if (
-                            post.image_url
-                        ) {
+                        if (post.image_url) {
 
-                            imageHTML = `
+                            const mediaURL =
+                                escapeHtml(post.image_url);
 
-                                <div
-                                    class="post-image-container"
-                                    style="
-                                        margin-top:12px;
-                                    "
-                                >
+                            const lowerURL =
+                                post.image_url.toLowerCase();
 
-                                    <img
-                                        src="${escapeHtml(
-                                            post.image_url
-                                        )}"
-                                        alt="Post image"
+                            const isVideo =
+                                lowerURL.includes(".mp4") ||
+                                lowerURL.includes("video/mp4") ||
+                                lowerURL.includes(".webm") ||
+                                lowerURL.includes(".mov");
+
+                            if (isVideo) {
+
+                                imageHTML = `
+
+                                    <div
+                                        class="post-image-container"
                                         style="
-                                            max-width:100%;
-                                            max-height:600px;
-                                            border-radius:12px;
-                                            object-fit:contain;
-                                            display:block;
-                                        "
-                                        onerror="
-                                            this.style.display='none';
+                                            margin-top:12px;
                                         "
                                     >
 
-                                </div>
+                                        <video
+                                            src="${mediaURL}"
+                                            controls
+                                            playsinline
+                                            preload="metadata"
+                                            style="
+                                                max-width:100%;
+                                                max-height:600px;
+                                                width:100%;
+                                                border-radius:12px;
+                                                object-fit:contain;
+                                                display:block;
+                                            "
+                                        >
+                                            Your browser does not support video playback.
+                                        </video>
 
-                            `;
+                                    </div>
+
+                                `;
+
+                            } else {
+
+                                imageHTML = `
+
+                                    <div
+                                        class="post-image-container"
+                                        style="
+                                            margin-top:12px;
+                                        "
+                                    >
+
+                                        <img
+                                            src="${mediaURL}"
+                                            alt="Post image"
+                                            style="
+                                                max-width:100%;
+                                                max-height:600px;
+                                                border-radius:12px;
+                                                object-fit:contain;
+                                                display:block;
+                                            "
+                                            onerror="
+                                                this.style.display='none';
+                                            "
+                                        >
+
+                                    </div>
+
+                                `;
+
+                            }
 
                         }
-
-                        const formattedContent =
+                                                const formattedContent =
                             post.content
                                 ? await formatPostContent(
                                     post.content
