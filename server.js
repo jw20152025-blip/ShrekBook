@@ -3864,181 +3864,6 @@ app.put(
 // AVATAR UPLOAD
 // ==================================================
 
-app.post(
-    "/api/profile/avatar",
-    async (req, res) => {
-
-        try {
-
-            if (!req.session.user) {
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-            }
-
-            const {
-                fileName,
-                fileType,
-                fileData
-            } = req.body;
-
-            if (
-                !fileName ||
-                !fileType ||
-                !fileData
-            ) {
-                return res.status(400).json({
-                    error:
-                        "Missing image data."
-                });
-            }
-
-            if (
-                !fileType.startsWith(
-                    "image/"
-                )
-            ) {
-                return res.status(400).json({
-                    error:
-                        "File must be an image."
-                });
-            }
-
-            const buffer =
-                Buffer.from(
-                    fileData,
-                    "base64"
-                );
-
-            if (
-                buffer.length >
-                5 * 1024 * 1024
-            ) {
-                return res.status(400).json({
-                    error:
-                        "Image must be under 5MB."
-                });
-            }
-
-            const extension =
-                fileName
-                    .split(".")
-                    .pop()
-                    .toLowerCase();
-
-            const allowed = [
-                "png",
-                "jpg",
-                "jpeg",
-                "webp",
-                "gif"
-            ];
-
-            if (
-                !allowed.includes(
-                    extension
-                )
-            ) {
-                return res.status(400).json({
-                    error:
-                        "Unsupported image type."
-                });
-            }
-
-            const filePath =
-                `${req.session.user.id}/${Date.now()}.${extension}`;
-
-            const {
-                error: uploadError
-            } = await supabase.storage
-                .from("avatars")
-                .upload(
-                    filePath,
-                    buffer,
-                    {
-                        contentType:
-                            fileType,
-                        upsert: true
-                    }
-                );
-
-            if (uploadError) {
-                return res.status(500).json({
-                    error:
-                        uploadError.message
-                });
-            }
-
-            const {
-                data: publicData
-            } = supabase.storage
-                .from("avatars")
-                .getPublicUrl(
-                    filePath
-                );
-
-            const avatarUrl =
-                publicData.publicUrl;
-
-            const {
-                data: profile,
-                error: profileError
-            } = await supabase
-                .from("profiles")
-                .update({
-                    avatar:
-                        avatarUrl
-                })
-                .eq(
-                    "id",
-                    req.session.user.id
-                )
-                .select()
-                .single();
-
-            if (profileError) {
-                return res.status(500).json({
-                    error:
-                        profileError.message
-                });
-            }
-
-            res.json({
-
-                success: true,
-
-                avatar:
-                    avatarUrl,
-
-                user: {
-                    ...profile,
-                    avatar:
-                        avatarUrl
-                }
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "AVATAR ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
-
-// ==================================================
-// IMAGE UPLOAD
-// ==================================================
 
 async function uploadImage(
     fileData,
@@ -4047,25 +3872,60 @@ async function uploadImage(
     userId
 ) {
 
+    // ==========================================
+    // CHECK DATA
+    // ==========================================
+
     if (
         !fileData ||
         !fileType ||
         !fileName
     ) {
+
         throw new Error(
-            "Missing image data."
+            "Missing file data."
         );
+
     }
 
+
+    // ==========================================
+    // ALLOWED MIME TYPES
+    // ==========================================
+
+    const allowedMimeTypes = [
+
+        // Images
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/webp",
+        "image/gif",
+
+        // Videos
+        "video/mp4",
+        "video/webm",
+        "video/quicktime"
+
+    ];
+
+
     if (
-        !fileType.startsWith(
-            "image/"
+        !allowedMimeTypes.includes(
+            fileType
         )
     ) {
+
         throw new Error(
-            "File must be an image."
+            "Unsupported file type."
         );
+
     }
+
+
+    // ==========================================
+    // CONVERT BASE64 TO BUFFER
+    // ==========================================
 
     const buffer =
         Buffer.from(
@@ -4073,14 +3933,41 @@ async function uploadImage(
             "base64"
         );
 
+
+    // ==========================================
+    // FILE SIZE
+    // ==========================================
+
+    const isVideo =
+        fileType.startsWith(
+            "video/"
+        );
+
+    const maxSize =
+        isVideo
+            ? 50 * 1024 * 1024
+            : 5 * 1024 * 1024;
+
+
     if (
         buffer.length >
-        5 * 1024 * 1024
+        maxSize
     ) {
+
         throw new Error(
-            "Image must be under 5MB."
+
+            isVideo
+                ? "Video must be under 50MB."
+                : "Image must be under 5MB."
+
         );
+
     }
+
+
+    // ==========================================
+    // GET EXTENSION
+    // ==========================================
 
     const extension =
         fileName
@@ -4088,59 +3975,121 @@ async function uploadImage(
             .pop()
             .toLowerCase();
 
-    const allowed = [
+
+    // ==========================================
+    // ALLOWED EXTENSIONS
+    // ==========================================
+
+    const allowedExtensions = [
+
+        // Images
         "png",
         "jpg",
         "jpeg",
         "webp",
-        "gif"
+        "gif",
+
+        // Videos
+        "mp4",
+        "webm",
+        "mov"
+
     ];
 
+
     if (
-        !allowed.includes(
+        !allowedExtensions.includes(
             extension
         )
     ) {
+
         throw new Error(
-            "Unsupported image type."
+            "Unsupported file type."
         );
+
     }
+
+
+    // ==========================================
+    // CREATE FILE PATH
+    // ==========================================
 
     const filePath =
         `posts/${userId}/${Date.now()}-${Math.random()
             .toString(36)
             .slice(2)}.${extension}`;
 
+
+    // ==========================================
+    // UPLOAD TO SUPABASE
+    // ==========================================
+
     const {
         error: uploadError
-    } = await supabase.storage
-        .from("avatars")
-        .upload(
-            filePath,
-            buffer,
-            {
-                contentType:
-                    fileType,
-                upsert: false
-            }
-        );
+    } =
+        await supabase.storage
+            .from("avatars")
+            .upload(
+                filePath,
+                buffer,
+                {
+                    contentType:
+                        fileType,
+
+                    upsert:
+                        false
+                }
+            );
+
 
     if (uploadError) {
+
+        console.error(
+            "STORAGE UPLOAD ERROR:",
+            uploadError
+        );
+
         throw new Error(
             uploadError.message
         );
+
     }
+
+
+    // ==========================================
+    // GET PUBLIC URL
+    // ==========================================
 
     const {
         data: publicData
-    } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(
-            filePath
+    } =
+        supabase.storage
+            .from("avatars")
+            .getPublicUrl(
+                filePath
+            );
+
+
+    if (
+        !publicData ||
+        !publicData.publicUrl
+    ) {
+
+        throw new Error(
+            "Could not generate file URL."
         );
 
+    }
+
+
+    // ==========================================
+    // RETURN URL
+    // ==========================================
+
     return publicData.publicUrl;
+
 }
+
 
 // ==================================================
 // POSTS
