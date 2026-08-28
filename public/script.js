@@ -1955,8 +1955,14 @@ async function loadPosts() {
 
         }
 
+
+        // ==========================================
+        // RENDER POSTS
+        // ==========================================
+
         const renderedPosts =
             await Promise.all(
+
                 posts.map(
                     async post => {
 
@@ -1969,21 +1975,37 @@ async function loadPosts() {
                             post.username ||
                             "User";
 
+
+                        // ======================================
+                        // MEDIA
+                        // ======================================
+
                         let imageHTML = "";
+
 
                         if (post.image_url) {
 
                             const mediaURL =
-                                escapeHtml(post.image_url);
+                                escapeHtml(
+                                    post.image_url
+                                );
 
                             const lowerURL =
-                                post.image_url.toLowerCase();
+                                String(
+                                    post.image_url
+                                ).toLowerCase();
 
+
+                            // Detect video
                             const isVideo =
                                 lowerURL.includes(".mp4") ||
                                 lowerURL.includes("video/mp4") ||
                                 lowerURL.includes(".webm") ||
-                                lowerURL.includes(".mov");
+                                lowerURL.includes("video/webm") ||
+                                lowerURL.includes(".mov") ||
+                                lowerURL.includes("video/quicktime") ||
+                                lowerURL.includes(".m4v");
+
 
                             if (isVideo) {
 
@@ -1993,11 +2015,11 @@ async function loadPosts() {
                                         class="post-image-container"
                                         style="
                                             margin-top:12px;
+                                            width:100%;
                                         "
                                     >
 
                                         <video
-                                            src="${mediaURL}"
                                             controls
                                             playsinline
                                             preload="metadata"
@@ -2008,9 +2030,17 @@ async function loadPosts() {
                                                 border-radius:12px;
                                                 object-fit:contain;
                                                 display:block;
+                                                background:#000;
                                             "
                                         >
-                                            Your browser does not support video playback.
+
+                                            <source
+                                                src="${mediaURL}"
+                                                type="video/mp4"
+                                            >
+
+                                            Your browser does not support MP4 video.
+
                                         </video>
 
                                     </div>
@@ -2050,12 +2080,23 @@ async function loadPosts() {
                             }
 
                         }
-                                                const formattedContent =
+
+
+                        // ======================================
+                        // FORMAT CONTENT
+                        // ======================================
+
+                        const formattedContent =
                             post.content
                                 ? await formatPostContent(
                                     post.content
                                 )
                                 : "";
+
+
+                        // ======================================
+                        // RETURN POST
+                        // ======================================
 
                         return `
 
@@ -2115,6 +2156,7 @@ async function loadPosts() {
 
                                 </div>
 
+
                                 ${
                                     formattedContent
                                         ? `
@@ -2130,7 +2172,9 @@ async function loadPosts() {
                                         : ""
                                 }
 
+
                                 ${imageHTML}
+
 
                                 <button
                                     onclick="
@@ -2143,6 +2187,7 @@ async function loadPosts() {
                                 >
                                     💬 Comments
                                 </button>
+
 
                                 <div
                                     id="comments-${escapeHtml(
@@ -2162,6 +2207,7 @@ async function loadPosts() {
                                         Loading...
                                     </div>
 
+
                                     <div
                                         class="comment-form"
                                         style="
@@ -2177,6 +2223,7 @@ async function loadPosts() {
                                             maxlength="500"
                                         >
 
+
                                         <input
                                             id="comment-image-${escapeHtml(
                                                 String(post.id)
@@ -2187,9 +2234,12 @@ async function loadPosts() {
                                                 image/jpeg,
                                                 image/webp,
                                                 image/gif,
-                                                video/mp4
+                                                video/mp4,
+                                                video/webm,
+                                                video/quicktime
                                             "
                                         >
+
 
                                         <button
                                             onclick="
@@ -2202,6 +2252,7 @@ async function loadPosts() {
                                         >
                                             Send
                                         </button>
+
 
                                         <div
                                             id="comment-preview-${escapeHtml(
@@ -2222,10 +2273,27 @@ async function loadPosts() {
                                                     max-width:200px;
                                                     max-height:200px;
                                                     border-radius:10px;
+                                                    display:none;
                                                 "
                                             >
 
+
+                                            <video
+                                                id="comment-preview-video-${escapeHtml(
+                                                    String(post.id)
+                                                )}"
+                                                controls
+                                                style="
+                                                    max-width:300px;
+                                                    max-height:300px;
+                                                    border-radius:10px;
+                                                    display:none;
+                                                "
+                                            ></video>
+
+
                                             <br>
+
 
                                             <button
                                                 type="button"
@@ -2237,7 +2305,7 @@ async function loadPosts() {
                                                     )
                                                 "
                                             >
-                                                ❌ Remove image
+                                                ❌ Remove media
                                             </button>
 
                                         </div>
@@ -2252,10 +2320,17 @@ async function loadPosts() {
 
                     }
                 )
+
             );
+
 
         container.innerHTML =
             renderedPosts.join("");
+
+
+        // ==========================================
+        // COMMENT FILE PICKERS
+        // ==========================================
 
         posts.forEach(
             post => {
@@ -2275,13 +2350,21 @@ async function loadPosts() {
                         `comment-preview-image-${post.id}`
                     );
 
+                const previewVideo =
+                    document.getElementById(
+                        `comment-preview-video-${post.id}`
+                    );
+
+
                 if (
                     !input ||
                     !preview ||
-                    !previewImage
+                    !previewImage ||
+                    !previewVideo
                 ) {
                     return;
                 }
+
 
                 input.addEventListener(
                     "change",
@@ -2290,23 +2373,48 @@ async function loadPosts() {
                         const file =
                             input.files[0];
 
+
                         if (!file) {
 
                             preview.style.display =
                                 "none";
 
+                            previewImage.style.display =
+                                "none";
+
+                            previewVideo.style.display =
+                                "none";
+
+                            previewVideo.src =
+                                "";
+
                             return;
 
                         }
 
-                        if (
-                            !file.type.startsWith(
+
+                        // ==================================
+                        // ALLOW IMAGE OR VIDEO
+                        // ==================================
+
+                        const isImage =
+                            file.type.startsWith(
                                 "image/"
-                            )
+                            );
+
+                        const isVideo =
+                            file.type.startsWith(
+                                "video/"
+                            );
+
+
+                        if (
+                            !isImage &&
+                            !isVideo
                         ) {
 
                             alert(
-                                "❌ Please choose an image."
+                                "❌ Please choose an image or video."
                             );
 
                             input.value =
@@ -2315,6 +2423,11 @@ async function loadPosts() {
                             return;
 
                         }
+
+
+                        // ==================================
+                        // 5MB LIMIT
+                        // ==================================
 
                         if (
                             file.size >
@@ -2322,7 +2435,7 @@ async function loadPosts() {
                         ) {
 
                             alert(
-                                "❌ Image must be under 5MB."
+                                "❌ File must be under 5MB."
                             );
 
                             input.value =
@@ -2332,29 +2445,81 @@ async function loadPosts() {
 
                         }
 
-                        const reader =
-                            new FileReader();
 
-                        reader.onload =
-                            event => {
+                        // ==================================
+                        // IMAGE PREVIEW
+                        // ==================================
 
-                                previewImage.src =
-                                    event.target.result;
+                        if (isImage) {
 
-                                preview.style.display =
-                                    "block";
+                            previewVideo.pause();
 
-                            };
+                            previewVideo.src =
+                                "";
 
-                        reader.readAsDataURL(
-                            file
-                        );
+                            previewVideo.style.display =
+                                "none";
+
+                            const reader =
+                                new FileReader();
+
+                            reader.onload =
+                                event => {
+
+                                    previewImage.src =
+                                        event.target.result;
+
+                                    previewImage.style.display =
+                                        "inline-block";
+
+                                    preview.style.display =
+                                        "block";
+
+                                };
+
+                            reader.readAsDataURL(
+                                file
+                            );
+
+                            return;
+
+                        }
+
+
+                        // ==================================
+                        // VIDEO PREVIEW
+                        // ==================================
+
+                        if (isVideo) {
+
+                            previewImage.src =
+                                "";
+
+                            previewImage.style.display =
+                                "none";
+
+                            const videoURL =
+                                URL.createObjectURL(
+                                    file
+                                );
+
+                            previewVideo.src =
+                                videoURL;
+
+                            previewVideo.style.display =
+                                "inline-block";
+
+                            preview.style.display =
+                                "block";
+
+                        }
 
                     }
                 );
 
             }
         );
+
 
     } catch (error) {
 
@@ -2371,6 +2536,8 @@ async function loadPosts() {
     }
 
 }
+
+
 
 
 /* ==================================================
