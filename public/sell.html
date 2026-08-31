@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+```
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
+
+<title>Sell on ShrekBook</title>
+
+<style>
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        padding: 30px;
+        background: #f4f4f4;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #222;
+    }
+
+    .container {
+        max-width: 850px;
+        margin: auto;
+    }
+
+    h1 {
+        margin-bottom: 5px;
+    }
+
+    .subtitle {
+        color: #666;
+        margin-bottom: 25px;
+    }
+
+    .box {
+        background: white;
+        border-radius: 14px;
+        padding: 22px;
+        margin-bottom: 18px;
+        box-shadow:
+            0 2px 10px
+            rgba(0, 0, 0, .08);
+    }
+
+    label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 7px;
+    }
+
+    input,
+    textarea,
+    select {
+        width: 100%;
+        padding: 11px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 15px;
+        background: white;
+    }
+
+    textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .field {
+        margin-bottom: 18px;
+    }
+
+    .price-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .coin {
+        font-size: 22px;
+    }
+
+    .preview {
+        margin-top: 15px;
+        display: none;
+    }
+
+    .preview img {
+        max-width: 100%;
+        max-height: 400px;
+        border-radius: 12px;
+        object-fit: contain;
+    }
+
+    .file-info {
+        padding: 12px;
+        background: #f5f5f5;
+        border-radius: 8px;
+        margin-top: 10px;
+        color: #555;
+    }
+
+    .type-info {
+        padding: 12px;
+        background: #eef3ff;
+        border-radius: 8px;
+        margin-top: 10px;
+        color: #3152a3;
+    }
+
+    .submit {
+        width: 100%;
+        padding: 14px;
+        border: 0;
+        border-radius: 9px;
+        background: #4d6cff;
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .submit:hover {
+        opacity: .88;
+    }
+
+    .back {
+        display: inline-block;
+        margin-bottom: 20px;
+        text-decoration: none;
+        color: #4d6cff;
+    }
+
+    #status {
+        margin-top: 15px;
+        font-weight: bold;
+    }
+
+    .warning {
+        padding: 12px;
+        background: #fff4cc;
+        border: 1px solid #ead36a;
+        border-radius: 8px;
+        color: #705800;
+        margin-bottom: 18px;
+    }
+
+</style>
+```
+
+</head>
+
+<body>
+
+<div class="container">
+
+```
+<a
+    href="/"
+    class="back"
+>
+    ← Back to ShrekBook
+</a>
+
+<h1>🛒 Sell on ShrekBook</h1>
+
+<div class="subtitle">
+    Create something awesome and put it on the ShrekBook marketplace.
+</div>
+
+
+<div class="warning">
+    ⚠️ Make sure you have the rights to anything you upload or sell.
+</div>
+
+
+<!-- ITEM INFORMATION -->
+
+<div class="box">
+
+    <h2>📦 Item Information</h2>
+
+    <div class="field">
+
+        <label for="itemName">
+            Item Name
+        </label>
+
+        <input
+            id="itemName"
+            type="text"
+            maxlength="100"
+            placeholder="Example: Swamp Warrior"
+        >
+
+    </div>
+
+
+    <div class="field">
+
+        <label for="itemDescription">
+            Description
+        </label>
+
+        <textarea
+            id="itemDescription"
+            maxlength="1000"
+            placeholder="Describe your creation..."
+        ></textarea>
+
+    </div>
+
+
+    <div class="field">
+
+        <label for="itemType">
+            Item Type
+        </label>
+
+        <select id="itemType">
+
+            <option value="image">
+                🎨 Image
+            </option>
+
+            <option value="avatar">
+                🧌 ShrekBook Avatar (.sb)
+            </option>
+
+        </select>
+
+
+        <div
+            id="typeInfo"
+            class="type-info"
+        >
+            Sell an image that other users can purchase.
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- FILE -->
+
+<div class="box">
+
+    <h2>📁 Your Creation</h2>
+
+    <div class="field">
+
+        <label for="itemFile">
+            File
+        </label>
+
+        <input
+            id="itemFile"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+        >
+
+        <div
+            id="fileInfo"
+            class="file-info"
+            style="display:none;"
+        ></div>
+
+    </div>
+
+
+    <div
+        id="preview"
+        class="preview"
+    >
+
+        <strong>
+            Preview
+        </strong>
+
+        <br><br>
+
+        <img
+            id="previewImage"
+            alt="Item preview"
+        >
+
+    </div>
+
+</div>
+
+
+<!-- PRICE -->
+
+<div class="box">
+
+    <h2>🪙 Price</h2>
+
+    <div class="field">
+
+        <label for="itemPrice">
+            ShrekCoin price
+        </label>
+
+        <div class="price-row">
+
+            <span class="coin">
+                🪙
+            </span>
+
+            <input
+                id="itemPrice"
+                type="number"
+                min="1"
+                max="1000000000"
+                step="1"
+                placeholder="100"
+            >
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- SELL -->
+
+<div class="box">
+
+    <h2>🚀 List for Sale</h2>
+
+    <p>
+        Once listed, other ShrekBook users will be able to purchase your creation.
+    </p>
+
+    <button
+        class="submit"
+        id="sellButton"
+    >
+        🛒 List Item for Sale
+    </button>
+
+    <div id="status"></div>
+
+</div>
+```
+
+</div>
+
+<script>
+
+const itemType =
+    document.getElementById("itemType");
+
+const itemFile =
+    document.getElementById("itemFile");
+
+const typeInfo =
+    document.getElementById("typeInfo");
+
+const preview =
+    document.getElementById("preview");
+
+const previewImage =
+    document.getElementById("previewImage");
+
+const fileInfo =
+    document.getElementById("fileInfo");
+
+const sellButton =
+    document.getElementById("sellButton");
+
+const status =
+    document.getElementById("status");
+
+
+
+function updateFileType() {
+
+    if (itemType.value === "avatar") {
+
+        itemFile.accept =
+            ".sb";
+
+        typeInfo.textContent =
+            "🧌 Upload a ShrekBook .sb avatar file. Buyers will receive the actual .sb file.";
+
+    } else {
+
+        itemFile.accept =
+            "image/png,image/jpeg,image/webp,image/gif";
+
+        typeInfo.textContent =
+            "🎨 Upload an image that other users can purchase.";
+
+    }
+
+    itemFile.value = "";
+
+    preview.style.display =
+        "none";
+
+    fileInfo.style.display =
+        "none";
+}
+
+
+
+itemType.addEventListener(
+    "change",
+    updateFileType
+);
+
+
+
+itemFile.addEventListener(
+    "change",
+    () => {
+
+        const file =
+            itemFile.files[0];
+
+        if (!file) {
+            return;
+        }
+
+
+        const isAvatar =
+            itemType.value === "avatar";
+
+
+        if (isAvatar) {
+
+            if (
+                !file.name
+                    .toLowerCase()
+                    .endsWith(".sb")
+            ) {
+
+                alert(
+                    "❌ Avatar files must be .sb files."
+                );
+
+                itemFile.value = "";
+
+                return;
+            }
+
+        } else {
+
+            if (
+                !file.type.startsWith(
+                    "image/"
+                )
+            ) {
+
+                alert(
+                    "❌ Please choose an image."
+                );
+
+                itemFile.value = "";
+
+                return;
+            }
+
+        }
+
+
+        fileInfo.style.display =
+            "block";
+
+        fileInfo.textContent =
+            `${file.name} • ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+
+
+        if (!isAvatar) {
+
+            const reader =
+                new FileReader();
+
+            reader.onload =
+                event => {
+
+                    previewImage.src =
+                        event.target.result;
+
+                    preview.style.display =
+                        "block";
+
+                };
+
+            reader.readAsDataURL(file);
+
+        } else {
+
+            preview.style.display =
+                "block";
+
+            previewImage.removeAttribute(
+                "src"
+            );
+
+            previewImage.alt =
+                "🧌 .SB Avatar";
+
+        }
+
+    }
+);
+
+
+
+sellButton.addEventListener(
+    "click",
+    async () => {
+
+        const name =
+            document
+                .getElementById("itemName")
+                .value
+                .trim();
+
+        const description =
+            document
+                .getElementById("itemDescription")
+                .value
+                .trim();
+
+        const type =
+            itemType.value;
+
+        const price =
+            Number(
+                document
+                    .getElementById("itemPrice")
+                    .value
+            );
+
+        const file =
+            itemFile.files[0];
+
+
+        if (!name) {
+
+            status.textContent =
+                "❌ Enter an item name.";
+
+            return;
+
+        }
+
+
+        if (!file) {
+
+            status.textContent =
+                "❌ Choose a file.";
+
+            return;
+
+        }
+
+
+        if (
+            !Number.isInteger(price) ||
+            price < 1
+        ) {
+
+            status.textContent =
+                "❌ Enter a valid ShrekCoin price.";
+
+            return;
+
+        }
+
+
+        status.textContent =
+            "⏳ Preparing your item...";
+
+
+        /*
+         * THIS IS WHERE YOUR MARKETPLACE API
+         * WILL BE CONNECTED.
+         *
+         * Example:
+         *
+         * const formData = new FormData();
+         *
+         * formData.append("name", name);
+         * formData.append("description", description);
+         * formData.append("item_type", type);
+         * formData.append("price", price);
+         * formData.append("file", file);
+         *
+         * fetch("/api/shop/list", {
+         *     method: "POST",
+         *     credentials: "include",
+         *     body: formData
+         * });
+         */
+
+
+        status.textContent =
+            "✅ Item is ready to be listed!";
+
+    }
+);
+
+</script>
+
+</body>
+</html>
