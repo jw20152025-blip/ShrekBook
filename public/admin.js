@@ -324,6 +324,243 @@ function renderUsers(users) {
 
 }
 
+// ==================================================
+// SHREKCOIN MANAGEMENT
+// ==================================================
+
+async function modifyShrekCoins() {
+
+    const userIdInput =
+        document.getElementById("coinUserId");
+
+    const actionInput =
+        document.getElementById("coinAction");
+
+    const amountInput =
+        document.getElementById("coinAmount");
+
+    const status =
+        document.getElementById("coinStatus");
+
+
+    const userId =
+        userIdInput.value.trim();
+
+    const action =
+        actionInput.value;
+
+    const amount =
+        Number(amountInput.value);
+
+
+    // ==========================================
+    // VALIDATION
+    // ==========================================
+
+    if (!userId) {
+
+        status.textContent =
+            "❌ Enter the user's ID.";
+
+        status.style.color =
+            "#9b1c1c";
+
+        return;
+    }
+
+
+    if (
+        !Number.isInteger(amount) ||
+        amount <= 0
+    ) {
+
+        status.textContent =
+            "❌ Enter a valid amount.";
+
+        status.style.color =
+            "#9b1c1c";
+
+        return;
+    }
+
+
+    if (
+        action !== "give" &&
+        action !== "take"
+    ) {
+
+        status.textContent =
+            "❌ Invalid action.";
+
+        status.style.color =
+            "#9b1c1c";
+
+        return;
+    }
+
+
+    status.textContent =
+        "⏳ Processing...";
+
+    status.style.color =
+        "#666";
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/admin/shrekcoins",
+                {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "Accept":
+                            "application/json"
+                    },
+
+                    credentials:
+                        "include",
+
+                    body:
+                        JSON.stringify({
+
+                            userId:
+                                userId,
+
+                            action:
+                                action,
+
+                            amount:
+                                amount
+
+                        })
+
+                }
+            );
+
+
+        let data;
+
+        try {
+
+            data =
+                await response.json();
+
+        } catch {
+
+            throw new Error(
+                "Server returned an invalid response."
+            );
+
+        }
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not modify ShrekCoins."
+            );
+
+        }
+
+
+        status.textContent =
+            `✅ ${action === "give" ? "Gave" : "Took"} ${amount} ShrekCoins. New balance: ${data.shrekcoins}`;
+
+        status.style.color =
+            "#146b2d";
+
+
+        // Clear amount after successful action
+
+        amountInput.value = "";
+
+
+        // Refresh users if your admin panel
+        // already has loadUsers()
+
+        if (
+            typeof loadUsers ===
+            "function"
+        ) {
+
+            loadUsers();
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "SHREKCOIN ERROR:",
+            error
+        );
+
+
+        status.textContent =
+            "❌ " +
+            error.message;
+
+        status.style.color =
+            "#9b1c1c";
+
+    }
+
+}
+
+
+// ==================================================
+// SEARCH
+// ==================================================
+
+const searchInput =
+    document.getElementById(
+        "search"
+    );
+
+if (searchInput) {
+
+    searchInput.addEventListener(
+        "input",
+        () => {
+
+            const query =
+                searchInput.value
+                    .trim()
+                    .toLowerCase();
+
+            const filtered =
+                allUsers.filter(
+                    user =>
+                        String(
+                            user.username || ""
+                        )
+                        .toLowerCase()
+                        .includes(query)
+                        ||
+                        String(
+                            user.display_name || ""
+                        )
+                        .toLowerCase()
+                        .includes(query)
+                );
+
+            renderUsers(
+                filtered
+            );
+
+        }
+    );
+
+}
+
+
+
 
 // ==================================================
 // USER CARD

@@ -467,67 +467,43 @@ async function prepareImage(file) {
         return null;
     }
 
-
-    // ==========================================
-    // ALLOWED FILE TYPES
-    // ==========================================
-
     const allowedTypes = [
-
-        // Images
         "image/png",
         "image/jpeg",
         "image/jpg",
         "image/webp",
         "image/gif",
-
-        // Videos
-        "video/mp4",
-        "video/webm",
-        "video/quicktime"
-
+        "video/mp4"
     ];
-
 
     if (!allowedTypes.includes(file.type)) {
 
         throw new Error(
-            "Unsupported file type. Use PNG, JPG, WEBP, GIF, MP4, WEBM, or MOV."
+            "Unsupported file type."
         );
 
     }
 
-
-    // ==========================================
-    // FILE SIZE
-    // ==========================================
+    const isVideo =
+        file.type === "video/mp4";
 
     const maxSize =
-        file.type.startsWith("video/")
+        isVideo
             ? 50 * 1024 * 1024
             : 5 * 1024 * 1024;
-
 
     if (file.size > maxSize) {
 
         throw new Error(
-
-            file.type.startsWith("video/")
+            isVideo
                 ? "Video must be under 50MB."
                 : "Image must be under 5MB."
-
         );
 
     }
 
-
-    // ==========================================
-    // CONVERT TO BASE64
-    // ==========================================
-
     const data =
         await fileToBase64(file);
-
 
     return {
 
@@ -540,8 +516,6 @@ async function prepareImage(file) {
     };
 
 }
-
-
 /* ==================================================
    LOGIN
 ================================================== */
@@ -3233,15 +3207,47 @@ async function loadComments(
 
 }
 
+function clearCommentImage(postId) {
 
+    const input =
+        document.getElementById(
+            `comment-image-${postId}`
+        );
+
+    const preview =
+        document.getElementById(
+            `comment-preview-${postId}`
+        );
+
+    const previewImage =
+        document.getElementById(
+            `comment-preview-image-${postId}`
+        );
+
+    if (input) {
+        input.value = "";
+    }
+
+    if (previewImage) {
+        previewImage.src = "";
+    }
+
+    if (preview) {
+        preview.style.display = "none";
+    }
+}
 /* ==================================================
    SUBMIT COMMENT
 ================================================== */
+
 
 app.post(
     "/api/posts/:postId/comments",
     upload.single("image"),
     async (req, res) => {
+
+async function submitComment(postId) {
+
 
         try {
 
@@ -3255,6 +3261,7 @@ app.post(
                     error:
                         "You must be logged in."
                 });
+
 
             }
 
@@ -3449,6 +3456,76 @@ app.post(
                             "Could not upload file."
                     });
 
+
+    // ==========================================
+    // CHECK EMPTY
+    // ==========================================
+
+    if (!content && !file) {
+
+        alert(
+            "❌ Write a comment or select a file."
+        );
+
+        return;
+
+    }
+
+
+    try {
+
+        // ==========================================
+        // CREATE FORMDATA
+        // ==========================================
+
+        const formData =
+            new FormData();
+
+
+        formData.append(
+            "content",
+            content
+        );
+
+
+        // ==========================================
+        // ADD FILE
+        // ==========================================
+
+        if (file) {
+
+            formData.append(
+                "image",
+                file
+            );
+
+        }
+
+
+        // ==========================================
+        // SEND
+        // ==========================================
+
+        const response =
+            await fetch(
+                `/api/posts/${encodeURIComponent(postId)}/comments`,
+                {
+
+                    method:
+                        "POST",
+
+                    credentials:
+                        "include",
+
+                    headers: {
+                        "Accept":
+                            "application/json"
+                    },
+
+                    body:
+                        formData
+
+
                 }
 
             }
@@ -3637,6 +3714,7 @@ app.post(
                 error
             );
 
+
             return res.status(500).json({
                 error:
                     "Server error."
@@ -3644,8 +3722,84 @@ app.post(
 
         }
 
+        const data =
+            await getJsonResponse(
+                response
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not comment."
+            );
+
+        }
+
+
+        // ==========================================
+        // CLEAR
+        // ==========================================
+
+        if (input) {
+
+            input.value =
+                "";
+
+        }
+
+
+        if (imageInput) {
+
+            imageInput.value =
+                "";
+
+        }
+
+
+        clearCommentImage(
+            postId
+        );
+
+
+        // ==========================================
+        // RELOAD COMMENTS
+        // ==========================================
+
+        await loadComments(
+            postId
+        );
+
+
+        if (
+            typeof loadLeaderboard ===
+            "function"
+        ) {
+
+            loadLeaderboard(
+                currentLeaderboard
+            );
+
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "COMMENT ERROR:",
+            error
+        );
+
+        alert(
+            "❌ " +
+            error.message
+        );
+
+
     }
 );
+
 
 
 
@@ -3689,6 +3843,9 @@ function clearCommentImage(
     }
 
 }
+
+
+
 
 
 /* ==================================================
@@ -4544,28 +4701,22 @@ function isJuniorModerator(
 /* ==================================================
    ADMIN PANEL ACCESS
 ================================================== */
-
-function canAccessAdminPanel(
-    user
-) {
+function canAccessAdminPanel(user) {
 
     if (!user) {
         return false;
     }
 
-    const role =
-        getUserRole(
-            user
-        );
+    const role = getUserRole(user);
 
     return (
         role === "owner" ||
-        role === "admin"
+        role === "administrator" ||
+        role === "senior_moderator" ||
+        role === "junior_moderator"
     );
 
 }
-
-
 /* ==================================================
    MODERATION ACCESS
 ================================================== */

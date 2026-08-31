@@ -4025,8 +4025,9 @@ async function uploadImage(
         extension === "mp3";
 
     const maxSize =
+
         isVideo
-            ? 50 * 1024 * 1024
+            ? 200 * 1024 * 1024
             : isAudio
                 ? 20 * 1024 * 1024
                 : 5 * 1024 * 1024;
@@ -5228,6 +5229,9 @@ app.post(
             const userId =
                 req.session.user.id;
 
+            const postId =
+                req.params.postId;
+
 
             // ==========================================
             // GET CONTENT
@@ -5257,8 +5261,10 @@ app.post(
             const file =
                 req.file || null;
 
+
             let imageUrl =
                 null;
+
 
 
             // ==========================================
@@ -5267,7 +5273,13 @@ app.post(
 
             if (file) {
 
-                try {
+            if (req.file) {
+
+
+                // --------------------------------------
+                // ALLOWED FILE TYPES
+                // --------------------------------------
+
 
                     const extension =
                         file.originalname
@@ -5404,6 +5416,24 @@ app.post(
 
                 } catch (error) {
 
+                const allowedTypes = [
+
+                    "image/png",
+                    "image/jpeg",
+                    "image/webp",
+                    "image/gif",
+                    "video/mp4"
+
+                ];
+
+
+                if (
+                    !allowedTypes.includes(
+                        req.file.mimetype
+                    )
+                ) {
+
+
                     console.error(
                         "COMMENT FILE ERROR:",
                         error
@@ -5411,11 +5441,142 @@ app.post(
 
                     return res.status(500).json({
                         error:
-                            error.message ||
-                            "Could not upload file."
+                            "Unsupported file type."
                     });
 
                 }
+
+
+                // --------------------------------------
+                // FILE SIZE
+                // --------------------------------------
+
+                const isVideo =
+                    req.file.mimetype ===
+                    "video/mp4";
+
+
+                const maxSize =
+                    isVideo
+                        ? 50 * 1024 * 1024
+                        : 5 * 1024 * 1024;
+
+
+                if (
+                    req.file.size >
+                    maxSize
+                ) {
+
+                    return res.status(400).json({
+                        error:
+                            isVideo
+                                ? "Video must be under 50MB."
+                                : "Image must be under 5MB."
+                    });
+
+                }
+
+
+                // --------------------------------------
+                // FILE EXTENSION
+                // --------------------------------------
+
+                const extension =
+                    req.file.originalname
+                        .split(".")
+                        .pop()
+                        .toLowerCase();
+
+
+                const allowedExtensions = [
+
+                    "png",
+                    "jpg",
+                    "jpeg",
+                    "webp",
+                    "gif",
+                    "mp4"
+
+                ];
+
+
+                if (
+                    !allowedExtensions.includes(
+                        extension
+                    )
+                ) {
+
+                    return res.status(400).json({
+                        error:
+                            "Unsupported file extension."
+                    });
+
+                }
+
+
+                // --------------------------------------
+                // STORAGE PATH
+                // --------------------------------------
+
+                const filePath =
+                    `comments/${userId}/${Date.now()}-${Math.random()
+                        .toString(36)
+                        .slice(2)}.${extension}`;
+
+
+                // --------------------------------------
+                // UPLOAD TO SUPABASE
+                // --------------------------------------
+
+                const {
+                    error: uploadError
+                } =
+                    await supabase.storage
+                        .from("avatars")
+                        .upload(
+                            filePath,
+                            req.file.buffer,
+                            {
+                                contentType:
+                                    req.file.mimetype,
+
+                                upsert:
+                                    false
+                            }
+                        );
+
+
+                if (uploadError) {
+
+                    console.error(
+                        "COMMENT STORAGE ERROR:",
+                        uploadError
+                    );
+
+                    return res.status(500).json({
+                        error:
+                            uploadError.message
+                    });
+
+                }
+
+
+                // --------------------------------------
+                // GET PUBLIC URL
+                // --------------------------------------
+
+                const {
+                    data: publicData
+                } =
+                    supabase.storage
+                        .from("avatars")
+                        .getPublicUrl(
+                            filePath
+                        );
+
+
+                imageUrl =
+                    publicData.publicUrl;
 
             }
 
@@ -5450,13 +5611,20 @@ app.post(
                     .insert({
 
                         post_id:
+
                             req.params.postId,
+
+                            postId,
+
 
                         user_id:
                             userId,
 
                         content:
                             content,
+
+                        content,
+
 
                         image_url:
                             imageUrl
@@ -5495,10 +5663,15 @@ app.post(
 
 
             const {
+
                 data:
                     profile,
                 error:
                     profileError
+
+                data: profile,
+                error: profileError
+
             } =
                 await supabase
                     .from("profiles")
@@ -5521,14 +5694,24 @@ app.post(
 
             } else {
 
+
+                // ======================================
+                // FIRST COMMENT OF UTC DAY
+                // ======================================
+
+
                 if (
                     profile.last_comment_reward_date !==
                     todayUTC
                 ) {
 
                     const {
+
                         error:
                             coinError
+
+                        error: coinError
+
                     } =
                         await supabase.rpc(
                             "increment_shrekcoins",
@@ -5553,9 +5736,18 @@ app.post(
 
                     } else {
 
+
                         const {
                             error:
                                 dateError
+
+                        // ==================================
+                        // MARK REWARD AS CLAIMED
+                        // ==================================
+
+                        const {
+                            error: dateError
+
                         } =
                             await supabase
                                 .from("profiles")
@@ -5605,6 +5797,7 @@ app.post(
 
             return res.status(500).json({
                 error:
+                    error.message ||
                     "Server error."
             });
 
@@ -8894,7 +9087,7 @@ app.get(
             } = await supabase
                 .from("profiles")
                 .select(
-                    "id, username, display_name, avatar, role, banned, kicked"
+                    "id, username, display_name, avatar, role, banned, kicked, shrekcoins"
                 )
                 .order(
                     "username",
@@ -9937,6 +10130,514 @@ app.post("/api/admin/reset-password", async (req, res) => {
 // ==================================================
 // SHOP INVENTORY
 // ==================================================
+// ==================================================
+// ADMIN SHREKCOINS
+// ==================================================
+
+app.post(
+    "/api/admin/users/:id/shrekcoins",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            const actor =
+                await requireAdmin(
+                    req,
+                    res
+                );
+
+            if (!actor) {
+                return;
+            }
+
+
+            const targetId =
+                req.params.id;
+
+
+            const action =
+                String(
+                    req.body?.action || ""
+                )
+                .trim()
+                .toLowerCase();
+
+
+            const amount =
+                Number(
+                    req.body?.amount
+                );
+
+
+            if (
+                action !== "give" &&
+                action !== "take"
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Action must be give or take."
+                });
+
+            }
+
+
+            if (
+                !Number.isInteger(amount) ||
+                amount <= 0
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Amount must be a positive whole number."
+                });
+
+            }
+
+
+            if (
+                amount > 1000000000
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Amount is too large."
+                });
+
+            }
+
+
+            // Get target
+
+            const {
+                data: target,
+                error: targetError
+            } = await supabase
+                .from("profiles")
+                .select(
+                    "id, username, display_name, role, shrekcoins"
+                )
+                .eq(
+                    "id",
+                    targetId
+                )
+                .maybeSingle();
+
+
+            if (targetError) {
+
+                console.error(
+                    "SHREKCOIN TARGET ERROR:",
+                    targetError
+                );
+
+                return res.status(500).json({
+                    error:
+                        targetError.message
+                });
+
+            }
+
+
+            if (!target) {
+
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+
+            }
+
+
+            // Admin cannot modify
+            // someone with an equal/higher role.
+
+            if (
+                !canManageRole(
+                    actor.role,
+                    target.role
+                )
+            ) {
+
+                return res.status(403).json({
+                    error:
+                        "You cannot modify this user's ShrekCoins."
+                });
+
+            }
+
+
+            const currentCoins =
+                Number(
+                    target.shrekcoins || 0
+                );
+
+
+            let newCoins;
+
+
+            if (
+                action === "give"
+            ) {
+
+                newCoins =
+                    currentCoins +
+                    amount;
+
+            } else {
+
+                newCoins =
+                    currentCoins -
+                    amount;
+
+                if (
+                    newCoins < 0
+                ) {
+                    newCoins = 0;
+                }
+
+            }
+
+
+            const {
+                error: updateError
+            } = await supabase
+                .from("profiles")
+                .update({
+                    shrekcoins:
+                        newCoins
+                })
+                .eq(
+                    "id",
+                    target.id
+                );
+
+
+            if (updateError) {
+
+                console.error(
+                    "SHREKCOIN UPDATE ERROR:",
+                    updateError
+                );
+
+                return res.status(500).json({
+                    error:
+                        updateError.message
+                });
+
+            }
+
+
+            console.log(
+                `🪙 ${actor.username} ${action} ${amount} ShrekCoins ${action === "give" ? "to" : "from"} ${target.username}`
+            );
+
+
+            return res.json({
+
+                success:
+                    true,
+
+                userId:
+                    target.id,
+
+                username:
+                    target.username,
+
+                action,
+
+                amount,
+
+                shrekcoins:
+                    newCoins
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "SHREKCOIN ROUTE ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
+
+// ==================================================
+// ADMIN SHREKCOIN MANAGEMENT
+// ==================================================
+
+app.post(
+    "/api/admin/shrekcoins",
+    requireLogin,
+    async (req, res) => {
+
+        try {
+
+            // ==========================================
+            // CHECK ADMIN
+            // ==========================================
+
+            const actor =
+                await requireAdmin(
+                    req,
+                    res
+                );
+
+            if (!actor) {
+                return;
+            }
+
+
+            // ==========================================
+            // GET INPUT
+            // ==========================================
+
+            const userId =
+                String(
+                    req.body?.userId ||
+                    ""
+                ).trim();
+
+            const action =
+                String(
+                    req.body?.action ||
+                    ""
+                ).trim().toLowerCase();
+
+            const amount =
+                Number(
+                    req.body?.amount
+                );
+
+
+            // ==========================================
+            // VALIDATE USER ID
+            // ==========================================
+
+            if (!userId) {
+
+                return res.status(400).json({
+                    error:
+                        "User ID is required."
+                });
+
+            }
+
+
+            // ==========================================
+            // VALIDATE ACTION
+            // ==========================================
+
+            if (
+                action !== "give" &&
+                action !== "take"
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Action must be give or take."
+                });
+
+            }
+
+
+            // ==========================================
+            // VALIDATE AMOUNT
+            // ==========================================
+
+            if (
+                !Number.isInteger(amount) ||
+                amount <= 0
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Amount must be a positive whole number."
+                });
+
+            }
+
+
+            // ==========================================
+            // GET TARGET USER
+            // ==========================================
+
+            const {
+                data: target,
+                error: targetError
+            } = await supabase
+                .from("profiles")
+                .select(
+                    "id, username, display_name, shrekcoins, role"
+                )
+                .eq(
+                    "id",
+                    userId
+                )
+                .maybeSingle();
+
+
+            if (targetError) {
+
+                console.error(
+                    "SHREKCOIN TARGET ERROR:",
+                    targetError
+                );
+
+                return res.status(500).json({
+                    error:
+                        targetError.message
+                });
+
+            }
+
+
+            if (!target) {
+
+                return res.status(404).json({
+                    error:
+                        "User not found."
+                });
+
+            }
+
+
+            // ==========================================
+            // PREVENT NEGATIVE BALANCE
+            // ==========================================
+
+            const currentBalance =
+                Number(
+                    target.shrekcoins || 0
+                );
+
+
+            let newBalance;
+
+
+            if (action === "give") {
+
+                newBalance =
+                    currentBalance +
+                    amount;
+
+            } else {
+
+                newBalance =
+                    currentBalance -
+                    amount;
+
+                if (newBalance < 0) {
+
+                    newBalance = 0;
+
+                }
+
+            }
+
+
+            // ==========================================
+            // UPDATE BALANCE
+            // ==========================================
+
+            const {
+                data: updated,
+                error: updateError
+            } = await supabase
+                .from("profiles")
+                .update({
+
+                    shrekcoins:
+                        newBalance
+
+                })
+                .eq(
+                    "id",
+                    userId
+                )
+                .select(
+                    "id, username, display_name, shrekcoins"
+                )
+                .single();
+
+
+            if (updateError) {
+
+                console.error(
+                    "SHREKCOIN UPDATE ERROR:",
+                    updateError
+                );
+
+                return res.status(500).json({
+                    error:
+                        updateError.message
+                });
+
+            }
+
+
+            // ==========================================
+            // LOG ACTION
+            // ==========================================
+
+            console.log(
+                `🪙 ADMIN: ${actor.username} ${action} ${amount} ShrekCoins ${target.username}. New balance: ${newBalance}`
+            );
+
+
+            // ==========================================
+            // SUCCESS
+            // ==========================================
+
+            return res.json({
+
+                success:
+                    true,
+
+                action:
+                    action,
+
+                amount:
+                    amount,
+
+                userId:
+                    target.id,
+
+                username:
+                    target.username,
+
+                shrekcoins:
+                    updated.shrekcoins
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "ADMIN SHREKCOIN ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
 
 app.get("/api/shop/inventory", async (req, res) => {
 
