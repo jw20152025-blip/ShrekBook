@@ -1,0 +1,281 @@
+* {
+  box-sizing: border-box;
+  }
+
+body {
+margin: 0;
+padding: 20px;
+
+
+background: #f2f2f2;
+
+font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+
+color: #222;
+
+
+}
+
+.creator {
+max-width: 1000px;
+margin: auto;
+}
+
+.creator-header {
+text-align: center;
+margin-bottom: 20px;
+}
+
+.creator-header h1 {
+margin-bottom: 5px;
+}
+
+.creator-header p {
+color: #666;
+}
+
+/* ==========================================
+TOOLBAR
+========================================== */
+
+.toolbar {
+display: flex;
+align-items: center;
+gap: 10px;
+
+
+flex-wrap: wrap;
+
+padding: 15px;
+
+background: white;
+
+border-radius: 12px;
+
+box-shadow:
+    0 2px 8px
+    rgba(0, 0, 0, .08);
+
+margin-bottom: 15px;
+
+
+}
+
+.toolbar label {
+display: flex;
+
+
+align-items: center;
+
+gap: 6px;
+
+font-size: 14px;
+
+
+}
+
+.toolbar input[type="color"] {
+width: 42px;
+height: 32px;
+
+
+padding: 0;
+
+border: 0;
+
+cursor: pointer;
+
+
+}
+
+.toolbar input[type="range"] {
+width: 120px;
+}
+
+button,
+.file-button {
+padding: 9px 13px;
+
+
+border: 0;
+
+border-radius: 7px;
+
+background: #e8e8e8;
+
+cursor: pointer;
+
+font-size: 14px;
+
+transition:
+    opacity .15s,
+    transform .05s;
+
+
+}
+
+button:hover,
+.file-button:hover {
+opacity: .8;
+}
+
+button:active,
+.file-button:active {
+transform: scale(.97);
+}
+
+button.active {
+background: #4d6cff;
+
+
+color: white;
+
+
+}
+
+button.primary {
+background: #188038;
+
+color: white;
+
+
+}
+
+.file-button {
+display: inline-block;
+}
+
+/* ==========================================
+CANVAS
+========================================== */
+
+.canvas-area {
+display: flex;
+
+
+justify-content: center;
+align-items: center;
+
+padding: 20px;
+
+background: #ddd;
+
+border-radius: 12px;
+
+overflow: auto;
+
+box-shadow:
+    0 2px 8px
+    rgba(0, 0, 0, .08);
+
+
+}
+
+#canvas {
+width: min(800px, 100%);
+
+height: auto;
+
+background: white;
+
+border-radius: 4px;
+
+cursor: crosshair;
+
+touch-action: none;
+
+box-shadow:
+    0 2px 10px
+    rgba(0, 0, 0, .15);
+
+
+}
+
+/* ==========================================
+FILE CONTROLS
+========================================== */
+
+.file-controls {
+display: flex;
+
+
+flex-wrap: wrap;
+
+gap: 10px;
+
+margin-top: 15px;
+
+padding: 15px;
+
+background: white;
+
+border-radius: 12px;
+
+box-shadow:
+    0 2px 8px
+    rgba(0, 0, 0, .08);
+
+
+}
+
+/* ==========================================
+STATUS
+========================================== */
+
+.status {
+margin-top: 12px;
+
+
+padding: 10px 14px;
+
+border-radius: 8px;
+
+background: #e8f0fe;
+
+color: #333;
+
+font-size: 14px;
+
+
+}
+
+/* ==========================================
+MOBILE
+========================================== */
+
+@media (max-width: 700px) {
+
+
+body {
+    padding: 10px;
+}
+
+.toolbar {
+    flex-direction: column;
+
+    align-items: stretch;
+}
+
+.toolbar label {
+    justify-content: space-between;
+}
+
+.toolbar input[type="range"] {
+    flex: 1;
+}
+
+.file-controls {
+    flex-direction: column;
+}
+
+.file-controls button,
+.file-button {
+    text-align: center;
+    width: 100%;
+}
+
+
+}

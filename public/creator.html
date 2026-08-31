@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+
+<title>ShrekBook Creator</title>
+
+<link
+    rel="stylesheet"
+    href="/creator.css"
+>
+
+
+</head>
+
+<body>
+
+<div class="creator">
+
+<header class="creator-header">
+
+    <h1>🎨 ShrekBook Creator</h1>
+
+    <p>
+        Create something awesome and save it as a
+        <strong>.sb</strong> file.
+    </p>
+
+</header>
+
+
+<section class="toolbar">
+
+    <label>
+        🎨 Color
+
+        <input
+            id="color"
+            type="color"
+            value="#000000"
+        >
+    </label>
+
+
+    <label>
+        🖌️ Size
+
+        <input
+            id="brushSize"
+            type="range"
+            min="1"
+            max="100"
+            value="10"
+        >
+
+        <span id="brushSizeValue">
+            10
+        </span>
+    </label>
+
+
+    <button
+        id="brushButton"
+        class="active"
+    >
+        🖌️ Brush
+    </button>
+
+
+    <button id="eraserButton">
+        🧽 Eraser
+    </button>
+
+
+    <button id="undoButton">
+        ↩️ Undo
+    </button>
+
+
+    <button id="redoButton">
+        ↪️ Redo
+    </button>
+
+
+    <button id="clearButton">
+        🗑️ Clear
+    </button>
+
+</section>
+
+
+<main class="canvas-area">
+
+    <canvas
+        id="canvas"
+        width="800"
+        height="800"
+    ></canvas>
+
+</main>
+
+
+<section class="file-controls">
+
+    <button
+        id="newButton"
+    >
+        📄 New
+    </button>
+
+
+    <button
+        id="exportSB"
+        class="primary"
+    >
+        📦 Export .SB
+    </button>
+
+
+    <label class="file-button">
+
+        📥 Import .SB
+
+        <input
+            id="importSB"
+            type="file"
+            accept=".sb,application/json"
+            hidden
+        >
+
+    </label>
+
+
+    <button
+        id="exportPNG"
+    >
+        🖼️ Export PNG
+    </button>
+
+</section>
+
+
+<div
+    id="status"
+    class="status"
+>
+    Ready 🧌
+</div>
+
+
+</div>
+
+<script src="/creator.js"></script>
+
+</body>
+</html>
