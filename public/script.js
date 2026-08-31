@@ -2883,6 +2883,9 @@ async function createPost() {
     // ==========================================
     // CHECK FILE
     // ==========================================
+// ==========================================
+// CHECK FILE
+// ==========================================
 
     if (file) {
 
@@ -2897,15 +2900,27 @@ async function createPost() {
             "video/mp4",
             "video/webm",
             "video/quicktime",
+
             "audio/mpeg"
 
         ];
 
+        const isSB =
+            file.name
+                .toLowerCase()
+                .endsWith(".sb");
 
-        if (
-            !allowedTypes.includes(
+        const isAllowedType =
+            allowedTypes.includes(
                 file.type
-            )
+            );
+
+        // .sb files are allowed by
+        // extension because browsers
+        // may not give them a MIME type.
+        if (
+            !isAllowedType &&
+            !isSB
         ) {
 
             if (status) {
@@ -2921,17 +2936,24 @@ async function createPost() {
 
 
         const isVideo =
-            file.type.startsWith("video/");
+            file.type.startsWith(
+                "video/"
+            );
 
         const isAudio =
-            file.type.startsWith("audio/");
+            file.type.startsWith(
+                "audio/"
+            );
+
 
         const maxSize =
             isVideo
                 ? 50 * 1024 * 1024
                 : isAudio
                     ? 20 * 1024 * 1024
-                    : 5 * 1024 * 1024;
+                    : isSB
+                        ? 5 * 1024 * 1024
+                        : 5 * 1024 * 1024;
 
 
         if (
@@ -2944,7 +2966,11 @@ async function createPost() {
                 status.textContent =
                     isVideo
                         ? "❌ Video must be under 50MB."
-                        : "❌ Image must be under 5MB.";
+                        : isAudio
+                            ? "❌ Audio must be under 20MB."
+                            : isSB
+                                ? "❌ .SB file must be under 5MB."
+                                : "❌ Image must be under 5MB.";
 
             }
 
