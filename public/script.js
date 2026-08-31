@@ -3047,6 +3047,7 @@ async function toggleComments(
    LOAD COMMENTS
 ================================================== */
 
+
 async function loadComments(
     postId
 ) {
@@ -3067,6 +3068,7 @@ async function loadComments(
                 `/api/posts/${encodeURIComponent(postId)}/comments`,
                 {
                     credentials: "include",
+
                     headers: {
                         "Accept":
                             "application/json"
@@ -3074,10 +3076,10 @@ async function loadComments(
                 }
             );
 
+
         const comments =
-            await getJsonResponse(
-                response
-            );
+            await response.json();
+
 
         if (!response.ok) {
 
@@ -3088,6 +3090,7 @@ async function loadComments(
 
         }
 
+
         if (!Array.isArray(comments)) {
 
             throw new Error(
@@ -3095,6 +3098,7 @@ async function loadComments(
             );
 
         }
+
 
         if (!comments.length) {
 
@@ -3105,8 +3109,10 @@ async function loadComments(
 
         }
 
+
         const commentHTML =
             await Promise.all(
+
                 comments.map(
                     async comment => {
 
@@ -3114,10 +3120,12 @@ async function loadComments(
                             comment.avatar ||
                             "/default-avatar.png";
 
+
                         const displayName =
                             comment.display_name ||
                             comment.username ||
                             "User";
+
 
                         const formattedContent =
                             comment.content
@@ -3125,6 +3133,116 @@ async function loadComments(
                                     comment.content
                                 )
                                 : "";
+
+
+                        // ==================================
+                        // MEDIA
+                        // ==================================
+
+                        let mediaHTML = "";
+
+
+                        if (
+                            comment.image_url
+                        ) {
+
+                            const mediaUrl =
+                                escapeHtml(
+                                    String(
+                                        comment.image_url
+                                    )
+                                );
+
+
+                            const lowerUrl =
+                                String(
+                                    comment.image_url
+                                )
+                                .split("?")[0]
+                                .toLowerCase();
+
+
+                            // VIDEO
+
+                            if (
+                                lowerUrl.endsWith(".mp4") ||
+                                lowerUrl.endsWith(".webm") ||
+                                lowerUrl.endsWith(".mov") ||
+                                lowerUrl.endsWith(".m4v")
+                            ) {
+
+                                mediaHTML = `
+
+                                    <div
+                                        class="comment-media"
+                                        style="
+                                            margin-top:10px;
+                                        "
+                                    >
+
+                                        <video
+                                            src="${mediaUrl}"
+                                            controls
+                                            preload="metadata"
+                                            style="
+                                                max-width:100%;
+                                                width:auto;
+                                                max-height:500px;
+                                                border-radius:10px;
+                                                display:block;
+                                            "
+                                        >
+                                        </video>
+
+                                    </div>
+
+                                `;
+
+                            }
+
+                            // IMAGE
+
+                            else {
+
+                                mediaHTML = `
+
+                                    <div
+                                        class="comment-media"
+                                        style="
+                                            margin-top:10px;
+                                        "
+                                    >
+
+                                        <img
+                                            src="${mediaUrl}"
+                                            alt="Comment image"
+                                            loading="lazy"
+                                            style="
+                                                max-width:100%;
+                                                max-height:500px;
+                                                width:auto;
+                                                height:auto;
+                                                border-radius:10px;
+                                                display:block;
+                                                object-fit:contain;
+                                            "
+                                            onerror="
+                                                this.style.display='none';
+                                            "
+                                        >
+
+                                    </div>
+
+                                `;
+
+                            }
+
+                        }
+
+
+                        // ==================================
+                        // COMMENT HTML
+                        // ==================================
 
                         return `
 
@@ -3168,17 +3286,24 @@ async function loadComments(
 
                                 </div>
 
+
                                 ${
                                     formattedContent
                                         ? `
+
                                             <div
                                                 class="comment-content"
                                             >
                                                 ${formattedContent}
                                             </div>
+
                                         `
                                         : ""
                                 }
+
+
+                                ${mediaHTML}
+
 
                             </div>
 
@@ -3186,10 +3311,13 @@ async function loadComments(
 
                     }
                 )
+
             );
+
 
         list.innerHTML =
             commentHTML.join("");
+
 
     } catch (error) {
 
@@ -3200,12 +3328,15 @@ async function loadComments(
 
         list.innerHTML =
             `<p>❌ ${escapeHtml(
-                error.message
+                error.message ||
+                "Could not load comments."
             )}</p>`;
 
     }
 
 }
+
+
 
 function clearCommentImage(postId) {
 
@@ -3236,230 +3367,29 @@ function clearCommentImage(postId) {
         preview.style.display = "none";
     }
 }
+
 /* ==================================================
    SUBMIT COMMENT
 ================================================== */
 
-
-app.post(
-    "/api/posts/:postId/comments",
-    upload.single("image"),
-    async (req, res) => {
-
 async function submitComment(postId) {
 
+    const input =
+        document.getElementById(
+            `comment-input-${postId}`
+        );
 
-        try {
+    const imageInput =
+        document.getElementById(
+            `comment-image-${postId}`
+        );
 
-            // ==========================================
-            // CHECK LOGIN
-            // ==========================================
+    const content =
+        (input?.value || "")
+            .trim();
 
-            if (!req.session?.user) {
-
-                return res.status(401).json({
-                    error:
-                        "You must be logged in."
-                });
-
-
-            }
-
-
-            const userId =
-                req.session.user.id;
-
-
-            // ==========================================
-            // GET CONTENT
-            // ==========================================
-
-            const content =
-                String(
-                    req.body?.content ||
-                    ""
-                ).trim();
-
-
-            if (content.length > 500) {
-
-                return res.status(400).json({
-                    error:
-                        "Comment is too long."
-                });
-
-            }
-
-
-            // ==========================================
-            // FILE
-            // ==========================================
-
-            const file =
-                req.file || null;
-
-            let imageUrl =
-                null;
-
-
-            // ==========================================
-            // UPLOAD IMAGE / VIDEO
-            // ==========================================
-
-            if (file) {
-
-                try {
-
-                    const extension =
-                        file.originalname
-                            .split(".")
-                            .pop()
-                            .toLowerCase();
-
-
-                    const allowed =
-                        [
-                            "png",
-                            "jpg",
-                            "jpeg",
-                            "webp",
-                            "gif",
-                            "mp4",
-                            "webm",
-                            "mov"
-                        ];
-
-
-                    if (
-                        !allowed.includes(
-                            extension
-                        )
-                    ) {
-
-                        return res.status(400).json({
-                            error:
-                                "Unsupported file type."
-                        });
-
-                    }
-
-
-                    // ==================================
-                    // SIZE LIMITS
-                    // ==================================
-
-                    const isVideo =
-                        file.mimetype.startsWith(
-                            "video/"
-                        );
-
-
-                    const maxSize =
-                        isVideo
-                            ? 50 * 1024 * 1024
-                            : 5 * 1024 * 1024;
-
-
-                    if (
-                        file.size >
-                        maxSize
-                    ) {
-
-                        return res.status(400).json({
-                            error:
-                                isVideo
-                                    ? "Video must be under 50MB."
-                                    : "Image must be under 5MB."
-                        });
-
-                    }
-
-
-                    // ==================================
-                    // MAKE STORAGE PATH
-                    // ==================================
-
-                    const filePath =
-                        `comments/${userId}/${Date.now()}-${Math.random()
-                            .toString(36)
-                            .slice(2)}.${extension}`;
-
-
-                    // ==================================
-                    // UPLOAD TO SUPABASE
-                    // ==================================
-
-                    const {
-                        error:
-                            uploadError
-                    } =
-                        await supabase.storage
-                            .from("avatars")
-                            .upload(
-                                filePath,
-                                file.buffer,
-                                {
-                                    contentType:
-                                        file.mimetype,
-
-                                    upsert:
-                                        false
-                                }
-                            );
-
-
-                    if (
-                        uploadError
-                    ) {
-
-                        console.error(
-                            "COMMENT FILE UPLOAD ERROR:",
-                            uploadError
-                        );
-
-                        return res.status(500).json({
-                            error:
-                                uploadError.message
-                        });
-
-                    }
-
-
-                    // ==================================
-                    // GET PUBLIC URL
-                    // ==================================
-
-                    const {
-                        data:
-                            publicData
-                    } =
-                        supabase.storage
-                            .from("avatars")
-                            .getPublicUrl(
-                                filePath
-                            );
-
-
-                    imageUrl =
-                        publicData.publicUrl;
-
-                } catch (error) {
-
-                    console.error(
-                        "COMMENT FILE ERROR:",
-                        error
-                    );
-
-                    return res.status(500).json({
-                        error:
-                            error.message ||
-                            "Could not upload file."
-                    });
-
-
-    // ==========================================
-    // CHECK EMPTY
-    // ==========================================
+    const file =
+        imageInput?.files?.[0] || null;
 
     if (!content && !file) {
 
@@ -3471,262 +3401,42 @@ async function submitComment(postId) {
 
     }
 
+    const formData =
+        new FormData();
 
-    try {
+    formData.append(
+        "content",
+        content
+    );
 
-        // ==========================================
-        // CREATE FORMDATA
-        // ==========================================
-
-        const formData =
-            new FormData();
-
+    if (file) {
 
         formData.append(
-            "content",
-            content
+            "image",
+            file
         );
 
+    }
 
-        // ==========================================
-        // ADD FILE
-        // ==========================================
-
-        if (file) {
-
-            formData.append(
-                "image",
-                file
-            );
-
-        }
-
-
-        // ==========================================
-        // SEND
-        // ==========================================
+    try {
 
         const response =
             await fetch(
                 `/api/posts/${encodeURIComponent(postId)}/comments`,
                 {
-
-                    method:
-                        "POST",
-
-                    credentials:
-                        "include",
-
+                    method: "POST",
+                    credentials: "include",
                     headers: {
-                        "Accept":
-                            "application/json"
+                        Accept: "application/json"
                     },
-
-                    body:
-                        formData
-
-
+                    body: formData
                 }
-
-            }
-
-
-            // ==========================================
-            // CHECK EMPTY COMMENT
-            // ==========================================
-
-            if (
-                !content &&
-                !imageUrl
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Comment cannot be empty."
-                });
-
-            }
-
-
-            // ==========================================
-            // CREATE COMMENT
-            // ==========================================
-
-            const {
-                data,
-                error
-            } =
-                await supabase
-                    .from("comments")
-                    .insert({
-
-                        post_id:
-                            req.params.postId,
-
-                        user_id:
-                            userId,
-
-                        content:
-                            content,
-
-                        image_url:
-                            imageUrl
-
-                    })
-                    .select()
-                    .single();
-
-
-            if (error) {
-
-                console.error(
-                    "COMMENT INSERT ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        error.message
-                });
-
-            }
-
-
-            // ==========================================
-            // FIRST COMMENT OF THE DAY
-            // ==========================================
-
-            const todayUTC =
-                new Date()
-                    .toISOString()
-                    .slice(
-                        0,
-                        10
-                    );
-
-
-            const {
-                data:
-                    profile,
-                error:
-                    profileError
-            } =
-                await supabase
-                    .from("profiles")
-                    .select(
-                        "last_comment_reward_date"
-                    )
-                    .eq(
-                        "id",
-                        userId
-                    )
-                    .single();
-
-
-            if (profileError) {
-
-                console.error(
-                    "COMMENT REWARD PROFILE ERROR:",
-                    profileError
-                );
-
-            } else {
-
-                if (
-                    profile.last_comment_reward_date !==
-                    todayUTC
-                ) {
-
-                    const {
-                        error:
-                            coinError
-                    } =
-                        await supabase.rpc(
-                            "increment_shrekcoins",
-                            {
-
-                                user_id:
-                                    userId,
-
-                                amount:
-                                    5
-
-                            }
-                        );
-
-
-                    if (coinError) {
-
-                        console.error(
-                            "COMMENT SHREKCOIN ERROR:",
-                            coinError
-                        );
-
-                    } else {
-
-                        const {
-                            error:
-                                dateError
-                        } =
-                            await supabase
-                                .from("profiles")
-                                .update({
-
-                                    last_comment_reward_date:
-                                        todayUTC
-
-                                })
-                                .eq(
-                                    "id",
-                                    userId
-                                );
-
-
-                        if (dateError) {
-
-                            console.error(
-                                "COMMENT REWARD DATE ERROR:",
-                                dateError
-                            );
-
-                        }
-
-                    }
-
-                }
-
-            }
-
-
-            // ==========================================
-            // SUCCESS
-            // ==========================================
-
-            return res.status(201).json({
-                ...data
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "COMMENT ERROR:",
-                error
             );
-
-
-            return res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
 
         const data =
             await getJsonResponse(
                 response
             );
-
 
         if (!response.ok) {
 
@@ -3737,40 +3447,21 @@ async function submitComment(postId) {
 
         }
 
-
-        // ==========================================
-        // CLEAR
-        // ==========================================
-
         if (input) {
-
-            input.value =
-                "";
-
+            input.value = "";
         }
-
 
         if (imageInput) {
-
-            imageInput.value =
-                "";
-
+            imageInput.value = "";
         }
-
 
         clearCommentImage(
             postId
         );
 
-
-        // ==========================================
-        // RELOAD COMMENTS
-        // ==========================================
-
         await loadComments(
             postId
         );
-
 
         if (
             typeof loadLeaderboard ===
@@ -3782,7 +3473,6 @@ async function submitComment(postId) {
             );
 
         }
-
 
     } catch (error) {
 
@@ -3796,57 +3486,8 @@ async function submitComment(postId) {
             error.message
         );
 
-
     }
-);
-
-
-
-
-
-/* ==================================================
-   CLEAR COMMENT IMAGE
-================================================== */
-
-function clearCommentImage(
-    postId
-) {
-
-    const input =
-        document.getElementById(
-            `comment-image-${postId}`
-        );
-
-    const preview =
-        document.getElementById(
-            `comment-preview-${postId}`
-        );
-
-    const previewImage =
-        document.getElementById(
-            `comment-preview-image-${postId}`
-        );
-
-    if (input) {
-        input.value =
-            "";
-    }
-
-    if (previewImage) {
-        previewImage.src =
-            "";
-    }
-
-    if (preview) {
-        preview.style.display =
-            "none";
-    }
-
 }
-
-
-
-
 
 /* ==================================================
    CLEAR POST IMAGE
