@@ -1917,9 +1917,7 @@ async function formatPostContent(
 async function loadPosts() {
 
     const container =
-        document.getElementById(
-            "posts"
-        );
+        document.getElementById("posts");
 
     if (!container) {
         return;
@@ -1940,9 +1938,7 @@ async function loadPosts() {
             );
 
         const posts =
-            await getJsonResponse(
-                response
-            );
+            await getJsonResponse(response);
 
         if (!response.ok) {
 
@@ -1996,34 +1992,121 @@ async function loadPosts() {
                         // ======================================
 
                         let imageHTML = "";
-                        console.log("POST IMAGE URL:", post.image_url);
-                        console.log("FULL POST:", post);
+
+                        console.log(
+                            "POST MEDIA URL:",
+                            post.image_url
+                        );
+
+                        console.log(
+                            "FULL POST:",
+                            post
+                        );
+
 
                         if (post.image_url) {
 
                             const mediaURL =
                                 escapeHtml(
-                                    post.image_url
+                                    String(
+                                        post.image_url
+                                    )
                                 );
 
                             const lowerURL =
                                 String(
                                     post.image_url
-                                ).toLowerCase();
+                                )
+                                .split("?")[0]
+                                .toLowerCase();
 
 
-                            // Detect video
+                            // ==================================
+                            // 🎵 AUDIO
+                            // ==================================
+
+                            const isAudio =
+                                lowerURL.endsWith(".mp3") ||
+                                lowerURL.endsWith(".wav") ||
+                                lowerURL.endsWith(".ogg") ||
+                                lowerURL.endsWith(".m4a") ||
+                                lowerURL.includes("audio/mpeg") ||
+                                lowerURL.includes("audio/wav") ||
+                                lowerURL.includes("audio/ogg") ||
+                                lowerURL.includes("audio/mp4");
+
+
+                            // ==================================
+                            // 🎥 VIDEO
+                            // ==================================
+
                             const isVideo =
-                                lowerURL.includes(".mp4") ||
+                                lowerURL.endsWith(".mp4") ||
+                                lowerURL.endsWith(".webm") ||
+                                lowerURL.endsWith(".mov") ||
+                                lowerURL.endsWith(".m4v") ||
                                 lowerURL.includes("video/mp4") ||
-                                lowerURL.includes(".webm") ||
                                 lowerURL.includes("video/webm") ||
-                                lowerURL.includes(".mov") ||
-                                lowerURL.includes("video/quicktime") ||
-                                lowerURL.includes(".m4v");
+                                lowerURL.includes("video/quicktime");
 
 
-                            if (isVideo) {
+                            // ==================================
+                            // 🎵 RENDER AUDIO
+                            // ==================================
+
+                            if (isAudio) {
+
+                                imageHTML = `
+
+                                    <div
+                                        class="post-audio-container"
+                                        style="
+                                            margin-top:12px;
+                                            width:100%;
+                                            padding:12px;
+                                            background:#f4f4f4;
+                                            border-radius:12px;
+                                        "
+                                    >
+
+                                        <div
+                                            style="
+                                                margin-bottom:8px;
+                                                font-weight:bold;
+                                            "
+                                        >
+                                            🎵 Audio
+                                        </div>
+
+                                        <audio
+                                            controls
+                                            preload="metadata"
+                                            style="
+                                                width:100%;
+                                                max-width:600px;
+                                            "
+                                        >
+
+                                            <source
+                                                src="${mediaURL}"
+                                            >
+
+                                            Your browser does not support audio.
+
+                                        </audio>
+
+                                    </div>
+
+                                `;
+
+                            }
+
+
+                            // ==================================
+                            // 🎥 RENDER VIDEO
+                            // ==================================
+
+                            else if (isVideo) {
 
                                 imageHTML = `
 
@@ -2052,10 +2135,9 @@ async function loadPosts() {
 
                                             <source
                                                 src="${mediaURL}"
-                                                type="video/mp4"
                                             >
 
-                                            Your browser does not support MP4 video.
+                                            Your browser does not support video.
 
                                         </video>
 
@@ -2063,7 +2145,14 @@ async function loadPosts() {
 
                                 `;
 
-                            } else {
+                            }
+
+
+                            // ==================================
+                            // 🖼️ RENDER IMAGE
+                            // ==================================
+
+                            else {
 
                                 imageHTML = `
 
@@ -2252,7 +2341,14 @@ async function loadPosts() {
                                                 image/gif,
                                                 video/mp4,
                                                 video/webm,
-                                                video/quicktime
+                                                video/quicktime,
+                                                video/x-m4v,
+                                                audio/mpeg,
+                                                audio/mp3,
+                                                audio/wav,
+                                                audio/ogg,
+                                                audio/mp4,
+                                                audio/x-m4a
                                             "
                                         >
 
@@ -2306,6 +2402,19 @@ async function loadPosts() {
                                                     display:none;
                                                 "
                                             ></video>
+
+
+                                            <audio
+                                                id="comment-preview-audio-${escapeHtml(
+                                                    String(post.id)
+                                                )}"
+                                                controls
+                                                style="
+                                                    max-width:400px;
+                                                    width:100%;
+                                                    display:none;
+                                                "
+                                            ></audio>
 
 
                                             <br>
@@ -2371,12 +2480,18 @@ async function loadPosts() {
                         `comment-preview-video-${post.id}`
                     );
 
+                const previewAudio =
+                    document.getElementById(
+                        `comment-preview-audio-${post.id}`
+                    );
+
 
                 if (
                     !input ||
                     !preview ||
                     !previewImage ||
-                    !previewVideo
+                    !previewVideo ||
+                    !previewAudio
                 ) {
                     return;
                 }
@@ -2401,7 +2516,16 @@ async function loadPosts() {
                             previewVideo.style.display =
                                 "none";
 
+                            previewAudio.style.display =
+                                "none";
+
+                            previewImage.src =
+                                "";
+
                             previewVideo.src =
+                                "";
+
+                            previewAudio.src =
                                 "";
 
                             return;
@@ -2410,7 +2534,7 @@ async function loadPosts() {
 
 
                         // ==================================
-                        // ALLOW IMAGE OR VIDEO
+                        // DETECT FILE TYPE
                         // ==================================
 
                         const isImage =
@@ -2423,14 +2547,20 @@ async function loadPosts() {
                                 "video/"
                             );
 
+                        const isAudio =
+                            file.type.startsWith(
+                                "audio/"
+                            );
+
 
                         if (
                             !isImage &&
-                            !isVideo
+                            !isVideo &&
+                            !isAudio
                         ) {
 
                             alert(
-                                "❌ Please choose an image or video."
+                                "❌ Please choose an image, video, or audio file."
                             );
 
                             input.value =
@@ -2442,16 +2572,16 @@ async function loadPosts() {
 
 
                         // ==================================
-                        // 5MB LIMIT
+                        // 50MB LIMIT
                         // ==================================
 
                         if (
                             file.size >
-                            5 * 1024 * 1024
+                            50 * 1024 * 1024
                         ) {
 
                             alert(
-                                "❌ File must be under 5MB."
+                                "❌ File must be under 50MB."
                             );
 
                             input.value =
@@ -2463,18 +2593,35 @@ async function loadPosts() {
 
 
                         // ==================================
-                        // IMAGE PREVIEW
+                        // RESET PREVIEWS
+                        // ==================================
+
+                        previewImage.style.display =
+                            "none";
+
+                        previewVideo.style.display =
+                            "none";
+
+                        previewAudio.style.display =
+                            "none";
+
+                        previewImage.src =
+                            "";
+
+                        previewVideo.src =
+                            "";
+
+                        previewAudio.src =
+                            "";
+
+
+                        // ==================================
+                        // 🖼️ IMAGE PREVIEW
                         // ==================================
 
                         if (isImage) {
 
                             previewVideo.pause();
-
-                            previewVideo.src =
-                                "";
-
-                            previewVideo.style.display =
-                                "none";
 
                             const reader =
                                 new FileReader();
@@ -2503,16 +2650,10 @@ async function loadPosts() {
 
 
                         // ==================================
-                        // VIDEO PREVIEW
+                        // 🎥 VIDEO PREVIEW
                         // ==================================
 
                         if (isVideo) {
-
-                            previewImage.src =
-                                "";
-
-                            previewImage.style.display =
-                                "none";
 
                             const videoURL =
                                 URL.createObjectURL(
@@ -2523,6 +2664,31 @@ async function loadPosts() {
                                 videoURL;
 
                             previewVideo.style.display =
+                                "inline-block";
+
+                            preview.style.display =
+                                "block";
+
+                            return;
+
+                        }
+
+
+                        // ==================================
+                        // 🎵 AUDIO PREVIEW
+                        // ==================================
+
+                        if (isAudio) {
+
+                            const audioURL =
+                                URL.createObjectURL(
+                                    file
+                                );
+
+                            previewAudio.src =
+                                audioURL;
+
+                            previewAudio.style.display =
                                 "inline-block";
 
                             preview.style.display =
@@ -2552,8 +2718,6 @@ async function loadPosts() {
     }
 
 }
-
-
 
 
 /* ==================================================
