@@ -3238,120 +3238,416 @@ async function loadComments(
    SUBMIT COMMENT
 ================================================== */
 
-async function submitComment(
-    postId
-) {
+app.post(
+    "/api/posts/:postId/comments",
+    upload.single("image"),
+    async (req, res) => {
 
-    const input =
-        document.getElementById(
-            `comment-input-${postId}`
-        );
+        try {
 
-    const imageInput =
-        document.getElementById(
-            `comment-image-${postId}`
-        );
+            // ==========================================
+            // CHECK LOGIN
+            // ==========================================
 
-    const content =
-        input?.value.trim() ||
-        "";
+            if (!req.session?.user) {
 
-    const file =
-        imageInput?.files?.[0] ||
-        null;
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
 
-    if (!content && !file) {
-        return;
-    }
+            }
 
-    try {
 
-        const image =
-            await prepareImage(
-                file
-            );
+            const userId =
+                req.session.user.id;
 
-        const response =
-            await fetch(
-                `/api/posts/${encodeURIComponent(postId)}/comments`,
-                {
 
-                    method: "POST",
+            // ==========================================
+            // GET CONTENT
+            // ==========================================
 
-                    headers: {
-                        "Content-Type":
-                            "application/json",
-                        "Accept":
-                            "application/json"
-                    },
+            const content =
+                String(
+                    req.body?.content ||
+                    ""
+                ).trim();
 
-                    credentials: "include",
 
-                    body:
-                        JSON.stringify({
+            if (content.length > 500) {
 
-                            content:
-                                content,
+                return res.status(400).json({
+                    error:
+                        "Comment is too long."
+                });
 
-                            image:
-                                image
+            }
 
-                        })
+
+            // ==========================================
+            // FILE
+            // ==========================================
+
+            const file =
+                req.file || null;
+
+            let imageUrl =
+                null;
+
+
+            // ==========================================
+            // UPLOAD IMAGE / VIDEO
+            // ==========================================
+
+            if (file) {
+
+                try {
+
+                    const extension =
+                        file.originalname
+                            .split(".")
+                            .pop()
+                            .toLowerCase();
+
+
+                    const allowed =
+                        [
+                            "png",
+                            "jpg",
+                            "jpeg",
+                            "webp",
+                            "gif",
+                            "mp4",
+                            "webm",
+                            "mov"
+                        ];
+
+
+                    if (
+                        !allowed.includes(
+                            extension
+                        )
+                    ) {
+
+                        return res.status(400).json({
+                            error:
+                                "Unsupported file type."
+                        });
+
+                    }
+
+
+                    // ==================================
+                    // SIZE LIMITS
+                    // ==================================
+
+                    const isVideo =
+                        file.mimetype.startsWith(
+                            "video/"
+                        );
+
+
+                    const maxSize =
+                        isVideo
+                            ? 50 * 1024 * 1024
+                            : 5 * 1024 * 1024;
+
+
+                    if (
+                        file.size >
+                        maxSize
+                    ) {
+
+                        return res.status(400).json({
+                            error:
+                                isVideo
+                                    ? "Video must be under 50MB."
+                                    : "Image must be under 5MB."
+                        });
+
+                    }
+
+
+                    // ==================================
+                    // MAKE STORAGE PATH
+                    // ==================================
+
+                    const filePath =
+                        `comments/${userId}/${Date.now()}-${Math.random()
+                            .toString(36)
+                            .slice(2)}.${extension}`;
+
+
+                    // ==================================
+                    // UPLOAD TO SUPABASE
+                    // ==================================
+
+                    const {
+                        error:
+                            uploadError
+                    } =
+                        await supabase.storage
+                            .from("avatars")
+                            .upload(
+                                filePath,
+                                file.buffer,
+                                {
+                                    contentType:
+                                        file.mimetype,
+
+                                    upsert:
+                                        false
+                                }
+                            );
+
+
+                    if (
+                        uploadError
+                    ) {
+
+                        console.error(
+                            "COMMENT FILE UPLOAD ERROR:",
+                            uploadError
+                        );
+
+                        return res.status(500).json({
+                            error:
+                                uploadError.message
+                        });
+
+                    }
+
+
+                    // ==================================
+                    // GET PUBLIC URL
+                    // ==================================
+
+                    const {
+                        data:
+                            publicData
+                    } =
+                        supabase.storage
+                            .from("avatars")
+                            .getPublicUrl(
+                                filePath
+                            );
+
+
+                    imageUrl =
+                        publicData.publicUrl;
+
+                } catch (error) {
+
+                    console.error(
+                        "COMMENT FILE ERROR:",
+                        error
+                    );
+
+                    return res.status(500).json({
+                        error:
+                            error.message ||
+                            "Could not upload file."
+                    });
 
                 }
+
+            }
+
+
+            // ==========================================
+            // CHECK EMPTY COMMENT
+            // ==========================================
+
+            if (
+                !content &&
+                !imageUrl
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Comment cannot be empty."
+                });
+
+            }
+
+
+            // ==========================================
+            // CREATE COMMENT
+            // ==========================================
+
+            const {
+                data,
+                error
+            } =
+                await supabase
+                    .from("comments")
+                    .insert({
+
+                        post_id:
+                            req.params.postId,
+
+                        user_id:
+                            userId,
+
+                        content:
+                            content,
+
+                        image_url:
+                            imageUrl
+
+                    })
+                    .select()
+                    .single();
+
+
+            if (error) {
+
+                console.error(
+                    "COMMENT INSERT ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error:
+                        error.message
+                });
+
+            }
+
+
+            // ==========================================
+            // FIRST COMMENT OF THE DAY
+            // ==========================================
+
+            const todayUTC =
+                new Date()
+                    .toISOString()
+                    .slice(
+                        0,
+                        10
+                    );
+
+
+            const {
+                data:
+                    profile,
+                error:
+                    profileError
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(
+                        "last_comment_reward_date"
+                    )
+                    .eq(
+                        "id",
+                        userId
+                    )
+                    .single();
+
+
+            if (profileError) {
+
+                console.error(
+                    "COMMENT REWARD PROFILE ERROR:",
+                    profileError
+                );
+
+            } else {
+
+                if (
+                    profile.last_comment_reward_date !==
+                    todayUTC
+                ) {
+
+                    const {
+                        error:
+                            coinError
+                    } =
+                        await supabase.rpc(
+                            "increment_shrekcoins",
+                            {
+
+                                user_id:
+                                    userId,
+
+                                amount:
+                                    5
+
+                            }
+                        );
+
+
+                    if (coinError) {
+
+                        console.error(
+                            "COMMENT SHREKCOIN ERROR:",
+                            coinError
+                        );
+
+                    } else {
+
+                        const {
+                            error:
+                                dateError
+                        } =
+                            await supabase
+                                .from("profiles")
+                                .update({
+
+                                    last_comment_reward_date:
+                                        todayUTC
+
+                                })
+                                .eq(
+                                    "id",
+                                    userId
+                                );
+
+
+                        if (dateError) {
+
+                            console.error(
+                                "COMMENT REWARD DATE ERROR:",
+                                dateError
+                            );
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+
+            // ==========================================
+            // SUCCESS
+            // ==========================================
+
+            return res.status(201).json({
+                ...data
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "COMMENT ERROR:",
+                error
             );
 
-        const data =
-            await getJsonResponse(
-                response
-            );
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Could not comment."
-            );
+            return res.status(500).json({
+                error:
+                    "Server error."
+            });
 
         }
-
-        if (input) {
-            input.value =
-                "";
-        }
-
-        if (imageInput) {
-            imageInput.value =
-                "";
-        }
-
-        clearCommentImage(
-            postId
-        );
-
-        loadComments(
-            postId
-        );
-
-        loadLeaderboard(
-            currentLeaderboard
-        );
-
-    } catch (error) {
-
-        console.error(
-            "COMMENT ERROR:",
-            error
-        );
-
-        alert(
-            "❌ " +
-            error.message
-        );
 
     }
+);
 
-}
+
 
 
 /* ==================================================

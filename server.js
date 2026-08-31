@@ -5203,8 +5203,10 @@ app.get(
     }
 );
 
+
 app.post(
     "/api/posts/:postId/comments",
+    upload.single("image"),
     async (req, res) => {
 
         try {
@@ -5213,7 +5215,7 @@ app.post(
             // CHECK LOGIN
             // ==========================================
 
-            if (!req.session.user) {
+            if (!req.session?.user) {
 
                 return res.status(401).json({
                     error:
@@ -5233,7 +5235,7 @@ app.post(
 
             const content =
                 String(
-                    req.body.content ||
+                    req.body?.content ||
                     ""
                 ).trim();
 
@@ -5249,34 +5251,168 @@ app.post(
 
 
             // ==========================================
-            // IMAGE
+            // FILE
             // ==========================================
 
-            let imageUrl = null;
+            const file =
+                req.file || null;
+
+            let imageUrl =
+                null;
 
 
-            if (
-                req.body.image &&
-                req.body.image.data &&
-                req.body.image.type &&
-                req.body.image.name
-            ) {
+            // ==========================================
+            // UPLOAD IMAGE / VIDEO
+            // ==========================================
+
+            if (file) {
 
                 try {
 
-                    imageUrl =
-                        await uploadImage(
-                            req.body.image.data,
-                            req.body.image.type,
-                            req.body.image.name,
-                            userId
+                    const extension =
+                        file.originalname
+                            .split(".")
+                            .pop()
+                            .toLowerCase();
+
+
+                    const allowed =
+                        [
+                            "png",
+                            "jpg",
+                            "jpeg",
+                            "webp",
+                            "gif",
+                            "mp4",
+                            "webm",
+                            "mov"
+                        ];
+
+
+                    if (
+                        !allowed.includes(
+                            extension
+                        )
+                    ) {
+
+                        return res.status(400).json({
+                            error:
+                                "Unsupported file type."
+                        });
+
+                    }
+
+
+                    // ==================================
+                    // SIZE LIMITS
+                    // ==================================
+
+                    const isVideo =
+                        file.mimetype.startsWith(
+                            "video/"
                         );
+
+
+                    const maxSize =
+                        isVideo
+                            ? 50 * 1024 * 1024
+                            : 5 * 1024 * 1024;
+
+
+                    if (
+                        file.size >
+                        maxSize
+                    ) {
+
+                        return res.status(400).json({
+                            error:
+                                isVideo
+                                    ? "Video must be under 50MB."
+                                    : "Image must be under 5MB."
+                        });
+
+                    }
+
+
+                    // ==================================
+                    // MAKE STORAGE PATH
+                    // ==================================
+
+                    const filePath =
+                        `comments/${userId}/${Date.now()}-${Math.random()
+                            .toString(36)
+                            .slice(2)}.${extension}`;
+
+
+                    // ==================================
+                    // UPLOAD TO SUPABASE
+                    // ==================================
+
+                    const {
+                        error:
+                            uploadError
+                    } =
+                        await supabase.storage
+                            .from("avatars")
+                            .upload(
+                                filePath,
+                                file.buffer,
+                                {
+                                    contentType:
+                                        file.mimetype,
+
+                                    upsert:
+                                        false
+                                }
+                            );
+
+
+                    if (
+                        uploadError
+                    ) {
+
+                        console.error(
+                            "COMMENT FILE UPLOAD ERROR:",
+                            uploadError
+                        );
+
+                        return res.status(500).json({
+                            error:
+                                uploadError.message
+                        });
+
+                    }
+
+
+                    // ==================================
+                    // GET PUBLIC URL
+                    // ==================================
+
+                    const {
+                        data:
+                            publicData
+                    } =
+                        supabase.storage
+                            .from("avatars")
+                            .getPublicUrl(
+                                filePath
+                            );
+
+
+                    imageUrl =
+                        publicData.publicUrl;
 
                 } catch (error) {
 
-                    return res.status(400).json({
+                    console.error(
+                        "COMMENT FILE ERROR:",
+                        error
+                    );
+
+                    return res.status(500).json({
                         error:
-                            error.message
+                            error.message ||
+                            "Could not upload file."
                     });
 
                 }
@@ -5308,24 +5444,26 @@ app.post(
             const {
                 data,
                 error
-            } = await supabase
-                .from("comments")
-                .insert({
+            } =
+                await supabase
+                    .from("comments")
+                    .insert({
 
-                    post_id:
-                        req.params.postId,
+                        post_id:
+                            req.params.postId,
 
-                    user_id:
-                        userId,
+                        user_id:
+                            userId,
 
-                    content,
+                        content:
+                            content,
 
-                    image_url:
-                        imageUrl
+                        image_url:
+                            imageUrl
 
-                })
-                .select()
-                .single();
+                    })
+                    .select()
+                    .single();
 
 
             if (error) {
@@ -5345,28 +5483,33 @@ app.post(
 
             // ==========================================
             // FIRST COMMENT OF THE DAY
-            // UTC
             // ==========================================
 
             const todayUTC =
                 new Date()
                     .toISOString()
-                    .slice(0, 10);
+                    .slice(
+                        0,
+                        10
+                    );
 
 
             const {
-                data: profile,
-                error: profileError
-            } = await supabase
-                .from("profiles")
-                .select(
-                    "last_comment_reward_date"
-                )
-                .eq(
-                    "id",
-                    userId
-                )
-                .single();
+                data:
+                    profile,
+                error:
+                    profileError
+            } =
+                await supabase
+                    .from("profiles")
+                    .select(
+                        "last_comment_reward_date"
+                    )
+                    .eq(
+                        "id",
+                        userId
+                    )
+                    .single();
 
 
             if (profileError) {
@@ -5378,29 +5521,27 @@ app.post(
 
             } else {
 
-                // ======================================
-                // ONLY REWARD FIRST COMMENT OF UTC DAY
-                // ======================================
-
                 if (
                     profile.last_comment_reward_date !==
                     todayUTC
                 ) {
 
                     const {
-                        error: coinError
-                    } = await supabase.rpc(
-                        "increment_shrekcoins",
-                        {
+                        error:
+                            coinError
+                    } =
+                        await supabase.rpc(
+                            "increment_shrekcoins",
+                            {
 
-                            user_id:
-                                userId,
+                                user_id:
+                                    userId,
 
-                            amount:
-                                5
+                                amount:
+                                    5
 
-                        }
-                    );
+                            }
+                        );
 
 
                     if (coinError) {
@@ -5412,24 +5553,22 @@ app.post(
 
                     } else {
 
-                        // ==================================
-                        // MARK TODAY'S REWARD AS CLAIMED
-                        // ==================================
-
                         const {
-                            error: dateError
-                        } = await supabase
-                            .from("profiles")
-                            .update({
+                            error:
+                                dateError
+                        } =
+                            await supabase
+                                .from("profiles")
+                                .update({
 
-                                last_comment_reward_date:
-                                    todayUTC
+                                    last_comment_reward_date:
+                                        todayUTC
 
-                            })
-                            .eq(
-                                "id",
-                                userId
-                            );
+                                })
+                                .eq(
+                                    "id",
+                                    userId
+                                );
 
 
                         if (dateError) {
@@ -5453,9 +5592,7 @@ app.post(
             // ==========================================
 
             return res.status(201).json({
-
                 ...data
-
             });
 
 
@@ -5475,6 +5612,8 @@ app.post(
 
     }
 );
+
+
 // ==================================================
 // BUY SHOP ITEM
 // ==================================================
