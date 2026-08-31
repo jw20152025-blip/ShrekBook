@@ -5273,311 +5273,85 @@ app.post(
 
             if (file) {
 
-            if (req.file) {
-
-
-                // --------------------------------------
-                // ALLOWED FILE TYPES
-                // --------------------------------------
-
-
+                try {
                     const extension =
                         file.originalname
                             .split(".")
                             .pop()
                             .toLowerCase();
 
+                    const allowed = [
+                        "png",
+                        "jpg",
+                        "jpeg",
+                        "webp",
+                        "gif",
+                        "mp4",
+                        "webm",
+                        "mov"
+                    ];
 
-                    const allowed =
-                        [
-                            "png",
-                            "jpg",
-                            "jpeg",
-                            "webp",
-                            "gif",
-                            "mp4",
-                            "webm",
-                            "mov"
-                        ];
-
-
-                    if (
-                        !allowed.includes(
-                            extension
-                        )
-                    ) {
-
+                    if (!allowed.includes(extension)) {
                         return res.status(400).json({
-                            error:
-                                "Unsupported file type."
+                            error: "Unsupported file type."
                         });
-
                     }
 
-
-                    // ==================================
-                    // SIZE LIMITS
-                    // ==================================
-
-                    const isVideo =
-                        file.mimetype.startsWith(
-                            "video/"
-                        );
-
+                    const isVideo = file.mimetype.startsWith("video/");
 
                     const maxSize =
                         isVideo
                             ? 50 * 1024 * 1024
                             : 5 * 1024 * 1024;
 
-
-                    if (
-                        file.size >
-                        maxSize
-                    ) {
-
+                    if (file.size > maxSize) {
                         return res.status(400).json({
-                            error:
-                                isVideo
-                                    ? "Video must be under 50MB."
-                                    : "Image must be under 5MB."
+                            error: isVideo
+                                ? "Video must be under 50MB."
+                                : "Image must be under 5MB."
                         });
-
                     }
-
-
-                    // ==================================
-                    // MAKE STORAGE PATH
-                    // ==================================
 
                     const filePath =
                         `comments/${userId}/${Date.now()}-${Math.random()
                             .toString(36)
                             .slice(2)}.${extension}`;
 
-
-                    // ==================================
-                    // UPLOAD TO SUPABASE
-                    // ==================================
-
                     const {
-                        error:
-                            uploadError
-                    } =
-                        await supabase.storage
-                            .from("avatars")
-                            .upload(
-                                filePath,
-                                file.buffer,
-                                {
-                                    contentType:
-                                        file.mimetype,
+                        error: uploadError
+                    } = await supabase.storage
+                        .from("avatars")
+                        .upload(filePath, file.buffer, {
+                            contentType: file.mimetype,
+                            upsert: false
+                        });
 
-                                    upsert:
-                                        false
-                                }
-                            );
-
-
-                    if (
-                        uploadError
-                    ) {
-
+                    if (uploadError) {
                         console.error(
                             "COMMENT FILE UPLOAD ERROR:",
                             uploadError
                         );
 
                         return res.status(500).json({
-                            error:
-                                uploadError.message
+                            error: uploadError.message
                         });
-
                     }
 
-
-                    // ==================================
-                    // GET PUBLIC URL
-                    // ==================================
-
                     const {
-                        data:
-                            publicData
-                    } =
-                        supabase.storage
-                            .from("avatars")
-                            .getPublicUrl(
-                                filePath
-                            );
+                        data: publicData
+                    } = supabase.storage
+                        .from("avatars")
+                        .getPublicUrl(filePath);
 
-
-                    imageUrl =
-                        publicData.publicUrl;
+                    imageUrl = publicData.publicUrl;
 
                 } catch (error) {
-
-                const allowedTypes = [
-
-                    "image/png",
-                    "image/jpeg",
-                    "image/webp",
-                    "image/gif",
-                    "video/mp4"
-
-                ];
-
-
-                if (
-                    !allowedTypes.includes(
-                        req.file.mimetype
-                    )
-                ) {
-
-
-                    console.error(
-                        "COMMENT FILE ERROR:",
-                        error
-                    );
+                    console.error("COMMENT FILE ERROR:", error);
 
                     return res.status(500).json({
-                        error:
-                            "Unsupported file type."
+                        error: "Failed to upload comment media."
                     });
-
                 }
-
-
-                // --------------------------------------
-                // FILE SIZE
-                // --------------------------------------
-
-                const isVideo =
-                    req.file.mimetype ===
-                    "video/mp4";
-
-
-                const maxSize =
-                    isVideo
-                        ? 50 * 1024 * 1024
-                        : 5 * 1024 * 1024;
-
-
-                if (
-                    req.file.size >
-                    maxSize
-                ) {
-
-                    return res.status(400).json({
-                        error:
-                            isVideo
-                                ? "Video must be under 50MB."
-                                : "Image must be under 5MB."
-                    });
-
-                }
-
-
-                // --------------------------------------
-                // FILE EXTENSION
-                // --------------------------------------
-
-                const extension =
-                    req.file.originalname
-                        .split(".")
-                        .pop()
-                        .toLowerCase();
-
-
-                const allowedExtensions = [
-
-                    "png",
-                    "jpg",
-                    "jpeg",
-                    "webp",
-                    "gif",
-                    "mp4"
-
-                ];
-
-
-                if (
-                    !allowedExtensions.includes(
-                        extension
-                    )
-                ) {
-
-                    return res.status(400).json({
-                        error:
-                            "Unsupported file extension."
-                    });
-
-                }
-
-
-                // --------------------------------------
-                // STORAGE PATH
-                // --------------------------------------
-
-                const filePath =
-                    `comments/${userId}/${Date.now()}-${Math.random()
-                        .toString(36)
-                        .slice(2)}.${extension}`;
-
-
-                // --------------------------------------
-                // UPLOAD TO SUPABASE
-                // --------------------------------------
-
-                const {
-                    error: uploadError
-                } =
-                    await supabase.storage
-                        .from("avatars")
-                        .upload(
-                            filePath,
-                            req.file.buffer,
-                            {
-                                contentType:
-                                    req.file.mimetype,
-
-                                upsert:
-                                    false
-                            }
-                        );
-
-
-                if (uploadError) {
-
-                    console.error(
-                        "COMMENT STORAGE ERROR:",
-                        uploadError
-                    );
-
-                    return res.status(500).json({
-                        error:
-                            uploadError.message
-                    });
-
-                }
-
-
-                // --------------------------------------
-                // GET PUBLIC URL
-                // --------------------------------------
-
-                const {
-                    data: publicData
-                } =
-                    supabase.storage
-                        .from("avatars")
-                        .getPublicUrl(
-                            filePath
-                        );
-
-
-                imageUrl =
-                    publicData.publicUrl;
-
             }
 
 
@@ -5669,9 +5443,6 @@ app.post(
                 error:
                     profileError
 
-                data: profile,
-                error: profileError
-
             } =
                 await supabase
                     .from("profiles")
@@ -5710,8 +5481,6 @@ app.post(
                         error:
                             coinError
 
-                        error: coinError
-
                     } =
                         await supabase.rpc(
                             "increment_shrekcoins",
@@ -5736,18 +5505,12 @@ app.post(
 
                     } else {
 
-
-                        const {
-                            error:
-                                dateError
-
                         // ==================================
                         // MARK REWARD AS CLAIMED
                         // ==================================
 
                         const {
                             error: dateError
-
                         } =
                             await supabase
                                 .from("profiles")
@@ -5761,7 +5524,6 @@ app.post(
                                     "id",
                                     userId
                                 );
-
 
                         if (dateError) {
 
