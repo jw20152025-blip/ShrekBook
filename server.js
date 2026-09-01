@@ -7089,15 +7089,21 @@ app.post(
                     ""
                 ).trim();
 
+            const itemType =
+                String(
+                    req.body.item_type ||
+                    ""
+                ).trim();
+
             const price =
                 Number(
                     req.body.price
                 );
 
-            const itemType =
+            const icon =
                 String(
-                    req.body.item_type ||
-                    ""
+                    req.body.icon ||
+                    "🧌"
                 ).trim();
 
             const file =
@@ -7122,7 +7128,7 @@ app.post(
 
                 return res.status(400).json({
                     error:
-                        "Item name is too long."
+                        "Item name must be 100 characters or less."
                 });
 
             }
@@ -7132,7 +7138,7 @@ app.post(
 
                 return res.status(400).json({
                     error:
-                        "Description is too long."
+                        "Description must be 1000 characters or less."
                 });
 
             }
@@ -7142,7 +7148,7 @@ app.post(
 
                 return res.status(400).json({
                     error:
-                        "Only avatar items can be sold."
+                        "Invalid item type."
                 });
 
             }
@@ -7166,7 +7172,7 @@ app.post(
 
                 return res.status(400).json({
                     error:
-                        "No avatar file was provided."
+                        "No .sb file was provided."
                 });
 
             }
@@ -7181,7 +7187,7 @@ app.post(
 
                 return res.status(400).json({
                     error:
-                        "Avatar files must be .sb files."
+                        "Avatar files must use the .sb extension."
                 });
 
             }
@@ -7198,7 +7204,7 @@ app.post(
 
 
             // ==========================================
-            // DECODE .SB FILE
+            // DECODE FILE
             // ==========================================
 
             let fileBuffer;
@@ -7215,7 +7221,7 @@ app.post(
 
                 return res.status(400).json({
                     error:
-                        "Invalid avatar file."
+                        "Invalid .sb file."
                 });
 
             }
@@ -7225,31 +7231,35 @@ app.post(
 
                 return res.status(400).json({
                     error:
-                        "Avatar file is empty."
+                        "The .sb file is empty."
                 });
 
             }
 
 
             // ==========================================
-            // 20 MB LIMIT
+            // FILE SIZE
             // ==========================================
+
+            const maxSize =
+                20 * 1024 * 1024;
+
 
             if (
                 fileBuffer.length >
-                20 * 1024 * 1024
+                maxSize
             ) {
 
                 return res.status(400).json({
                     error:
-                        "Avatar must be under 20MB."
+                        "The .sb file must be under 20MB."
                 });
 
             }
 
 
             // ==========================================
-            // CREATE STORAGE PATH
+            // SAFE FILE NAME
             // ==========================================
 
             const safeName =
@@ -7291,13 +7301,13 @@ app.post(
             if (uploadError) {
 
                 console.error(
-                    "SVIS FILE UPLOAD ERROR:",
+                    "SHOP FILE UPLOAD ERROR:",
                     uploadError
                 );
 
                 return res.status(500).json({
                     error:
-                        "Could not upload avatar."
+                        "Could not upload the .sb file."
                 });
 
             }
@@ -7323,16 +7333,22 @@ app.post(
 
             if (!fileUrl) {
 
+                await supabase.storage
+                    .from("avatars")
+                    .remove([
+                        storagePath
+                    ]);
+
                 return res.status(500).json({
                     error:
-                        "Could not create avatar URL."
+                        "Could not create the file URL."
                 });
 
             }
 
 
             // ==========================================
-            // CREATE SVIS ITEM
+            // CREATE SHOP ITEM
             // ==========================================
 
             const {
@@ -7352,20 +7368,14 @@ app.post(
                         item_type:
                             "avatar",
 
-                        price:
-                            price,
-
                         item_value:
                             fileUrl,
 
-                        file_url:
-                            fileUrl,
+                        price:
+                            price,
 
-                        active:
-                            true,
-
-                        seller_id:
-                            userId
+                        icon:
+                            icon
 
                     })
                     .select()
@@ -7379,13 +7389,13 @@ app.post(
             if (itemError) {
 
                 console.error(
-                    "SVIS DATABASE ERROR:",
+                    "SHOP ITEM INSERT ERROR:",
                     itemError
                 );
 
 
-                // Delete uploaded file so
-                // we don't leave an orphaned .sb
+                // Delete uploaded .sb if
+                // database insertion failed
 
                 await supabase.storage
                     .from("avatars")
@@ -7423,7 +7433,7 @@ app.post(
         } catch (error) {
 
             console.error(
-                "SVIS PUBLISH ERROR:",
+                "SHOP PUBLISH ERROR:",
                 error
             );
 
