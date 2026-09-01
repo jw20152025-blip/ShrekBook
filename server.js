@@ -10838,9 +10838,10 @@ app.get("/api/shop/inventory", async (req, res) => {
                     id,
                     name,
                     description,
-                    icon,
+                    item_type,
+                    item_value,
                     price,
-                    item_type
+                    icon
                 )
             `)
             .eq("user_id", userId);
@@ -10911,9 +10912,10 @@ app.get("/api/shop/inventory", async (req, res) => {
                     id,
                     name,
                     description,
-                    icon,
+                    item_type,
+                    item_value,
                     price,
-                    item_type
+                    icon
                 `)
                 .eq(
                     "id",
@@ -10941,6 +10943,8 @@ app.get("/api/shop/inventory", async (req, res) => {
             }
 
         }
+
+
         // ==========================================
         // GET DISPLAYED ITEM
         // ==========================================
@@ -10961,9 +10965,10 @@ app.get("/api/shop/inventory", async (req, res) => {
                     id,
                     name,
                     description,
-                    icon,
+                    item_type,
+                    item_value,
                     price,
-                    item_type
+                    icon
                 `)
                 .eq(
                     "id",
@@ -10987,6 +10992,7 @@ app.get("/api/shop/inventory", async (req, res) => {
             }
 
         }
+
 
         // ==========================================
         // FORMAT INVENTORY
@@ -11019,6 +11025,9 @@ app.get("/api/shop/inventory", async (req, res) => {
 
                         item_type:
                             row.shop_items.item_type,
+
+                        item_value:
+                            row.shop_items.item_value,
 
                         purchased_at:
                             row.purchased_at,
@@ -11086,6 +11095,219 @@ app.get("/api/shop/inventory", async (req, res) => {
     }
 
 });
+app.get(
+    "/api/shop/items/:itemId/download",
+    async (req, res) => {
+
+        try {
+
+            // ==========================================
+            // CHECK LOGIN
+            // ==========================================
+
+            if (
+                !req.session ||
+                !req.session.user ||
+                !req.session.user.id
+            ) {
+
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+
+            }
+
+
+            const userId =
+                req.session.user.id;
+
+
+            const itemId =
+                Number(
+                    req.params.itemId
+                );
+
+
+            if (
+                !Number.isInteger(itemId) ||
+                itemId <= 0
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Invalid item ID."
+                });
+
+            }
+
+
+            // ==========================================
+            // CHECK OWNERSHIP
+            // ==========================================
+
+            const {
+                data: ownership,
+                error: ownershipError
+            } = await supabase
+                .from("user_shop_items")
+                .select(`
+                    item_id
+                `)
+                .eq(
+                    "user_id",
+                    userId
+                )
+                .eq(
+                    "item_id",
+                    itemId
+                )
+                .maybeSingle();
+
+
+            if (ownershipError) {
+
+                console.error(
+                    "DOWNLOAD OWNERSHIP ERROR:",
+                    ownershipError
+                );
+
+                return res.status(500).json({
+                    error:
+                        "Could not verify ownership."
+                });
+
+            }
+
+
+            if (!ownership) {
+
+                return res.status(403).json({
+                    error:
+                        "You do not own this item."
+                });
+
+            }
+
+
+            // ==========================================
+            // GET ITEM
+            // ==========================================
+
+            const {
+                data: item,
+                error: itemError
+            } = await supabase
+                .from("shop_items")
+                .select(`
+                    id,
+                    name,
+                    item_type,
+                    item_value
+                `)
+                .eq(
+                    "id",
+                    itemId
+                )
+                .maybeSingle();
+
+
+            if (itemError) {
+
+                console.error(
+                    "DOWNLOAD ITEM ERROR:",
+                    itemError
+                );
+
+                return res.status(500).json({
+                    error:
+                        "Could not find item."
+                });
+
+            }
+
+
+            if (!item) {
+
+                return res.status(404).json({
+                    error:
+                        "Item not found."
+                });
+
+            }
+
+
+            // ==========================================
+            // MAKE SURE IT IS AN AVATAR
+            // ==========================================
+
+            if (
+                String(
+                    item.item_type
+                ).toLowerCase() !==
+                "avatar"
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "This item is not an avatar."
+                });
+
+            }
+
+
+            // ==========================================
+            // CHECK FILE
+            // ==========================================
+
+            if (!item.item_value) {
+
+                return res.status(404).json({
+                    error:
+                        "Avatar file is missing."
+                });
+
+            }
+
+
+            // ==========================================
+            // DOWNLOAD
+            // ==========================================
+
+            const fileName =
+                `${String(
+                    item.name ||
+                    "ShrekBook Avatar"
+                )
+                    .replace(
+                        /[^a-z0-9_\- ]/gi,
+                        ""
+                    )
+                    .trim() || "ShrekBook Avatar"
+                }.sb`;
+
+
+            return res.redirect(
+                item.item_value
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "AVATAR DOWNLOAD ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Could not download avatar."
+            });
+
+        }
+
+    }
+);
 // ==================================================
 // START
 // ==================================================

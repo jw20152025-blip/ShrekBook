@@ -909,7 +909,6 @@ async function loadInventory() {
                             item.id
                         );
 
-
                     if (isEquipped) {
 
                         buttonText =
@@ -927,6 +926,16 @@ async function loadInventory() {
                             `equipItem(${Number(item.id)})`;
 
                     }
+
+                } else if (
+                    item.item_type === "avatar"
+                ) {
+
+                    buttonText =
+                        "⬇️ Download .SB Avatar";
+
+                    buttonAction =
+                        `downloadAvatar(${Number(item.id)}, ${JSON.stringify(item.name || "ShrekBook-Avatar")})`;
 
                 } else {
 
@@ -1338,7 +1347,76 @@ function formatDate(date) {
 
 }
 
+async function downloadAvatar(itemId, itemName) {
 
+    try {
+
+        const response =
+            await fetch(
+                `/api/shop/download/${encodeURIComponent(itemId)}`,
+                {
+                    credentials: "include"
+                }
+            );
+
+        if (!response.ok) {
+
+            const data =
+                await response.json().catch(
+                    () => ({})
+                );
+
+            alert(
+                "❌ " +
+                (
+                    data.error ||
+                    "Could not download avatar."
+                )
+            );
+
+            return;
+
+        }
+
+        const blob =
+            await response.blob();
+
+        const url =
+            URL.createObjectURL(blob);
+
+        const link =
+            document.createElement("a");
+
+        link.href = url;
+
+        link.download =
+            `${String(itemName || "shrekbook-avatar")
+                .replace(/[^a-z0-9_\- ]/gi, "")
+                .trim()
+                .replace(/\s+/g, "-")}.sb`;
+
+        document.body.appendChild(link);
+
+        link.click();
+
+        link.remove();
+
+        URL.revokeObjectURL(url);
+
+    } catch (error) {
+
+        console.error(
+            "AVATAR DOWNLOAD ERROR:",
+            error
+        );
+
+        alert(
+            "❌ Could not download avatar."
+        );
+
+    }
+
+}
 /* ==================================================
    START
 ================================================== */
