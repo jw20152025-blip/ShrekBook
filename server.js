@@ -7045,6 +7045,397 @@ app.get(
 
     }
 );
+
+app.post(
+    "/api/shop/items",
+    async (req, res) => {
+
+        try {
+
+            // ==========================================
+            // CHECK LOGIN
+            // ==========================================
+
+            if (
+                !req.session ||
+                !req.session.user
+            ) {
+
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+
+            }
+
+
+            const userId =
+                req.session.user.id;
+
+
+            // ==========================================
+            // GET DATA
+            // ==========================================
+
+            const name =
+                String(
+                    req.body.name ||
+                    ""
+                ).trim();
+
+            const description =
+                String(
+                    req.body.description ||
+                    ""
+                ).trim();
+
+            const price =
+                Number(
+                    req.body.price
+                );
+
+            const itemType =
+                String(
+                    req.body.item_type ||
+                    ""
+                ).trim();
+
+            const file =
+                req.body.file;
+
+
+            // ==========================================
+            // VALIDATION
+            // ==========================================
+
+            if (!name) {
+
+                return res.status(400).json({
+                    error:
+                        "Item name is required."
+                });
+
+            }
+
+
+            if (name.length > 100) {
+
+                return res.status(400).json({
+                    error:
+                        "Item name is too long."
+                });
+
+            }
+
+
+            if (description.length > 1000) {
+
+                return res.status(400).json({
+                    error:
+                        "Description is too long."
+                });
+
+            }
+
+
+            if (itemType !== "avatar") {
+
+                return res.status(400).json({
+                    error:
+                        "Only avatar items can be sold."
+                });
+
+            }
+
+
+            if (
+                !Number.isInteger(price) ||
+                price < 1 ||
+                price > 1000000000
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Invalid ShrekCoin price."
+                });
+
+            }
+
+
+            if (!file) {
+
+                return res.status(400).json({
+                    error:
+                        "No avatar file was provided."
+                });
+
+            }
+
+
+            if (
+                !file.name ||
+                !file.name
+                    .toLowerCase()
+                    .endsWith(".sb")
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Avatar files must be .sb files."
+                });
+
+            }
+
+
+            if (!file.data) {
+
+                return res.status(400).json({
+                    error:
+                        "Avatar file data is missing."
+                });
+
+            }
+
+
+            // ==========================================
+            // DECODE .SB FILE
+            // ==========================================
+
+            let fileBuffer;
+
+            try {
+
+                fileBuffer =
+                    Buffer.from(
+                        file.data,
+                        "base64"
+                    );
+
+            } catch (error) {
+
+                return res.status(400).json({
+                    error:
+                        "Invalid avatar file."
+                });
+
+            }
+
+
+            if (!fileBuffer.length) {
+
+                return res.status(400).json({
+                    error:
+                        "Avatar file is empty."
+                });
+
+            }
+
+
+            // ==========================================
+            // 20 MB LIMIT
+            // ==========================================
+
+            if (
+                fileBuffer.length >
+                20 * 1024 * 1024
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Avatar must be under 20MB."
+                });
+
+            }
+
+
+            // ==========================================
+            // CREATE STORAGE PATH
+            // ==========================================
+
+            const safeName =
+                file.name
+                    .replace(
+                        /[^a-zA-Z0-9._-]/g,
+                        "_"
+                    );
+
+
+            const storagePath =
+                `shop/${userId}/${Date.now()}-${safeName}`;
+
+
+            // ==========================================
+            // UPLOAD TO SUPABASE STORAGE
+            // ==========================================
+
+            const {
+                error: uploadError
+            } =
+                await supabase.storage
+                    .from("avatars")
+                    .upload(
+                        storagePath,
+                        fileBuffer,
+                        {
+
+                            contentType:
+                                "application/octet-stream",
+
+                            upsert:
+                                false
+
+                        }
+                    );
+
+
+            if (uploadError) {
+
+                console.error(
+                    "SVIS FILE UPLOAD ERROR:",
+                    uploadError
+                );
+
+                return res.status(500).json({
+                    error:
+                        "Could not upload avatar."
+                });
+
+            }
+
+
+            // ==========================================
+            // GET PUBLIC URL
+            // ==========================================
+
+            const {
+                data: publicData
+            } =
+                supabase.storage
+                    .from("avatars")
+                    .getPublicUrl(
+                        storagePath
+                    );
+
+
+            const fileUrl =
+                publicData?.publicUrl;
+
+
+            if (!fileUrl) {
+
+                return res.status(500).json({
+                    error:
+                        "Could not create avatar URL."
+                });
+
+            }
+
+
+            // ==========================================
+            // CREATE SVIS ITEM
+            // ==========================================
+
+            const {
+                data: item,
+                error: itemError
+            } =
+                await supabase
+                    .from("shop_items")
+                    .insert({
+
+                        name:
+                            name,
+
+                        description:
+                            description,
+
+                        item_type:
+                            "avatar",
+
+                        price:
+                            price,
+
+                        item_value:
+                            fileUrl,
+
+                        file_url:
+                            fileUrl,
+
+                        active:
+                            true,
+
+                        seller_id:
+                            userId
+
+                    })
+                    .select()
+                    .single();
+
+
+            // ==========================================
+            // DATABASE ERROR
+            // ==========================================
+
+            if (itemError) {
+
+                console.error(
+                    "SVIS DATABASE ERROR:",
+                    itemError
+                );
+
+
+                // Delete uploaded file so
+                // we don't leave an orphaned .sb
+
+                await supabase.storage
+                    .from("avatars")
+                    .remove([
+                        storagePath
+                    ]);
+
+
+                return res.status(500).json({
+                    error:
+                        itemError.message
+                });
+
+            }
+
+
+            // ==========================================
+            // SUCCESS
+            // ==========================================
+
+            return res.status(201).json({
+
+                success:
+                    true,
+
+                message:
+                    "Avatar published successfully.",
+
+                item:
+                    item
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "SVIS PUBLISH ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Server error."
+            });
+
+        }
+
+    }
+);
 // ==================================================
 // GET MY SHOP ITEMS
 // ==================================================

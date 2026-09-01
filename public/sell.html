@@ -1,425 +1,502 @@
 <!DOCTYPE html>
-
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
 
-```
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
->
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-<title>Sell on ShrekBook</title>
+    <title>Sell on ShrekBook</title>
 
-<style>
+    <style>
 
-    * {
-        box-sizing: border-box;
-    }
+        * {
+            box-sizing: border-box;
+        }
 
-    body {
-        margin: 0;
-        padding: 30px;
-        background: #f4f4f4;
-        font-family: Arial, Helvetica, sans-serif;
-        color: #222;
-    }
+        body {
+            margin: 0;
+            padding: 30px;
 
-    .container {
-        max-width: 850px;
-        margin: auto;
-    }
+            background: #f4f4f4;
 
-    h1 {
-        margin-bottom: 5px;
-    }
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
 
-    .subtitle {
-        color: #666;
-        margin-bottom: 25px;
-    }
+            color: #222;
+        }
 
-    .box {
-        background: white;
-        border-radius: 14px;
-        padding: 22px;
-        margin-bottom: 18px;
-        box-shadow:
-            0 2px 10px
-            rgba(0, 0, 0, .08);
-    }
+        .container {
+            max-width: 850px;
+            margin: auto;
+        }
 
-    label {
-        display: block;
-        font-weight: bold;
-        margin-bottom: 7px;
-    }
+        h1 {
+            margin-bottom: 5px;
+        }
 
-    input,
-    textarea,
-    select {
-        width: 100%;
-        padding: 11px;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        font-family: inherit;
-        font-size: 15px;
-        background: white;
-    }
+        h2 {
+            margin-top: 0;
+        }
 
-    textarea {
-        min-height: 100px;
-        resize: vertical;
-    }
+        .subtitle {
+            color: #666;
+            margin-bottom: 25px;
+        }
 
-    .field {
-        margin-bottom: 18px;
-    }
+        .box {
+            background: white;
 
-    .price-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
+            border-radius: 14px;
 
-    .coin {
-        font-size: 22px;
-    }
+            padding: 22px;
 
-    .preview {
-        margin-top: 15px;
-        display: none;
-    }
+            margin-bottom: 18px;
 
-    .preview img {
-        max-width: 100%;
-        max-height: 400px;
-        border-radius: 12px;
-        object-fit: contain;
-    }
+            box-shadow:
+                0 2px 10px
+                rgba(0, 0, 0, .08);
+        }
 
-    .file-info {
-        padding: 12px;
-        background: #f5f5f5;
-        border-radius: 8px;
-        margin-top: 10px;
-        color: #555;
-    }
+        label {
+            display: block;
 
-    .type-info {
-        padding: 12px;
-        background: #eef3ff;
-        border-radius: 8px;
-        margin-top: 10px;
-        color: #3152a3;
-    }
+            font-weight: bold;
 
-    .submit {
-        width: 100%;
-        padding: 14px;
-        border: 0;
-        border-radius: 9px;
-        background: #4d6cff;
-        color: white;
-        font-size: 16px;
-        font-weight: bold;
-        cursor: pointer;
-    }
+            margin-bottom: 7px;
+        }
 
-    .submit:hover {
-        opacity: .88;
-    }
+        input,
+        textarea {
+            width: 100%;
 
-    .back {
-        display: inline-block;
-        margin-bottom: 20px;
-        text-decoration: none;
-        color: #4d6cff;
-    }
+            padding: 11px;
 
-    #status {
-        margin-top: 15px;
-        font-weight: bold;
-    }
+            border:
+                1px solid #ccc;
 
-    .warning {
-        padding: 12px;
-        background: #fff4cc;
-        border: 1px solid #ead36a;
-        border-radius: 8px;
-        color: #705800;
-        margin-bottom: 18px;
-    }
+            border-radius: 8px;
 
-</style>
-```
+            font-family: inherit;
+
+            font-size: 15px;
+
+            background: white;
+        }
+
+        textarea {
+            min-height: 100px;
+
+            resize: vertical;
+        }
+
+        .field {
+            margin-bottom: 18px;
+        }
+
+        .price-row {
+            display: flex;
+
+            align-items: center;
+
+            gap: 8px;
+        }
+
+        .coin {
+            font-size: 22px;
+        }
+
+        .preview {
+            margin-top: 15px;
+
+            display: none;
+        }
+
+        .avatar-file {
+            padding: 25px;
+
+            background: #f5f5f5;
+
+            border-radius: 10px;
+
+            text-align: center;
+
+            font-size: 18px;
+        }
+
+        .file-info {
+            padding: 12px;
+
+            background: #f5f5f5;
+
+            border-radius: 8px;
+
+            margin-top: 10px;
+
+            color: #555;
+
+            word-break: break-word;
+        }
+
+        .type-info {
+            padding: 12px;
+
+            background: #eef3ff;
+
+            border-radius: 8px;
+
+            margin-top: 10px;
+
+            color: #3152a3;
+        }
+
+        .warning {
+            padding: 12px;
+
+            background: #fff4cc;
+
+            border:
+                1px solid #ead36a;
+
+            border-radius: 8px;
+
+            color: #705800;
+
+            margin-bottom: 18px;
+        }
+
+        .submit {
+            width: 100%;
+
+            padding: 14px;
+
+            border: 0;
+
+            border-radius: 9px;
+
+            background: #4d6cff;
+
+            color: white;
+
+            font-size: 16px;
+
+            font-weight: bold;
+
+            cursor: pointer;
+        }
+
+        .submit:hover {
+            opacity: .88;
+        }
+
+        .submit:disabled {
+            opacity: .6;
+
+            cursor: not-allowed;
+        }
+
+        .back {
+            display: inline-block;
+
+            margin-bottom: 20px;
+
+            text-decoration: none;
+
+            color: #4d6cff;
+        }
+
+        #status {
+            margin-top: 15px;
+
+            font-weight: bold;
+
+            word-break: break-word;
+        }
+
+    </style>
 
 </head>
+
 
 <body>
 
 <div class="container">
 
-```
-<a
-    href="/"
-    class="back"
->
-    ← Back to ShrekBook
-</a>
 
-<h1>🛒 Sell on ShrekBook</h1>
-
-<div class="subtitle">
-    Create something awesome and put it on the ShrekBook marketplace.
-</div>
-
-
-<div class="warning">
-    ⚠️ Make sure you have the rights to anything you upload or sell.
-</div>
-
-
-<!-- ITEM INFORMATION -->
-
-<div class="box">
-
-    <h2>📦 Item Information</h2>
-
-    <div class="field">
-
-        <label for="itemName">
-            Item Name
-        </label>
-
-        <input
-            id="itemName"
-            type="text"
-            maxlength="100"
-            placeholder="Example: Swamp Warrior"
-        >
-
-    </div>
-
-
-    <div class="field">
-
-        <label for="itemDescription">
-            Description
-        </label>
-
-        <textarea
-            id="itemDescription"
-            maxlength="1000"
-            placeholder="Describe your creation..."
-        ></textarea>
-
-    </div>
-
-
-    <div class="field">
-
-        <label for="itemType">
-            Item Type
-        </label>
-
-        <select id="itemType">
-
-            <option value="image">
-                🎨 Image
-            </option>
-
-            <option value="avatar">
-                🧌 ShrekBook Avatar (.sb)
-            </option>
-
-        </select>
-
-
-        <div
-            id="typeInfo"
-            class="type-info"
-        >
-            Sell an image that other users can purchase.
-        </div>
-
-    </div>
-
-</div>
-
-
-<!-- FILE -->
-
-<div class="box">
-
-    <h2>📁 Your Creation</h2>
-
-    <div class="field">
-
-        <label for="itemFile">
-            File
-        </label>
-
-        <input
-            id="itemFile"
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
-        >
-
-        <div
-            id="fileInfo"
-            class="file-info"
-            style="display:none;"
-        ></div>
-
-    </div>
-
-
-    <div
-        id="preview"
-        class="preview"
+    <a
+        href="/"
+        class="back"
     >
+        ← Back to ShrekBook
+    </a>
 
-        <strong>
-            Preview
-        </strong>
 
-        <br><br>
+    <h1>
+        🛒 Sell on ShrekBook
+    </h1>
 
-        <img
-            id="previewImage"
-            alt="Item preview"
-        >
 
+    <div class="subtitle">
+        Create an avatar and sell it through the ShrekBook Virtual Item System.
     </div>
 
-</div>
+
+    <div class="warning">
+        ⚠️ Make sure you own the rights to everything inside your avatar before selling it.
+    </div>
 
 
-<!-- PRICE -->
 
-<div class="box">
+    <!-- ==========================================
+         ITEM INFORMATION
+         ========================================== -->
 
-    <h2>🪙 Price</h2>
+    <div class="box">
 
-    <div class="field">
+        <h2>
+            📦 Item Information
+        </h2>
 
-        <label for="itemPrice">
-            ShrekCoin price
-        </label>
 
-        <div class="price-row">
+        <div class="field">
 
-            <span class="coin">
-                🪙
-            </span>
+            <label for="itemName">
+                Item Name
+            </label>
 
             <input
-                id="itemPrice"
-                type="number"
-                min="1"
-                max="1000000000"
-                step="1"
-                placeholder="100"
+                id="itemName"
+                type="text"
+                maxlength="100"
+                placeholder="Example: Swamp Warrior"
             >
 
         </div>
 
+
+
+        <div class="field">
+
+            <label for="itemDescription">
+                Description
+            </label>
+
+            <textarea
+                id="itemDescription"
+                maxlength="1000"
+                placeholder="Describe your avatar..."
+            ></textarea>
+
+        </div>
+
+
+
+        <div class="field">
+
+            <label>
+                Item Type
+            </label>
+
+            <input
+                type="text"
+                value="🧌 ShrekBook Avatar (.sb)"
+                disabled
+            >
+
+            <div
+                class="type-info"
+            >
+                🧌 This item is a ShrekBook Avatar. Buyers will receive the actual .sb file.
+            </div>
+
+        </div>
+
     </div>
 
+
+
+    <!-- ==========================================
+         AVATAR FILE
+         ========================================== -->
+
+    <div class="box">
+
+        <h2>
+            📁 Your Avatar
+        </h2>
+
+
+        <div class="field">
+
+            <label for="itemFile">
+                ShrekBook Avatar File
+            </label>
+
+            <input
+                id="itemFile"
+                type="file"
+                accept=".sb"
+            >
+
+
+            <div
+                id="fileInfo"
+                class="file-info"
+                style="display:none;"
+            ></div>
+
+
+            <div
+                id="preview"
+                class="preview"
+            >
+
+                <div
+                    class="avatar-file"
+                >
+
+                    🧌
+
+                    <br>
+
+                    <strong>
+                        ShrekBook Avatar
+                    </strong>
+
+                    <br>
+
+                    <small>
+                        .sb file ready to publish
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ==========================================
+         PRICE
+         ========================================== -->
+
+    <div class="box">
+
+        <h2>
+            🪙 Price
+        </h2>
+
+
+        <div class="field">
+
+            <label for="itemPrice">
+                ShrekCoin price
+            </label>
+
+
+            <div class="price-row">
+
+                <span class="coin">
+                    🪙
+                </span>
+
+                <input
+                    id="itemPrice"
+                    type="number"
+                    min="1"
+                    max="1000000000"
+                    step="1"
+                    placeholder="500"
+                >
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ==========================================
+         PUBLISH
+         ========================================== -->
+
+    <div class="box">
+
+        <h2>
+            🚀 Publish
+        </h2>
+
+
+        <p>
+            Once published, other ShrekBook users can purchase your avatar.
+        </p>
+
+
+        <button
+            class="submit"
+            id="sellButton"
+            type="button"
+        >
+            🛒 List Avatar for Sale
+        </button>
+
+
+        <div id="status"></div>
+
+    </div>
+
+
 </div>
 
 
-<!-- SELL -->
-
-<div class="box">
-
-    <h2>🚀 List for Sale</h2>
-
-    <p>
-        Once listed, other ShrekBook users will be able to purchase your creation.
-    </p>
-
-    <button
-        class="submit"
-        id="sellButton"
-    >
-        🛒 List Item for Sale
-    </button>
-
-    <div id="status"></div>
-
-</div>
-```
-
-</div>
 
 <script>
 
-const itemType =
-    document.getElementById("itemType");
+
+/* ==========================================
+   ELEMENTS
+   ========================================== */
 
 const itemFile =
-    document.getElementById("itemFile");
-
-const typeInfo =
-    document.getElementById("typeInfo");
+    document.getElementById(
+        "itemFile"
+    );
 
 const preview =
-    document.getElementById("preview");
-
-const previewImage =
-    document.getElementById("previewImage");
+    document.getElementById(
+        "preview"
+    );
 
 const fileInfo =
-    document.getElementById("fileInfo");
+    document.getElementById(
+        "fileInfo"
+    );
 
 const sellButton =
-    document.getElementById("sellButton");
+    document.getElementById(
+        "sellButton"
+    );
 
 const status =
-    document.getElementById("status");
+    document.getElementById(
+        "status"
+    );
 
 
 
-function updateFileType() {
-
-    if (itemType.value === "avatar") {
-
-        itemFile.accept =
-            ".sb";
-
-        typeInfo.textContent =
-            "🧌 Upload a ShrekBook .sb avatar file. Buyers will receive the actual .sb file.";
-
-    } else {
-
-        itemFile.accept =
-            "image/png,image/jpeg,image/webp,image/gif";
-
-        typeInfo.textContent =
-            "🎨 Upload an image that other users can purchase.";
-
-    }
-
-    itemFile.value = "";
-
-    preview.style.display =
-        "none";
-
-    fileInfo.style.display =
-        "none";
-}
-
-
-
-itemType.addEventListener(
-    "change",
-    updateFileType
-);
-
-
+/* ==========================================
+   FILE SELECTED
+   ========================================== */
 
 itemFile.addEventListener(
     "change",
@@ -428,95 +505,182 @@ itemFile.addEventListener(
         const file =
             itemFile.files[0];
 
+
         if (!file) {
+
+            fileInfo.style.display =
+                "none";
+
+            preview.style.display =
+                "none";
+
             return;
-        }
-
-
-        const isAvatar =
-            itemType.value === "avatar";
-
-
-        if (isAvatar) {
-
-            if (
-                !file.name
-                    .toLowerCase()
-                    .endsWith(".sb")
-            ) {
-
-                alert(
-                    "❌ Avatar files must be .sb files."
-                );
-
-                itemFile.value = "";
-
-                return;
-            }
-
-        } else {
-
-            if (
-                !file.type.startsWith(
-                    "image/"
-                )
-            ) {
-
-                alert(
-                    "❌ Please choose an image."
-                );
-
-                itemFile.value = "";
-
-                return;
-            }
 
         }
 
+
+        /* ==============================
+           CHECK EXTENSION
+           ============================== */
+
+        if (
+            !file.name
+                .toLowerCase()
+                .endsWith(".sb")
+        ) {
+
+            alert(
+                "❌ Avatar files must be .sb files."
+            );
+
+            itemFile.value =
+                "";
+
+            fileInfo.style.display =
+                "none";
+
+            preview.style.display =
+                "none";
+
+            return;
+
+        }
+
+
+        /* ==============================
+           FILE SIZE
+           ============================== */
+
+        const sizeMB =
+            file.size /
+            1024 /
+            1024;
+
+
+        /*
+         * 20MB maximum.
+         */
+
+        if (
+            file.size >
+            20 *
+            1024 *
+            1024
+        ) {
+
+            alert(
+                "❌ .sb files must be under 20MB."
+            );
+
+            itemFile.value =
+                "";
+
+            fileInfo.style.display =
+                "none";
+
+            preview.style.display =
+                "none";
+
+            return;
+
+        }
+
+
+        /* ==============================
+           SHOW FILE INFO
+           ============================== */
 
         fileInfo.style.display =
             "block";
 
         fileInfo.textContent =
-            `${file.name} • ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+            `${file.name} • ${sizeMB.toFixed(2)} MB`;
 
 
-        if (!isAvatar) {
+        /* ==============================
+           SHOW PREVIEW
+           ============================== */
 
-            const reader =
-                new FileReader();
-
-            reader.onload =
-                event => {
-
-                    previewImage.src =
-                        event.target.result;
-
-                    preview.style.display =
-                        "block";
-
-                };
-
-            reader.readAsDataURL(file);
-
-        } else {
-
-            preview.style.display =
-                "block";
-
-            previewImage.removeAttribute(
-                "src"
-            );
-
-            previewImage.alt =
-                "🧌 .SB Avatar";
-
-        }
+        preview.style.display =
+            "block";
 
     }
 );
 
 
+
+/* ==========================================
+   FILE → BASE64
+   ========================================== */
+
+function fileToBase64(
+    file
+) {
+
+    return new Promise(
+        (
+            resolve,
+            reject
+        ) => {
+
+            const reader =
+                new FileReader();
+
+
+            reader.onload =
+                () => {
+
+                    const result =
+                        String(
+                            reader.result
+                        );
+
+
+                    const comma =
+                        result.indexOf(",");
+
+
+                    const base64 =
+                        comma !== -1
+                            ? result.slice(
+                                comma + 1
+                            )
+                            : result;
+
+
+                    resolve(
+                        base64
+                    );
+
+                };
+
+
+            reader.onerror =
+                () => {
+
+                    reject(
+                        new Error(
+                            "Could not read the .sb file."
+                        )
+                    );
+
+                };
+
+
+            reader.readAsDataURL(
+                file
+            );
+
+        }
+    );
+
+}
+
+
+
+/* ==========================================
+   PUBLISH
+   ========================================== */
 
 sellButton.addEventListener(
     "click",
@@ -524,29 +688,39 @@ sellButton.addEventListener(
 
         const name =
             document
-                .getElementById("itemName")
+                .getElementById(
+                    "itemName"
+                )
                 .value
                 .trim();
+
 
         const description =
             document
-                .getElementById("itemDescription")
+                .getElementById(
+                    "itemDescription"
+                )
                 .value
                 .trim();
 
-        const type =
-            itemType.value;
 
         const price =
             Number(
                 document
-                    .getElementById("itemPrice")
+                    .getElementById(
+                        "itemPrice"
+                    )
                     .value
             );
+
 
         const file =
             itemFile.files[0];
 
+
+        /* ==============================
+           VALIDATION
+           ============================== */
 
         if (!name) {
 
@@ -558,10 +732,20 @@ sellButton.addEventListener(
         }
 
 
+        if (name.length > 100) {
+
+            status.textContent =
+                "❌ Item name is too long.";
+
+            return;
+
+        }
+
+
         if (!file) {
 
             status.textContent =
-                "❌ Choose a file.";
+                "❌ Choose your .sb avatar.";
 
             return;
 
@@ -569,7 +753,23 @@ sellButton.addEventListener(
 
 
         if (
-            !Number.isInteger(price) ||
+            !file.name
+                .toLowerCase()
+                .endsWith(".sb")
+        ) {
+
+            status.textContent =
+                "❌ Your avatar must be a .sb file.";
+
+            return;
+
+        }
+
+
+        if (
+            !Number.isInteger(
+                price
+            ) ||
             price < 1
         ) {
 
@@ -581,34 +781,180 @@ sellButton.addEventListener(
         }
 
 
+        if (
+            file.size >
+            20 *
+            1024 *
+            1024
+        ) {
+
+            status.textContent =
+                "❌ .sb files must be under 20MB.";
+
+            return;
+
+        }
+
+
+        /* ==============================
+           DISABLE BUTTON
+           ============================== */
+
+        sellButton.disabled =
+            true;
+
+        sellButton.textContent =
+            "⏳ Publishing...";
+
+
         status.textContent =
-            "⏳ Preparing your item...";
+            "⏳ Reading avatar...";
 
 
-        /*
-         * THIS IS WHERE YOUR MARKETPLACE API
-         * WILL BE CONNECTED.
-         *
-         * Example:
-         *
-         * const formData = new FormData();
-         *
-         * formData.append("name", name);
-         * formData.append("description", description);
-         * formData.append("item_type", type);
-         * formData.append("price", price);
-         * formData.append("file", file);
-         *
-         * fetch("/api/shop/list", {
-         *     method: "POST",
-         *     credentials: "include",
-         *     body: formData
-         * });
-         */
+        try {
 
 
-        status.textContent =
-            "✅ Item is ready to be listed!";
+            /* ==============================
+               CONVERT FILE
+               ============================== */
+
+            const base64 =
+                await fileToBase64(
+                    file
+                );
+
+
+            status.textContent =
+                "⏳ Uploading avatar...";
+
+
+            /* ==============================
+               SEND TO SERVER
+               ============================== */
+
+            const response =
+                await fetch(
+                    "/api/shop/items",
+                    {
+
+                        method:
+                            "POST",
+
+                        credentials:
+                            "include",
+
+                        headers: {
+
+                            "Content-Type":
+                                "application/json",
+
+                            "Accept":
+                                "application/json"
+
+                        },
+
+                        body:
+                            JSON.stringify({
+
+                                name:
+                                    name,
+
+                                description:
+                                    description,
+
+                                item_type:
+                                    "avatar",
+
+                                price:
+                                    price,
+
+                                file: {
+
+                                    name:
+                                        file.name,
+
+                                    type:
+                                        "application/octet-stream",
+
+                                    data:
+                                        base64
+
+                                }
+
+                            })
+
+                    }
+                );
+
+
+            /* ==============================
+               RESPONSE
+               ============================== */
+
+            let data;
+
+            try {
+
+                data =
+                    await response.json();
+
+            } catch {
+
+                throw new Error(
+                    "Server returned an invalid response."
+                );
+
+            }
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "Could not publish avatar."
+                );
+
+            }
+
+
+            /* ==============================
+               SUCCESS
+               ============================== */
+
+            status.textContent =
+                "✅ Avatar published successfully!";
+
+
+            sellButton.textContent =
+                "✅ Published";
+
+
+            console.log(
+                "SVIS ITEM:",
+                data
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "SVIS PUBLISH ERROR:",
+                error
+            );
+
+
+            status.textContent =
+                "❌ " +
+                error.message;
+
+
+            sellButton.disabled =
+                false;
+
+            sellButton.textContent =
+                "🛒 List Avatar for Sale";
+
+        }
 
     }
 );
@@ -616,4 +962,5 @@ sellButton.addEventListener(
 </script>
 
 </body>
+
 </html>
