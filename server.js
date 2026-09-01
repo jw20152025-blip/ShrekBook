@@ -5119,14 +5119,14 @@ app.get(
                 .from("comments")
                 .select(`
                     id,
-                    post_id,
+                    postId,
                     user_id,
                     content,
                     image_url,
                     created_at
                 `)
                 .eq(
-                    "post_id",
+                    "postId",
                     req.params.postId
                 )
                 .order(
@@ -5511,19 +5511,16 @@ app.post(
 
                         const {
                             error: dateError
-                        } =
-                            await supabase
-                                .from("profiles")
-                                .update({
-
-                                    last_comment_reward_date:
-                                        todayUTC
-
-                                })
-                                .eq(
-                                    "id",
-                                    userId
-                                );
+                        } = await supabase
+                            .from("profiles")
+                            .update({
+                                last_comment_reward_date:
+                                    todayUTC
+                            })
+                            .eq(
+                                "id",
+                                userId
+                            );
 
                         if (dateError) {
 
