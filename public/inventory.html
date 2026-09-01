@@ -872,6 +872,9 @@ async function loadInventory() {
                 const isTitle =
                     item.item_type ===
                     "title";
+                const isAvatar =
+                    item.item_type ===
+                    "avatar";
 
 
                 const isDisplayed =
@@ -897,7 +900,12 @@ async function loadInventory() {
                 let disabled =
                     false;
 
-
+                console.log(
+                    "ITEM TYPE:",
+                    item.item_type,
+                    "ITEM:",
+                    item
+                );
                 if (isTitle) {
 
                     const isEquipped =
@@ -969,12 +977,14 @@ async function loadInventory() {
                     <div class="item-icon">
 
                         ${escapeHtml(
-                            item.icon ||
-                            (
-                                isTitle
-                                    ? "🏷️"
+                        item.icon ||
+                        (
+                            isTitle
+                                ? "🏷️"
+                                : isAvatar
+                                    ? "🧌"
                                     : "🎁"
-                            )
+                        )
                         )}
 
                     </div>
