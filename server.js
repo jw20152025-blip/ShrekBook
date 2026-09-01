@@ -5384,7 +5384,7 @@ app.post(
                     .from("comments")
                     .insert({
 
-                        post_id:
+                        postId:
 
                             req.params.postId,
 
