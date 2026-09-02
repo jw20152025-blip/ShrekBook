@@ -5565,7 +5565,171 @@ app.post(
     }
 );
 
+app.post("/api/shop/sell", async (req, res) => {
 
+    try {
+
+        // Must be logged in
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+        const sellerId = req.session.user.id;
+
+        const itemId = Number(req.body.item_id);
+        const price = Number(req.body.price);
+
+        // Validate item ID
+        if (
+            !Number.isInteger(itemId) ||
+            itemId <= 0
+        ) {
+            return res.status(400).json({
+                error: "Invalid item ID."
+            });
+        }
+
+        // Validate price
+        if (
+            !Number.isInteger(price) ||
+            price <= 0
+        ) {
+            return res.status(400).json({
+                error: "Price must be a positive whole number."
+            });
+        }
+
+        /*
+         * Make sure the seller actually owns this item.
+         */
+
+        const {
+            data: ownership,
+            error: ownershipError
+        } = await supabase
+            .from("user_shop_items")
+            .select("user_id, item_id")
+            .eq("user_id", sellerId)
+            .eq("item_id", itemId)
+            .maybeSingle();
+
+        if (ownershipError) {
+
+            console.error(
+                "SELL OWNERSHIP ERROR:",
+                ownershipError
+            );
+
+            return res.status(500).json({
+                error: "Failed to check item ownership."
+            });
+        }
+
+        if (!ownership) {
+
+            return res.status(403).json({
+                error: "You do not own this item."
+            });
+        }
+
+
+        /*
+         * Make sure it isn't already listed.
+         */
+
+        const {
+            data: existingListing,
+            error: listingCheckError
+        } = await supabase
+            .from("marketplace_listings")
+            .select("id")
+            .eq("item_id", itemId)
+            .eq("seller_id", sellerId)
+            .maybeSingle();
+
+        if (listingCheckError) {
+
+            console.error(
+                "SELL LISTING CHECK ERROR:",
+                listingCheckError
+            );
+
+            return res.status(500).json({
+                error: "Failed to check marketplace listing."
+            });
+        }
+
+        if (existingListing) {
+
+            return res.status(400).json({
+                error: "This item is already listed for sale."
+            });
+        }
+
+
+        /*
+         * Create marketplace listing.
+         *
+         * IMPORTANT:
+         * We do NOT insert into shop_items.
+         */
+
+        const {
+            data: listing,
+            error: insertError
+        } = await supabase
+            .from("marketplace_listings")
+            .insert({
+                item_id: itemId,
+                seller_id: sellerId,
+                price: price
+            })
+            .select()
+            .single();
+
+        if (insertError) {
+
+            console.error(
+                "SELL LISTING INSERT ERROR:",
+                insertError
+            );
+
+            return res.status(500).json({
+                error: "Failed to create marketplace listing."
+            });
+        }
+
+
+        res.json({
+
+            success: true,
+
+            listing: {
+                id: listing.id,
+                item_id: listing.item_id,
+                seller_id: listing.seller_id,
+                price: listing.price,
+                created_at: listing.created_at
+            }
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "SELL SERVER ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Internal server error."
+        });
+
+    }
+
+});
 // ==================================================
 // BUY SHOP ITEM
 // ==================================================

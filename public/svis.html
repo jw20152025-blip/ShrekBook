@@ -21,7 +21,242 @@
         href="/styles.css">
 
     <style>
+    /* ==================================================
+    SELL BUTTON
+    ================================================== */
 
+    .sell-button {
+
+        width: 100%;
+
+        padding: 12px;
+
+        border: none;
+
+        border-radius: 12px;
+
+        cursor: pointer;
+
+        font-size: 16px;
+
+        font-weight: bold;
+
+        background: #dff0d8;
+
+        margin-top: 8px;
+
+        transition:
+            transform .15s ease,
+            opacity .15s ease;
+
+    }
+
+
+    .sell-button:hover {
+
+        transform: scale(1.02);
+
+        opacity: .85;
+
+    }
+
+
+    .sell-button:active {
+
+        transform: scale(.98);
+
+    }
+
+
+    /* ==================================================
+    SELL DIALOG
+    ================================================== */
+
+    #sell-dialog {
+
+        position: fixed;
+
+        inset: 0;
+
+        display: none;
+
+        align-items: center;
+
+        justify-content: center;
+
+        background:
+            rgba(
+                0,
+                0,
+                0,
+                .65
+            );
+
+        z-index: 99999;
+
+        padding: 20px;
+
+        box-sizing: border-box;
+
+    }
+
+
+    .sell-dialog-box {
+
+        width: min(
+            430px,
+            100%
+        );
+
+        background: white;
+
+        border-radius: 20px;
+
+        padding: 25px;
+
+        box-shadow:
+            0 20px 60px
+            rgba(
+                0,
+                0,
+                0,
+                .3
+            );
+
+        box-sizing: border-box;
+
+    }
+
+
+    .sell-dialog-box h2 {
+
+        margin:
+            0 0 10px;
+
+    }
+
+
+    .sell-dialog-item {
+
+        color: #666;
+
+        margin-bottom: 20px;
+
+    }
+
+
+    .sell-dialog-box label {
+
+        display: block;
+
+        font-weight: bold;
+
+        margin-bottom: 7px;
+
+    }
+
+
+    #sell-price {
+
+        width: 100%;
+
+        box-sizing: border-box;
+
+        padding: 12px;
+
+        border:
+            1px solid #ddd;
+
+        border-radius: 10px;
+
+        font-size: 16px;
+
+        outline: none;
+
+    }
+
+
+    #sell-price:focus {
+
+        border-color: #8bbd62;
+
+        box-shadow:
+            0 0 0 3px
+            rgba(
+                139,
+                189,
+                98,
+                .15
+            );
+
+    }
+
+
+    #sell-tax-preview {
+
+        margin:
+            15px 0;
+
+        padding: 12px;
+
+        border-radius: 10px;
+
+        background: #f4f8f1;
+
+        line-height: 1.6;
+
+    }
+
+
+    .sell-dialog-buttons {
+
+        display: flex;
+
+        gap: 10px;
+
+    }
+
+
+    .sell-dialog-buttons button {
+
+        flex: 1;
+
+        padding: 12px;
+
+        border: none;
+
+        border-radius: 10px;
+
+        cursor: pointer;
+
+        font-weight: bold;
+
+        font-size: 15px;
+
+    }
+
+
+    #confirm-sell-button {
+
+        background: #dff0d8;
+
+    }
+
+
+    .sell-cancel-button {
+
+        background: #eee;
+
+    }
+
+
+    .sell-dialog-buttons button:disabled {
+
+        opacity: .5;
+
+        cursor: not-allowed;
+
+    }
         /* ==================================================
            SVIS GLOW-UP
         ================================================== */
@@ -1045,7 +1280,77 @@
 
 </main>
 
+<!-- ==================================================
+     SELL DIALOG
+================================================== -->
 
+<div id="sell-dialog">
+
+    <div class="sell-dialog-box">
+
+        <h2>
+            💰 Sell Item
+        </h2>
+
+        <div
+            id="sell-item-name"
+            class="sell-dialog-item">
+
+            Selling item
+
+        </div>
+
+
+        <label for="sell-price">
+
+            Price in ShrekCoins
+
+        </label>
+
+
+        <input
+            id="sell-price"
+            type="number"
+            min="1"
+            step="1"
+            placeholder="Enter price">
+
+
+        <div id="sell-tax-preview">
+
+            Tax: 0 ShrekCoins
+            <br>
+
+            You receive: 0 ShrekCoins
+
+        </div>
+
+
+        <div class="sell-dialog-buttons">
+
+            <button
+                id="confirm-sell-button"
+                type="button">
+
+                💰 List For Sale
+
+            </button>
+
+
+            <button
+                class="sell-cancel-button"
+                type="button"
+                onclick="closeSellDialog()">
+
+                Cancel
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
 <div id="toast-container"></div>
 
 
