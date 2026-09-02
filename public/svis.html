@@ -539,20 +539,36 @@ async function loadAvatarPreview(
     container
 ) {
 
+    if (!container) {
+
+        console.error(
+            "❌ Avatar preview container not found."
+        );
+
+        return;
+
+    }
+
+
     try {
+
+        container.innerHTML =
+            "🧌 Loading avatar...";
+
 
         if (!itemValue) {
 
-            container.innerHTML =
-                "❌ No avatar file.";
-
-            return;
+            throw new Error(
+                "No avatar file URL."
+            );
 
         }
 
 
         const response =
-            await fetch(itemValue);
+            await fetch(
+                itemValue
+            );
 
 
         if (!response.ok) {
@@ -567,10 +583,6 @@ async function loadAvatarPreview(
         const avatar =
             await response.json();
 
-
-        /*
-         * Validate .SB format
-         */
 
         if (
             avatar.format !==
@@ -590,7 +602,7 @@ async function loadAvatarPreview(
         ) {
 
             throw new Error(
-                "Not a .SB file."
+                "Not a .sb file."
             );
 
         }
@@ -604,32 +616,17 @@ async function loadAvatarPreview(
         ) {
 
             throw new Error(
-                "Avatar image is missing."
+                "No image found in .sb file."
             );
 
         }
 
 
-        /*
-         * Display the embedded image
-         */
-
-        container.innerHTML = "";
-
-        const image =
-            document.createElement(
-                "img"
-            );
-
-        image.src =
-            avatar.image;
-
-        image.alt =
-            "ShrekBook Avatar Preview";
-
-        container.appendChild(
-            image
-        );
+        container.innerHTML = `
+            <img
+                src="${avatar.image}"
+                alt="ShrekBook Avatar Preview">
+        `;
 
 
     } catch (error) {
@@ -646,6 +643,7 @@ async function loadAvatarPreview(
     }
 
 }
+
 /* ==================================================
    LOAD SHOP ITEMS
 ================================================== */
