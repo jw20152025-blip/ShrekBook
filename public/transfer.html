@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>ShrekBook — Currency Exchange</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #effbea,
+                    #e2f3d9
+                );
+
+            color: #253025;
+        }
+
+        header {
+            padding: 28px 20px;
+
+            text-align: center;
+
+            color: white;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #63a944,
+                    #417e2b
+                );
+
+            box-shadow:
+                0 4px 18px
+                rgba(0, 0, 0, 0.15);
+        }
+
+        header h1 {
+            margin: 0;
+
+            font-size: 32px;
+        }
+
+        header p {
+            margin:
+                8px 0 0;
+
+            opacity: 0.9;
+        }
+
+        .container {
+            width: min(1000px, 92%);
+
+            margin:
+                30px auto 60px;
+        }
+
+        /* =========================
+           BALANCES
+        ========================= */
+
+        .balances {
+            display: grid;
+
+            grid-template-columns:
+                repeat(
+                    auto-fit,
+                    minmax(220px, 1fr)
+                );
+
+            gap: 18px;
+
+            margin-bottom: 25px;
+        }
+
+        .balance {
+            padding: 24px;
+
+            text-align: center;
+
+            background: white;
+
+            border-radius: 20px;
+
+            border:
+                1px solid #d8e8d1;
+
+            box-shadow:
+                0 6px 22px
+                rgba(0, 0, 0, 0.08);
+        }
+
+        .balance-icon {
+            font-size: 42px;
+        }
+
+        .balance-name {
+            margin-top: 8px;
+
+            color: #697569;
+
+            font-size: 15px;
+        }
+
+        .balance-amount {
+            margin-top: 5px;
+
+            font-size: 30px;
+
+            font-weight: bold;
+        }
+
+        /* =========================
+           GRID
+        ========================= */
+
+        .grid {
+            display: grid;
+
+            grid-template-columns:
+                repeat(
+                    auto-fit,
+                    minmax(320px, 1fr)
+                );
+
+            gap: 22px;
+        }
+
+        .card {
+            padding: 25px;
+
+            background: white;
+
+            border-radius: 20px;
+
+            border:
+                1px solid #d8e8d1;
+
+            box-shadow:
+                0 6px 22px
+                rgba(0, 0, 0, 0.08);
+        }
+
+        .card h2 {
+            margin:
+                0 0 8px;
+
+            font-size: 23px;
+        }
+
+        .description {
+            color: #697569;
+
+            line-height: 1.5;
+
+            margin-bottom: 20px;
+        }
+
+        /* =========================
+           INPUTS
+        ========================= */
+
+        label {
+            display: block;
+
+            margin:
+                15px 0 7px;
+
+            font-weight: bold;
+        }
+
+        input,
+        select {
+            width: 100%;
+
+            padding:
+                13px 14px;
+
+            border:
+                1px solid #ccd8c7;
+
+            border-radius: 10px;
+
+            font-size: 15px;
+
+            outline: none;
+
+            background: white;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: #63a944;
+
+            box-shadow:
+                0 0 0 3px
+                rgba(99, 169, 68, 0.15);
+        }
+
+        /* =========================
+           BUTTONS
+        ========================= */
+
+        button {
+            width: 100%;
+
+            margin-top: 20px;
+
+            padding: 14px;
+
+            border: none;
+
+            border-radius: 11px;
+
+            color: white;
+
+            font-size: 16px;
+
+            font-weight: bold;
+
+            cursor: pointer;
+
+            transition:
+                transform 0.15s,
+                box-shadow 0.15s,
+                opacity 0.15s;
+        }
+
+        button:hover {
+            transform:
+                translateY(-2px);
+
+            box-shadow:
+                0 6px 16px
+                rgba(0, 0, 0, 0.15);
+        }
+
+        button:disabled {
+            opacity: 0.55;
+
+            cursor: not-allowed;
+
+            transform: none;
+
+            box-shadow: none;
+        }
+
+        .exchange-button {
+            background:
+                linear-gradient(
+                    135deg,
+                    #5b9e3e,
+                    #3f7d2a
+                );
+        }
+
+        .transfer-button {
+            background:
+                linear-gradient(
+                    135deg,
+                    #527fbd,
+                    #385f98
+                );
+        }
+
+        /* =========================
+           RATE BOX
+        ========================= */
+
+        .rate-box {
+            margin-top: 25px;
+
+            padding: 20px;
+
+            text-align: center;
+
+            border-radius: 16px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #f1faed,
+                    #e7f5e0
+                );
+
+            border:
+                1px solid #d5e9cc;
+        }
+
+        .rate {
+            margin-top: 7px;
+
+            font-size: 21px;
+
+            font-weight: bold;
+
+            color: #4d9134;
+        }
+
+        .rate-small {
+            margin-top: 6px;
+
+            color: #71806f;
+
+            font-size: 14px;
+        }
+
+        /* =========================
+           PREVIEW
+        ========================= */
+
+        .conversion-preview {
+            margin-top: 15px;
+
+            padding: 13px;
+
+            text-align: center;
+
+            border-radius: 10px;
+
+            background: #f7faf5;
+
+            color: #566355;
+
+            font-size: 14px;
+        }
+
+        /* =========================
+           MESSAGE
+        ========================= */
+
+        #message {
+            position: fixed;
+
+            left: 50%;
+
+            bottom: 25px;
+
+            transform:
+                translateX(-50%)
+                translateY(100px);
+
+            padding:
+                13px 20px;
+
+            max-width: 90%;
+
+            text-align: center;
+
+            background: #222;
+
+            color: white;
+
+            border-radius: 12px;
+
+            opacity: 0;
+
+            transition:
+                opacity 0.25s,
+                transform 0.25s;
+
+            z-index: 9999;
+        }
+
+        #message.show {
+            opacity: 1;
+
+            transform:
+                translateX(-50%)
+                translateY(0);
+        }
+
+        .footer {
+            margin-top: 35px;
+
+            text-align: center;
+
+            color: #71806f;
+
+            font-size: 14px;
+        }
+
+        @media (max-width: 600px) {
+
+            header h1 {
+                font-size: 26px;
+            }
+
+            .container {
+                width: 94%;
+            }
+
+            .card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+
+    <h1>💱 ShrekBook Currency Exchange</h1>
+
+    <p>
+        Exchange ShrekCoins and HambiCoin,
+        or transfer currency to another user.
+    </p>
+
+</header>
+
+
+<div class="container">
+
+    <!-- =========================
+         BALANCES
+    ========================= -->
+
+    <div class="balances">
+
+        <div class="balance">
+
+            <div class="balance-icon">
+                🪙
+            </div>
+
+            <div class="balance-name">
+                ShrekCoins
+            </div>
+
+            <div
+                class="balance-amount"
+                id="shrekcoins"
+            >
+                Loading...
+            </div>
+
+        </div>
+
+
+        <div class="balance">
+
+            <div class="balance-icon">
+                🐹
+            </div>
+
+            <div class="balance-name">
+                HambiCoin
+            </div>
+
+            <div
+                class="balance-amount"
+                id="hambicoins"
+            >
+                Loading...
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div class="grid">
+
+        <!-- =========================
+             EXCHANGE
+        ========================= -->
+
+        <div class="card">
+
+            <h2>💱 Exchange Currency</h2>
+
+            <div class="description">
+                Convert between ShrekCoins and
+                HambiCoin using the fixed exchange rate.
+            </div>
+
+
+            <label for="exchangeDirection">
+                Exchange
+            </label>
+
+            <select id="exchangeDirection">
+
+                <option value="shrek_to_hambi">
+                    🪙 ShrekCoins → 🐹 HambiCoin
+                </option>
+
+                <option value="hambi_to_shrek">
+                    🐹 HambiCoin → 🪙 ShrekCoins
+                </option>
+
+            </select>
+
+
+            <label for="exchangeAmount">
+                Amount
+            </label>
+
+            <input
+                id="exchangeAmount"
+                type="number"
+                min="1"
+                step="1"
+                placeholder="100"
+            >
+
+
+            <div
+                class="conversion-preview"
+                id="conversionPreview"
+            >
+                Enter an amount to see the conversion.
+            </div>
+
+
+            <button
+                class="exchange-button"
+                id="exchangeButton"
+                onclick="exchangeCurrency()"
+            >
+                💱 Exchange
+            </button>
+
+        </div>
+
+
+        <!-- =========================
+             TRANSFER
+        ========================= -->
+
+        <div class="card">
+
+            <h2>🔄 Transfer Currency</h2>
+
+            <div class="description">
+                Send ShrekCoins or HambiCoin directly
+                to another ShrekBook user.
+            </div>
+
+
+            <label for="transferCurrency">
+                Currency
+            </label>
+
+            <select id="transferCurrency">
+
+                <option value="shrekcoins">
+                    🪙 ShrekCoins
+                </option>
+
+                <option value="hambicoins">
+                    🐹 HambiCoin
+                </option>
+
+            </select>
+
+
+            <label for="transferUsername">
+                Recipient Username
+            </label>
+
+            <input
+                id="transferUsername"
+                type="text"
+                placeholder="Enter username"
+                autocomplete="off"
+            >
+
+
+            <label for="transferAmount">
+                Amount
+            </label>
+
+            <input
+                id="transferAmount"
+                type="number"
+                min="1"
+                step="1"
+                placeholder="100"
+            >
+
+
+            <button
+                class="transfer-button"
+                onclick="transferCurrency()"
+            >
+                🔄 Transfer
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================
+         RATE
+    ========================= -->
+
+    <div class="rate-box">
+
+        <div>
+            🐹 <strong>HambiCoin Exchange Rate</strong>
+        </div>
+
+        <div class="rate">
+            100 🪙 ShrekCoins = 1 🐹 HambiCoin
+        </div>
+
+        <div class="rate-small">
+            1 🐹 HambiCoin = 100 🪙 ShrekCoins
+        </div>
+
+    </div>
+
+
+    <div class="footer">
+        ShrekBook Currency System 🧌
+    </div>
+
+</div>
+
+
+<div id="message"></div>
+
+
+<script>
+
+let currentUser = null;
+
+
+/* =========================
+   MESSAGE
+========================= */
+
+function showMessage(text) {
+
+    const message =
+        document.getElementById("message");
+
+    message.textContent = text;
+
+    message.classList.add("show");
+
+    setTimeout(() => {
+
+        message.classList.remove("show");
+
+    }, 3000);
+}
+
+
+/* =========================
+   LOAD USER
+========================= */
+
+async function loadUser() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/me",
+                {
+                    credentials: "include"
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (
+            !response.ok ||
+            !data.loggedIn
+        ) {
+
+            showMessage(
+                "❌ You must be logged in."
+            );
+
+            return;
+        }
+
+        currentUser =
+            data.user;
+
+        updateBalances();
+
+    } catch (error) {
+
+        console.error(
+            "USER LOAD ERROR:",
+            error
+        );
+
+        showMessage(
+            "❌ Could not load your account."
+        );
+    }
+}
+
+
+/* =========================
+   BALANCES
+========================= */
+
+function updateBalances() {
+
+    if (!currentUser) {
+        return;
+    }
+
+    const shrekcoins =
+        Number(
+            currentUser.shrekcoins || 0
+        );
+
+    const hambicoins =
+        Number(
+            currentUser.hambicoins || 0
+        );
+
+    document
+        .getElementById("shrekcoins")
+        .textContent =
+            shrekcoins.toLocaleString();
+
+    document
+        .getElementById("hambicoins")
+        .textContent =
+            hambicoins.toLocaleString();
+}
+
+
+/* =========================
+   CONVERSION PREVIEW
+========================= */
+
+function updateConversionPreview() {
+
+    const direction =
+        document
+            .getElementById(
+                "exchangeDirection"
+            )
+            .value;
+
+    const amount =
+        Number(
+            document
+                .getElementById(
+                    "exchangeAmount"
+                )
+                .value
+        );
+
+    const preview =
+        document
+            .getElementById(
+                "conversionPreview"
+            );
+
+    if (
+        !Number.isFinite(amount) ||
+        amount <= 0
+    ) {
+
+        preview.textContent =
+            "Enter an amount to see the conversion.";
+
+        return;
+    }
+
+
+    if (
+        direction ===
+        "shrek_to_hambi"
+    ) {
+
+        const result =
+            amount / 100;
+
+        preview.textContent =
+            `${amount.toLocaleString()} 🪙 ShrekCoins = ${result.toLocaleString()} 🐹 HambiCoin`;
+
+    } else {
+
+        const result =
+            amount * 100;
+
+        preview.textContent =
+            `${amount.toLocaleString()} 🐹 HambiCoin = ${result.toLocaleString()} 🪙 ShrekCoins`;
+
+    }
+}
+
+
+/* =========================
+   EXCHANGE
+========================= */
+
+async function exchangeCurrency() {
+
+    if (!currentUser) {
+
+        showMessage(
+            "❌ You must be logged in."
+        );
+
+        return;
+    }
+
+
+    const direction =
+        document
+            .getElementById(
+                "exchangeDirection"
+            )
+            .value;
+
+    const amount =
+        Number(
+            document
+                .getElementById(
+                    "exchangeAmount"
+                )
+                .value
+        );
+
+
+    if (
+        !Number.isInteger(amount) ||
+        amount <= 0
+    ) {
+
+        showMessage(
+            "❌ Enter a whole-number amount."
+        );
+
+        return;
+    }
+
+
+    /*
+        IMPORTANT:
+
+        ShrekCoins → HambiCoin must be
+        divisible by 100.
+
+        Example:
+
+        500 ShrekCoins → 5 HambiCoin
+
+        550 ShrekCoins cannot become
+        5.5 HambiCoin if HambiCoin only
+        supports whole coins.
+    */
+
+    if (
+        direction ===
+        "shrek_to_hambi" &&
+        amount % 100 !== 0
+    ) {
+
+        showMessage(
+            "❌ ShrekCoin amount must be divisible by 100."
+        );
+
+        return;
+    }
+
+
+    const button =
+        document
+            .getElementById(
+                "exchangeButton"
+            );
+
+    button.disabled = true;
+
+    button.textContent =
+        "💱 Exchanging...";
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/hambicoin/exchange",
+                {
+                    method: "POST",
+
+                    credentials: "include",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+                            direction:
+                                direction,
+
+                            amount:
+                                amount
+                        })
+                }
+            );
+
+
+        const data =
+            await response
+                .json()
+                .catch(() => ({}));
+
+
+        if (!response.ok) {
+
+            showMessage(
+                "❌ " +
+                (
+                    data.error ||
+                    "Exchange failed."
+                )
+            );
+
+            return;
+        }
+
+
+        showMessage(
+            "✅ Currency exchanged successfully!"
+        );
+
+
+        /*
+            If your backend returns the
+            updated balances, use them.
+        */
+
+        if (data.user) {
+
+            currentUser =
+                data.user;
+
+            updateBalances();
+
+        } else {
+
+            await loadUser();
+
+        }
+
+
+        document
+            .getElementById(
+                "exchangeAmount"
+            )
+            .value = "";
+
+        updateConversionPreview();
+
+
+    } catch (error) {
+
+        console.error(
+            "EXCHANGE ERROR:",
+            error
+        );
+
+        showMessage(
+            "❌ Could not complete exchange."
+        );
+
+    } finally {
+
+        button.disabled = false;
+
+        button.textContent =
+            "💱 Exchange";
+    }
+}
+
+
+/* =========================
+   TRANSFER
+========================= */
+
+async function transferCurrency() {
+
+    if (!currentUser) {
+
+        showMessage(
+            "❌ You must be logged in."
+        );
+
+        return;
+    }
+
+
+    const currency =
+        document
+            .getElementById(
+                "transferCurrency"
+            )
+            .value;
+
+    const username =
+        document
+            .getElementById(
+                "transferUsername"
+            )
+            .value
+            .trim();
+
+    const amount =
+        Number(
+            document
+                .getElementById(
+                    "transferAmount"
+                )
+                .value
+        );
+
+
+    if (!username) {
+
+        showMessage(
+            "❌ Enter a recipient username."
+        );
+
+        return;
+    }
+
+
+    if (
+        !Number.isInteger(amount) ||
+        amount <= 0
+    ) {
+
+        showMessage(
+            "❌ Enter a whole-number amount."
+        );
+
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/currency/transfer",
+                {
+                    method: "POST",
+
+                    credentials: "include",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            currency:
+                                currency,
+
+                            username:
+                                username,
+
+                            amount:
+                                amount
+
+                        })
+                }
+            );
+
+
+        const data =
+            await response
+                .json()
+                .catch(() => ({}));
+
+
+        if (!response.ok) {
+
+            showMessage(
+                "❌ " +
+                (
+                    data.error ||
+                    "Transfer failed."
+                )
+            );
+
+            return;
+        }
+
+
+        showMessage(
+            `✅ Sent ${amount.toLocaleString()} ${
+                currency === "hambicoins"
+                    ? "🐹 HambiCoin"
+                    : "🪙 ShrekCoins"
+            } to ${username}!`
+        );
+
+
+        if (data.user) {
+
+            currentUser =
+                data.user;
+
+            updateBalances();
+
+        } else {
+
+            await loadUser();
+
+        }
+
+
+        document
+            .getElementById(
+                "transferAmount"
+            )
+            .value = "";
+
+
+    } catch (error) {
+
+        console.error(
+            "TRANSFER ERROR:",
+            error
+        );
+
+        showMessage(
+            "❌ Could not complete transfer."
+        );
+    }
+}
+
+
+/* =========================
+   EVENTS
+========================= */
+
+document
+    .getElementById(
+        "exchangeDirection"
+    )
+    .addEventListener(
+        "change",
+        updateConversionPreview
+    );
+
+
+document
+    .getElementById(
+        "exchangeAmount"
+    )
+    .addEventListener(
+        "input",
+        updateConversionPreview
+    );
+
+
+/* =========================
+   START
+========================= */
+
+loadUser();
+
+</script>
+
+</body>
+</html>

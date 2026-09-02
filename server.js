@@ -11389,6 +11389,300 @@ app.get(
 
     }
 );
+app.post(
+    "/api/hambicoin/exchange",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.userId) {
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+            }
+
+
+            const {
+                direction,
+                amount
+            } = req.body;
+
+
+            const numericAmount =
+                Number(amount);
+
+
+            if (
+                !Number.isInteger(
+                    numericAmount
+                ) ||
+                numericAmount <= 0
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Amount must be a positive whole number."
+                });
+
+            }
+
+
+            if (
+                direction !==
+                    "shrek_to_hambi" &&
+                direction !==
+                    "hambi_to_shrek"
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Invalid exchange direction."
+                });
+
+            }
+
+
+            if (
+                direction ===
+                    "shrek_to_hambi" &&
+                numericAmount % 100 !== 0
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "ShrekCoin amount must be divisible by 100."
+                });
+
+            }
+
+
+            const {
+                data,
+                error
+            } = await supabase.rpc(
+                "exchange_hambicoin",
+                {
+                    p_user_id:
+                        req.session.userId,
+
+                    p_direction:
+                        direction,
+
+                    p_amount:
+                        numericAmount
+                }
+            );
+
+
+            if (error) {
+
+                console.error(
+                    "HAMBI EXCHANGE ERROR:",
+                    error
+                );
+
+                return res.status(400).json({
+                    error:
+                        error.message ||
+                        "Exchange failed."
+                });
+
+            }
+
+
+            const balances =
+                data?.[0];
+
+
+            return res.json({
+
+                success: true,
+
+                user: {
+
+                    shrekcoins:
+                        Number(
+                            balances?.shrekcoins ||
+                            0
+                        ),
+
+                    hambicoins:
+                        Number(
+                            balances?.hambicoins ||
+                            0
+                        )
+
+                }
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "HAMBI EXCHANGE SERVER ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Internal server error."
+            });
+
+        }
+
+    }
+);
+app.post(
+    "/api/currency/transfer",
+    async (req, res) => {
+
+        try {
+
+            if (!req.session.userId) {
+
+                return res.status(401).json({
+                    error:
+                        "You must be logged in."
+                });
+
+            }
+
+
+            const {
+                username,
+                currency,
+                amount
+            } = req.body;
+
+
+            if (
+                !username ||
+                typeof username !==
+                    "string"
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Recipient username is required."
+                });
+
+            }
+
+
+            const numericAmount =
+                Number(amount);
+
+
+            if (
+                !Number.isInteger(
+                    numericAmount
+                ) ||
+                numericAmount <= 0
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Amount must be a positive whole number."
+                });
+
+            }
+
+
+            if (
+                currency !== "shrekcoins" &&
+                currency !== "hambicoins"
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Invalid currency."
+                });
+
+            }
+
+
+            const {
+                data,
+                error
+            } = await supabase.rpc(
+                "transfer_currency",
+                {
+
+                    p_sender_id:
+                        req.session.userId,
+
+                    p_recipient_username:
+                        username.trim(),
+
+                    p_currency:
+                        currency,
+
+                    p_amount:
+                        numericAmount
+
+                }
+            );
+
+
+            if (error) {
+
+                console.error(
+                    "CURRENCY TRANSFER ERROR:",
+                    error
+                );
+
+                return res.status(400).json({
+                    error:
+                        error.message ||
+                        "Transfer failed."
+                });
+
+            }
+
+
+            const balances =
+                data?.[0];
+
+
+            return res.json({
+
+                success: true,
+
+                user: {
+
+                    shrekcoins:
+                        Number(
+                            balances?.shrekcoins ||
+                            0
+                        ),
+
+                    hambicoins:
+                        Number(
+                            balances?.hambicoins ||
+                            0
+                        )
+
+                }
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "CURRENCY TRANSFER SERVER ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    "Internal server error."
+            });
+
+        }
+
+    }
+);
 // ==================================================
 // START
 // ==================================================
