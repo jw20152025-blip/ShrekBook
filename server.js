@@ -5565,7 +5565,171 @@ app.post(
     }
 );
 
+app.post("/api/shop/sell", async (req, res) => {
 
+    try {
+
+        // Must be logged in
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+        const sellerId = req.session.user.id;
+
+        const itemId = Number(req.body.item_id);
+        const price = Number(req.body.price);
+
+        // Validate item ID
+        if (
+            !Number.isInteger(itemId) ||
+            itemId <= 0
+        ) {
+            return res.status(400).json({
+                error: "Invalid item ID."
+            });
+        }
+
+        // Validate price
+        if (
+            !Number.isInteger(price) ||
+            price <= 0
+        ) {
+            return res.status(400).json({
+                error: "Price must be a positive whole number."
+            });
+        }
+
+        /*
+         * Make sure the seller actually owns this item.
+         */
+
+        const {
+            data: ownership,
+            error: ownershipError
+        } = await supabase
+            .from("user_shop_items")
+            .select("user_id, item_id")
+            .eq("user_id", sellerId)
+            .eq("item_id", itemId)
+            .maybeSingle();
+
+        if (ownershipError) {
+
+            console.error(
+                "SELL OWNERSHIP ERROR:",
+                ownershipError
+            );
+
+            return res.status(500).json({
+                error: "Failed to check item ownership."
+            });
+        }
+
+        if (!ownership) {
+
+            return res.status(403).json({
+                error: "You do not own this item."
+            });
+        }
+
+
+        /*
+         * Make sure it isn't already listed.
+         */
+
+        const {
+            data: existingListing,
+            error: listingCheckError
+        } = await supabase
+            .from("marketplace_listings")
+            .select("id")
+            .eq("item_id", itemId)
+            .eq("seller_id", sellerId)
+            .maybeSingle();
+
+        if (listingCheckError) {
+
+            console.error(
+                "SELL LISTING CHECK ERROR:",
+                listingCheckError
+            );
+
+            return res.status(500).json({
+                error: "Failed to check marketplace listing."
+            });
+        }
+
+        if (existingListing) {
+
+            return res.status(400).json({
+                error: "This item is already listed for sale."
+            });
+        }
+
+
+        /*
+         * Create marketplace listing.
+         *
+         * IMPORTANT:
+         * We do NOT insert into shop_items.
+         */
+
+        const {
+            data: listing,
+            error: insertError
+        } = await supabase
+            .from("marketplace_listings")
+            .insert({
+                item_id: itemId,
+                seller_id: sellerId,
+                price: price
+            })
+            .select()
+            .single();
+
+        if (insertError) {
+
+            console.error(
+                "SELL LISTING INSERT ERROR:",
+                insertError
+            );
+
+            return res.status(500).json({
+                error: "Failed to create marketplace listing."
+            });
+        }
+
+
+        res.json({
+
+            success: true,
+
+            listing: {
+                id: listing.id,
+                item_id: listing.item_id,
+                seller_id: listing.seller_id,
+                price: listing.price,
+                created_at: listing.created_at
+            }
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "SELL SERVER ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Internal server error."
+        });
+
+    }
+
+});
 // ==================================================
 // BUY SHOP ITEM
 // ==================================================
@@ -7412,9 +7576,6 @@ app.post(
                 );
 
 
-                // Delete uploaded .sb if
-                // database insertion failed
-
                 await supabase.storage
                     .from("avatars")
                     .remove([
@@ -7431,6 +7592,139 @@ app.post(
 
 
             // ==========================================
+            // CREATE MARKETPLACE LISTING
+            // ==========================================
+
+            const {
+                data: listing,
+                error: listingError
+            } =
+                await supabase
+                    .from("marketplace_listings")
+                    .insert({
+
+                        item_id:
+                            item.id,
+
+                        seller_id:
+                            userId,
+
+                        price:
+                            price
+
+                    })
+                    .select()
+                    .single();
+
+
+            // ==========================================
+            // MARKETPLACE ERROR
+            // ==========================================
+
+            if (listingError) {
+
+                console.error(
+                    "MARKETPLACE LISTING ERROR:",
+                    listingError
+                );
+
+
+                // Delete the shop item
+
+                await supabase
+                    .from("shop_items")
+                    .delete()
+                    .eq(
+                        "id",
+                        item.id
+                    );
+
+
+                // Delete uploaded file
+
+                await supabase.storage
+                    .from("avatars")
+                    .remove([
+                        storagePath
+                    ]);
+
+
+                return res.status(500).json({
+                    error:
+                        "Avatar was created, but the marketplace listing could not be created."
+                });
+
+            }
+
+
+            // ==========================================
+            // GIVE CREATOR OWNERSHIP
+            // ==========================================
+
+            const {
+                error: ownershipError
+            } =
+                await supabase
+                    .from("user_shop_items")
+                    .insert({
+
+                        user_id:
+                            userId,
+
+                        item_id:
+                            item.id
+
+                    });
+
+
+            // ==========================================
+            // OWNERSHIP ERROR
+            // ==========================================
+
+            if (ownershipError) {
+
+                console.error(
+                    "SVIS OWNERSHIP ERROR:",
+                    ownershipError
+                );
+
+
+                // Roll everything back
+
+                await supabase
+                    .from("marketplace_listings")
+                    .delete()
+                    .eq(
+                        "id",
+                        listing.id
+                    );
+
+
+                await supabase
+                    .from("shop_items")
+                    .delete()
+                    .eq(
+                        "id",
+                        item.id
+                    );
+
+
+                await supabase.storage
+                    .from("avatars")
+                    .remove([
+                        storagePath
+                    ]);
+
+
+                return res.status(500).json({
+                    error:
+                        "Avatar was created, but ownership could not be assigned."
+                });
+
+            }
+
+
+            // ==========================================
             // SUCCESS
             // ==========================================
 
@@ -7440,10 +7734,13 @@ app.post(
                     true,
 
                 message:
-                    "Avatar published successfully.",
+                    "Avatar published successfully and listed for sale.",
 
                 item:
-                    item
+                    item,
+
+                listing:
+                    listing
 
             });
 
@@ -7454,6 +7751,7 @@ app.post(
                 "SHOP PUBLISH ERROR:",
                 error
             );
+
 
             return res.status(500).json({
                 error:
@@ -11556,6 +11854,184 @@ app.post("/api/hambicoin/exchange", async (req, res) => {
                 "Internal server error."
         });
 
+    }
+
+});
+app.post("/api/shop/purchase", async (req, res) => {
+
+    try {
+
+        if (!req.session.user) {
+
+            return res.status(401).json({
+                error:
+                    "You must be logged in."
+            });
+
+        }
+
+        const itemId =
+            Number(req.body.item_id);
+
+
+        if (
+            !Number.isInteger(itemId) ||
+            itemId <= 0
+        ) {
+
+            return res.status(400).json({
+                error:
+                    "Invalid item ID."
+            });
+
+        }
+
+
+        const {
+            data,
+            error
+        } = await supabase.rpc(
+            "purchase_shop_item",
+            {
+                p_buyer_id:
+                    req.session.user.id,
+
+                p_item_id:
+                    itemId
+            }
+        );
+
+
+        if (error) {
+
+            console.error(
+                "SHOP PURCHASE ERROR:",
+                error
+            );
+
+            return res.status(400).json({
+                error:
+                    error.message ||
+                    "Purchase failed."
+            });
+
+        }
+
+
+        const result =
+            data?.[0];
+
+
+        res.json({
+
+            success:
+                true,
+
+            buyer_shrekcoins:
+                Number(
+                    result?.buyer_shrekcoins || 0
+                ),
+
+            seller_shrekcoins:
+                Number(
+                    result?.seller_shrekcoins || 0
+                ),
+
+            seller_id:
+                result?.seller_id,
+
+            seller_amount:
+                Number(
+                    result?.seller_amount || 0
+                ),
+
+            tax_amount:
+                Number(
+                    result?.tax_amount || 0
+                )
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "SHOP PURCHASE SERVER ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error:
+                "Internal server error."
+        });
+
+    }
+
+});
+app.get("/api/shop/sell-history", async (req, res) => {
+
+    try {
+
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+        const sellerId = req.session.user.id;
+
+        const { data, error } = await supabase
+            .from("marketplace_sales")
+            .select(`
+                id,
+                item_id,
+                buyer_id,
+                price,
+                tax,
+                seller_amount,
+                created_at,
+                shop_items (
+                    name,
+                    icon
+                ),
+                profiles!marketplace_sales_buyer_id_fkey (
+                    username,
+                    display_name,
+                    avatar
+                )
+            `)
+            .eq("seller_id", sellerId)
+            .order("created_at", {
+                ascending: false
+            });
+
+        if (error) {
+
+            console.error(
+                "SELL HISTORY ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error: "Failed to load sell history."
+            });
+        }
+
+        res.json({
+            success: true,
+            sales: data || []
+        });
+
+    } catch (error) {
+
+        console.error(
+            "SELL HISTORY SERVER ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Internal server error."
+        });
     }
 
 });
