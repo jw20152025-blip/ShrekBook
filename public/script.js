@@ -4059,7 +4059,8 @@ async function loadShrekCoins() {
         document.getElementById(
             "shrekcoin-count"
         );
-
+    document.getElementById("hambicoin-count").textContent =
+    data.user.hambicoins || 0;
     if (!display || !count) {
         return;
     }
