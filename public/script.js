@@ -4059,8 +4059,12 @@ async function loadShrekCoins() {
         document.getElementById(
             "shrekcoin-count"
         );
-    document.getElementById("hambicoin-count").textContent =
-    data.user.hambicoins || 0;
+
+    const hambiCount =
+        document.getElementById(
+            "hambicoin-count"
+        );
+
     if (!display || !count) {
         return;
     }
@@ -4082,6 +4086,11 @@ async function loadShrekCoins() {
             return;
         }
 
+
+        // ==========================================
+        // SHREKCOINS
+        // ==========================================
+
         const coins =
             Number(
                 data.user?.shrekcoins ??
@@ -4092,8 +4101,32 @@ async function loadShrekCoins() {
         count.textContent =
             coins.toLocaleString();
 
+
+        // ==========================================
+        // HAMBICOINS
+        // ==========================================
+
+        if (hambiCount) {
+
+            const hambiCoins =
+                Number(
+                    data.user?.hambicoins ??
+                    0
+                );
+
+            hambiCount.textContent =
+                hambiCoins.toLocaleString();
+
+        }
+
+
+        // ==========================================
+        // SHOW CURRENCY DISPLAY
+        // ==========================================
+
         display.style.display =
             "block";
+
 
     } catch (error) {
 
@@ -4108,7 +4141,6 @@ async function loadShrekCoins() {
     }
 
 }
-
 
 // Load immediately
 loadShrekCoins();

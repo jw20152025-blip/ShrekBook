@@ -11559,6 +11559,117 @@ app.post("/api/hambicoin/exchange", async (req, res) => {
     }
 
 });
+app.post("/api/shop/purchase", async (req, res) => {
+
+    try {
+
+        if (!req.session.user) {
+
+            return res.status(401).json({
+                error:
+                    "You must be logged in."
+            });
+
+        }
+
+        const itemId =
+            Number(req.body.item_id);
+
+
+        if (
+            !Number.isInteger(itemId) ||
+            itemId <= 0
+        ) {
+
+            return res.status(400).json({
+                error:
+                    "Invalid item ID."
+            });
+
+        }
+
+
+        const {
+            data,
+            error
+        } = await supabase.rpc(
+            "purchase_shop_item",
+            {
+                p_buyer_id:
+                    req.session.user.id,
+
+                p_item_id:
+                    itemId
+            }
+        );
+
+
+        if (error) {
+
+            console.error(
+                "SHOP PURCHASE ERROR:",
+                error
+            );
+
+            return res.status(400).json({
+                error:
+                    error.message ||
+                    "Purchase failed."
+            });
+
+        }
+
+
+        const result =
+            data?.[0];
+
+
+        res.json({
+
+            success:
+                true,
+
+            buyer_shrekcoins:
+                Number(
+                    result?.buyer_shrekcoins || 0
+                ),
+
+            seller_shrekcoins:
+                Number(
+                    result?.seller_shrekcoins || 0
+                ),
+
+            seller_id:
+                result?.seller_id,
+
+            seller_amount:
+                Number(
+                    result?.seller_amount || 0
+                ),
+
+            tax_amount:
+                Number(
+                    result?.tax_amount || 0
+                )
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "SHOP PURCHASE SERVER ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error:
+                "Internal server error."
+        });
+
+    }
+
+});
 app.post("/api/currency/transfer", async (req, res) => {
 
     try {
