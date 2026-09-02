@@ -6321,6 +6321,24 @@ app.post(
 
 
             // ==========================================
+            // AVATAR
+            // ==========================================
+
+            if (
+                item.item_type ===
+                "avatar"
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "Avatars cannot be equipped. Download the .SB avatar instead."
+                });
+
+            }
+
+
+
+            // ==========================================
             // TITLE
             // ==========================================
 
