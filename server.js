@@ -7576,9 +7576,6 @@ app.post(
                 );
 
 
-                // Delete uploaded .sb if
-                // database insertion failed
-
                 await supabase.storage
                     .from("avatars")
                     .remove([
@@ -7595,6 +7592,139 @@ app.post(
 
 
             // ==========================================
+            // CREATE MARKETPLACE LISTING
+            // ==========================================
+
+            const {
+                data: listing,
+                error: listingError
+            } =
+                await supabase
+                    .from("marketplace_listings")
+                    .insert({
+
+                        item_id:
+                            item.id,
+
+                        seller_id:
+                            userId,
+
+                        price:
+                            price
+
+                    })
+                    .select()
+                    .single();
+
+
+            // ==========================================
+            // MARKETPLACE ERROR
+            // ==========================================
+
+            if (listingError) {
+
+                console.error(
+                    "MARKETPLACE LISTING ERROR:",
+                    listingError
+                );
+
+
+                // Delete the shop item
+
+                await supabase
+                    .from("shop_items")
+                    .delete()
+                    .eq(
+                        "id",
+                        item.id
+                    );
+
+
+                // Delete uploaded file
+
+                await supabase.storage
+                    .from("avatars")
+                    .remove([
+                        storagePath
+                    ]);
+
+
+                return res.status(500).json({
+                    error:
+                        "Avatar was created, but the marketplace listing could not be created."
+                });
+
+            }
+
+
+            // ==========================================
+            // GIVE CREATOR OWNERSHIP
+            // ==========================================
+
+            const {
+                error: ownershipError
+            } =
+                await supabase
+                    .from("user_shop_items")
+                    .insert({
+
+                        user_id:
+                            userId,
+
+                        item_id:
+                            item.id
+
+                    });
+
+
+            // ==========================================
+            // OWNERSHIP ERROR
+            // ==========================================
+
+            if (ownershipError) {
+
+                console.error(
+                    "SVIS OWNERSHIP ERROR:",
+                    ownershipError
+                );
+
+
+                // Roll everything back
+
+                await supabase
+                    .from("marketplace_listings")
+                    .delete()
+                    .eq(
+                        "id",
+                        listing.id
+                    );
+
+
+                await supabase
+                    .from("shop_items")
+                    .delete()
+                    .eq(
+                        "id",
+                        item.id
+                    );
+
+
+                await supabase.storage
+                    .from("avatars")
+                    .remove([
+                        storagePath
+                    ]);
+
+
+                return res.status(500).json({
+                    error:
+                        "Avatar was created, but ownership could not be assigned."
+                });
+
+            }
+
+
+            // ==========================================
             // SUCCESS
             // ==========================================
 
@@ -7604,10 +7734,13 @@ app.post(
                     true,
 
                 message:
-                    "Avatar published successfully.",
+                    "Avatar published successfully and listed for sale.",
 
                 item:
-                    item
+                    item,
+
+                listing:
+                    listing
 
             });
 
@@ -7618,6 +7751,7 @@ app.post(
                 "SHOP PUBLISH ERROR:",
                 error
             );
+
 
             return res.status(500).json({
                 error:
