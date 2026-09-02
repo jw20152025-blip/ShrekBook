@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -24,57 +23,40 @@
     <style>
 
         /* ==================================================
-           SHOP
+           SVIS GLOW-UP
         ================================================== */
+
+        :root {
+
+            --shop-radius: 20px;
+
+        }
+
+
+        body {
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #f5f7f2 0%,
+                    #eef5e9 50%,
+                    #f8f8f8 100%
+                );
+
+        }
+
+
         /* ==================================================
-        AVATAR PREVIEW
+           HERO
         ================================================== */
 
-        .avatar-preview {
-
-            width: 180px;
-            height: 180px;
-
-            margin: 15px auto;
-
-            border-radius: 15px;
-
-            overflow: hidden;
-
-            background: #f5f5f5;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-        }
-
-        .avatar-preview img {
-
-            width: 100%;
-
-            height: 100%;
-
-            object-fit: contain;
-
-        }
-
-        .avatar-preview-loading {
-
-            color: #777;
-
-            font-size: 14px;
-
-        }
         .shop-container {
 
-            max-width: 1100px;
+            max-width: 1200px;
 
-            margin: 40px auto;
+            margin: 0 auto;
 
-            padding: 20px;
+            padding: 35px 20px 70px;
 
         }
 
@@ -83,16 +65,22 @@
 
             text-align: center;
 
-            margin-bottom: 35px;
+            margin-bottom: 30px;
 
         }
 
 
         .shop-header h1 {
 
-            font-size: 40px;
+            font-size: clamp(
+                32px,
+                5vw,
+                52px
+            );
 
-            margin-bottom: 10px;
+            margin: 10px 0;
+
+            letter-spacing: -1px;
 
         }
 
@@ -103,6 +91,36 @@
 
             font-size: 17px;
 
+            max-width: 650px;
+
+            margin: 0 auto;
+
+            line-height: 1.6;
+
+        }
+
+
+        .hero-badge {
+
+            display: inline-block;
+
+            padding: 7px 13px;
+
+            border-radius: 999px;
+
+            background: rgba(
+                120,
+                180,
+                80,
+                0.12
+            );
+
+            font-size: 13px;
+
+            font-weight: bold;
+
+            margin-bottom: 5px;
+
         }
 
 
@@ -112,7 +130,7 @@
 
         .coin-balance {
 
-            display: flex;
+            display: inline-flex;
 
             justify-content: center;
 
@@ -122,17 +140,31 @@
 
             margin: 25px auto;
 
-            padding: 15px 25px;
+            padding: 14px 24px;
 
-            max-width: 300px;
+            border-radius: 999px;
 
-            border-radius: 15px;
+            background: white;
 
-            background: #f5f5f5;
+            box-shadow:
+                0 8px 30px
+                rgba(
+                    0,
+                    0,
+                    0,
+                    0.08
+                );
 
-            font-size: 22px;
+            font-size: 18px;
 
             font-weight: bold;
+
+        }
+
+
+        .coin-icon {
+
+            font-size: 25px;
 
         }
 
@@ -145,22 +177,213 @@
 
 
         /* ==================================================
-           STATUS
+           CONTROLS
         ================================================== */
 
-        #shop-status {
+        .shop-controls {
 
-            text-align: center;
+            display: flex;
 
-            margin: 20px 0;
+            gap: 12px;
 
-            font-weight: bold;
+            flex-wrap: wrap;
+
+            margin-bottom: 25px;
+
+            padding: 15px;
+
+            background: rgba(
+                255,
+                255,
+                255,
+                0.8
+            );
+
+            backdrop-filter:
+                blur(12px);
+
+            border-radius: 18px;
+
+            box-shadow:
+                0 5px 25px
+                rgba(
+                    0,
+                    0,
+                    0,
+                    0.05
+                );
+
+        }
+
+
+        .shop-search {
+
+            flex: 1;
+
+            min-width: 200px;
+
+            padding: 12px 15px;
+
+            border:
+                1px solid #ddd;
+
+            border-radius: 12px;
+
+            font-size: 15px;
+
+            outline: none;
+
+        }
+
+
+        .shop-search:focus {
+
+            border-color: #8bbd62;
+
+            box-shadow:
+                0 0 0 3px
+                rgba(
+                    139,
+                    189,
+                    98,
+                    0.15
+                );
+
+        }
+
+
+        .shop-filter,
+        .shop-sort {
+
+            padding: 12px 14px;
+
+            border:
+                1px solid #ddd;
+
+            border-radius: 12px;
+
+            background: white;
+
+            cursor: pointer;
+
+            font-size: 14px;
 
         }
 
 
         /* ==================================================
-           SHOP GRID
+           FEATURED
+        ================================================== */
+
+        .featured-section {
+
+            margin-bottom: 30px;
+
+        }
+
+
+        .section-title {
+
+            font-size: 23px;
+
+            margin:
+                0 0 15px;
+
+        }
+
+
+        .featured-card {
+
+            display: grid;
+
+            grid-template-columns:
+                150px 1fr auto;
+
+            align-items: center;
+
+            gap: 25px;
+
+            padding: 20px;
+
+            border-radius: 22px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    white,
+                    #f2f8ed
+                );
+
+            box-shadow:
+                0 10px 35px
+                rgba(
+                    0,
+                    0,
+                    0,
+                    0.08
+                );
+
+            overflow: hidden;
+
+        }
+
+
+        .featured-preview {
+
+            width: 150px;
+
+            height: 150px;
+
+            border-radius: 18px;
+
+            overflow: hidden;
+
+            background: #eee;
+
+        }
+
+
+        .featured-preview img {
+
+            width: 100%;
+
+            height: 100%;
+
+            object-fit: contain;
+
+        }
+
+
+        .featured-info h2 {
+
+            margin:
+                0 0 8px;
+
+        }
+
+
+        .featured-info p {
+
+            color: #666;
+
+            line-height: 1.5;
+
+        }
+
+
+        .featured-price {
+
+            font-size: 22px;
+
+            font-weight: bold;
+
+            margin-top: 10px;
+
+        }
+
+
+        /* ==================================================
+           GRID
         ================================================== */
 
         .shop-grid {
@@ -169,35 +392,47 @@
 
             grid-template-columns:
                 repeat(
-                    auto-fit,
-                    minmax(220px, 1fr)
+                    auto-fill,
+                    minmax(240px, 1fr)
                 );
 
-            gap: 20px;
+            gap: 22px;
 
         }
 
 
         /* ==================================================
-           ITEM
+           ITEM CARD
         ================================================== */
 
         .shop-item {
 
+            position: relative;
+
             background: white;
 
-            border-radius: 18px;
+            border-radius:
+                var(--shop-radius);
 
-            padding: 25px;
+            padding: 20px;
 
             text-align: center;
 
             box-shadow:
-                0 3px 12px
-                rgba(0, 0, 0, 0.08);
+                0 5px 20px
+                rgba(
+                    0,
+                    0,
+                    0,
+                    0.07
+                );
 
             transition:
-                transform 0.2s ease;
+                transform .2s ease,
+                box-shadow .2s ease;
+
+            animation:
+                cardIn .35s ease both;
 
         }
 
@@ -205,23 +440,153 @@
         .shop-item:hover {
 
             transform:
-                translateY(-4px);
+                translateY(-7px);
+
+            box-shadow:
+                0 15px 35px
+                rgba(
+                    0,
+                    0,
+                    0,
+                    0.12
+                );
+
+        }
+
+
+        @keyframes cardIn {
+
+            from {
+
+                opacity: 0;
+
+                transform:
+                    translateY(10px);
+
+            }
+
+            to {
+
+                opacity: 1;
+
+                transform:
+                    translateY(0);
+
+            }
+
+        }
+
+
+        .item-badge {
+
+            position: absolute;
+
+            top: 12px;
+
+            right: 12px;
+
+            padding: 5px 9px;
+
+            border-radius: 999px;
+
+            font-size: 11px;
+
+            font-weight: bold;
+
+            background: #edf6e7;
 
         }
 
 
         .item-icon {
 
-            font-size: 60px;
+            display: flex;
 
-            margin-bottom: 10px;
+            align-items: center;
+
+            justify-content: center;
+
+            height: 180px;
+
+            font-size: 65px;
 
         }
 
 
+        /* ==================================================
+           AVATAR PREVIEW
+        ================================================== */
+
+        .avatar-preview {
+
+            width: 100%;
+
+            height: 220px;
+
+            margin-bottom: 15px;
+
+            border-radius: 16px;
+
+            overflow: hidden;
+
+            background:
+                radial-gradient(
+                    circle,
+                    #f8faf5,
+                    #e9eee5
+                );
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+        }
+
+
+        .avatar-preview img {
+
+            width: 100%;
+
+            height: 100%;
+
+            object-fit: contain;
+
+            transition:
+                transform .25s ease;
+
+        }
+
+
+        .shop-item:hover
+        .avatar-preview img {
+
+            transform:
+                scale(1.05);
+
+        }
+
+
+        .avatar-loading {
+
+            color: #777;
+
+            font-size: 14px;
+
+        }
+
+
+        /* ==================================================
+           TEXT
+        ================================================== */
+
         .shop-item h2 {
 
-            margin: 10px 0;
+            margin:
+                10px 0 8px;
+
+            font-size: 20px;
 
         }
 
@@ -230,9 +595,11 @@
 
             color: #666;
 
-            min-height: 50px;
+            min-height: 55px;
 
-            line-height: 1.4;
+            line-height: 1.45;
+
+            font-size: 14px;
 
         }
 
@@ -243,10 +610,14 @@
 
             font-weight: bold;
 
-            margin: 15px 0;
+            margin: 16px 0;
 
         }
 
+
+        /* ==================================================
+           BUTTON
+        ================================================== */
 
         .buy-button {
 
@@ -256,7 +627,7 @@
 
             border: none;
 
-            border-radius: 10px;
+            border-radius: 12px;
 
             cursor: pointer;
 
@@ -264,36 +635,57 @@
 
             font-weight: bold;
 
-            background: #eeeeee;
+            background:
+                #eeeeee;
+
+            transition:
+                transform .15s ease,
+                opacity .15s ease;
 
         }
 
 
         .buy-button:hover {
 
-            opacity: 0.8;
+            transform:
+                scale(1.02);
+
+            opacity: .85;
+
+        }
+
+
+        .buy-button:active {
+
+            transform:
+                scale(.98);
 
         }
 
 
         .buy-button:disabled {
 
-            opacity: 0.5;
+            opacity: .5;
 
             cursor: not-allowed;
+
+            transform: none;
 
         }
 
 
         /* ==================================================
-           LOADING
+           LOADING / ERROR
         ================================================== */
 
         .shop-loading {
 
+            grid-column:
+                1 / -1;
+
             text-align: center;
 
-            padding: 40px;
+            padding: 60px;
 
             color: #777;
 
@@ -304,11 +696,104 @@
 
         .shop-error {
 
+            grid-column:
+                1 / -1;
+
             text-align: center;
 
-            padding: 40px;
+            padding: 50px;
 
             color: #c00;
+
+            background: white;
+
+            border-radius: 18px;
+
+        }
+
+
+        .no-results {
+
+            grid-column:
+                1 / -1;
+
+            text-align: center;
+
+            padding: 60px;
+
+            color: #777;
+
+        }
+
+
+        /* ==================================================
+           TOAST
+        ================================================== */
+
+        #toast-container {
+
+            position: fixed;
+
+            right: 20px;
+
+            bottom: 20px;
+
+            z-index: 9999;
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 10px;
+
+        }
+
+
+        .toast {
+
+            padding:
+                13px 17px;
+
+            border-radius: 13px;
+
+            background: #222;
+
+            color: white;
+
+            box-shadow:
+                0 8px 25px
+                rgba(
+                    0,
+                    0,
+                    0,
+                    .2
+                );
+
+            animation:
+                toastIn .25s ease;
+
+        }
+
+
+        @keyframes toastIn {
+
+            from {
+
+                opacity: 0;
+
+                transform:
+                    translateY(10px);
+
+            }
+
+            to {
+
+                opacity: 1;
+
+                transform:
+                    translateY(0);
+
+            }
 
         }
 
@@ -318,22 +803,36 @@
         ================================================== */
 
         @media (
-            max-width: 600px
+            max-width: 700px
         ) {
 
-            .shop-header h1 {
+            .featured-card {
 
-                font-size: 30px;
+                grid-template-columns:
+                    1fr;
+
+                text-align: center;
 
             }
 
+
+            .featured-preview {
+
+                margin:
+                    0 auto;
+
+            }
+
+
             .shop-container {
 
-                padding: 15px;
+                padding:
+                    25px 14px 50px;
 
             }
 
         }
+
 
     </style>
 
@@ -390,20 +889,40 @@
 
     <div class="shop-header">
 
+        <div class="hero-badge">
+
+            🧌 THE SWAMP MARKET
+
+        </div>
+
+
         <h1>
-            🛒 ShrekBook Virtual Items Shop
+
+            🛒 ShrekBook Virtual Shop
+
         </h1>
 
 
         <p>
-            Spend your hard-earned ShrekCoins
-            on completely unnecessary virtual items. 🧌
+
+            Spend your hard-earned
+            ShrekCoins on completely
+            unnecessary virtual items.
+
+            <br>
+
+            <strong>
+                Now with suspiciously fancy avatars.
+            </strong>
+
         </p>
 
 
         <div class="coin-balance">
 
-            🪙
+            <span class="coin-icon">
+                🪙
+            </span>
 
             <span id="shrekcoins">
                 Loading...
@@ -417,6 +936,94 @@
 
 
     <p id="shop-status"></p>
+
+
+    <!-- ==================================================
+         CONTROLS
+    ================================================== -->
+
+    <div class="shop-controls">
+
+        <input
+            id="shop-search"
+            class="shop-search"
+            type="search"
+            placeholder="🔎 Search the swamp shop...">
+
+
+        <select
+            id="shop-filter"
+            class="shop-filter">
+
+            <option value="all">
+                🛒 All Items
+            </option>
+
+            <option value="avatar">
+                🧌 Avatars
+            </option>
+
+            <option value="title">
+                🏷️ Titles
+            </option>
+
+            <option value="other">
+                🎁 Other
+            </option>
+
+        </select>
+
+
+        <select
+            id="shop-sort"
+            class="shop-sort">
+
+            <option value="default">
+                ✨ Default
+            </option>
+
+            <option value="price-low">
+                🪙 Cheapest
+            </option>
+
+            <option value="price-high">
+                💰 Most Expensive
+            </option>
+
+            <option value="name">
+                🔤 Name
+            </option>
+
+            <option value="newest">
+                🆕 Newest
+            </option>
+
+        </select>
+
+    </div>
+
+
+    <!-- ==================================================
+         FEATURED AVATAR
+    ================================================== -->
+
+    <section
+        id="featured-section"
+        class="featured-section"
+        style="display:none;">
+
+        <h2 class="section-title">
+
+            ⭐ Featured Avatar
+
+        </h2>
+
+
+        <div
+            id="featured-card">
+        </div>
+
+    </section>
 
 
     <!-- ==================================================
@@ -437,6 +1044,9 @@
 
 
 </main>
+
+
+<div id="toast-container"></div>
 
 
 <script>
@@ -465,6 +1075,51 @@ function escapeHtml(value) {
 
 
 /* ==================================================
+   TOAST
+================================================== */
+
+function showToast(
+    message
+) {
+
+    const container =
+        document.getElementById(
+            "toast-container"
+        );
+
+
+    const toast =
+        document.createElement(
+            "div"
+        );
+
+
+    toast.className =
+        "toast";
+
+
+    toast.textContent =
+        message;
+
+
+    container.appendChild(
+        toast
+    );
+
+
+    setTimeout(
+        () => {
+
+            toast.remove();
+
+        },
+        3000
+    );
+
+}
+
+
+/* ==================================================
    LOAD SHREKCOINS
 ================================================== */
 
@@ -476,7 +1131,8 @@ async function loadShrekCoins() {
             await fetch(
                 "/api/me",
                 {
-                    credentials: "include"
+                    credentials:
+                        "include"
                 }
             );
 
@@ -503,14 +1159,16 @@ async function loadShrekCoins() {
         const coins =
             data.user &&
             data.user.shrekcoins !== undefined
-                ? data.user.shrekcoins
+                ? Number(
+                    data.user.shrekcoins
+                )
                 : 0;
 
 
         document.getElementById(
             "shrekcoins"
         ).textContent =
-            coins;
+            coins.toLocaleString();
 
 
     } catch (error) {
@@ -530,13 +1188,15 @@ async function loadShrekCoins() {
 
 }
 
+
 /* ==================================================
    LOAD .SB AVATAR PREVIEW
 ================================================== */
 
 async function loadAvatarPreview(
     itemValue,
-    container
+    container,
+    itemName
 ) {
 
     if (!container) {
@@ -552,8 +1212,15 @@ async function loadAvatarPreview(
 
     try {
 
-        container.innerHTML =
-            "🧌 Loading avatar...";
+        container.innerHTML = `
+
+            <div class="avatar-loading">
+
+                🧌 Loading avatar...
+
+            </div>
+
+        `;
 
 
         if (!itemValue) {
@@ -622,11 +1289,27 @@ async function loadAvatarPreview(
         }
 
 
-        container.innerHTML = `
-            <img
-                src="${avatar.image}"
-                alt="ShrekBook Avatar Preview">
-        `;
+        const image =
+            document.createElement(
+                "img"
+            );
+
+
+        image.src =
+            avatar.image;
+
+
+        image.alt =
+            `${itemName || "ShrekBook"} Avatar Preview`;
+
+
+        image.loading =
+            "lazy";
+
+
+        container.replaceChildren(
+            image
+        );
 
 
     } catch (error) {
@@ -637,12 +1320,607 @@ async function loadAvatarPreview(
         );
 
 
-        container.innerHTML =
-            "❌ Preview unavailable.";
+        container.innerHTML = `
+
+            <div class="avatar-loading">
+
+                ❌ Preview unavailable.
+
+            </div>
+
+        `;
 
     }
 
 }
+
+
+/* ==================================================
+   FILTER + SORT
+================================================== */
+
+function getVisibleItems() {
+
+    const search =
+        document.getElementById(
+            "shop-search"
+        ).value
+            .trim()
+            .toLowerCase();
+
+
+    const filter =
+        document.getElementById(
+            "shop-filter"
+        ).value;
+
+
+    const sort =
+        document.getElementById(
+            "shop-sort"
+        ).value;
+
+
+    let items =
+        [...shopItems];
+
+
+    /* SEARCH */
+
+    if (search) {
+
+        items =
+            items.filter(
+                item => {
+
+                    const text =
+                        [
+                            item.name,
+                            item.description,
+                            item.item_type
+                        ]
+                            .join(" ")
+                            .toLowerCase();
+
+                    return text.includes(
+                        search
+                    );
+
+                }
+            );
+
+    }
+
+
+    /* FILTER */
+
+    if (filter !== "all") {
+
+        items =
+            items.filter(
+                item => {
+
+                    if (
+                        filter ===
+                        "other"
+                    ) {
+
+                        return (
+                            item.item_type !==
+                                "avatar" &&
+                            item.item_type !==
+                                "title"
+                        );
+
+                    }
+
+                    return (
+                        item.item_type ===
+                        filter
+                    );
+
+                }
+            );
+
+    }
+
+
+    /* SORT */
+
+    if (
+        sort ===
+        "price-low"
+    ) {
+
+        items.sort(
+            (a, b) =>
+                Number(a.price || 0) -
+                Number(b.price || 0)
+        );
+
+    }
+
+
+    if (
+        sort ===
+        "price-high"
+    ) {
+
+        items.sort(
+            (a, b) =>
+                Number(b.price || 0) -
+                Number(a.price || 0)
+        );
+
+    }
+
+
+    if (
+        sort ===
+        "name"
+    ) {
+
+        items.sort(
+            (a, b) =>
+                String(
+                    a.name || ""
+                ).localeCompare(
+                    String(
+                        b.name || ""
+                    )
+                )
+        );
+
+    }
+
+
+    if (
+        sort ===
+        "newest"
+    ) {
+
+        items.sort(
+            (a, b) =>
+                Number(b.id || 0) -
+                Number(a.id || 0)
+        );
+
+    }
+
+
+    return items;
+
+}
+
+
+/* ==================================================
+   RENDER SHOP
+================================================== */
+
+function renderShop() {
+
+    const grid =
+        document.getElementById(
+            "shop-grid"
+        );
+
+
+    const visibleItems =
+        getVisibleItems();
+
+
+    grid.innerHTML = "";
+
+
+    if (
+        visibleItems.length === 0
+    ) {
+
+        grid.innerHTML = `
+
+            <div class="no-results">
+
+                🔎 Nothing found in the swamp.
+
+                <br><br>
+
+                Try another search.
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+
+    visibleItems.forEach(
+        (
+            item,
+            index
+        ) => {
+
+            /* ==========================================
+               ITEM DATA
+            ========================================== */
+
+            const databaseId =
+                Number(item.id);
+
+
+            const name =
+                item.name ||
+                "Unnamed Item";
+
+
+            const description =
+                item.description ||
+                "No description available.";
+
+
+            const price =
+                Number(item.price) || 0;
+
+
+            const icon =
+                item.icon ||
+                "🧌";
+
+
+            const owned =
+                item.owned === true;
+
+
+            /*
+             * IMPORTANT:
+             *
+             * Define isAvatar BEFORE
+             * using it in card.innerHTML.
+             */
+
+            const isAvatar =
+                item.item_type ===
+                "avatar";
+
+
+            const isTitle =
+                item.item_type ===
+                "title";
+
+
+            const card =
+                document.createElement(
+                    "div"
+                );
+
+
+            card.className =
+                "shop-item";
+
+
+            card.style.animationDelay =
+                `${Math.min(
+                    index * 35,
+                    500
+                )}ms`;
+
+
+            /* ==========================================
+               CARD HTML
+            ========================================== */
+
+            card.innerHTML = `
+
+                ${
+                    isAvatar
+                        ? `
+
+                            <div
+                                class="item-badge">
+
+                                🧌 AVATAR
+
+                            </div>
+
+
+                            <div
+                                class="avatar-preview">
+
+                                <div
+                                    class="avatar-loading">
+
+                                    🧌 Loading avatar...
+
+                                </div>
+
+                            </div>
+
+                        `
+                        : `
+
+                            <div
+                                class="item-icon">
+
+                                ${escapeHtml(
+                                    icon
+                                )}
+
+                            </div>
+
+                        `
+                }
+
+
+                <h2>
+
+                    ${escapeHtml(
+                        name
+                    )}
+
+                </h2>
+
+
+                <p
+                    class="item-description">
+
+                    ${escapeHtml(
+                        description
+                    )}
+
+                </p>
+
+
+                <div
+                    class="item-price">
+
+                    🪙 ${price.toLocaleString()}
+
+                </div>
+
+
+                <button
+                    class="buy-button"
+                    data-item-id="${databaseId}"
+                    ${owned ? "disabled" : ""}>
+
+                    ${
+                        owned
+                            ? "✅ Owned"
+                            : "Buy"
+                    }
+
+                </button>
+
+            `;
+
+
+            /* ==========================================
+               AVATAR PREVIEW
+            ========================================== */
+
+            if (isAvatar) {
+
+                const preview =
+                    card.querySelector(
+                        ".avatar-preview"
+                    );
+
+
+                loadAvatarPreview(
+                    item.item_value,
+                    preview,
+                    name
+                );
+
+            }
+
+
+            /* ==========================================
+               BUY BUTTON
+            ========================================== */
+
+            const button =
+                card.querySelector(
+                    ".buy-button"
+                );
+
+
+            if (!owned) {
+
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        buyItem(
+                            databaseId,
+                            button
+                        );
+
+                    }
+                );
+
+            }
+
+
+            grid.appendChild(
+                card
+            );
+
+        }
+    );
+
+}
+
+
+/* ==================================================
+   FEATURED AVATAR
+================================================== */
+
+function renderFeaturedAvatar() {
+
+    const section =
+        document.getElementById(
+            "featured-section"
+        );
+
+
+    const container =
+        document.getElementById(
+            "featured-card"
+        );
+
+
+    const avatars =
+        shopItems.filter(
+            item =>
+                item.item_type ===
+                "avatar"
+        );
+
+
+    if (
+        avatars.length === 0
+    ) {
+
+        section.style.display =
+            "none";
+
+        return;
+
+    }
+
+
+    /*
+     * Highest-priced avatar
+     * becomes featured.
+     */
+
+    const featured =
+        [...avatars].sort(
+            (a, b) =>
+                Number(b.price || 0) -
+                Number(a.price || 0)
+        )[0];
+
+
+    const price =
+        Number(
+            featured.price
+        ) || 0;
+
+
+    const owned =
+        featured.owned === true;
+
+
+    container.innerHTML = `
+
+        <div
+            class="featured-card">
+
+            <div
+                class="featured-preview"
+                id="featured-preview">
+
+                🧌
+
+            </div>
+
+
+            <div
+                class="featured-info">
+
+                <h2>
+
+                    ${escapeHtml(
+                        featured.name ||
+                        "Featured Avatar"
+                    )}
+
+                </h2>
+
+
+                <p>
+
+                    ${escapeHtml(
+                        featured.description ||
+                        "A mysterious avatar from the swamp."
+                    )}
+
+                </p>
+
+
+                <div
+                    class="featured-price">
+
+                    🪙
+                    ${price.toLocaleString()}
+
+                </div>
+
+            </div>
+
+
+            <button
+                class="buy-button"
+                id="featured-buy"
+                ${owned ? "disabled" : ""}>
+
+                ${
+                    owned
+                        ? "✅ Owned"
+                        : "Buy Avatar"
+                }
+
+            </button>
+
+        </div>
+
+    `;
+
+
+    const preview =
+        document.getElementById(
+            "featured-preview"
+        );
+
+
+    loadAvatarPreview(
+        featured.item_value,
+        preview,
+        featured.name
+    );
+
+
+    if (!owned) {
+
+        document
+            .getElementById(
+                "featured-buy"
+            )
+            .addEventListener(
+                "click",
+                event => {
+
+                    buyItem(
+                        Number(
+                            featured.id
+                        ),
+                        event.currentTarget
+                    );
+
+                }
+            );
+
+    }
+
+
+    section.style.display =
+        "block";
+
+}
+
 
 /* ==================================================
    LOAD SHOP ITEMS
@@ -699,21 +1977,13 @@ async function loadShop() {
         }
 
 
-        /*
-         * Support either:
-         *
-         * { items: [...] }
-         *
-         * or
-         *
-         * [...]
-         */
-
         shopItems =
             Array.isArray(data)
                 ? data
                 : (
-                    Array.isArray(data.items)
+                    Array.isArray(
+                        data.items
+                    )
                         ? data.items
                         : []
                 );
@@ -738,160 +2008,9 @@ async function loadShop() {
         }
 
 
-        grid.innerHTML = "";
+        renderFeaturedAvatar();
 
-
-        shopItems.forEach(
-            item => {
-
-                /*
-                 * DATABASE ID
-                 *
-                 * This is the actual
-                 * shop_items.id.
-                 */
-
-                const databaseId =
-                    Number(item.id);
-
-
-                /*
-                 * Automatically get
-                 * the database values.
-                 */
-
-                const name =
-                    item.name ||
-                    "Unnamed Item";
-
-
-                const description =
-                    item.description ||
-                    "No description available.";
-
-
-                const price =
-                    Number(item.price) || 0;
-
-
-                const icon =
-                    item.icon ||
-                    "🧌";
-
-
-                const owned =
-                    item.owned === true;
-
-
-                const card =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                card.className =
-                    "shop-item";
-
-
-                card.innerHTML = `
-
-                    ${
-                        isAvatar
-                            ? `
-                                <div
-                                    class="avatar-preview">
-
-                                    🧌 Loading avatar...
-
-                                </div>
-                            `
-                            : `
-                                <div class="item-icon">
-
-                                    ${escapeHtml(icon)}
-
-                                </div>
-                            `
-                    }
-
-
-                    <h2>
-                        ${escapeHtml(name)}
-                    </h2>
-
-
-                    <p class="item-description">
-
-                        ${escapeHtml(description)}
-
-                    </p>
-
-
-                    <div class="item-price">
-
-                        🪙 ${price}
-
-                    </div>
-
-
-                    <button
-                        class="buy-button"
-                        data-item-id="${databaseId}"
-                        ${owned ? "disabled" : ""}>
-
-                        ${
-                            owned
-                                ? "✅ Owned"
-                                : "Buy"
-                        }
-
-                    </button>
-
-                `;
-                const isAvatar =
-                    item.item_type === "avatar";
-                if (isAvatar) {
-
-                    const preview =
-                        card.querySelector(
-                            ".avatar-preview"
-                        );
-
-                    loadAvatarPreview(
-                        item.item_value,
-                        preview
-                    );
-
-                }
-
-                const button =
-                    card.querySelector(
-                        ".buy-button"
-                    );
-
-
-                if (!owned) {
-
-                    button.addEventListener(
-                        "click",
-                        () => {
-
-                            buyItem(
-                                databaseId
-                            );
-
-                        }
-                    );
-
-                }
-
-
-                grid.appendChild(
-                    card
-                );
-
-            }
-        );
+        renderShop();
 
 
     } catch (error) {
@@ -927,7 +2046,10 @@ async function loadShop() {
    BUY ITEM
 ================================================== */
 
-async function buyItem(itemId) {
+async function buyItem(
+    itemId,
+    button
+) {
 
     console.log(
         "🛒 BUY ITEM DATABASE ID:",
@@ -939,11 +2061,6 @@ async function buyItem(itemId) {
         Number(itemId);
 
 
-    /*
-     * Make absolutely sure
-     * we're sending shop_items.id.
-     */
-
     if (
         !Number.isInteger(
             numericItemId
@@ -951,18 +2068,22 @@ async function buyItem(itemId) {
         numericItemId <= 0
     ) {
 
-        console.error(
-            "❌ INVALID SHOP ITEM ID:",
-            itemId
-        );
-
-
-        alert(
+        showToast(
             "❌ Invalid shop item ID."
         );
 
-
         return;
+
+    }
+
+
+    if (button) {
+
+        button.disabled =
+            true;
+
+        button.textContent =
+            "🛒 Buying...";
 
     }
 
@@ -973,7 +2094,9 @@ async function buyItem(itemId) {
             await fetch(
                 "/api/shop/buy",
                 {
-                    method: "POST",
+
+                    method:
+                        "POST",
 
                     credentials:
                         "include",
@@ -1009,7 +2132,7 @@ async function buyItem(itemId) {
 
         if (!response.ok) {
 
-            alert(
+            showToast(
                 "❌ " +
                 (
                     data.error ||
@@ -1018,14 +2141,23 @@ async function buyItem(itemId) {
             );
 
 
+            if (button) {
+
+                button.disabled =
+                    false;
+
+                button.textContent =
+                    "Buy";
+
+            }
+
+
             return;
 
         }
 
 
-        /*
-         * Update coin balance
-         */
+        /* UPDATE COINS */
 
         if (
             data.shrekcoins !==
@@ -1037,7 +2169,9 @@ async function buyItem(itemId) {
             document.getElementById(
                 "shrekcoins"
             ).textContent =
-                data.shrekcoins;
+                Number(
+                    data.shrekcoins
+                ).toLocaleString();
 
         } else {
 
@@ -1046,14 +2180,14 @@ async function buyItem(itemId) {
         }
 
 
-        alert(
+        showToast(
             "✅ Item purchased!"
         );
 
 
         /*
-         * Reload shop so the item
-         * becomes "Owned".
+         * Reload everything so
+         * owned state updates.
          */
 
         await loadShop();
@@ -1067,13 +2201,66 @@ async function buyItem(itemId) {
         );
 
 
-        alert(
+        showToast(
             "❌ Could not connect to the shop."
         );
+
+
+        if (button) {
+
+            button.disabled =
+                false;
+
+            button.textContent =
+                "Buy";
+
+        }
 
     }
 
 }
+
+
+/* ==================================================
+   SEARCH
+================================================== */
+
+document
+    .getElementById(
+        "shop-search"
+    )
+    .addEventListener(
+        "input",
+        renderShop
+    );
+
+
+/* ==================================================
+   FILTER
+================================================== */
+
+document
+    .getElementById(
+        "shop-filter"
+    )
+    .addEventListener(
+        "change",
+        renderShop
+    );
+
+
+/* ==================================================
+   SORT
+================================================== */
+
+document
+    .getElementById(
+        "shop-sort"
+    )
+    .addEventListener(
+        "change",
+        renderShop
+    );
 
 
 /* ==================================================
@@ -1086,7 +2273,7 @@ loadShop();
 
 </script>
 
+
 </body>
 
 </html>
-
