@@ -2046,6 +2046,10 @@ async function loadShop() {
    BUY ITEM
 ================================================== */
 
+/* ==================================================
+   BUY ITEM
+================================================== */
+
 async function buyItem(
     itemId,
     button
@@ -2077,6 +2081,54 @@ async function buyItem(
     }
 
 
+    /* ==========================================
+       FIND ITEM
+    ========================================== */
+
+    const item =
+        shopItems.find(
+            shopItem =>
+                Number(shopItem.id) ===
+                numericItemId
+        );
+
+
+    if (!item) {
+
+        showToast(
+            "❌ Shop item could not be found."
+        );
+
+        return;
+
+    }
+
+
+    const price =
+        Number(item.price || 0);
+
+
+    /* ==========================================
+       CONFIRM PURCHASE
+    ========================================== */
+
+    const confirmed =
+        confirm(
+            `Purchase "${item.name}" for ${price.toLocaleString()} ShrekCoins?`
+        );
+
+
+    if (!confirmed) {
+
+        return;
+
+    }
+
+
+    /* ==========================================
+       DISABLE BUTTON
+    ========================================== */
+
     if (button) {
 
         button.disabled =
@@ -2090,9 +2142,13 @@ async function buyItem(
 
     try {
 
+        /* ==========================================
+           PURCHASE
+        ========================================== */
+
         const response =
             await fetch(
-                "/api/shop/buy",
+                "/api/shop/purchase",
                 {
 
                     method:
@@ -2125,10 +2181,14 @@ async function buyItem(
 
 
         console.log(
-            "🛒 SHOP RESPONSE:",
+            "🛒 PURCHASE RESPONSE:",
             data
         );
 
+
+        /* ==========================================
+           ERROR
+        ========================================== */
 
         if (!response.ok) {
 
@@ -2157,21 +2217,31 @@ async function buyItem(
         }
 
 
-        /* UPDATE COINS */
+        /* ==========================================
+           UPDATE SHREKCOIN BALANCE
+        ========================================== */
 
         if (
-            data.shrekcoins !==
+            data.buyer_shrekcoins !==
                 undefined &&
-            data.shrekcoins !==
+            data.buyer_shrekcoins !==
                 null
         ) {
 
-            document.getElementById(
-                "shrekcoins"
-            ).textContent =
-                Number(
-                    data.shrekcoins
-                ).toLocaleString();
+            const coinDisplay =
+                document.getElementById(
+                    "shrekcoins"
+                );
+
+
+            if (coinDisplay) {
+
+                coinDisplay.textContent =
+                    Number(
+                        data.buyer_shrekcoins
+                    ).toLocaleString();
+
+            }
 
         } else {
 
@@ -2180,15 +2250,57 @@ async function buyItem(
         }
 
 
+        /* ==========================================
+           SHOW SALE BREAKDOWN
+        ========================================== */
+
+        const itemPrice =
+            Number(
+                data.item_price ||
+                price
+            );
+
+
+        const taxAmount =
+            Number(
+                data.tax_amount ||
+                0
+            );
+
+
+        const sellerAmount =
+            Number(
+                data.seller_amount ||
+                0
+            );
+
+
         showToast(
-            "✅ Item purchased!"
+            `✅ Purchased! 🪙 ${itemPrice.toLocaleString()} ShrekCoins`
         );
 
 
-        /*
-         * Reload everything so
-         * owned state updates.
-         */
+        console.log(
+            "💰 MARKETPLACE SALE:",
+            {
+                price:
+                    itemPrice,
+
+                tax:
+                    taxAmount,
+
+                seller:
+                    sellerAmount,
+
+                sellerId:
+                    data.seller_id
+            }
+        );
+
+
+        /* ==========================================
+           RELOAD SHOP
+        ========================================== */
 
         await loadShop();
 
@@ -2196,7 +2308,7 @@ async function buyItem(
     } catch (error) {
 
         console.error(
-            "🛒 SHOP ERROR:",
+            "🛒 SHOP PURCHASE ERROR:",
             error
         );
 
@@ -2219,7 +2331,6 @@ async function buyItem(
     }
 
 }
-
 
 /* ==================================================
    SEARCH
