@@ -26,7 +26,48 @@
         /* ==================================================
            SHOP
         ================================================== */
+        /* ==================================================
+        AVATAR PREVIEW
+        ================================================== */
 
+        .avatar-preview {
+
+            width: 180px;
+            height: 180px;
+
+            margin: 15px auto;
+
+            border-radius: 15px;
+
+            overflow: hidden;
+
+            background: #f5f5f5;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+        }
+
+        .avatar-preview img {
+
+            width: 100%;
+
+            height: 100%;
+
+            object-fit: contain;
+
+        }
+
+        .avatar-preview-loading {
+
+            color: #777;
+
+            font-size: 14px;
+
+        }
         .shop-container {
 
             max-width: 1100px;
@@ -489,7 +530,122 @@ async function loadShrekCoins() {
 
 }
 
+/* ==================================================
+   LOAD .SB AVATAR PREVIEW
+================================================== */
 
+async function loadAvatarPreview(
+    itemValue,
+    container
+) {
+
+    try {
+
+        if (!itemValue) {
+
+            container.innerHTML =
+                "❌ No avatar file.";
+
+            return;
+
+        }
+
+
+        const response =
+            await fetch(itemValue);
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `HTTP ${response.status}`
+            );
+
+        }
+
+
+        const avatar =
+            await response.json();
+
+
+        /*
+         * Validate .SB format
+         */
+
+        if (
+            avatar.format !==
+            "ShrekBook"
+        ) {
+
+            throw new Error(
+                "Invalid ShrekBook file."
+            );
+
+        }
+
+
+        if (
+            avatar.file_type !==
+            "sb"
+        ) {
+
+            throw new Error(
+                "Not a .SB file."
+            );
+
+        }
+
+
+        if (
+            !avatar.image ||
+            !avatar.image.startsWith(
+                "data:image/"
+            )
+        ) {
+
+            throw new Error(
+                "Avatar image is missing."
+            );
+
+        }
+
+
+        /*
+         * Display the embedded image
+         */
+
+        container.innerHTML = "";
+
+        const image =
+            document.createElement(
+                "img"
+            );
+
+        image.src =
+            avatar.image;
+
+        image.alt =
+            "ShrekBook Avatar Preview";
+
+        container.appendChild(
+            image
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "❌ AVATAR PREVIEW ERROR:",
+            error
+        );
+
+
+        container.innerHTML =
+            "❌ Preview unavailable.";
+
+    }
+
+}
 /* ==================================================
    LOAD SHOP ITEMS
 ================================================== */
@@ -685,7 +841,19 @@ async function loadShop() {
                     </button>
 
                 `;
+                if (isAvatar) {
 
+                    const preview =
+                        card.querySelector(
+                            ".avatar-preview"
+                        );
+
+                    loadAvatarPreview(
+                        item.item_value,
+                        preview
+                    );
+
+                }
 
                 const button =
                     card.querySelector(
