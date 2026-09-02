@@ -11114,7 +11114,7 @@ app.get("/api/shop/inventory", async (req, res) => {
 
 });
 app.get(
-    "/api/shop/items/:itemId/download",
+    "/api/shop/download/:id",
     async (req, res) => {
 
         try {
@@ -11141,10 +11141,12 @@ app.get(
                 req.session.user.id;
 
 
+            // ==========================================
+            // GET ITEM ID
+            // ==========================================
+
             const itemId =
-                Number(
-                    req.params.itemId
-                );
+                Number(req.params.id);
 
 
             if (
@@ -11167,20 +11169,19 @@ app.get(
             const {
                 data: ownership,
                 error: ownershipError
-            } = await supabase
-                .from("user_shop_items")
-                .select(`
-                    item_id
-                `)
-                .eq(
-                    "user_id",
-                    userId
-                )
-                .eq(
-                    "item_id",
-                    itemId
-                )
-                .maybeSingle();
+            } =
+                await supabase
+                    .from("user_shop_items")
+                    .select("item_id")
+                    .eq(
+                        "user_id",
+                        userId
+                    )
+                    .eq(
+                        "item_id",
+                        itemId
+                    )
+                    .maybeSingle();
 
 
             if (ownershipError) {
@@ -11202,32 +11203,33 @@ app.get(
 
                 return res.status(403).json({
                     error:
-                        "You do not own this item."
+                        "You do not own this avatar."
                 });
 
             }
 
 
             // ==========================================
-            // GET ITEM
+            // GET AVATAR
             // ==========================================
 
             const {
                 data: item,
                 error: itemError
-            } = await supabase
-                .from("shop_items")
-                .select(`
-                    id,
-                    name,
-                    item_type,
-                    item_value
-                `)
-                .eq(
-                    "id",
-                    itemId
-                )
-                .maybeSingle();
+            } =
+                await supabase
+                    .from("shop_items")
+                    .select(`
+                        id,
+                        name,
+                        item_type,
+                        item_value
+                    `)
+                    .eq(
+                        "id",
+                        itemId
+                    )
+                    .maybeSingle();
 
 
             if (itemError) {
@@ -11239,7 +11241,7 @@ app.get(
 
                 return res.status(500).json({
                     error:
-                        "Could not find item."
+                        "Could not find avatar."
                 });
 
             }
@@ -11249,7 +11251,7 @@ app.get(
 
                 return res.status(404).json({
                     error:
-                        "Item not found."
+                        "Avatar not found."
                 });
 
             }
@@ -11260,9 +11262,7 @@ app.get(
             // ==========================================
 
             if (
-                String(
-                    item.item_type
-                ).toLowerCase() !==
+                item.item_type !==
                 "avatar"
             ) {
 
@@ -11275,38 +11275,101 @@ app.get(
 
 
             // ==========================================
-            // CHECK FILE
+            // CHECK FILE URL
             // ==========================================
 
-            if (!item.item_value) {
+            if (
+                !item.item_value
+            ) {
 
                 return res.status(404).json({
                     error:
-                        "Avatar file is missing."
+                        "Avatar file not found."
                 });
 
             }
 
 
             // ==========================================
-            // DOWNLOAD
+            // DOWNLOAD FILE
             // ==========================================
 
-            const fileName =
-                `${String(
+            const avatarResponse =
+                await fetch(
+                    item.item_value
+                );
+
+
+            if (
+                !avatarResponse.ok
+            ) {
+
+                console.error(
+                    "AVATAR STORAGE ERROR:",
+                    avatarResponse.status,
+                    avatarResponse.statusText
+                );
+
+                return res.status(500).json({
+                    error:
+                        "Could not retrieve avatar file."
+                });
+
+            }
+
+
+            const arrayBuffer =
+                await avatarResponse.arrayBuffer();
+
+
+            const buffer =
+                Buffer.from(
+                    arrayBuffer
+                );
+
+
+            // ==========================================
+            // CREATE SAFE FILENAME
+            // ==========================================
+
+            const safeName =
+                String(
                     item.name ||
-                    "ShrekBook Avatar"
+                    "shrekbook-avatar"
                 )
                     .replace(
                         /[^a-z0-9_\- ]/gi,
                         ""
                     )
-                    .trim() || "ShrekBook Avatar"
-                }.sb`;
+                    .trim()
+                    .replace(
+                        /\s+/g,
+                        "-"
+                    );
 
 
-            return res.redirect(
-                item.item_value
+            // ==========================================
+            // SEND FILE
+            // ==========================================
+
+            res.setHeader(
+                "Content-Type",
+                "application/octet-stream"
+            );
+
+            res.setHeader(
+                "Content-Disposition",
+                `attachment; filename="${safeName || "shrekbook-avatar"}.sb"`
+            );
+
+            res.setHeader(
+                "Content-Length",
+                buffer.length
+            );
+
+
+            return res.send(
+                buffer
             );
 
 
@@ -11319,7 +11382,7 @@ app.get(
 
             return res.status(500).json({
                 error:
-                    "Could not download avatar."
+                    "Failed to download avatar."
             });
 
         }
