@@ -11670,6 +11670,73 @@ app.post("/api/shop/purchase", async (req, res) => {
     }
 
 });
+app.get("/api/shop/sell-history", async (req, res) => {
+
+    try {
+
+        if (!req.session.user) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+        const sellerId = req.session.user.id;
+
+        const { data, error } = await supabase
+            .from("marketplace_sales")
+            .select(`
+                id,
+                item_id,
+                buyer_id,
+                price,
+                tax,
+                seller_amount,
+                created_at,
+                shop_items (
+                    name,
+                    icon
+                ),
+                profiles!marketplace_sales_buyer_id_fkey (
+                    username,
+                    display_name,
+                    avatar
+                )
+            `)
+            .eq("seller_id", sellerId)
+            .order("created_at", {
+                ascending: false
+            });
+
+        if (error) {
+
+            console.error(
+                "SELL HISTORY ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error: "Failed to load sell history."
+            });
+        }
+
+        res.json({
+            success: true,
+            sales: data || []
+        });
+
+    } catch (error) {
+
+        console.error(
+            "SELL HISTORY SERVER ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Internal server error."
+        });
+    }
+
+});
 app.post("/api/currency/transfer", async (req, res) => {
 
     try {
