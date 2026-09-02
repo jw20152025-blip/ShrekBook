@@ -795,25 +795,34 @@ async function loadShop() {
 
                 card.innerHTML = `
 
-                    <div class="item-icon">
+                    ${
+                        isAvatar
+                            ? `
+                                <div
+                                    class="avatar-preview">
 
-                        ${escapeHtml(icon)}
+                                    🧌 Loading avatar...
 
-                    </div>
+                                </div>
+                            `
+                            : `
+                                <div class="item-icon">
+
+                                    ${escapeHtml(icon)}
+
+                                </div>
+                            `
+                    }
 
 
                     <h2>
-
                         ${escapeHtml(name)}
-
                     </h2>
 
 
                     <p class="item-description">
 
-                        ${escapeHtml(
-                            description
-                        )}
+                        ${escapeHtml(description)}
 
                     </p>
 
