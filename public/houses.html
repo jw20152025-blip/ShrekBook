@@ -1,13 +1,442 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ShrekBook Houses</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Houses - ShrekBook</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
+            color: #222;
+        }
+
+        .header {
+            background: #ffffff;
+            border-bottom: 1px solid #ddd;
+            padding: 15px 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 26px;
+            font-weight: bold;
+            color: #4b8f29;
+        }
+
+        .create-button {
+            background: #4b8f29;
+            color: white;
+            border: none;
+            padding: 11px 17px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .create-button:hover {
+            background: #3c7621;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-top: 0;
+            margin-bottom: 25px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #ccc;
+            border-radius: 9px;
+            font-size: 16px;
+            margin-bottom: 25px;
+            outline: none;
+        }
+
+        .search-box:focus {
+            border-color: #4b8f29;
+        }
+
+        .houses {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 18px;
+        }
+
+        .house-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .house-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 14px rgba(0, 0, 0, 0.1);
+        }
+
+        .house-name {
+            font-size: 21px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .house-description {
+            color: #666;
+            min-height: 40px;
+            margin-bottom: 15px;
+        }
+
+        .house-info {
+            display: grid;
+            gap: 7px;
+            font-size: 14px;
+            margin-bottom: 18px;
+        }
+
+        .house-info span {
+            color: #555;
+        }
+
+        .view-button {
+            display: block;
+            text-align: center;
+            background: #4b8f29;
+            color: white;
+            padding: 10px;
+            border-radius: 7px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .view-button:hover {
+            background: #3c7621;
+        }
+
+        .loading,
+        .empty,
+        .error {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            grid-column: 1 / -1;
+        }
+
+        .error {
+            color: #b00020;
+        }
+
+        @media (max-width: 600px) {
+            .header {
+                padding: 12px 15px;
+            }
+
+            .container {
+                margin-top: 20px;
+                padding: 0 12px;
+            }
+
+            .logo {
+                font-size: 21px;
+            }
+
+            .create-button {
+                padding: 9px 12px;
+                font-size: 14px;
+            }
+        }
+    </style>
 </head>
+
 <body>
 
-<h1>ShrekBook Houses 🏠</h1>
-<p>If you can see this, the HTML page itself works.</p>
+<header class="header">
+    <div class="logo">🏠 ShrekBook Houses</div>
+
+    <a href="create-house.html" class="create-button">
+        + Create House
+    </a>
+</header>
+
+<main class="container">
+
+    <h1>Houses</h1>
+    <p class="subtitle">
+        Find and explore the Houses of ShrekBook.
+    </p>
+
+    <input
+        type="text"
+        id="search"
+        class="search-box"
+        placeholder="🔎 Search Houses..."
+        autocomplete="off"
+    >
+
+    <div id="houses" class="houses">
+        <div class="loading">
+            Loading Houses...
+        </div>
+    </div>
+
+</main>
+
+<script>
+    const housesContainer = document.getElementById("houses");
+    const searchInput = document.getElementById("search");
+
+    let allHouses = [];
+
+    async function loadHouses() {
+        housesContainer.innerHTML = `
+            <div class="loading">
+                Loading Houses...
+            </div>
+        `;
+
+        try {
+            const response = await fetch("/api/houses");
+
+            if (!response.ok) {
+                throw new Error("Server returned " + response.status);
+            }
+
+            const data = await response.json();
+
+            /*
+                The API may return either:
+
+                [
+                    {...},
+                    {...}
+                ]
+
+                or:
+
+                {
+                    houses: [...]
+                }
+            */
+
+            if (Array.isArray(data)) {
+                allHouses = data;
+            } else if (Array.isArray(data.houses)) {
+                allHouses = data.houses;
+            } else {
+                allHouses = [];
+            }
+
+            renderHouses(allHouses);
+
+        } catch (error) {
+            console.error("Failed to load Houses:", error);
+
+            housesContainer.innerHTML = `
+                <div class="error">
+                    <h2>Couldn't load Houses 😭</h2>
+                    <p>${escapeHtml(error.message)}</p>
+                    <button onclick="loadHouses()" style="
+                        margin-top:10px;
+                        padding:10px 15px;
+                        border:none;
+                        border-radius:7px;
+                        background:#4b8f29;
+                        color:white;
+                        cursor:pointer;
+                    ">
+                        Try Again
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    function renderHouses(houses) {
+        if (!houses.length) {
+            housesContainer.innerHTML = `
+                <div class="empty">
+                    <h2>No Houses Yet 🏠</h2>
+                    <p>Be the first person to create one!</p>
+
+                    <a href="create-house.html"
+                       class="create-button"
+                       style="display:inline-block;margin-top:10px;">
+                        Create a House
+                    </a>
+                </div>
+            `;
+
+            return;
+        }
+
+        housesContainer.innerHTML = houses.map(house => {
+
+            const type = house.house_types || house.house_type || {};
+
+            const houseName =
+                house.name ||
+                "Unnamed House";
+
+            const description =
+                house.description ||
+                "No description.";
+
+            const owner =
+                house.owner_username ||
+                house.owner_name ||
+                house.owner?.username ||
+                house.owner?.display_name ||
+                "Unknown";
+
+            const typeName =
+                type.name ||
+                house.house_type_name ||
+                "Unknown";
+
+            const roomCount =
+                type.room_count ??
+                house.room_count ??
+                "?";
+
+            const taxReduction =
+                type.tax_reduction ??
+                house.tax_reduction;
+
+            let taxText = "Unknown";
+
+            if (taxReduction !== undefined && taxReduction !== null) {
+                taxText =
+                    (Number(taxReduction) * 100).toFixed(2) + "%";
+            }
+
+            return `
+                <div class="house-card">
+
+                    <div class="house-name">
+                        🏠 ${escapeHtml(houseName)}
+                    </div>
+
+                    <div class="house-description">
+                        ${escapeHtml(description)}
+                    </div>
+
+                    <div class="house-info">
+                        <div>
+                            👑 <span>Owner:</span>
+                            <strong>${escapeHtml(owner)}</strong>
+                        </div>
+
+                        <div>
+                            🏘️ <span>Type:</span>
+                            <strong>${escapeHtml(typeName)}</strong>
+                        </div>
+
+                        <div>
+                            🚪 <span>Rooms:</span>
+                            <strong>${escapeHtml(String(roomCount))}</strong>
+                        </div>
+
+                        <div>
+                            🛒 <span>Marketplace tax reduction:</span>
+                            <strong>${escapeHtml(taxText)}</strong>
+                        </div>
+                    </div>
+
+                    <a
+                        class="view-button"
+                        href="house.html?id=${encodeURIComponent(house.id)}"
+                    >
+                        Enter House →
+                    </a>
+
+                </div>
+            `;
+
+        }).join("");
+    }
+
+    searchInput.addEventListener("input", function () {
+
+        const query = this.value.trim().toLowerCase();
+
+        if (!query) {
+            renderHouses(allHouses);
+            return;
+        }
+
+        const filtered = allHouses.filter(house => {
+
+            const name =
+                String(house.name || "").toLowerCase();
+
+            const description =
+                String(house.description || "").toLowerCase();
+
+            const owner =
+                String(
+                    house.owner_username ||
+                    house.owner_name ||
+                    house.owner?.username ||
+                    ""
+                ).toLowerCase();
+
+            return (
+                name.includes(query) ||
+                description.includes(query) ||
+                owner.includes(query)
+            );
+        });
+
+        if (!filtered.length) {
+            housesContainer.innerHTML = `
+                <div class="empty">
+                    <h2>No Houses Found 🔎</h2>
+                    <p>Try a different search.</p>
+                </div>
+            `;
+            return;
+        }
+
+        renderHouses(filtered);
+    });
+
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    loadHouses();
+</script>
 
 </body>
 </html>
