@@ -225,56 +225,104 @@
         </a>
 
 
-        <nav>
+        <nav class="shrekbook-nav">
+
+            <!-- MAIN NAVIGATION -->
 
             <a href="/">
                 Home
             </a>
 
-
             <a
                 href="/profile.html"
                 id="profile-link">
-
                 Profile
-
             </a>
-
 
             <a href="/shrekchat.html">
-
                 💬 ShrekChat
-
             </a>
 
-
-            <a
-                id="admin-button"
-                href="/admin.html"
-                style="display:none;">
-
-                🛡️ Admin
-
-            </a>
-            
             <a
                 href="/shreksearch.html"
-                class="shreksearch-button"
-            >
+                class="shreksearch-button">
                 🔎 ShrekSearch
             </a>
-            <a href="/about.html">About</a>
-            <a href="/terms.html">Terms of Service</a>
-            <a href="/policies.html">Policies</a>
+
+            <a href="/houses.html">
+                🏠 Houses
+            </a>
 
 
-            <a href="/svis.html">SVIS</a>
-            <a href="/inventory.html">Inventory</a>
-            <a href="/sell.html">Sell</a>
-            <a href="/creator.html">Creator</a>
-            <a href="/transfer.html">Transfer</a>
-            <a href="/sellhistory.html">Sell History</a>
-            <a href="/houses.html">Houses</a>
+            <!-- MORE DROPDOWN -->
+
+            <div class="nav-dropdown">
+
+                <button
+                    type="button"
+                    class="nav-dropdown-button"
+                    onclick="toggleNavDropdown()">
+
+                    More ▾
+
+                </button>
+
+
+                <div
+                    id="nav-dropdown-menu"
+                    class="nav-dropdown-menu">
+
+                    <a href="/about.html">
+                        About
+                    </a>
+
+                    <a href="/terms.html">
+                        Terms of Service
+                    </a>
+
+                    <a href="/policies.html">
+                        Policies
+                    </a>
+
+                    <a href="/svis.html">
+                        SVIS
+                    </a>
+
+                    <a href="/inventory.html">
+                        Inventory
+                    </a>
+
+                    <a href="/sell.html">
+                        Sell
+                    </a>
+
+                    <a href="/creator.html">
+                        Creator
+                    </a>
+
+                    <a href="/transfer.html">
+                        Transfer
+                    </a>
+
+
+                    <!-- ADMIN -->
+
+                    <a
+                        id="admin-button"
+                        href="/admin.html"
+                        style="display:none;">
+
+                        🛡️ Admin
+
+                    </a>
+
+                </div>
+
+            </div>
+
+
+            <!-- LOGOUT -->
+
             <button
                 id="logout-button"
                 onclick="logout()"
