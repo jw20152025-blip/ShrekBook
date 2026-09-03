@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>House Room - ShrekBook</title>
+
+    <style>
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
+        }
+
+        main {
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 20px;
+        }
+
+        .box {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        #messages {
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .message {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .time {
+            color: #888;
+            font-size: 12px;
+        }
+
+        textarea {
+            width: 100%;
+            box-sizing: border-box;
+            height: 70px;
+            resize: none;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 7px;
+        }
+
+        button {
+            margin-top: 8px;
+            padding: 10px 15px;
+            background: #4b8f29;
+            color: white;
+            border: none;
+            border-radius: 7px;
+            cursor: pointer;
+        }
+
+        .error {
+            color: #b00020;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<main>
+
+    <div class="box">
+
+        <div id="room">
+            Loading room...
+        </div>
+
+        <div id="messages">
+            Loading messages...
+        </div>
+
+        <textarea
+            id="message"
+            placeholder="Write a message..."
+        ></textarea>
+
+        <button id="send">
+            Send
+        </button>
+
+        <p id="error" class="error"></p>
+
+    </div>
+
+</main>
+
+<script>
+
+    const params =
+        new URLSearchParams(
+            window.location.search
+        );
+
+    const houseId =
+        params.get("house");
+
+    const roomId =
+        params.get("room");
+
+
+    const roomContainer =
+        document.getElementById("room");
+
+    const messagesContainer =
+        document.getElementById("messages");
+
+    const messageInput =
+        document.getElementById("message");
+
+    const errorContainer =
+        document.getElementById("error");
+
+
+    function escapeHtml(value) {
+
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
+    }
+
+
+    async function loadRoom() {
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}`
+                );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "Failed to load room."
+                );
+
+            }
+
+            const room =
+                data.room || data;
+
+            roomContainer.innerHTML = `
+
+                <h1>
+
+                    ${
+                        room.room_type === "bedroom"
+                            ? "🛏️"
+                            : "🚪"
+                    }
+
+                    ${escapeHtml(room.name)}
+
+                </h1>
+
+                <p>
+
+                    ${
+                        room.room_type === "bedroom"
+                            ? "Private bedroom"
+                            : "Public room"
+                    }
+
+                </p>
+
+            `;
+
+        } catch (error) {
+
+            console.error(error);
+
+            roomContainer.innerHTML = `
+                <h1 class="error">
+                    ${escapeHtml(error.message)}
+                </h1>
+            `;
+
+        }
+
+    }
+
+
+    async function loadMessages() {
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}/messages`
+                );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "Failed to load messages."
+                );
+
+            }
+
+            const messages =
+                Array.isArray(data)
+                    ? data
+                    : data.messages || [];
+
+            messagesContainer.innerHTML =
+                messages.map(message => `
+
+                    <div class="message">
+
+                        <strong>
+                            ${escapeHtml(
+                                message.username ||
+                                message.display_name ||
+                                "Unknown"
+                            )}
+                        </strong>
+
+                        <div>
+                            ${escapeHtml(
+                                message.message
+                            )}
+                        </div>
+
+                        <div class="time">
+                            ${escapeHtml(
+                                new Date(
+                                    message.created_at
+                                ).toLocaleString()
+                            )}
+                        </div>
+
+                    </div>
+
+                `).join("");
+
+            messagesContainer.scrollTop =
+                messagesContainer.scrollHeight;
+
+        } catch (error) {
+
+            console.error(error);
+
+        }
+
+    }
+
+
+    document
+        .getElementById("send")
+        .addEventListener("click", async () => {
+
+            const message =
+                messageInput.value.trim();
+
+            if (!message) return;
+
+            try {
+
+                const response =
+                    await fetch(
+                        `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}/messages`,
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body: JSON.stringify({
+                                message
+                            })
+                        }
+                    );
+
+                const data =
+                    await response.json();
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        data.error ||
+                        "Failed to send message."
+                    );
+
+                }
+
+                messageInput.value = "";
+
+                await loadMessages();
+
+            } catch (error) {
+
+                errorContainer.textContent =
+                    error.message;
+
+            }
+
+        });
+
+
+    loadRoom();
+    loadMessages();
+
+
+    setInterval(
+        loadMessages,
+        3000
+    );
+
+</script>
+
+</body>
+</html>

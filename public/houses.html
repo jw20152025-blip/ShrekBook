@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Houses - ShrekBook</title>
 
     <style>
@@ -17,20 +18,17 @@
             color: #222;
         }
 
-        .header {
-            background: #ffffff;
+        header {
+            background: white;
             border-bottom: 1px solid #ddd;
             padding: 15px 25px;
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 10;
+            align-items: center;
         }
 
         .logo {
-            font-size: 26px;
+            font-size: 25px;
             font-weight: bold;
             color: #4b8f29;
         }
@@ -38,145 +36,78 @@
         .create-button {
             background: #4b8f29;
             color: white;
-            border: none;
-            padding: 11px 17px;
-            border-radius: 8px;
             text-decoration: none;
+            padding: 10px 16px;
+            border-radius: 8px;
             font-weight: bold;
-            cursor: pointer;
         }
 
-        .create-button:hover {
-            background: #3c7621;
-        }
-
-        .container {
+        main {
             max-width: 1100px;
             margin: 30px auto;
             padding: 0 20px;
         }
 
-        h1 {
-            margin-bottom: 5px;
-        }
-
-        .subtitle {
-            color: #666;
-            margin-top: 0;
-            margin-bottom: 25px;
-        }
-
-        .search-box {
+        .search {
             width: 100%;
             padding: 14px;
             border: 1px solid #ccc;
-            border-radius: 9px;
+            border-radius: 8px;
             font-size: 16px;
-            margin-bottom: 25px;
-            outline: none;
-        }
-
-        .search-box:focus {
-            border-color: #4b8f29;
+            margin: 20px 0;
         }
 
         .houses {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns:
+                repeat(auto-fill, minmax(280px, 1fr));
             gap: 18px;
         }
 
-        .house-card {
+        .house {
             background: white;
+            border: 1px solid #ddd;
             border-radius: 12px;
             padding: 20px;
-            border: 1px solid #ddd;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-            transition: transform 0.15s, box-shadow 0.15s;
         }
 
-        .house-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 14px rgba(0, 0, 0, 0.1);
+        .house h2 {
+            margin-top: 0;
         }
 
-        .house-name {
-            font-size: 21px;
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-
-        .house-description {
+        .description {
             color: #666;
-            min-height: 40px;
             margin-bottom: 15px;
         }
 
-        .house-info {
-            display: grid;
-            gap: 7px;
+        .info {
+            line-height: 1.8;
             font-size: 14px;
-            margin-bottom: 18px;
         }
 
-        .house-info span {
-            color: #555;
-        }
-
-        .view-button {
+        .enter {
             display: block;
             text-align: center;
             background: #4b8f29;
             color: white;
+            text-decoration: none;
             padding: 10px;
             border-radius: 7px;
-            text-decoration: none;
-            font-weight: bold;
+            margin-top: 15px;
         }
 
-        .view-button:hover {
-            background: #3c7621;
-        }
-
-        .loading,
-        .empty,
-        .error {
+        .message {
             background: white;
             padding: 30px;
             border-radius: 10px;
             text-align: center;
-            grid-column: 1 / -1;
-        }
-
-        .error {
-            color: #b00020;
-        }
-
-        @media (max-width: 600px) {
-            .header {
-                padding: 12px 15px;
-            }
-
-            .container {
-                margin-top: 20px;
-                padding: 0 12px;
-            }
-
-            .logo {
-                font-size: 21px;
-            }
-
-            .create-button {
-                padding: 9px 12px;
-                font-size: 14px;
-            }
         }
     </style>
 </head>
 
 <body>
 
-<header class="header">
+<header>
     <div class="logo">🏠 ShrekBook Houses</div>
 
     <a href="create-house.html" class="create-button">
@@ -184,23 +115,23 @@
     </a>
 </header>
 
-<main class="container">
+<main>
 
     <h1>Houses</h1>
-    <p class="subtitle">
-        Find and explore the Houses of ShrekBook.
+
+    <p>
+        Explore the Houses of ShrekBook.
     </p>
 
     <input
-        type="text"
         id="search"
-        class="search-box"
-        placeholder="🔎 Search Houses..."
-        autocomplete="off"
+        class="search"
+        type="text"
+        placeholder="Search Houses..."
     >
 
     <div id="houses" class="houses">
-        <div class="loading">
+        <div class="message">
             Loading Houses...
         </div>
     </div>
@@ -208,168 +139,129 @@
 </main>
 
 <script>
-    const housesContainer = document.getElementById("houses");
-    const searchInput = document.getElementById("search");
+    const container = document.getElementById("houses");
+    const search = document.getElementById("search");
 
-    let allHouses = [];
+    let houses = [];
+
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 
     async function loadHouses() {
-        housesContainer.innerHTML = `
-            <div class="loading">
-                Loading Houses...
-            </div>
-        `;
-
         try {
             const response = await fetch("/api/houses");
 
-            if (!response.ok) {
-                throw new Error("Server returned " + response.status);
-            }
-
             const data = await response.json();
 
-            /*
-                The API may return either:
-
-                [
-                    {...},
-                    {...}
-                ]
-
-                or:
-
-                {
-                    houses: [...]
-                }
-            */
-
-            if (Array.isArray(data)) {
-                allHouses = data;
-            } else if (Array.isArray(data.houses)) {
-                allHouses = data.houses;
-            } else {
-                allHouses = [];
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to load Houses.");
             }
 
-            renderHouses(allHouses);
+            houses = Array.isArray(data) ? data : data.houses || [];
+
+            render();
 
         } catch (error) {
-            console.error("Failed to load Houses:", error);
+            console.error(error);
 
-            housesContainer.innerHTML = `
-                <div class="error">
+            container.innerHTML = `
+                <div class="message">
                     <h2>Couldn't load Houses 😭</h2>
                     <p>${escapeHtml(error.message)}</p>
-                    <button onclick="loadHouses()" style="
-                        margin-top:10px;
-                        padding:10px 15px;
-                        border:none;
-                        border-radius:7px;
-                        background:#4b8f29;
-                        color:white;
-                        cursor:pointer;
-                    ">
-                        Try Again
-                    </button>
                 </div>
             `;
         }
     }
 
-    function renderHouses(houses) {
-        if (!houses.length) {
-            housesContainer.innerHTML = `
-                <div class="empty">
-                    <h2>No Houses Yet 🏠</h2>
-                    <p>Be the first person to create one!</p>
+    function render() {
+        const query = search.value.trim().toLowerCase();
 
-                    <a href="create-house.html"
-                       class="create-button"
-                       style="display:inline-block;margin-top:10px;">
-                        Create a House
-                    </a>
+        const filtered = houses.filter(house => {
+            return (
+                String(house.name || "")
+                    .toLowerCase()
+                    .includes(query)
+                ||
+                String(house.description || "")
+                    .toLowerCase()
+                    .includes(query)
+                ||
+                String(house.house_type || "")
+                    .toLowerCase()
+                    .includes(query)
+            );
+        });
+
+        if (!filtered.length) {
+            container.innerHTML = `
+                <div class="message">
+                    <h2>No Houses Found</h2>
                 </div>
             `;
 
             return;
         }
 
-        housesContainer.innerHTML = houses.map(house => {
+        container.innerHTML = filtered.map(house => {
 
-            const type = house.house_types || house.house_type || {};
-
-            const houseName =
-                house.name ||
-                "Unnamed House";
-
-            const description =
-                house.description ||
-                "No description.";
-
-            const owner =
-                house.owner_username ||
-                house.owner_name ||
-                house.owner?.username ||
-                house.owner?.display_name ||
-                "Unknown";
-
-            const typeName =
-                type.name ||
-                house.house_type_name ||
-                "Unknown";
-
-            const roomCount =
-                type.room_count ??
-                house.room_count ??
-                "?";
-
-            const taxReduction =
-                type.tax_reduction ??
-                house.tax_reduction;
-
-            let taxText = "Unknown";
-
-            if (taxReduction !== undefined && taxReduction !== null) {
-                taxText =
-                    (Number(taxReduction) * 100).toFixed(2) + "%";
-            }
+            const tax =
+                house.tax_reduction != null
+                    ? (Number(house.tax_reduction) * 100).toFixed(2) + "%"
+                    : "N/A";
 
             return `
-                <div class="house-card">
+                <div class="house">
 
-                    <div class="house-name">
-                        🏠 ${escapeHtml(houseName)}
+                    <h2>
+                        🏠 ${escapeHtml(house.name)}
+                    </h2>
+
+                    <div class="description">
+                        ${escapeHtml(
+                            house.description || "No description."
+                        )}
                     </div>
 
-                    <div class="house-description">
-                        ${escapeHtml(description)}
-                    </div>
+                    <div class="info">
 
-                    <div class="house-info">
-                        <div>
-                            👑 <span>Owner:</span>
-                            <strong>${escapeHtml(owner)}</strong>
-                        </div>
+                        👑 Owner:
+                        <strong>
+                            ${escapeHtml(
+                                house.owner_username || "Unknown"
+                            )}
+                        </strong>
 
-                        <div>
-                            🏘️ <span>Type:</span>
-                            <strong>${escapeHtml(typeName)}</strong>
-                        </div>
+                        <br>
 
-                        <div>
-                            🚪 <span>Rooms:</span>
-                            <strong>${escapeHtml(String(roomCount))}</strong>
-                        </div>
+                        🏘️ Type:
+                        <strong>
+                            ${escapeHtml(house.house_type)}
+                        </strong>
 
-                        <div>
-                            🛒 <span>Marketplace tax reduction:</span>
-                            <strong>${escapeHtml(taxText)}</strong>
-                        </div>
+                        <br>
+
+                        🚪 Rooms:
+                        <strong>
+                            ${escapeHtml(house.room_count)}
+                        </strong>
+
+                        <br>
+
+                        🛒 Tax reduction:
+                        <strong>
+                            ${escapeHtml(tax)}
+                        </strong>
+
                     </div>
 
                     <a
-                        class="view-button"
+                        class="enter"
                         href="house.html?id=${encodeURIComponent(house.id)}"
                     >
                         Enter House →
@@ -381,59 +273,7 @@
         }).join("");
     }
 
-    searchInput.addEventListener("input", function () {
-
-        const query = this.value.trim().toLowerCase();
-
-        if (!query) {
-            renderHouses(allHouses);
-            return;
-        }
-
-        const filtered = allHouses.filter(house => {
-
-            const name =
-                String(house.name || "").toLowerCase();
-
-            const description =
-                String(house.description || "").toLowerCase();
-
-            const owner =
-                String(
-                    house.owner_username ||
-                    house.owner_name ||
-                    house.owner?.username ||
-                    ""
-                ).toLowerCase();
-
-            return (
-                name.includes(query) ||
-                description.includes(query) ||
-                owner.includes(query)
-            );
-        });
-
-        if (!filtered.length) {
-            housesContainer.innerHTML = `
-                <div class="empty">
-                    <h2>No Houses Found 🔎</h2>
-                    <p>Try a different search.</p>
-                </div>
-            `;
-            return;
-        }
-
-        renderHouses(filtered);
-    });
-
-    function escapeHtml(value) {
-        return String(value)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
+    search.addEventListener("input", render);
 
     loadHouses();
 </script>

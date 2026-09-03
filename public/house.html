@@ -1,210 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Houses - ShrekBook</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
+            color: #222;
+        }
+
+        header {
+            background: white;
+            border-bottom: 1px solid #ddd;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 25px;
+            font-weight: bold;
+            color: #4b8f29;
+        }
+
+        .create-button {
+            background: #4b8f29;
+            color: white;
+            text-decoration: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .search {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
+            margin: 20px 0;
+        }
+
+        .houses {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fill, minmax(280px, 1fr));
+            gap: 18px;
+        }
+
+        .house {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .house h2 {
+            margin-top: 0;
+        }
+
+        .description {
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .info {
+            line-height: 1.8;
+            font-size: 14px;
+        }
+
+        .enter {
+            display: block;
+            text-align: center;
+            background: #4b8f29;
+            color: white;
+            text-decoration: none;
+            padding: 10px;
+            border-radius: 7px;
+            margin-top: 15px;
+        }
+
+        .message {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <div class="logo">🏠 ShrekBook Houses</div>
+
+    <a href="create-house.html" class="create-button">
+        + Create House
+    </a>
+</header>
+
+<main>
+
+    <h1>Houses</h1>
+
+    <p>
+        Explore the Houses of ShrekBook.
+    </p>
+
+    <input
+        id="search"
+        class="search"
+        type="text"
+        placeholder="Search Houses..."
+    >
+
+    <div id="houses" class="houses">
+        <div class="message">
+            Loading Houses...
+        </div>
+    </div>
+
+</main>
+
 <script>
-const params = new URLSearchParams(window.location.search);
+    const container = document.getElementById("houses");
+    const search = document.getElementById("search");
 
-const houseId =
-    Number(params.get("id"));
+    let houses = [];
 
-if (!houseId) {
-    document.body.innerHTML =
-        "<h1>❌ Invalid House.</h1>";
-    throw new Error("Invalid house ID.");
-}
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 
-let house = null;
+    async function loadHouses() {
+        try {
+            const response = await fetch("/api/houses");
 
-async function loadHouse() {
-    try {
-        const response = await fetch(
-            `/api/houses/${houseId}`,
-            {
-                credentials: "include"
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to load Houses.");
             }
-        );
 
-        const data = await response.json();
+            houses = Array.isArray(data) ? data : data.houses || [];
 
-        if (!response.ok) {
-            throw new Error(
-                data.error || "Failed to load House."
+            render();
+
+        } catch (error) {
+            console.error(error);
+
+            container.innerHTML = `
+                <div class="message">
+                    <h2>Couldn't load Houses 😭</h2>
+                    <p>${escapeHtml(error.message)}</p>
+                </div>
+            `;
+        }
+    }
+
+    function render() {
+        const query = search.value.trim().toLowerCase();
+
+        const filtered = houses.filter(house => {
+            return (
+                String(house.name || "")
+                    .toLowerCase()
+                    .includes(query)
+                ||
+                String(house.description || "")
+                    .toLowerCase()
+                    .includes(query)
+                ||
+                String(house.house_type || "")
+                    .toLowerCase()
+                    .includes(query)
             );
+        });
+
+        if (!filtered.length) {
+            container.innerHTML = `
+                <div class="message">
+                    <h2>No Houses Found</h2>
+                </div>
+            `;
+
+            return;
         }
 
-        house = data.house;
+        container.innerHTML = filtered.map(house => {
 
-        renderHouse();
+            const tax =
+                house.tax_reduction != null
+                    ? (Number(house.tax_reduction) * 100).toFixed(2) + "%"
+                    : "N/A";
 
-    } catch (error) {
-        console.error("HOUSE LOAD ERROR:", error);
+            return `
+                <div class="house">
 
-        document.getElementById("house-container").innerHTML =
-            `<h2>❌ ${escapeHtml(error.message)}</h2>`;
-    }
-}
+                    <h2>
+                        🏠 ${escapeHtml(house.name)}
+                    </h2>
 
-function renderHouse() {
-    document.getElementById("house-name").textContent =
-        `🏠 ${house.name}`;
-
-    document.getElementById("house-description").textContent =
-        house.description || "No description.";
-
-    document.getElementById("house-type").textContent =
-        house.house_type_name;
-
-    document.getElementById("rooms").innerHTML =
-        (house.rooms || []).map(room => `
-            <div class="house-room">
-
-                <h3>
-                    ${room.room_type === "bedroom"
-                        ? "🛏️"
-                        : "🚪"}
-                    ${escapeHtml(room.name)}
-                </h3>
-
-                ${
-                    room.room_type === "bedroom"
-                        ? `<p>🔒 Private bedroom</p>`
-                        : ""
-                }
-
-                <button
-                    onclick="openRoom(${room.id})">
-                    Enter Room
-                </button>
-
-            </div>
-        `).join("");
-
-    document.getElementById("members").innerHTML =
-        (house.members || []).map(member => `
-            <div class="house-member">
-
-                <strong>
-                    ${escapeHtml(
-                        member.display_name ||
-                        member.username
-                    )}
-                </strong>
-
-                <span>
-                    ${member.role}
-                </span>
-
-            </div>
-        `).join("");
-
-    if (
-        house.my_role === "owner" ||
-        house.my_role === "admin"
-    ) {
-        document.getElementById("settings-button")
-            .style.display = "block";
-    }
-}
-
-function openRoom(roomId) {
-    window.location.href =
-        `house-room.html?house=${houseId}&room=${roomId}`;
-}
-
-function openSettings() {
-    window.location.href =
-        `house-settings.html?id=${houseId}`;
-}
-
-async function searchUsers() {
-    const query =
-        document
-            .getElementById("user-search")
-            .value
-            .trim();
-
-    const results =
-        document.getElementById("user-results");
-
-    if (!query) {
-        results.innerHTML = "";
-        return;
-    }
-
-    try {
-        const response = await fetch(
-            `/api/users/search?q=${encodeURIComponent(query)}`,
-            {
-                credentials: "include"
-            }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(
-                data.error || "Search failed."
-            );
-        }
-
-        results.innerHTML =
-            (data.users || []).map(user => `
-                <div class="user-result">
-
-                    <strong>
+                    <div class="description">
                         ${escapeHtml(
-                            user.display_name ||
-                            user.username
+                            house.description || "No description."
                         )}
-                    </strong>
+                    </div>
 
-                    <button
-                        onclick="inviteUser('${user.id}')">
-                        Invite
-                    </button>
+                    <div class="info">
+
+                        👑 Owner:
+                        <strong>
+                            ${escapeHtml(
+                                house.owner_username || "Unknown"
+                            )}
+                        </strong>
+
+                        <br>
+
+                        🏘️ Type:
+                        <strong>
+                            ${escapeHtml(house.house_type)}
+                        </strong>
+
+                        <br>
+
+                        🚪 Rooms:
+                        <strong>
+                            ${escapeHtml(house.room_count)}
+                        </strong>
+
+                        <br>
+
+                        🛒 Tax reduction:
+                        <strong>
+                            ${escapeHtml(tax)}
+                        </strong>
+
+                    </div>
+
+                    <a
+                        class="enter"
+                        href="house.html?id=${encodeURIComponent(house.id)}"
+                    >
+                        Enter House →
+                    </a>
 
                 </div>
-            `).join("");
+            `;
 
-    } catch (error) {
-        results.innerHTML =
-            `❌ ${escapeHtml(error.message)}`;
+        }).join("");
     }
-}
 
-async function inviteUser(userId) {
-    try {
-        const response = await fetch(
-            `/api/houses/${houseId}/invite`,
-            {
-                method: "POST",
-                credentials: "include",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    user_id: userId
-                })
-            }
-        );
+    search.addEventListener("input", render);
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(
-                data.error || "Failed to send invitation."
-            );
-        }
-
-        alert("📨 Invitation sent!");
-
-    } catch (error) {
-        alert(error.message);
-    }
-}
-
-function escapeHtml(value) {
-    const div = document.createElement("div");
-    div.textContent = value ?? "";
-    return div.innerHTML;
-}
-
-loadHouse();
+    loadHouses();
 </script>
+
+</body>
+</html>

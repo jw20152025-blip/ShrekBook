@@ -1,122 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Create House - ShrekBook</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
+            color: #222;
+        }
+
+        main {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        .box {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0 18px;
+            border: 1px solid #ccc;
+            border-radius: 7px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        button {
+            width: 100%;
+            padding: 13px;
+            border: none;
+            border-radius: 8px;
+            background: #4b8f29;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .type {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .error {
+            color: #b00020;
+        }
+    </style>
+</head>
+
+<body>
+
+<main>
+
+    <div class="box">
+
+        <h1>🏠 Create a House</h1>
+
+        <label>House Name</label>
+
+        <input
+            id="name"
+            type="text"
+            maxlength="100"
+            placeholder="My House"
+        >
+
+        <label>Description</label>
+
+        <textarea
+            id="description"
+            maxlength="1000"
+            placeholder="Describe your House..."
+        ></textarea>
+
+        <label>House Type</label>
+
+        <div id="types">
+            Loading House types...
+        </div>
+
+        <button id="create">
+            Create House
+        </button>
+
+        <p id="message"></p>
+
+    </div>
+
+</main>
+
 <script>
-let houseTypes = [];
 
-async function loadHouseTypes() {
-    const select = document.getElementById("house-type");
+    const typesContainer =
+        document.getElementById("types");
 
-    try {
-        const response = await fetch("/api/houses/types", {
-            credentials: "include"
+    const message =
+        document.getElementById("message");
+
+    let types = [];
+
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    async function loadTypes() {
+
+        try {
+
+            const response =
+                await fetch("/api/houses/types");
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error || "Failed to load House types."
+                );
+            }
+
+            types =
+                Array.isArray(data)
+                    ? data
+                    : data.types || [];
+
+            if (!types.length) {
+                typesContainer.innerHTML =
+                    "No House types available.";
+
+                return;
+            }
+
+            typesContainer.innerHTML =
+                types.map(type => {
+
+                    const tax =
+                        (Number(type.tax_reduction) * 100)
+                            .toFixed(2);
+
+                    return `
+                        <div class="type">
+
+                            <label>
+
+                                <input
+                                    type="radio"
+                                    name="houseType"
+                                    value="${type.id}"
+                                >
+
+                                <strong>
+                                    ${escapeHtml(type.name)}
+                                </strong>
+
+                                <br>
+
+                                💰
+                                ${escapeHtml(type.cost)}
+                                ShrekCoins
+
+                                <br>
+
+                                🚪
+                                ${escapeHtml(type.room_count)}
+                                rooms
+
+                                <br>
+
+                                🛒
+                                ${tax}% marketplace tax reduction
+
+                            </label>
+
+                        </div>
+                    `;
+
+                }).join("");
+
+        } catch (error) {
+
+            console.error(error);
+
+            typesContainer.innerHTML = `
+                <p class="error">
+                    ${escapeHtml(error.message)}
+                </p>
+            `;
+        }
+    }
+
+
+    document
+        .getElementById("create")
+        .addEventListener("click", async () => {
+
+            const name =
+                document
+                    .getElementById("name")
+                    .value
+                    .trim();
+
+            const description =
+                document
+                    .getElementById("description")
+                    .value
+                    .trim();
+
+            const selected =
+                document.querySelector(
+                    'input[name="houseType"]:checked'
+                );
+
+            if (!name) {
+                message.textContent =
+                    "Please enter a House name.";
+
+                return;
+            }
+
+            if (!selected) {
+                message.textContent =
+                    "Please choose a House type.";
+
+                return;
+            }
+
+            message.textContent =
+                "Creating House...";
+
+            try {
+
+                const response =
+                    await fetch("/api/houses", {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body: JSON.stringify({
+                            name,
+                            description,
+                            house_type_id:
+                                Number(selected.value)
+                        })
+                    });
+
+                const data =
+                    await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.error ||
+                        "Failed to create House."
+                    );
+                }
+
+                window.location.href =
+                    "house.html?id=" +
+                    encodeURIComponent(data.house.id);
+
+            } catch (error) {
+
+                console.error(error);
+
+                message.textContent =
+                    error.message;
+            }
+
         });
 
-        const data = await response.json();
+    loadTypes();
 
-        if (!response.ok) {
-            throw new Error(data.error || "Failed to load house types.");
-        }
-
-        houseTypes = data.types || [];
-
-        select.innerHTML = houseTypes.map(type => `
-            <option value="${type.id}">
-                ${escapeHtml(type.name)}
-                — ${type.cost.toLocaleString()} ShrekCoins
-            </option>
-        `).join("");
-
-        updateHouseTypeInfo();
-
-    } catch (error) {
-        console.error("HOUSE TYPES ERROR:", error);
-        select.innerHTML =
-            `<option value="">Failed to load house types</option>`;
-    }
-}
-
-function updateHouseTypeInfo() {
-    const selectedId =
-        Number(document.getElementById("house-type").value);
-
-    const type =
-        houseTypes.find(item => Number(item.id) === selectedId);
-
-    if (!type) return;
-
-    document.getElementById("house-info").innerHTML = `
-        <p>💰 Cost: ${type.cost.toLocaleString()} ShrekCoins</p>
-        <p>🧾 Tax reduction: ${(type.tax_reduction * 100).toFixed(2)}%</p>
-        <p>🚪 Rooms: ${type.room_count}</p>
-    `;
-}
-
-async function createHouse() {
-    const name =
-        document.getElementById("house-name").value.trim();
-
-    const description =
-        document.getElementById("house-description").value.trim();
-
-    const houseType =
-        Number(document.getElementById("house-type").value);
-
-    if (!name) {
-        alert("Please enter a House name.");
-        return;
-    }
-
-    if (!houseType) {
-        alert("Please select a House type.");
-        return;
-    }
-
-    const button =
-        document.getElementById("create-button");
-
-    button.disabled = true;
-    button.textContent = "🏗️ Creating...";
-
-    try {
-        const response = await fetch("/api/houses", {
-            method: "POST",
-            credentials: "include",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                name,
-                description,
-                house_type_id: houseType
-            })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(
-                data.error || "Failed to create House."
-            );
-        }
-
-        window.location.href =
-            `house.html?id=${data.house.id}`;
-
-    } catch (error) {
-        alert(error.message);
-
-        button.disabled = false;
-        button.textContent = "🏠 Create House";
-    }
-}
-
-document
-    .getElementById("house-type")
-    .addEventListener("change", updateHouseTypeInfo);
-
-function escapeHtml(value) {
-    const div = document.createElement("div");
-    div.textContent = value ?? "";
-    return div.innerHTML;
-}
-
-loadHouseTypes();
 </script>
+
+</body>
+</html>
