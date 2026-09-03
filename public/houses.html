@@ -1,73 +1,13 @@
-<script>
-let houses = [];
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ShrekBook Houses</title>
+</head>
+<body>
 
-async function loadHouses() {
-    const container = document.getElementById("houses-list");
+<h1>ShrekBook Houses 🏠</h1>
+<p>If you can see this, the HTML page itself works.</p>
 
-    try {
-        container.innerHTML = "🧌 Loading houses...";
-
-        const response = await fetch("/api/houses", {
-            credentials: "include"
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || "Failed to load houses.");
-        }
-
-        houses = data.houses || [];
-
-        if (houses.length === 0) {
-            container.innerHTML = "🏚️ No houses exist yet.";
-            return;
-        }
-
-        renderHouses();
-
-    } catch (error) {
-        console.error("HOUSES LOAD ERROR:", error);
-
-        container.innerHTML =
-            "❌ Failed to load houses.";
-    }
-}
-
-function renderHouses() {
-    const container = document.getElementById("houses-list");
-
-    container.innerHTML = houses.map(house => `
-        <div class="house-card">
-
-            <h2>🏠 ${escapeHtml(house.name)}</h2>
-
-            <p>
-                ${escapeHtml(house.description || "No description.")}
-            </p>
-
-            <p>
-                🏡 ${escapeHtml(house.house_type_name)}
-            </p>
-
-            <p>
-                👥 ${house.member_count} members
-            </p>
-
-            <button
-                onclick="window.location.href='house.html?id=${house.id}'">
-                Enter House
-            </button>
-
-        </div>
-    `).join("");
-}
-
-function escapeHtml(value) {
-    const div = document.createElement("div");
-    div.textContent = value ?? "";
-    return div.innerHTML;
-}
-
-loadHouses();
-</script>
+</body>
+</html>
