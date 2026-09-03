@@ -1,0 +1,190 @@
+<script>
+const params =
+    new URLSearchParams(window.location.search);
+
+const houseId =
+    Number(params.get("id"));
+
+if (!houseId) {
+    document.body.innerHTML =
+        "<h1>❌ Invalid House.</h1>";
+
+    throw new Error("Invalid House.");
+}
+
+let house = null;
+
+async function loadSettings() {
+    try {
+        const response = await fetch(
+            `/api/houses/${houseId}`,
+            {
+                credentials: "include"
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Failed to load House."
+            );
+        }
+
+        house = data.house;
+
+        if (
+            house.my_role !== "owner" &&
+            house.my_role !== "admin"
+        ) {
+            document.body.innerHTML =
+                "<h1>🔒 You cannot access House Settings.</h1>";
+
+            return;
+        }
+
+        document.getElementById("house-name").value =
+            house.name;
+
+        document.getElementById("house-description").value =
+            house.description || "";
+
+        renderMembers();
+
+    } catch (error) {
+        console.error(
+            "HOUSE SETTINGS ERROR:",
+            error
+        );
+
+        document.body.innerHTML =
+            `❌ ${escapeHtml(error.message)}`;
+    }
+}
+
+function renderMembers() {
+    const container =
+        document.getElementById("members");
+
+    container.innerHTML =
+        (house.members || []).map(member => `
+            <div class="member-setting">
+
+                <strong>
+                    ${escapeHtml(
+                        member.display_name ||
+                        member.username
+                    )}
+                </strong>
+
+                <span>
+                    ${member.role}
+                </span>
+
+                ${
+                    house.my_role === "owner" &&
+                    member.role !== "owner"
+                        ? `
+                            <button
+                                onclick="removeMember('${member.user_id}')">
+                                Remove
+                            </button>
+                        `
+                        : ""
+                }
+
+            </div>
+        `).join("");
+}
+
+async function saveSettings() {
+    const name =
+        document.getElementById("house-name")
+            .value.trim();
+
+    const description =
+        document.getElementById("house-description")
+            .value.trim();
+
+    if (!name) {
+        alert("House name cannot be empty.");
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `/api/houses/${houseId}`,
+            {
+                method: "PUT",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    name,
+                    description
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Failed to save settings."
+            );
+        }
+
+        alert("✅ House settings saved.");
+
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+async function removeMember(userId) {
+    if (
+        !confirm(
+            "Remove this member from the House?"
+        )
+    ) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `/api/houses/${houseId}/members/${userId}`,
+            {
+                method: "DELETE",
+                credentials: "include"
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Failed to remove member."
+            );
+        }
+
+        await loadSettings();
+
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+function goBack() {
+    window.location.href =
+        `house.html?id=${houseId}`;
+}
+
+function escapeHtml(value) {
+    const div = document.createElement("div");
+    div.textContent = value ?? "";
+    return div.innerHTML;
+}
+
+loadSettings();
+</script>

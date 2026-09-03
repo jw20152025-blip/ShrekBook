@@ -1,0 +1,122 @@
+<script>
+let houseTypes = [];
+
+async function loadHouseTypes() {
+    const select = document.getElementById("house-type");
+
+    try {
+        const response = await fetch("/api/houses/types", {
+            credentials: "include"
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Failed to load house types.");
+        }
+
+        houseTypes = data.types || [];
+
+        select.innerHTML = houseTypes.map(type => `
+            <option value="${type.id}">
+                ${escapeHtml(type.name)}
+                — ${type.cost.toLocaleString()} ShrekCoins
+            </option>
+        `).join("");
+
+        updateHouseTypeInfo();
+
+    } catch (error) {
+        console.error("HOUSE TYPES ERROR:", error);
+        select.innerHTML =
+            `<option value="">Failed to load house types</option>`;
+    }
+}
+
+function updateHouseTypeInfo() {
+    const selectedId =
+        Number(document.getElementById("house-type").value);
+
+    const type =
+        houseTypes.find(item => Number(item.id) === selectedId);
+
+    if (!type) return;
+
+    document.getElementById("house-info").innerHTML = `
+        <p>💰 Cost: ${type.cost.toLocaleString()} ShrekCoins</p>
+        <p>🧾 Tax reduction: ${(type.tax_reduction * 100).toFixed(2)}%</p>
+        <p>🚪 Rooms: ${type.room_count}</p>
+    `;
+}
+
+async function createHouse() {
+    const name =
+        document.getElementById("house-name").value.trim();
+
+    const description =
+        document.getElementById("house-description").value.trim();
+
+    const houseType =
+        Number(document.getElementById("house-type").value);
+
+    if (!name) {
+        alert("Please enter a House name.");
+        return;
+    }
+
+    if (!houseType) {
+        alert("Please select a House type.");
+        return;
+    }
+
+    const button =
+        document.getElementById("create-button");
+
+    button.disabled = true;
+    button.textContent = "🏗️ Creating...";
+
+    try {
+        const response = await fetch("/api/houses", {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                name,
+                description,
+                house_type_id: houseType
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Failed to create House."
+            );
+        }
+
+        window.location.href =
+            `house.html?id=${data.house.id}`;
+
+    } catch (error) {
+        alert(error.message);
+
+        button.disabled = false;
+        button.textContent = "🏠 Create House";
+    }
+}
+
+document
+    .getElementById("house-type")
+    .addEventListener("change", updateHouseTypeInfo);
+
+function escapeHtml(value) {
+    const div = document.createElement("div");
+    div.textContent = value ?? "";
+    return div.innerHTML;
+}
+
+loadHouseTypes();
+</script>

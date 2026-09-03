@@ -1,0 +1,210 @@
+<script>
+const params = new URLSearchParams(window.location.search);
+
+const houseId =
+    Number(params.get("id"));
+
+if (!houseId) {
+    document.body.innerHTML =
+        "<h1>❌ Invalid House.</h1>";
+    throw new Error("Invalid house ID.");
+}
+
+let house = null;
+
+async function loadHouse() {
+    try {
+        const response = await fetch(
+            `/api/houses/${houseId}`,
+            {
+                credentials: "include"
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Failed to load House."
+            );
+        }
+
+        house = data.house;
+
+        renderHouse();
+
+    } catch (error) {
+        console.error("HOUSE LOAD ERROR:", error);
+
+        document.getElementById("house-container").innerHTML =
+            `<h2>❌ ${escapeHtml(error.message)}</h2>`;
+    }
+}
+
+function renderHouse() {
+    document.getElementById("house-name").textContent =
+        `🏠 ${house.name}`;
+
+    document.getElementById("house-description").textContent =
+        house.description || "No description.";
+
+    document.getElementById("house-type").textContent =
+        house.house_type_name;
+
+    document.getElementById("rooms").innerHTML =
+        (house.rooms || []).map(room => `
+            <div class="house-room">
+
+                <h3>
+                    ${room.room_type === "bedroom"
+                        ? "🛏️"
+                        : "🚪"}
+                    ${escapeHtml(room.name)}
+                </h3>
+
+                ${
+                    room.room_type === "bedroom"
+                        ? `<p>🔒 Private bedroom</p>`
+                        : ""
+                }
+
+                <button
+                    onclick="openRoom(${room.id})">
+                    Enter Room
+                </button>
+
+            </div>
+        `).join("");
+
+    document.getElementById("members").innerHTML =
+        (house.members || []).map(member => `
+            <div class="house-member">
+
+                <strong>
+                    ${escapeHtml(
+                        member.display_name ||
+                        member.username
+                    )}
+                </strong>
+
+                <span>
+                    ${member.role}
+                </span>
+
+            </div>
+        `).join("");
+
+    if (
+        house.my_role === "owner" ||
+        house.my_role === "admin"
+    ) {
+        document.getElementById("settings-button")
+            .style.display = "block";
+    }
+}
+
+function openRoom(roomId) {
+    window.location.href =
+        `house-room.html?house=${houseId}&room=${roomId}`;
+}
+
+function openSettings() {
+    window.location.href =
+        `house-settings.html?id=${houseId}`;
+}
+
+async function searchUsers() {
+    const query =
+        document
+            .getElementById("user-search")
+            .value
+            .trim();
+
+    const results =
+        document.getElementById("user-results");
+
+    if (!query) {
+        results.innerHTML = "";
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `/api/users/search?q=${encodeURIComponent(query)}`,
+            {
+                credentials: "include"
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Search failed."
+            );
+        }
+
+        results.innerHTML =
+            (data.users || []).map(user => `
+                <div class="user-result">
+
+                    <strong>
+                        ${escapeHtml(
+                            user.display_name ||
+                            user.username
+                        )}
+                    </strong>
+
+                    <button
+                        onclick="inviteUser('${user.id}')">
+                        Invite
+                    </button>
+
+                </div>
+            `).join("");
+
+    } catch (error) {
+        results.innerHTML =
+            `❌ ${escapeHtml(error.message)}`;
+    }
+}
+
+async function inviteUser(userId) {
+    try {
+        const response = await fetch(
+            `/api/houses/${houseId}/invite`,
+            {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    user_id: userId
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Failed to send invitation."
+            );
+        }
+
+        alert("📨 Invitation sent!");
+
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+function escapeHtml(value) {
+    const div = document.createElement("div");
+    div.textContent = value ?? "";
+    return div.innerHTML;
+}
+
+loadHouse();
+</script>

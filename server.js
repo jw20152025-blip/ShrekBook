@@ -12138,6 +12138,1125 @@ app.post("/api/currency/transfer", async (req, res) => {
     }
 
 });
+// ============================================================
+// SHREKBOOK HOUSES API
+// ============================================================
+
+// GET HOUSE TYPES
+app.get("/api/houses/types", async (req, res) => {
+    try {
+
+        const { data, error } = await supabase
+            .from("house_types")
+            .select("*")
+            .order("cost", {
+                ascending: true
+            });
+
+        if (error) {
+            console.error("HOUSE TYPES ERROR:", error);
+
+            return res.status(500).json({
+                error: "Failed to load house types."
+            });
+        }
+
+        res.json({
+            success: true,
+            types: data || []
+        });
+
+    } catch (error) {
+
+        console.error("HOUSE TYPES ERROR:", error);
+
+        res.status(500).json({
+            error: "Server error."
+        });
+
+    }
+});
+
+
+// GET ALL HOUSES
+app.get("/api/houses", async (req, res) => {
+    try {
+
+        const { data, error } = await supabase
+            .from("houses")
+            .select(`
+                id,
+                name,
+                description,
+                owner_id,
+                house_type_id,
+                created_at,
+                house_types (
+                    name,
+                    cost,
+                    tax_reduction,
+                    room_count
+                )
+            `)
+            .order("created_at", {
+                ascending: false
+            });
+
+        if (error) {
+            console.error("HOUSES ERROR:", error);
+
+            return res.status(500).json({
+                error: "Failed to load houses."
+            });
+        }
+
+        const houses = [];
+
+        for (const house of data || []) {
+
+            const { count } = await supabase
+                .from("house_members")
+                .select("id", {
+                    count: "exact",
+                    head: true
+                })
+                .eq("house_id", house.id);
+
+            houses.push({
+                ...house,
+                house_type_name:
+                    house.house_types?.name || "Unknown",
+                member_count: count || 0
+            });
+
+        }
+
+        res.json({
+            success: true,
+            houses
+        });
+
+    } catch (error) {
+
+        console.error("HOUSES ERROR:", error);
+
+        res.status(500).json({
+            error: "Server error."
+        });
+
+    }
+});
+
+
+// CREATE HOUSE
+app.post("/api/houses", async (req, res) => {
+    try {
+
+        if (
+            !req.session ||
+            !req.session.user
+        ) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+        const userId =
+            req.session.user.id;
+
+        const name =
+            String(req.body.name || "").trim();
+
+        const description =
+            String(req.body.description || "").trim();
+
+        const houseTypeId =
+            Number(req.body.house_type_id);
+
+        if (!name) {
+            return res.status(400).json({
+                error: "House name is required."
+            });
+        }
+
+        if (!houseTypeId) {
+            return res.status(400).json({
+                error: "House type is required."
+            });
+        }
+
+        // Get selected house type
+        const {
+            data: houseType,
+            error: typeError
+        } = await supabase
+            .from("house_types")
+            .select("*")
+            .eq("id", houseTypeId)
+            .single();
+
+        if (typeError || !houseType) {
+            return res.status(400).json({
+                error: "Invalid house type."
+            });
+        }
+
+        // Get user balance
+        const {
+            data: profile,
+            error: profileError
+        } = await supabase
+            .from("profiles")
+            .select("shrekcoins")
+            .eq("id", userId)
+            .single();
+
+        if (profileError || !profile) {
+            return res.status(500).json({
+                error: "Failed to load your profile."
+            });
+        }
+
+        if (
+            Number(profile.shrekcoins) <
+            Number(houseType.cost)
+        ) {
+            return res.status(400).json({
+                error: "You do not have enough ShrekCoins."
+            });
+        }
+
+        // Deduct ShrekCoins
+        const newBalance =
+            Number(profile.shrekcoins) -
+            Number(houseType.cost);
+
+        const {
+            error: balanceError
+        } = await supabase
+            .from("profiles")
+            .update({
+                shrekcoins: newBalance
+            })
+            .eq("id", userId);
+
+        if (balanceError) {
+            console.error(
+                "HOUSE BALANCE ERROR:",
+                balanceError
+            );
+
+            return res.status(500).json({
+                error: "Failed to pay for House."
+            });
+        }
+
+        // Create House
+        const {
+            data: newHouse,
+            error: houseError
+        } = await supabase
+            .from("houses")
+            .insert({
+                name,
+                description,
+                owner_id: userId,
+                house_type_id: houseTypeId
+            })
+            .select()
+            .single();
+
+        if (houseError || !newHouse) {
+
+            // Refund if house creation failed
+            await supabase
+                .from("profiles")
+                .update({
+                    shrekcoins: profile.shrekcoins
+                })
+                .eq("id", userId);
+
+            console.error(
+                "HOUSE CREATE ERROR:",
+                houseError
+            );
+
+            return res.status(500).json({
+                error: "Failed to create House."
+            });
+        }
+
+        // Add owner as member
+        const {
+            error: memberError
+        } = await supabase
+            .from("house_members")
+            .insert({
+                house_id: newHouse.id,
+                user_id: userId,
+                role: "owner"
+            });
+
+        if (memberError) {
+            console.error(
+                "HOUSE MEMBER ERROR:",
+                memberError
+            );
+        }
+
+        // Create rooms
+        const rooms = [];
+
+        for (
+            let i = 1;
+            i <= houseType.room_count;
+            i++
+        ) {
+
+            rooms.push({
+                house_id: newHouse.id,
+                name:
+                    i === 1
+                        ? "Living Room"
+                        : `Room ${i}`,
+                room_type: "common"
+            });
+
+        }
+
+        // Convert first room to bedroom
+        if (rooms.length > 0) {
+
+            rooms[rooms.length - 1] = {
+                house_id: newHouse.id,
+                name: "Bedroom",
+                room_type: "bedroom",
+                user_id: userId
+            };
+
+        }
+
+        const {
+            error: roomError
+        } = await supabase
+            .from("house_rooms")
+            .insert(rooms);
+
+        if (roomError) {
+            console.error(
+                "HOUSE ROOMS ERROR:",
+                roomError
+            );
+        }
+
+        res.json({
+            success: true,
+            house: newHouse
+        });
+
+    } catch (error) {
+
+        console.error(
+            "HOUSE CREATE ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Server error."
+        });
+
+    }
+});
+
+
+// GET SINGLE HOUSE
+app.get("/api/houses/:id", async (req, res) => {
+    try {
+
+        const houseId =
+            Number(req.params.id);
+
+        if (!houseId) {
+            return res.status(400).json({
+                error: "Invalid House ID."
+            });
+        }
+
+        const {
+            data: house,
+            error: houseError
+        } = await supabase
+            .from("houses")
+            .select(`
+                *,
+                house_types (
+                    name,
+                    cost,
+                    tax_reduction,
+                    room_count
+                )
+            `)
+            .eq("id", houseId)
+            .single();
+
+        if (houseError || !house) {
+            return res.status(404).json({
+                error: "House not found."
+            });
+        }
+
+        const {
+            data: rooms,
+            error: roomError
+        } = await supabase
+            .from("house_rooms")
+            .select("*")
+            .eq("house_id", houseId)
+            .order("id", {
+                ascending: true
+            });
+
+        if (roomError) {
+            return res.status(500).json({
+                error: "Failed to load House rooms."
+            });
+        }
+
+        const {
+            data: members,
+            error: memberError
+        } = await supabase
+            .from("house_members")
+            .select(`
+                user_id,
+                role,
+                joined_at,
+                profiles (
+                    username,
+                    display_name,
+                    avatar
+                )
+            `)
+            .eq("house_id", houseId);
+
+        if (memberError) {
+            return res.status(500).json({
+                error: "Failed to load House members."
+            });
+        }
+
+        let myRole = null;
+
+        if (
+            req.session &&
+            req.session.user
+        ) {
+
+            const me =
+                (members || []).find(
+                    member =>
+                        member.user_id ===
+                        req.session.user.id
+                );
+
+            myRole =
+                me?.role || null;
+        }
+
+        res.json({
+            success: true,
+
+            house: {
+                ...house,
+
+                house_type_name:
+                    house.house_types?.name ||
+                    "Unknown",
+
+                rooms:
+                    rooms || [],
+
+                members:
+                    (members || []).map(member => ({
+                        user_id: member.user_id,
+                        role: member.role,
+                        joined_at: member.joined_at,
+                        username:
+                            member.profiles?.username,
+                        display_name:
+                            member.profiles?.display_name,
+                        avatar:
+                            member.profiles?.avatar
+                    })),
+
+                my_role: myRole
+            }
+        });
+
+    } catch (error) {
+
+        console.error(
+            "HOUSE LOAD ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Server error."
+        });
+
+    }
+});
+
+
+// UPDATE HOUSE
+app.put("/api/houses/:id", async (req, res) => {
+    try {
+
+        if (
+            !req.session ||
+            !req.session.user
+        ) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+        const houseId =
+            Number(req.params.id);
+
+        const userId =
+            req.session.user.id;
+
+        const {
+            data: member
+        } = await supabase
+            .from("house_members")
+            .select("role")
+            .eq("house_id", houseId)
+            .eq("user_id", userId)
+            .single();
+
+        if (
+            !member ||
+            (
+                member.role !== "owner" &&
+                member.role !== "admin"
+            )
+        ) {
+            return res.status(403).json({
+                error: "You do not have permission."
+            });
+        }
+
+        const name =
+            String(req.body.name || "").trim();
+
+        const description =
+            String(req.body.description || "").trim();
+
+        if (!name) {
+            return res.status(400).json({
+                error: "House name is required."
+            });
+        }
+
+        const {
+            data,
+            error
+        } = await supabase
+            .from("houses")
+            .update({
+                name,
+                description
+            })
+            .eq("id", houseId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error(
+                "HOUSE UPDATE ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error: "Failed to update House."
+            });
+        }
+
+        res.json({
+            success: true,
+            house: data
+        });
+
+    } catch (error) {
+
+        console.error(
+            "HOUSE UPDATE ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Server error."
+        });
+
+    }
+});
+
+
+// SEARCH USERS FOR HOUSE INVITES
+app.get("/api/users/search", async (req, res) => {
+    try {
+
+        const query =
+            String(req.query.q || "").trim();
+
+        if (!query) {
+            return res.json({
+                success: true,
+                users: []
+            });
+        }
+
+        const {
+            data,
+            error
+        } = await supabase
+            .from("profiles")
+            .select(`
+                id,
+                username,
+                display_name,
+                avatar
+            `)
+            .or(
+                `username.ilike.%${query}%,display_name.ilike.%${query}%`
+            )
+            .limit(20);
+
+        if (error) {
+            console.error(
+                "USER SEARCH ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error: "Failed to search users."
+            });
+        }
+
+        res.json({
+            success: true,
+            users: data || []
+        });
+
+    } catch (error) {
+
+        console.error(
+            "USER SEARCH ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Server error."
+        });
+
+    }
+});
+
+
+// INVITE USER TO HOUSE
+app.post("/api/houses/:id/invite", async (req, res) => {
+    try {
+
+        if (
+            !req.session ||
+            !req.session.user
+        ) {
+            return res.status(401).json({
+                error: "You must be logged in."
+            });
+        }
+
+        const houseId =
+            Number(req.params.id);
+
+        const inviterId =
+            req.session.user.id;
+
+        const inviteeId =
+            req.body.user_id;
+
+        if (!inviteeId) {
+            return res.status(400).json({
+                error: "User is required."
+            });
+        }
+
+        // Check inviter is owner/admin/member
+        const {
+            data: inviter
+        } = await supabase
+            .from("house_members")
+            .select("role")
+            .eq("house_id", houseId)
+            .eq("user_id", inviterId)
+            .single();
+
+        if (!inviter) {
+            return res.status(403).json({
+                error: "You are not a member of this House."
+            });
+        }
+
+        const {
+            data: existingMember
+        } = await supabase
+            .from("house_members")
+            .select("id")
+            .eq("house_id", houseId)
+            .eq("user_id", inviteeId)
+            .maybeSingle();
+
+        if (existingMember) {
+            return res.status(400).json({
+                error: "That user is already a House member."
+            });
+        }
+
+        const {
+            error
+        } = await supabase
+            .from("house_invitations")
+            .insert({
+                house_id: houseId,
+                inviter_id: inviterId,
+                invitee_id: inviteeId
+            });
+
+        if (error) {
+            console.error(
+                "HOUSE INVITE ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error: "Failed to send invitation."
+            });
+        }
+
+        res.json({
+            success: true
+        });
+
+    } catch (error) {
+
+        console.error(
+            "HOUSE INVITE ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Server error."
+        });
+
+    }
+});
+
+
+// GET HOUSE ROOM
+app.get(
+    "/api/houses/:houseId/rooms/:roomId",
+    async (req, res) => {
+
+        try {
+
+            const houseId =
+                Number(req.params.houseId);
+
+            const roomId =
+                Number(req.params.roomId);
+
+            const {
+                data: room,
+                error
+            } = await supabase
+                .from("house_rooms")
+                .select("*")
+                .eq("id", roomId)
+                .eq("house_id", houseId)
+                .single();
+
+            if (error || !room) {
+                return res.status(404).json({
+                    error: "Room not found."
+                });
+            }
+
+            // Bedroom privacy
+            if (
+                room.room_type === "bedroom"
+            ) {
+
+                if (
+                    !req.session ||
+                    !req.session.user ||
+                    room.user_id !==
+                        req.session.user.id
+                ) {
+                    return res.status(403).json({
+                        error:
+                            "This bedroom is private."
+                    });
+                }
+
+            }
+
+            res.json({
+                success: true,
+                room
+            });
+
+        } catch (error) {
+
+            console.error(
+                "ROOM LOAD ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error: "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// GET ROOM MESSAGES
+app.get(
+    "/api/houses/:houseId/rooms/:roomId/messages",
+    async (req, res) => {
+
+        try {
+
+            const houseId =
+                Number(req.params.houseId);
+
+            const roomId =
+                Number(req.params.roomId);
+
+            const {
+                data: room
+            } = await supabase
+                .from("house_rooms")
+                .select("*")
+                .eq("id", roomId)
+                .eq("house_id", houseId)
+                .single();
+
+            if (!room) {
+                return res.status(404).json({
+                    error: "Room not found."
+                });
+            }
+
+            if (
+                room.room_type === "bedroom"
+            ) {
+
+                if (
+                    !req.session ||
+                    !req.session.user ||
+                    room.user_id !==
+                        req.session.user.id
+                ) {
+                    return res.status(403).json({
+                        error:
+                            "This bedroom is private."
+                    });
+                }
+
+            }
+
+            const {
+                data,
+                error
+            } = await supabase
+                .from("house_room_messages")
+                .select(`
+                    id,
+                    room_id,
+                    user_id,
+                    message,
+                    created_at,
+                    profiles (
+                        username,
+                        display_name
+                    )
+                `)
+                .eq("room_id", roomId)
+                .order("created_at", {
+                    ascending: true
+                });
+
+            if (error) {
+                return res.status(500).json({
+                    error: "Failed to load messages."
+                });
+            }
+
+            res.json({
+                success: true,
+
+                messages:
+                    (data || []).map(message => ({
+                        id: message.id,
+                        room_id: message.room_id,
+                        user_id: message.user_id,
+                        message: message.message,
+                        created_at: message.created_at,
+                        username:
+                            message.profiles?.username,
+                        display_name:
+                            message.profiles?.display_name
+                    }))
+            });
+
+        } catch (error) {
+
+            console.error(
+                "ROOM MESSAGES ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error: "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// SEND ROOM MESSAGE
+app.post(
+    "/api/houses/:houseId/rooms/:roomId/messages",
+    async (req, res) => {
+
+        try {
+
+            if (
+                !req.session ||
+                !req.session.user
+            ) {
+                return res.status(401).json({
+                    error: "You must be logged in."
+                });
+            }
+
+            const houseId =
+                Number(req.params.houseId);
+
+            const roomId =
+                Number(req.params.roomId);
+
+            const userId =
+                req.session.user.id;
+
+            const message =
+                String(req.body.message || "").trim();
+
+            if (!message) {
+                return res.status(400).json({
+                    error: "Message cannot be empty."
+                });
+            }
+
+            if (message.length > 2000) {
+                return res.status(400).json({
+                    error: "Message is too long."
+                });
+            }
+
+            // Check room
+            const {
+                data: room
+            } = await supabase
+                .from("house_rooms")
+                .select("*")
+                .eq("id", roomId)
+                .eq("house_id", houseId)
+                .single();
+
+            if (!room) {
+                return res.status(404).json({
+                    error: "Room not found."
+                });
+            }
+
+            // Check membership
+            const {
+                data: member
+            } = await supabase
+                .from("house_members")
+                .select("id")
+                .eq("house_id", houseId)
+                .eq("user_id", userId)
+                .maybeSingle();
+
+            if (!member) {
+                return res.status(403).json({
+                    error: "You are not a member of this House."
+                });
+            }
+
+            // Bedroom privacy
+            if (
+                room.room_type === "bedroom" &&
+                room.user_id !== userId
+            ) {
+                return res.status(403).json({
+                    error: "This bedroom is private."
+                });
+            }
+
+            const {
+                data,
+                error
+            } = await supabase
+                .from("house_room_messages")
+                .insert({
+                    room_id: roomId,
+                    user_id: userId,
+                    message
+                })
+                .select()
+                .single();
+
+            if (error) {
+                console.error(
+                    "ROOM MESSAGE SEND ERROR:",
+                    error
+                );
+
+                return res.status(500).json({
+                    error: "Failed to send message."
+                });
+            }
+
+            res.json({
+                success: true,
+                message: data
+            });
+
+        } catch (error) {
+
+            console.error(
+                "ROOM MESSAGE SEND ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error: "Server error."
+            });
+
+        }
+
+    }
+);
+
+
+// REMOVE HOUSE MEMBER
+app.delete(
+    "/api/houses/:houseId/members/:userId",
+    async (req, res) => {
+
+        try {
+
+            if (
+                !req.session ||
+                !req.session.user
+            ) {
+                return res.status(401).json({
+                    error: "You must be logged in."
+                });
+            }
+
+            const houseId =
+                Number(req.params.houseId);
+
+            const targetUserId =
+                req.params.userId;
+
+            const actorId =
+                req.session.user.id;
+
+            const {
+                data: actor
+            } = await supabase
+                .from("house_members")
+                .select("role")
+                .eq("house_id", houseId)
+                .eq("user_id", actorId)
+                .single();
+
+            if (!actor) {
+                return res.status(403).json({
+                    error: "You are not a House member."
+                });
+            }
+
+            if (
+                actor.role !== "owner" &&
+                actor.role !== "admin"
+            ) {
+                return res.status(403).json({
+                    error: "You do not have permission."
+                });
+            }
+
+            if (targetUserId === actorId) {
+                return res.status(400).json({
+                    error: "You cannot remove yourself."
+                });
+            }
+
+            const {
+                error
+            } = await supabase
+                .from("house_members")
+                .delete()
+                .eq("house_id", houseId)
+                .eq("user_id", targetUserId);
+
+            if (error) {
+                return res.status(500).json({
+                    error: "Failed to remove member."
+                });
+            }
+
+            res.json({
+                success: true
+            });
+
+        } catch (error) {
+
+            console.error(
+                "HOUSE MEMBER REMOVE ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error: "Server error."
+            });
+
+        }
+
+    }
+);
 // ==================================================
 // START
 // ==================================================
