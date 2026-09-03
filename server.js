@@ -7114,120 +7114,50 @@ app.post(
 // ==================================================
 // GET SHOP ITEMS
 // ==================================================
-
-app.get(
-    "/api/shop/items",
-    async (req, res) => {
-
-        try {
-
-            const {
-                data: items,
-                error
-            } = await supabase
-                .from("shop_items")
-                .select("*")
-                .order("id", {
-                    ascending: true
-                });
-
-
-            if (error) {
-
-                console.error(
-                    "SHOP ITEMS ERROR:",
-                    error
-                );
-
-                return res.status(500).json({
-                    error:
-                        "Failed to load shop items."
-                });
-
-            }
-
-
-            let ownedIds = [];
-
-
-            // Get user's owned items
-            if (
-                req.session &&
-                req.session.user
-            ) {
-
-                const {
-                    data: owned,
-                    error: ownedError
-                } =
-                    await supabase
-                        .from("user_shop_items")
-                        .select("item_id")
-                        .eq(
-                            "user_id",
-                            req.session.user.id
-                        );
-
-
-                if (!ownedError && owned) {
-
-                    ownedIds =
-                        owned.map(
-                            item =>
-                                Number(
-                                    item.item_id
-                                )
-                        );
-
-                }
-
-            }
-
-
-            const formattedItems =
-                (items || []).map(
-                    item => ({
-
-                        ...item,
-
-                        owned:
-                            ownedIds.includes(
-                                Number(item.id)
-                            )
-
-                    })
-                );
-
-
-            return res.json({
-
-                success:
-                    true,
-
-                items:
-                    formattedItems
-
+app.get("/api/shop/items", async (req, res) => {
+    try {
+        const {
+            data: items,
+            error
+        } = await supabase
+            .from("shop_items")
+            .select("*")
+            .order("id", {
+                ascending: true
             });
 
-
-        } catch (error) {
-
-            console.error(
-                "SHOP ITEMS ERROR:",
-                error
-            );
-
+        if (error) {
+            console.error("SHOP ITEMS ERROR:", error);
 
             return res.status(500).json({
-                error:
-                    "Server error."
+                error: "Failed to load shop items."
             });
-
         }
 
-    }
-);
+        const currentUserId =
+            req.session?.user?.id || null;
 
+        const formattedItems = (items || []).map(item => ({
+            ...item,
+
+            owned:
+                currentUserId !== null &&
+                item.user_id === currentUserId
+        }));
+
+        return res.json({
+            success: true,
+            items: formattedItems
+        });
+
+    } catch (error) {
+        console.error("SHOP ITEMS ERROR:", error);
+
+        return res.status(500).json({
+            error: "Server error."
+        });
+    }
+});
 app.post(
     "/api/shop/items",
     async (req, res) => {
