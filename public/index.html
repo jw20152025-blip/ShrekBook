@@ -319,15 +319,9 @@
 
         <nav class="shrekbook-nav">
 
-            <!-- MAIN NAVIGATION -->
+            <a href="/">Home</a>
 
-            <a href="/">
-                Home
-            </a>
-
-            <a
-                href="/profile.html"
-                id="profile-link">
+            <a href="/profile.html" id="profile-link">
                 Profile
             </a>
 
@@ -335,9 +329,7 @@
                 💬 ShrekChat
             </a>
 
-            <a
-                href="/shreksearch.html"
-                class="shreksearch-button">
+            <a href="/shreksearch.html" class="shreksearch-button">
                 🔎 ShrekSearch
             </a>
 
@@ -345,20 +337,17 @@
                 🏠 Houses
             </a>
 
-
-            <!-- MORE DROPDOWN -->
-
             <div class="nav-dropdown">
 
                 <button
                     type="button"
-                    id="nav-more-button"
+                    id="more-button"
                     class="nav-dropdown-button">
                     More ▾
                 </button>
 
                 <div
-                    id="nav-dropdown-menu"
+                    id="more-menu"
                     class="nav-dropdown-menu">
 
                     <a href="/about.html">About</a>
@@ -378,29 +367,105 @@
                     </a>
 
                 </div>
-            </div>
 
             </div>
-
-
-            <!-- LOGOUT -->
 
             <button
                 id="logout-button"
                 onclick="logout()"
                 style="display:none;">
-
                 Logout
-
             </button>
 
         </nav>
-
     </div>
 
 </header>
 
+<script>
+(function () {
 
+    function setupMoreMenu() {
+
+        const button = document.getElementById("more-button");
+        const menu = document.getElementById("more-menu");
+
+        if (!button || !menu) {
+            console.error("ShrekBook: More menu elements were not found.");
+            return;
+        }
+
+        /*
+         * Prevent duplicate event listeners if this gets initialized
+         * more than once.
+         */
+        if (button.dataset.initialized === "true") {
+            return;
+        }
+
+        button.dataset.initialized = "true";
+
+        button.addEventListener("click", function (event) {
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const isOpen = menu.classList.contains("open");
+
+            if (isOpen) {
+                menu.classList.remove("open");
+                button.setAttribute("aria-expanded", "false");
+            } else {
+                menu.classList.add("open");
+                button.setAttribute("aria-expanded", "true");
+            }
+
+        });
+
+        menu.addEventListener("click", function (event) {
+            event.stopPropagation();
+        });
+
+        document.addEventListener("click", function () {
+
+            menu.classList.remove("open");
+            button.setAttribute("aria-expanded", "false");
+
+        });
+
+        document.addEventListener("keydown", function (event) {
+
+            if (event.key === "Escape") {
+
+                menu.classList.remove("open");
+                button.setAttribute("aria-expanded", "false");
+
+            }
+
+        });
+
+        console.log("ShrekBook: More menu initialized.");
+
+    }
+
+    /*
+     * Run immediately if the DOM is already ready.
+     */
+    if (document.readyState === "loading") {
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            setupMoreMenu
+        );
+
+    } else {
+
+        setupMoreMenu();
+
+    }
+
+})();
+</script>
 
 <!-- ==================================================
      MAIN
