@@ -1,282 +1,2520 @@
+
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Houses - ShrekBook</title>
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>ShrekBook Houses 🏠</title>
+
+    <link
+        rel="icon"
+        type="image/png"
+        href="/favicon.png">
+
 
     <style>
-        * {
-            box-sizing: border-box;
+
+        /* =====================================================
+           VARIABLES
+           ===================================================== */
+
+        :root {
+
+            --green:
+                #5d8f45;
+
+            --green-dark:
+                #426b31;
+
+            --green-light:
+                #e8f2e3;
+
+            --background:
+                #f4f7f2;
+
+            --card:
+                #ffffff;
+
+            --text:
+                #182018;
+
+            --muted:
+                #687268;
+
+            --border:
+                #dce4d8;
+
+            --shadow:
+                0 12px 35px rgba(
+                    30,
+                    50,
+                    25,
+                    0.08
+                );
+
+            --radius:
+                20px;
         }
+
+
+        /* =====================================================
+           BASE
+           ===================================================== */
+
+        * {
+            box-sizing:
+                border-box;
+        }
+
+
+        html {
+            scroll-behavior:
+                smooth;
+        }
+
 
         body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f2f2f2;
-            color: #222;
+
+            margin:
+                0;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    #eef5eb,
+                    #f7f9f6 45%,
+                    #f4f7f2
+                );
+
+            color:
+                var(--text);
+
+            font-family:
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
         }
 
-        header {
-            background: white;
-            border-bottom: 1px solid #ddd;
-            padding: 15px 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+
+        button,
+        input,
+        textarea,
+        select {
+            font:
+                inherit;
         }
+
+
+        button {
+            cursor:
+                pointer;
+        }
+
+
+        a {
+            color:
+                inherit;
+        }
+
+
+        /* =====================================================
+           NAVBAR
+           ===================================================== */
+
+        .navbar {
+
+            position:
+                sticky;
+
+            top:
+                0;
+
+            z-index:
+                10000;
+
+            background:
+                rgba(
+                    255,
+                    255,
+                    255,
+                    0.94
+                );
+
+            backdrop-filter:
+                blur(15px);
+
+            border-bottom:
+                1px solid var(--border);
+
+            box-shadow:
+                0 4px 20px rgba(
+                    0,
+                    0,
+                    0,
+                    0.05
+                );
+        }
+
+
+        .navbar-inner {
+
+            width:
+                min(
+                    1400px,
+                    calc(
+                        100% - 30px
+                    )
+                );
+
+            margin:
+                auto;
+
+            min-height:
+                65px;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap:
+                20px;
+        }
+
 
         .logo {
-            font-size: 25px;
-            font-weight: bold;
-            color: #4b8f29;
+
+            text-decoration:
+                none;
+
+            font-size:
+                21px;
+
+            font-weight:
+                900;
+
+            color:
+                var(--green-dark);
+
+            white-space:
+                nowrap;
         }
 
-        .create-button {
-            background: #4b8f29;
-            color: white;
-            text-decoration: none;
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-weight: bold;
+
+        .nav {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap:
+                6px;
+
+            flex-wrap:
+                wrap;
         }
 
-        main {
-            max-width: 1100px;
-            margin: 30px auto;
-            padding: 0 20px;
+
+        .nav a {
+
+            padding:
+                8px 11px;
+
+            border-radius:
+                9px;
+
+            text-decoration:
+                none;
+
+            font-weight:
+                700;
         }
+
+
+        .nav a:hover {
+
+            background:
+                var(--green-light);
+        }
+
+
+        /* =====================================================
+           PAGE
+           ===================================================== */
+
+        .page {
+
+            width:
+                min(
+                    1200px,
+                    calc(
+                        100% - 30px
+                    )
+                );
+
+            margin:
+                30px auto 70px;
+        }
+
+
+        /* =====================================================
+           HERO
+           ===================================================== */
+
+        .hero {
+
+            position:
+                relative;
+
+            overflow:
+                hidden;
+
+            padding:
+                42px;
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                27px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #dfeeda,
+                    #ffffff 60%,
+                    #e8f2e3
+                );
+
+            box-shadow:
+                var(--shadow);
+        }
+
+
+        .hero::after {
+
+            content:
+                "🏠";
+
+            position:
+                absolute;
+
+            right:
+                35px;
+
+            bottom:
+                -35px;
+
+            font-size:
+                150px;
+
+            opacity:
+                0.10;
+        }
+
+
+        .hero-content {
+
+            position:
+                relative;
+
+            z-index:
+                1;
+
+            max-width:
+                750px;
+        }
+
+
+        .eyebrow {
+
+            display:
+                inline-flex;
+
+            padding:
+                6px 10px;
+
+            border-radius:
+                999px;
+
+            background:
+                rgba(
+                    93,
+                    143,
+                    69,
+                    0.12
+                );
+
+            color:
+                var(--green-dark);
+
+            font-size:
+                13px;
+
+            font-weight:
+                850;
+        }
+
+
+        .hero h1 {
+
+            margin:
+                14px 0 10px;
+
+            font-size:
+                clamp(
+                    35px,
+                    6vw,
+                    58px
+                );
+
+            line-height:
+                1;
+        }
+
+
+        .hero p {
+
+            color:
+                var(--muted);
+
+            font-size:
+                17px;
+
+            line-height:
+                1.6;
+        }
+
+
+        /* =====================================================
+           TOOLBAR
+           ===================================================== */
+
+        .toolbar {
+
+            display:
+                flex;
+
+            flex-wrap:
+                wrap;
+
+            gap:
+                10px;
+
+            margin:
+                25px 0;
+        }
+
 
         .search {
-            width: 100%;
-            padding: 14px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            font-size: 16px;
-            margin: 20px 0;
+
+            flex:
+                1;
+
+            min-width:
+                230px;
+
+            padding:
+                13px 15px;
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                12px;
+
+            background:
+                white;
+
+            outline:
+                none;
         }
 
-        .houses {
-            display: grid;
+
+        .search:focus {
+
+            border-color:
+                var(--green);
+        }
+
+
+        .primary {
+
+            border:
+                none;
+
+            border-radius:
+                12px;
+
+            padding:
+                12px 17px;
+
+            background:
+                var(--green);
+
+            color:
+                white;
+
+            font-weight:
+                850;
+        }
+
+
+        .primary:hover {
+
+            background:
+                var(--green-dark);
+        }
+
+
+        .secondary {
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                12px;
+
+            padding:
+                11px 16px;
+
+            background:
+                white;
+
+            color:
+                var(--text);
+
+            font-weight:
+                750;
+        }
+
+
+        .secondary:hover {
+
+            background:
+                var(--green-light);
+        }
+
+
+        /* =====================================================
+           HOUSE TYPE CARDS
+           ===================================================== */
+
+        .types-grid {
+
+            display:
+                grid;
+
             grid-template-columns:
-                repeat(auto-fill, minmax(280px, 1fr));
-            gap: 18px;
+                repeat(
+                    auto-fit,
+                    minmax(
+                        190px,
+                        1fr
+                    )
+                );
+
+            gap:
+                13px;
+
+            margin:
+                20px 0 35px;
         }
 
-        .house {
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 12px;
-            padding: 20px;
+
+        .type-card {
+
+            padding:
+                18px;
+
+            background:
+                white;
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                16px;
+
+            box-shadow:
+                0 6px 18px rgba(
+                    0,
+                    0,
+                    0,
+                    0.04
+                );
+
+            transition:
+                transform .15s ease,
+                box-shadow .15s ease;
         }
 
-        .house h2 {
-            margin-top: 0;
+
+        .type-card:hover {
+
+            transform:
+                translateY(-3px);
+
+            box-shadow:
+                var(--shadow);
         }
 
-        .description {
-            color: #666;
-            margin-bottom: 15px;
+
+        .type-name {
+
+            font-size:
+                18px;
+
+            font-weight:
+                900;
         }
 
-        .info {
-            line-height: 1.8;
-            font-size: 14px;
+
+        .type-price {
+
+            margin-top:
+                8px;
+
+            font-size:
+                21px;
+
+            font-weight:
+                900;
+
+            color:
+                var(--green-dark);
         }
 
-        .enter {
-            display: block;
-            text-align: center;
-            background: #4b8f29;
-            color: white;
-            text-decoration: none;
-            padding: 10px;
-            border-radius: 7px;
-            margin-top: 15px;
+
+        .type-stat {
+
+            margin-top:
+                6px;
+
+            color:
+                var(--muted);
+
+            font-size:
+                13px;
         }
 
-        .message {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            text-align: center;
+
+        /* =====================================================
+           HOUSES GRID
+           ===================================================== */
+
+        .houses-grid {
+
+            display:
+                grid;
+
+            grid-template-columns:
+                repeat(
+                    auto-fit,
+                    minmax(
+                        280px,
+                        1fr
+                    )
+                );
+
+            gap:
+                18px;
         }
+
+
+        .house-card {
+
+            display:
+                flex;
+
+            flex-direction:
+                column;
+
+            overflow:
+                hidden;
+
+            background:
+                white;
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                var(--radius);
+
+            box-shadow:
+                var(--shadow);
+
+            transition:
+                transform .15s ease;
+        }
+
+
+        .house-card:hover {
+
+            transform:
+                translateY(-4px);
+        }
+
+
+        .house-top {
+
+            padding:
+                20px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #e9f3e5,
+                    #ffffff
+                );
+        }
+
+
+        .house-icon {
+
+            font-size:
+                38px;
+        }
+
+
+        .house-name {
+
+            margin:
+                8px 0 3px;
+
+            font-size:
+                23px;
+
+            font-weight:
+                900;
+        }
+
+
+        .house-type {
+
+            color:
+                var(--green-dark);
+
+            font-weight:
+                750;
+
+            font-size:
+                13px;
+        }
+
+
+        .house-body {
+
+            padding:
+                18px;
+
+            flex:
+                1;
+        }
+
+
+        .house-description {
+
+            min-height:
+                48px;
+
+            color:
+                var(--muted);
+
+            line-height:
+                1.5;
+        }
+
+
+        .house-stats {
+
+            display:
+                grid;
+
+            grid-template-columns:
+                1fr 1fr;
+
+            gap:
+                8px;
+
+            margin:
+                15px 0;
+        }
+
+
+        .stat {
+
+            padding:
+                10px;
+
+            background:
+                #f7faf5;
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                10px;
+        }
+
+
+        .stat-label {
+
+            color:
+                var(--muted);
+
+            font-size:
+                11px;
+
+            font-weight:
+                700;
+        }
+
+
+        .stat-value {
+
+            margin-top:
+                3px;
+
+            font-weight:
+                900;
+        }
+
+
+        .owner {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap:
+                9px;
+
+            margin-top:
+                12px;
+        }
+
+
+        .owner-avatar {
+
+            width:
+                35px;
+
+            height:
+                35px;
+
+            border-radius:
+                50%;
+
+            object-fit:
+                cover;
+
+            background:
+                var(--green-light);
+        }
+
+
+        .owner-name {
+
+            font-weight:
+                800;
+        }
+
+
+        .owner-username {
+
+            color:
+                var(--muted);
+
+            font-size:
+                12px;
+        }
+
+
+        .house-footer {
+
+            padding:
+                15px 18px;
+
+            border-top:
+                1px solid var(--border);
+        }
+
+
+        .view-button {
+
+            display:
+                flex;
+
+            justify-content:
+                center;
+
+            padding:
+                11px;
+
+            border-radius:
+                10px;
+
+            background:
+                var(--green);
+
+            color:
+                white;
+
+            text-decoration:
+                none;
+
+            font-weight:
+                850;
+        }
+
+
+        .view-button:hover {
+
+            background:
+                var(--green-dark);
+        }
+
+
+        /* =====================================================
+           STATES
+           ===================================================== */
+
+        .state {
+
+            padding:
+                45px;
+
+            text-align:
+                center;
+
+            background:
+                white;
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                var(--radius);
+
+            color:
+                var(--muted);
+        }
+
+
+        .error {
+
+            color:
+                #9b2c2c;
+
+            background:
+                #fff4f4;
+
+            border-color:
+                #efcaca;
+        }
+
+
+        /* =====================================================
+           MODAL
+           ===================================================== */
+
+        .modal {
+
+            position:
+                fixed;
+
+            inset:
+                0;
+
+            display:
+                none;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            padding:
+                20px;
+
+            background:
+                rgba(
+                    0,
+                    0,
+                    0,
+                    0.45
+                );
+
+            z-index:
+                20000;
+        }
+
+
+        .modal.open {
+
+            display:
+                flex;
+        }
+
+
+        .modal-box {
+
+            width:
+                min(
+                    540px,
+                    100%
+                );
+
+            max-height:
+                90vh;
+
+            overflow:
+                auto;
+
+            padding:
+                25px;
+
+            background:
+                white;
+
+            border-radius:
+                20px;
+
+            box-shadow:
+                0 25px 70px rgba(
+                    0,
+                    0,
+                    0,
+                    0.25
+                );
+        }
+
+
+        .modal-box h2 {
+
+            margin-top:
+                0;
+        }
+
+
+        .form-group {
+
+            margin:
+                15px 0;
+        }
+
+
+        .form-group label {
+
+            display:
+                block;
+
+            margin-bottom:
+                6px;
+
+            font-weight:
+                800;
+        }
+
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+
+            width:
+                100%;
+
+            padding:
+                12px;
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                10px;
+
+            outline:
+                none;
+        }
+
+
+        .form-group textarea {
+
+            min-height:
+                100px;
+
+            resize:
+                vertical;
+        }
+
+
+        .form-info {
+
+            padding:
+                13px;
+
+            background:
+                var(--green-light);
+
+            border-radius:
+                11px;
+
+            color:
+                var(--green-dark);
+
+            font-size:
+                14px;
+
+            line-height:
+                1.5;
+        }
+
+
+        .modal-actions {
+
+            display:
+                flex;
+
+            justify-content:
+                flex-end;
+
+            gap:
+                8px;
+
+            margin-top:
+                20px;
+        }
+
+
+        .status {
+
+            min-height:
+                22px;
+
+            color:
+                var(--muted);
+        }
+
+
+        /* =====================================================
+           MOBILE
+           ===================================================== */
+
+        @media (
+            max-width: 650px
+        ) {
+
+            .navbar-inner {
+
+                align-items:
+                    flex-start;
+
+                flex-direction:
+                    column;
+
+                padding:
+                    12px 0;
+            }
+
+
+            .nav {
+
+                width:
+                    100%;
+            }
+
+
+            .hero {
+
+                padding:
+                    30px 22px;
+            }
+
+
+            .hero::after {
+
+                display:
+                    none;
+            }
+
+        }
+
     </style>
+
 </head>
+
 
 <body>
 
-<header>
-    <div class="logo">🏠 ShrekBook Houses</div>
 
-    <a href="create-house.html" class="create-button">
-        + Create House
-    </a>
+<!-- =====================================================
+     NAVBAR
+     ===================================================== -->
+
+<header class="navbar">
+
+    <div class="navbar-inner">
+
+        <a
+            href="/"
+            class="logo">
+
+            🧌 ShrekBook
+
+        </a>
+
+
+        <nav class="nav">
+
+            <a href="/">
+                Home
+            </a>
+
+            <a href="/profile.html">
+                Profile
+            </a>
+
+            <a href="/shrekchat.html">
+                💬 ShrekChat
+            </a>
+
+            <a href="/shreksearch.html">
+                🔎 ShrekSearch
+            </a>
+
+            <a href="/houses.html">
+                🏠 Houses
+            </a>
+
+        </nav>
+
+    </div>
+
 </header>
 
-<main>
 
-    <h1>Houses</h1>
+<!-- =====================================================
+     PAGE
+     ===================================================== -->
 
-    <p>
-        Explore the Houses of ShrekBook.
-    </p>
+<main class="page">
 
-    <input
-        id="search"
-        class="search"
-        type="text"
-        placeholder="Search Houses..."
-    >
 
-    <div id="houses" class="houses">
-        <div class="message">
-            Loading Houses...
+    <!-- =================================================
+         HERO
+         ================================================= -->
+
+    <section class="hero">
+
+        <div class="hero-content">
+
+            <span class="eyebrow">
+                🏠 ShrekBook Houses
+            </span>
+
+
+            <h1>
+                Find your swamp.
+            </h1>
+
+
+            <p>
+                Create or explore Houses around ShrekBook.
+                Bigger Houses have more rooms and provide
+                larger marketplace tax reductions.
+            </p>
+
         </div>
+
+    </section>
+
+
+    <!-- =================================================
+         TOOLBAR
+         ================================================= -->
+
+    <div class="toolbar">
+
+        <input
+            id="house-search"
+            class="search"
+            type="search"
+            placeholder="🔎 Search Houses..."
+            autocomplete="off">
+
+
+        <button
+            id="create-house-button"
+            class="primary"
+            type="button">
+
+            🏠 Create House
+
+        </button>
+
     </div>
+
+
+    <!-- =================================================
+         HOUSE TYPES
+         ================================================= -->
+
+    <section>
+
+        <h2>
+            House Types
+        </h2>
+
+
+        <p style="color:var(--muted);">
+            Choose your House carefully.
+            The more expensive the House,
+            the more rooms and tax reduction it provides.
+        </p>
+
+
+        <div
+            id="house-types"
+            class="types-grid">
+
+            <div class="state">
+                Loading House Types...
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =================================================
+         HOUSES
+         ================================================= -->
+
+    <section>
+
+        <h2>
+            🏘️ Houses
+        </h2>
+
+
+        <div
+            id="houses"
+            class="houses-grid">
+
+            <div class="state">
+                Loading Houses...
+            </div>
+
+        </div>
+
+    </section>
 
 </main>
 
+
+<!-- =====================================================
+     CREATE HOUSE MODAL
+     ===================================================== -->
+
+<div
+    id="create-modal"
+    class="modal">
+
+
+    <div class="modal-box">
+
+
+        <h2>
+            🏠 Create a House
+        </h2>
+
+
+        <p style="color:var(--muted);">
+            Choose a House Type, give your House a name,
+            and spend your ShrekCoins.
+        </p>
+
+
+        <div class="form-group">
+
+            <label for="house-name">
+                House Name
+            </label>
+
+
+            <input
+                id="house-name"
+                maxlength="60"
+                placeholder="e.g. The Swamp">
+
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="house-description">
+                Description
+            </label>
+
+
+            <textarea
+                id="house-description"
+                maxlength="1000"
+                placeholder="Tell people about your House..."></textarea>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="house-type-select">
+                House Type
+            </label>
+
+
+            <select
+                id="house-type-select">
+
+                <option value="">
+                    Loading...
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div
+            id="selected-house-info"
+            class="form-info">
+
+            Select a House Type.
+
+        </div>
+
+
+        <p
+            id="create-status"
+            class="status">
+        </p>
+
+
+        <div class="modal-actions">
+
+            <button
+                id="cancel-create"
+                type="button"
+                class="secondary">
+
+                Cancel
+
+            </button>
+
+
+            <button
+                id="confirm-create"
+                type="button"
+                class="primary">
+
+                🪙 Create House
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
 <script>
-    const container = document.getElementById("houses");
-    const search = document.getElementById("search");
 
-    let houses = [];
+/* =========================================================
+   STATE
+   ========================================================= */
 
-    function escapeHtml(value) {
-        return String(value ?? "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+let allHouses = [];
+
+let houseTypes = [];
+
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+
+function escapeHtml(value) {
+
+    return String(
+        value ?? ""
+    )
+    .replace(
+        /&/g,
+        "&amp;"
+    )
+    .replace(
+        /</g,
+        "&lt;"
+    )
+    .replace(
+        />/g,
+        "&gt;"
+    )
+    .replace(
+        /"/g,
+        "&quot;"
+    )
+    .replace(
+        /'/g,
+        "&#039;"
+    );
+
+}
+
+
+function formatCoins(value) {
+
+    return Number(
+        value || 0
+    ).toLocaleString();
+
+}
+
+
+function formatTax(value) {
+
+    return (
+        Number(
+            value || 0
+        ) * 100
+    ).toFixed(1) + "%";
+
+}
+
+
+/* =========================================================
+   LOAD HOUSE TYPES
+   ========================================================= */
+
+async function loadHouseTypes() {
+
+    const container =
+        document.getElementById(
+            "house-types"
+        );
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/houses/types",
+                {
+                    credentials:
+                        "include"
+                }
+            );
+
+
+        const text =
+            await response.text();
+
+
+        if (
+            !response.ok
+        ) {
+
+            throw new Error(
+                text || "Failed to load House Types."
+            );
+
+        }
+
+
+        const data =
+            JSON.parse(
+                text
+            );
+
+
+        houseTypes =
+            Array.isArray(data)
+                ? data
+                : [];
+
+
+        renderHouseTypes();
+
+        populateHouseTypeSelect();
+
+    } catch (error) {
+
+        console.error(
+            "House Types error:",
+            error
+        );
+
+
+        container.innerHTML = `
+            <div class="state error">
+                Couldn't load House Types 😭
+            </div>
+        `;
+
     }
 
-    async function loadHouses() {
+}
+
+
+/* =========================================================
+   RENDER HOUSE TYPES
+   ========================================================= */
+
+function renderHouseTypes() {
+
+    const container =
+        document.getElementById(
+            "house-types"
+        );
+
+
+    if (
+        !houseTypes.length
+    ) {
+
+        container.innerHTML = `
+            <div class="state">
+                No House Types found.
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    container.innerHTML =
+        houseTypes.map(
+            type => `
+
+                <article class="type-card">
+
+                    <div class="type-name">
+                        🏠 ${escapeHtml(type.name)}
+                    </div>
+
+                    <div class="type-price">
+                        🪙 ${formatCoins(type.cost)}
+                    </div>
+
+                    <div class="type-stat">
+                        🚪 ${type.room_count} rooms
+                    </div>
+
+                    <div class="type-stat">
+                        📉 ${formatTax(type.tax_reduction)}
+                        marketplace tax reduction
+                    </div>
+
+                </article>
+
+            `
+        ).join("");
+
+}
+
+
+/* =========================================================
+   SELECT
+   ========================================================= */
+
+function populateHouseTypeSelect() {
+
+    const select =
+        document.getElementById(
+            "house-type-select"
+        );
+
+
+    select.innerHTML = `
+        <option value="">
+            Choose a House Type
+        </option>
+    `;
+
+
+    houseTypes.forEach(
+        type => {
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+
+            option.value =
+                type.id;
+
+
+            option.textContent =
+                `${type.name} — ${formatCoins(type.cost)} ShrekCoins`;
+
+
+            select.appendChild(
+                option
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   LOAD HOUSES
+   ========================================================= */
+
+async function loadHouses() {
+
+    const container =
+        document.getElementById(
+            "houses"
+        );
+
+
+    container.innerHTML = `
+        <div class="state">
+            Loading Houses... 🧌
+        </div>
+    `;
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/houses",
+                {
+                    credentials:
+                        "include"
+                }
+            );
+
+
+        const text =
+            await response.text();
+
+
+        if (
+            !response.ok
+        ) {
+
+            throw new Error(
+                `HTTP ${response.status}: ${text.slice(0, 300)}`
+            );
+
+        }
+
+
+        let data;
+
+
         try {
-            const response = await fetch("/api/houses");
 
-            const data = await response.json();
+            data =
+                JSON.parse(
+                    text
+                );
 
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to load Houses.");
+        } catch {
+
+            throw new Error(
+                "The server returned HTML instead of House JSON."
+            );
+
+        }
+
+
+        if (
+            !Array.isArray(data)
+        ) {
+
+            throw new Error(
+                "Invalid House response."
+            );
+
+        }
+
+
+        allHouses =
+            data;
+
+
+        renderHouses(
+            allHouses
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Couldn't load Houses:",
+            error
+        );
+
+
+        container.innerHTML = `
+            <div class="state error">
+                <strong>
+                    Couldn't load Houses 😭
+                </strong>
+
+                <br><br>
+
+                ${escapeHtml(
+                    error.message
+                )}
+            </div>
+        `;
+
+    }
+
+}
+
+
+/* =========================================================
+   RENDER HOUSES
+   ========================================================= */
+
+function renderHouses(
+    houses
+) {
+
+    const container =
+        document.getElementById(
+            "houses"
+        );
+
+
+    if (
+        !houses.length
+    ) {
+
+        container.innerHTML = `
+            <div class="state">
+                🏚️ No Houses found.
+                <br><br>
+                Why not create the first one?
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    container.innerHTML =
+        houses.map(
+            house => {
+
+                const owner =
+                    house.owner;
+
+
+                const type =
+                    house.houseType;
+
+
+                const rooms =
+                    house.rooms || [];
+
+
+                const members =
+                    house.members || [];
+
+
+                const avatar =
+                    owner?.avatar || "";
+
+
+                return `
+
+                    <article class="house-card">
+
+                        <div class="house-top">
+
+                            <div class="house-icon">
+                                🏠
+                            </div>
+
+                            <div class="house-name">
+                                ${escapeHtml(
+                                    house.name
+                                )}
+                            </div>
+
+                            <div class="house-type">
+
+                                ${escapeHtml(
+                                    type?.name ||
+                                    house.house_type ||
+                                    "Unknown Type"
+                                )}
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="house-body">
+
+
+                            <div class="house-description">
+
+                                ${escapeHtml(
+                                    house.description ||
+                                    "No description provided."
+                                )}
+
+                            </div>
+
+
+                            <div class="house-stats">
+
+
+                                <div class="stat">
+
+                                    <div class="stat-label">
+                                        ROOMS
+                                    </div>
+
+                                    <div class="stat-value">
+                                        🚪 ${rooms.length}
+                                    </div>
+
+                                </div>
+
+
+                                <div class="stat">
+
+                                    <div class="stat-label">
+                                        MEMBERS
+                                    </div>
+
+                                    <div class="stat-value">
+                                        👥 ${members.length}
+                                    </div>
+
+                                </div>
+
+
+                                <div class="stat">
+
+                                    <div class="stat-label">
+                                        TAX REDUCTION
+                                    </div>
+
+                                    <div class="stat-value">
+                                        📉 ${
+                                            type
+                                                ? formatTax(
+                                                    type.tax_reduction
+                                                )
+                                                : "N/A"
+                                        }
+                                    </div>
+
+                                </div>
+
+
+                                <div class="stat">
+
+                                    <div class="stat-label">
+                                        TYPE COST
+                                    </div>
+
+                                    <div class="stat-value">
+                                        🪙 ${
+                                            type
+                                                ? formatCoins(
+                                                    type.cost
+                                                )
+                                                : "N/A"
+                                        }
+                                    </div>
+
+                                </div>
+
+
+                            </div>
+
+
+                            <div class="owner">
+
+                                ${
+                                    avatar
+                                        ? `
+                                            <img
+                                                class="owner-avatar"
+                                                src="${escapeHtml(
+                                                    avatar
+                                                )}"
+                                                alt="">
+                                        `
+                                        : `
+                                            <div
+                                                class="owner-avatar"
+                                                style="
+                                                    display:flex;
+                                                    align-items:center;
+                                                    justify-content:center;
+                                                ">
+
+                                                🧌
+
+                                            </div>
+                                        `
+                                }
+
+
+                                <div>
+
+                                    <div class="owner-name">
+
+                                        ${
+                                            escapeHtml(
+                                                owner?.display_name ||
+                                                owner?.username ||
+                                                "Unknown"
+                                            )
+                                        }
+
+                                    </div>
+
+
+                                    ${
+                                        owner?.username
+                                            ? `
+                                                <div class="owner-username">
+                                                    @${escapeHtml(
+                                                        owner.username
+                                                    )}
+                                                </div>
+                                            `
+                                            : ""
+                                    }
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="house-footer">
+
+                            <a
+                                class="view-button"
+                                href="/house.html?id=${encodeURIComponent(
+                                    house.id
+                                )}">
+
+                                Enter House →
+
+                            </a>
+
+                        </div>
+
+                    </article>
+
+                `;
+
+            }
+        ).join("");
+
+}
+
+
+/* =========================================================
+   SEARCH
+   ========================================================= */
+
+document
+    .getElementById(
+        "house-search"
+    )
+    .addEventListener(
+        "input",
+        function () {
+
+            const query =
+                this.value
+                    .trim()
+                    .toLowerCase();
+
+
+            if (
+                !query
+            ) {
+
+                renderHouses(
+                    allHouses
+                );
+
+                return;
+
             }
 
-            houses = Array.isArray(data) ? data : data.houses || [];
 
-            render();
+            const filtered =
+                allHouses.filter(
+                    house => {
 
-        } catch (error) {
-            console.error(error);
+                        return (
 
-            container.innerHTML = `
-                <div class="message">
-                    <h2>Couldn't load Houses 😭</h2>
-                    <p>${escapeHtml(error.message)}</p>
-                </div>
-            `;
-        }
-    }
+                            String(
+                                house.name || ""
+                            )
+                            .toLowerCase()
+                            .includes(
+                                query
+                            )
 
-    function render() {
-        const query = search.value.trim().toLowerCase();
+                            ||
 
-        const filtered = houses.filter(house => {
-            return (
-                String(house.name || "")
-                    .toLowerCase()
-                    .includes(query)
-                ||
-                String(house.description || "")
-                    .toLowerCase()
-                    .includes(query)
-                ||
-                String(house.house_type || "")
-                    .toLowerCase()
-                    .includes(query)
+                            String(
+                                house.description || ""
+                            )
+                            .toLowerCase()
+                            .includes(
+                                query
+                            )
+
+                            ||
+
+                            String(
+                                house.house_type || ""
+                            )
+                            .toLowerCase()
+                            .includes(
+                                query
+                            )
+
+                            ||
+
+                            String(
+                                house.owner?.username || ""
+                            )
+                            .toLowerCase()
+                            .includes(
+                                query
+                            )
+
+                        );
+
+                    }
+                );
+
+
+            renderHouses(
+                filtered
             );
-        });
 
-        if (!filtered.length) {
-            container.innerHTML = `
-                <div class="message">
-                    <h2>No Houses Found</h2>
-                </div>
-            `;
+        }
+    );
 
-            return;
+
+/* =========================================================
+   MODAL
+   ========================================================= */
+
+const modal =
+    document.getElementById(
+        "create-modal"
+    );
+
+
+document
+    .getElementById(
+        "create-house-button"
+    )
+    .addEventListener(
+        "click",
+        function () {
+
+            modal.classList.add(
+                "open"
+            );
+
+        }
+    );
+
+
+document
+    .getElementById(
+        "cancel-create"
+    )
+    .addEventListener(
+        "click",
+        function () {
+
+            modal.classList.remove(
+                "open"
+            );
+
+        }
+    );
+
+
+modal.addEventListener(
+    "click",
+    function (event) {
+
+        if (
+            event.target ===
+            modal
+        ) {
+
+            modal.classList.remove(
+                "open"
+            );
+
         }
 
-        container.innerHTML = filtered.map(house => {
+    }
+);
 
-            const tax =
-                house.tax_reduction != null
-                    ? (Number(house.tax_reduction) * 100).toFixed(2) + "%"
-                    : "N/A";
 
-            return `
-                <div class="house">
+/* =========================================================
+   SELECTED TYPE INFO
+   ========================================================= */
 
-                    <h2>
-                        🏠 ${escapeHtml(house.name)}
-                    </h2>
+document
+    .getElementById(
+        "house-type-select"
+    )
+    .addEventListener(
+        "change",
+        function () {
 
-                    <div class="description">
-                        ${escapeHtml(
-                            house.description || "No description."
-                        )}
-                    </div>
+            const type =
+                houseTypes.find(
+                    item =>
+                        String(
+                            item.id
+                        ) ===
+                        String(
+                            this.value
+                        )
+                );
 
-                    <div class="info">
 
-                        👑 Owner:
-                        <strong>
-                            ${escapeHtml(
-                                house.owner_username || "Unknown"
-                            )}
-                        </strong>
+            const info =
+                document.getElementById(
+                    "selected-house-info"
+                );
 
-                        <br>
 
-                        🏘️ Type:
-                        <strong>
-                            ${escapeHtml(house.house_type)}
-                        </strong>
+            if (
+                !type
+            ) {
 
-                        <br>
+                info.textContent =
+                    "Select a House Type.";
 
-                        🚪 Rooms:
-                        <strong>
-                            ${escapeHtml(house.room_count)}
-                        </strong>
+                return;
 
-                        <br>
+            }
 
-                        🛒 Tax reduction:
-                        <strong>
-                            ${escapeHtml(tax)}
-                        </strong>
 
-                    </div>
+            info.innerHTML = `
 
-                    <a
-                        class="enter"
-                        href="house.html?id=${encodeURIComponent(house.id)}"
-                    >
-                        Enter House →
-                    </a>
+                <strong>
+                    ${escapeHtml(type.name)}
+                </strong>
 
-                </div>
+                <br>
+
+                🪙 Cost:
+                ${formatCoins(type.cost)}
+                ShrekCoins
+
+                <br>
+
+                🚪 Rooms:
+                ${type.room_count}
+
+                <br>
+
+                📉 Marketplace tax reduction:
+                ${formatTax(type.tax_reduction)}
+
             `;
 
-        }).join("");
+        }
+    );
+
+
+/* =========================================================
+   CREATE HOUSE
+   ========================================================= */
+
+document
+    .getElementById(
+        "confirm-create"
+    )
+    .addEventListener(
+        "click",
+        async function () {
+
+            const status =
+                document.getElementById(
+                    "create-status"
+                );
+
+
+            const name =
+                document
+                    .getElementById(
+                        "house-name"
+                    )
+                    .value
+                    .trim();
+
+
+            const description =
+                document
+                    .getElementById(
+                        "house-description"
+                    )
+                    .value
+                    .trim();
+
+
+            const houseTypeId =
+                document
+                    .getElementById(
+                        "house-type-select"
+                    )
+                    .value;
+
+
+            if (
+                !name
+            ) {
+
+                status.textContent =
+                    "Please enter a House name.";
+
+                return;
+
+            }
+
+
+            if (
+                !houseTypeId
+            ) {
+
+                status.textContent =
+                    "Please choose a House Type.";
+
+                return;
+
+            }
+
+
+            status.textContent =
+                "Creating House... 🧌";
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        "/api/houses",
+                        {
+
+                            method:
+                                "POST",
+
+                            credentials:
+                                "include",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body:
+                                JSON.stringify({
+
+                                    name:
+                                        name,
+
+                                    description:
+                                        description,
+
+                                    house_type_id:
+                                        houseTypeId
+
+                                })
+
+                        }
+                    );
+
+
+                const text =
+                    await response.text();
+
+
+                let data;
+
+
+                try {
+
+                    data =
+                        JSON.parse(
+                            text
+                        );
+
+                } catch {
+
+                    throw new Error(
+                        "Server returned invalid JSON."
+                    );
+
+                }
+
+
+                if (
+                    !response.ok
+                ) {
+
+                    throw new Error(
+                        data.error ||
+                        "Failed to create House."
+                    );
+
+                }
+
+
+                status.textContent =
+                    "House created! 🏠";
+
+
+                setTimeout(
+                    function () {
+
+                        modal.classList.remove(
+                            "open"
+                        );
+
+
+                        document
+                            .getElementById(
+                                "house-name"
+                            )
+                            .value = "";
+
+
+                        document
+                            .getElementById(
+                                "house-description"
+                            )
+                            .value = "";
+
+
+                        document
+                            .getElementById(
+                                "house-type-select"
+                            )
+                            .value = "";
+
+
+                        document
+                            .getElementById(
+                                "selected-house-info"
+                            )
+                            .textContent =
+                                "Select a House Type.";
+
+
+                        status.textContent =
+                            "";
+
+
+                        loadHouses();
+
+                    },
+                    500
+                );
+
+
+            } catch (error) {
+
+                console.error(
+                    "Create House error:",
+                    error
+                );
+
+
+                status.textContent =
+                    "❌ " +
+                    error.message;
+
+            }
+
+        }
+    );
+
+
+/* =========================================================
+   ESC CLOSES MODAL
+   ========================================================= */
+
+document.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (
+            event.key === "Escape"
+        ) {
+
+            modal.classList.remove(
+                "open"
+            );
+
+        }
+
     }
+);
 
-    search.addEventListener("input", render);
 
-    loadHouses();
+/* =========================================================
+   START
+   ========================================================= */
+
+loadHouseTypes();
+
+loadHouses();
+
 </script>
 
 </body>
+
 </html>
+

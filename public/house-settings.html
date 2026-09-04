@@ -2,672 +2,1496 @@
 <html lang="en">
 <head>
 
-    <meta charset="UTF-8">
+<meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-    <title>House Room - ShrekBook</title>
+<title>House Settings • ShrekBook</title>
 
-    <style>
+<link rel="stylesheet" href="/styles.css">
 
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f2f2f2;
-        }
+<style>
 
-        main {
-            max-width: 900px;
-            margin: 30px auto;
-            padding: 20px;
-        }
+body {
+    margin: 0;
+    background:
+        radial-gradient(
+            circle at 15% 10%,
+            rgba(88,224,111,.12),
+            transparent 30%
+        ),
+        #050806;
+    color: #f4fff5;
+    font-family: Arial, sans-serif;
+}
 
-        .box {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
+.page {
+    width: min(1000px, calc(100% - 18px));
+    margin: 28px auto 80px;
+}
 
-        .back {
-            display: inline-block;
-            margin-bottom: 15px;
-            color: #4b8f29;
-            text-decoration: none;
-            font-weight: bold;
-        }
+.hero {
+    padding: 30px;
+    border-radius: 25px;
+    border: 1px solid rgba(88,224,111,.22);
+    background:
+        linear-gradient(
+            135deg,
+            rgba(22,51,28,.9),
+            rgba(7,17,10,.95)
+        );
+}
 
-        .back:hover {
-            text-decoration: underline;
-        }
+.hero small {
+    color: #58e06f;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 900;
+}
 
-        #room h1 {
-            margin-bottom: 5px;
-        }
+.hero h1 {
+    margin: 7px 0;
+    font-size: clamp(32px, 7vw, 53px);
+}
 
-        #room p {
-            color: #666;
-            margin-top: 5px;
-        }
+.hero p {
+    color: #96a59a;
+}
 
-        #messages {
-            height: 500px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 20px;
-            margin-bottom: 15px;
-            background: #fafafa;
-        }
+.back {
+    color: #8f9d94;
+    text-decoration: none;
+}
 
-        .message {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-        }
+.panel {
+    margin-top: 18px;
+    padding: 22px;
+    border-radius: 20px;
+    background: rgba(12,20,14,.82);
+    border: 1px solid rgba(88,224,111,.15);
+}
 
-        .message:last-child {
-            border-bottom: none;
-        }
+.panel h2 {
+    margin-top: 0;
+}
 
-        .message-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 4px;
-        }
+label {
+    display: block;
+    margin-top: 14px;
+    margin-bottom: 7px;
+    font-weight: 800;
+}
 
-        .avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            object-fit: cover;
-        }
+input,
+textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.1);
+    background: rgba(0,0,0,.25);
+    color: white;
+    outline: none;
+}
 
-        .avatar-placeholder {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: #ddd;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-        }
+textarea {
+    min-height: 120px;
+    resize: vertical;
+}
 
-        .username {
-            font-weight: bold;
-        }
+.save {
+    margin-top: 15px;
+    border: 0;
+    border-radius: 12px;
+    padding: 12px 17px;
+    background: #58e06f;
+    color: #061008;
+    font-weight: 900;
+    cursor: pointer;
+}
 
-        .time {
-            color: #888;
-            font-size: 12px;
-            margin-top: 5px;
-        }
+.status {
+    margin-top: 10px;
+    display: none;
+    padding: 11px;
+    border-radius: 11px;
+}
 
-        textarea {
-            width: 100%;
-            box-sizing: border-box;
-            height: 70px;
-            resize: none;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 7px;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-        }
+.status.show {
+    display: block;
+}
 
-        textarea:focus {
-            outline: none;
-            border-color: #4b8f29;
-        }
+.status.success {
+    color: #8cff9d;
+    background: rgba(88,224,111,.07);
+}
 
-        button {
-            margin-top: 8px;
-            padding: 10px 15px;
-            background: #4b8f29;
-            color: white;
-            border: none;
-            border-radius: 7px;
-            cursor: pointer;
-            font-size: 14px;
-        }
+.status.error {
+    color: #ffaaaa;
+    background: rgba(255,70,70,.07);
+}
 
-        button:hover {
-            background: #3d7622;
-        }
+.members {
+    display: grid;
+    gap: 9px;
+}
 
-        button:disabled {
-            background: #999;
-            cursor: not-allowed;
-        }
+.member {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 13px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.025);
+}
 
-        .error {
-            color: #b00020;
-        }
+.avatar {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: #17351d;
+    color: #8cff9d;
+    font-weight: 900;
+}
 
-        .empty {
-            color: #777;
-            text-align: center;
-            padding: 30px;
-        }
+.member-info {
+    min-width: 0;
+    flex: 1;
+}
 
-        .private {
-            color: #9a6700;
-        }
+.member-name {
+    font-weight: 900;
+}
 
-        .public {
-            color: #4b8f29;
-        }
+.username {
+    color: #758178;
+    font-size: 12px;
+}
 
-    </style>
+.role {
+    padding: 6px 9px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.06);
+    color: #aeb9b1;
+    font-size: 11px;
+    font-weight: 800;
+}
 
+.role.owner {
+    color: #ffd66b;
+}
+
+.role.admin {
+    color: #8fc7ff;
+}
+
+.member-actions {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.small-btn {
+    border: 0;
+    border-radius: 9px;
+    padding: 8px 10px;
+    cursor: pointer;
+    background: rgba(255,255,255,.07);
+    color: white;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.small-btn.danger {
+    color: #ffaaaa;
+    background: rgba(255,70,70,.08);
+}
+
+.small-btn.blue {
+    color: #9ecfff;
+    background: rgba(100,170,255,.08);
+}
+
+.room-settings {
+    display: grid;
+    gap: 14px;
+}
+
+.room-card {
+    padding: 17px;
+    border-radius: 16px;
+    background: rgba(255,255,255,.025);
+    border: 1px solid rgba(255,255,255,.06);
+}
+
+.room-card h3 {
+    margin: 0 0 5px;
+}
+
+.room-card p {
+    color: #849188;
+    font-size: 13px;
+}
+
+.access-list {
+    display: grid;
+    gap: 6px;
+    margin-top: 12px;
+}
+
+.access-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.035);
+}
+
+.access-user span {
+    flex: 1;
+}
+
+.search-row {
+    display: flex;
+    gap: 7px;
+}
+
+.search-results {
+    display: grid;
+    gap: 6px;
+    margin-top: 7px;
+}
+
+.search-result {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.035);
+}
+
+.search-result span {
+    flex: 1;
+}
+
+.muted {
+    color: #849188;
+}
+
+.loading,
+.empty {
+    padding: 25px;
+    text-align: center;
+    color: #849188;
+}
+
+@media(max-width:650px) {
+
+    .member {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .member-actions {
+        width: 100%;
+        margin-left: 51px;
+    }
+
+    .search-row {
+        flex-direction: column;
+    }
+}
+
+</style>
 </head>
 
 <body>
 
-<main>
+<nav class="shrekbook-nav">
+    <a href="/">Home</a>
+    <a href="/houses.html">🏠 Houses</a>
+</nav>
 
-    <div class="box">
 
-        <a
-            id="backLink"
-            class="back"
-            href="#"
-        >
-            ← Back to House
-        </a>
+<main class="page">
 
-        <div id="room">
-            Loading room...
+<section class="hero">
+
+    <a
+        id="back-link"
+        class="back"
+        href="/houses.html"
+    >
+        ← Back
+    </a>
+
+    <small>House Management</small>
+
+    <h1>⚙️ House Settings</h1>
+
+    <p id="hero-description">
+        Loading...
+    </p>
+
+</section>
+
+
+<section
+    id="general-panel"
+    class="panel"
+>
+
+    <h2>🏠 General</h2>
+
+    <label for="house-name">
+        House name
+    </label>
+
+    <input
+        id="house-name"
+        maxlength="80"
+    >
+
+
+    <label for="house-description">
+        Description
+    </label>
+
+    <textarea
+        id="house-description"
+        maxlength="1000"
+    ></textarea>
+
+
+    <button
+        class="save"
+        onclick="saveSettings()"
+    >
+        💾 Save Changes
+    </button>
+
+
+    <div
+        id="save-status"
+        class="status"
+    ></div>
+
+</section>
+
+
+<section class="panel">
+
+    <h2>👥 Members</h2>
+
+    <p class="muted">
+        Manage House members and administrators.
+    </p>
+
+    <div
+        id="members"
+        class="members"
+    >
+        <div class="loading">
+            Loading members...
         </div>
-
-        <div id="messages">
-            Loading messages...
-        </div>
-
-        <textarea
-            id="message"
-            placeholder="Write a message..."
-            maxlength="2000"
-        ></textarea>
-
-        <button id="send">
-            Send
-        </button>
-
-        <p
-            id="error"
-            class="error"
-        ></p>
-
     </div>
+
+</section>
+
+
+<section
+    id="bedrooms-panel"
+    class="panel"
+>
+
+    <h2>🛏️ Bedroom Access</h2>
+
+    <p class="muted">
+        Bedroom owners can decide which House members
+        are allowed inside.
+    </p>
+
+    <div
+        id="bedrooms"
+        class="room-settings"
+    >
+        <div class="loading">
+            Loading bedrooms...
+        </div>
+    </div>
+
+</section>
 
 </main>
 
 
 <script>
 
-    // ========================================================
-    // URL PARAMETERS
-    // ========================================================
+const params =
+    new URLSearchParams(
+        window.location.search
+    );
 
-    const params =
-        new URLSearchParams(
-            window.location.search
+
+const houseId =
+    params.get("id");
+
+
+let houseData = null;
+
+
+function escapeHtml(value) {
+
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+function initials(profile) {
+
+    const text =
+        profile?.display_name ||
+        profile?.username ||
+        "?";
+
+    return text
+        .slice(0, 2)
+        .toUpperCase();
+}
+
+
+function showStatus(
+    message,
+    type
+) {
+
+    const status =
+        document.getElementById(
+            "save-status"
         );
 
-    const houseId =
-        params.get("house");
 
-    const roomId =
-        params.get("room");
+    status.textContent =
+        message;
 
 
-    // ========================================================
-    // ELEMENTS
-    // ========================================================
-
-    const roomContainer =
-        document.getElementById("room");
-
-    const messagesContainer =
-        document.getElementById("messages");
-
-    const messageInput =
-        document.getElementById("message");
-
-    const errorContainer =
-        document.getElementById("error");
-
-    const sendButton =
-        document.getElementById("send");
-
-    const backLink =
-        document.getElementById("backLink");
+    status.className =
+        `status show ${type}`;
+}
 
 
-    // ========================================================
-    // VALIDATE URL
-    // ========================================================
+async function loadSettings() {
 
-    if (!houseId || !roomId) {
+    if (!houseId) {
 
-        roomContainer.innerHTML = `
-            <h1 class="error">
-                Invalid room link.
-            </h1>
-        `;
+        document.getElementById(
+            "hero-description"
+        ).textContent =
+            "No House ID was provided.";
 
-        messagesContainer.innerHTML = "";
-
-        messageInput.disabled = true;
-        sendButton.disabled = true;
-
-    } else {
-
-        backLink.href =
-            `/house.html?id=${encodeURIComponent(houseId)}`;
-
+        return;
     }
 
 
-    // ========================================================
-    // ESCAPE HTML
-    // ========================================================
+    try {
 
-    function escapeHtml(value) {
+        const response =
+            await fetch(
+                `/api/houses/${encodeURIComponent(houseId)}`,
+                {
+                    credentials: "include"
+                }
+            );
 
-        return String(value ?? "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
 
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to load House."
+            );
+        }
+
+
+        houseData = data;
+
+
+        const membership =
+            data.membership;
+
+
+        if (
+            !membership ||
+            !["owner", "admin"].includes(
+                membership.role
+            )
+        ) {
+
+            document.getElementById(
+                "hero-description"
+            ).textContent =
+                "You do not have permission to manage this House.";
+
+            document.getElementById(
+                "general-panel"
+            ).style.display =
+                "none";
+
+            document.getElementById(
+                "members"
+            ).innerHTML = `
+                <div class="empty">
+                    🔒 Owner or House Admin access required.
+                </div>
+            `;
+
+            document.getElementById(
+                "bedrooms-panel"
+            ).style.display =
+                "none";
+
+            return;
+        }
+
+
+        renderSettings();
+
+    } catch (error) {
+
+        document.getElementById(
+            "hero-description"
+        ).textContent =
+            error.message;
+    }
+}
+
+
+function renderSettings() {
+
+    const house =
+        houseData.house;
+
+
+    document.title =
+        `Settings • ${house.name} • ShrekBook`;
+
+
+    document.getElementById(
+        "back-link"
+    ).href =
+        `/house.html?id=${encodeURIComponent(
+            house.id
+        )}`;
+
+
+    document.getElementById(
+        "hero-description"
+    ).textContent =
+        `Managing ${house.name}`;
+
+
+    document.getElementById(
+        "house-name"
+    ).value =
+        house.name || "";
+
+
+    document.getElementById(
+        "house-description"
+    ).value =
+        house.description || "";
+
+
+    renderMembers();
+
+    renderBedrooms();
+}
+
+
+async function saveSettings() {
+
+    const name =
+        document.getElementById(
+            "house-name"
+        ).value.trim();
+
+
+    const description =
+        document.getElementById(
+            "house-description"
+        ).value.trim();
+
+
+    if (!name) {
+
+        showStatus(
+            "House name cannot be empty.",
+            "error"
+        );
+
+        return;
     }
 
 
-    // ========================================================
-    // LOAD ROOM
-    // ========================================================
+    try {
 
-    async function loadRoom() {
+        const response =
+            await fetch(
+                `/api/houses/${encodeURIComponent(houseId)}`,
+                {
+                    method: "PUT",
 
-        if (!houseId || !roomId) return;
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-        try {
+                    credentials: "include",
 
-            const response =
-                await fetch(
-                    `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}`
-                );
+                    body: JSON.stringify({
+                        name,
+                        description
+                    })
+                }
+            );
 
-            const data =
-                await response.json();
 
-            if (!response.ok) {
+        const data =
+            await response.json();
 
-                throw new Error(
-                    data.error ||
-                    "Failed to load room."
-                );
 
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to save settings."
+            );
+        }
+
+
+        houseData.house =
+            data.house;
+
+
+        showStatus(
+            "✅ House settings saved!",
+            "success"
+        );
+
+    } catch (error) {
+
+        showStatus(
+            error.message,
+            "error"
+        );
+    }
+}
+
+
+function renderMembers() {
+
+    const container =
+        document.getElementById(
+            "members"
+        );
+
+
+    const members =
+        houseData.members || [];
+
+
+    const currentRole =
+        houseData.membership.role;
+
+
+    if (!members.length) {
+
+        container.innerHTML =
+            `<div class="empty">
+                No members.
+            </div>`;
+
+        return;
+    }
+
+
+    container.innerHTML =
+        members.map(member => {
+
+            const profile =
+                member.profile;
+
+
+            const role =
+                member.role;
+
+
+            const isOwner =
+                role === "owner";
+
+
+            const isAdmin =
+                role === "admin";
+
+
+            let actions = "";
+
+
+            if (!isOwner) {
+
+                if (
+                    currentRole === "owner"
+                ) {
+
+                    if (isAdmin) {
+
+                        actions += `
+                            <button
+                                class="small-btn blue"
+                                onclick="demoteAdmin('${member.user_id}')"
+                            >
+                                Demote
+                            </button>
+                        `;
+
+                    } else {
+
+                        actions += `
+                            <button
+                                class="small-btn blue"
+                                onclick="promoteAdmin('${member.user_id}')"
+                            >
+                                Make Admin
+                            </button>
+                        `;
+                    }
+
+                }
+
+
+                // Owner can remove anyone except themselves.
+                // Admin can remove normal members.
+                if (
+                    currentRole === "owner" ||
+                    (
+                        currentRole === "admin" &&
+                        !isAdmin
+                    )
+                ) {
+
+                    actions += `
+                        <button
+                            class="small-btn danger"
+                            onclick="removeMember('${member.user_id}')"
+                        >
+                            Remove
+                        </button>
+                    `;
+                }
             }
 
-            const room =
-                data.room || data;
 
-            const isBedroom =
-                room.room_type === "bedroom";
+            return `
+
+                <div class="member">
+
+                    <div class="avatar">
+                        ${escapeHtml(
+                            initials(profile)
+                        )}
+                    </div>
+
+                    <div class="member-info">
+
+                        <div class="member-name">
+                            ${escapeHtml(
+                                profile?.display_name ||
+                                profile?.username ||
+                                "Unknown"
+                            )}
+                        </div>
+
+                        <div class="username">
+                            ${
+                                profile?.username
+                                    ? "@" +
+                                      escapeHtml(
+                                          profile.username
+                                      )
+                                    : ""
+                            }
+                        </div>
+
+                    </div>
+
+                    <span
+                        class="role ${
+                            isOwner
+                                ? "owner"
+                                : isAdmin
+                                    ? "admin"
+                                    : ""
+                        }"
+                    >
+                        ${
+                            isOwner
+                                ? "👑 Owner"
+                                : isAdmin
+                                    ? "🛡️ Admin"
+                                    : "Member"
+                        }
+                    </span>
+
+                    <div class="member-actions">
+                        ${actions}
+                    </div>
+
+                </div>
+
+            `;
+
+        }).join("");
+}
 
 
-            roomContainer.innerHTML = `
+async function promoteAdmin(userId) {
 
-                <h1>
+    if (
+        !confirm(
+            "Make this member a House Admin?"
+        )
+    ) {
+        return;
+    }
 
+
+    await memberAction(
+        `/api/houses/${encodeURIComponent(houseId)}/admins/${encodeURIComponent(userId)}`,
+        "POST",
+        "Member promoted to Admin."
+    );
+}
+
+
+async function demoteAdmin(userId) {
+
+    if (
+        !confirm(
+            "Remove this member's Admin privileges?"
+        )
+    ) {
+        return;
+    }
+
+
+    await memberAction(
+        `/api/houses/${encodeURIComponent(houseId)}/admins/${encodeURIComponent(userId)}`,
+        "DELETE",
+        "Admin privileges removed."
+    );
+}
+
+
+async function removeMember(userId) {
+
+    if (
+        !confirm(
+            "Remove this member from the House?"
+        )
+    ) {
+        return;
+    }
+
+
+    await memberAction(
+        `/api/houses/${encodeURIComponent(houseId)}/members/${encodeURIComponent(userId)}`,
+        "DELETE",
+        "Member removed."
+    );
+}
+
+
+async function memberAction(
+    url,
+    method,
+    successMessage
+) {
+
+    try {
+
+        const response =
+            await fetch(
+                url,
+                {
+                    method,
+                    credentials: "include"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Action failed."
+            );
+        }
+
+
+        showStatus(
+            `✅ ${successMessage}`,
+            "success"
+        );
+
+
+        await reloadHouse();
+
+    } catch (error) {
+
+        showStatus(
+            error.message,
+            "error"
+        );
+    }
+}
+
+
+async function reloadHouse() {
+
+    const response =
+        await fetch(
+            `/api/houses/${encodeURIComponent(houseId)}`,
+            {
+                credentials: "include"
+            }
+        );
+
+
+    const data =
+        await response.json();
+
+
+    if (!response.ok) {
+        throw new Error(
+            data.error ||
+            "Failed to reload House."
+        );
+    }
+
+
+    houseData = data;
+
+    renderSettings();
+}
+
+
+function renderBedrooms() {
+
+    const container =
+        document.getElementById(
+            "bedrooms"
+        );
+
+
+    const rooms =
+        (houseData.rooms || [])
+            .filter(
+                room =>
+                    room.room_type ===
+                    "bedroom"
+            );
+
+
+    if (!rooms.length) {
+
+        container.innerHTML =
+            `<div class="empty">
+                No bedrooms found.
+            </div>`;
+
+        return;
+    }
+
+
+    container.innerHTML =
+        rooms.map(room => `
+
+            <div
+                class="room-card"
+                id="room-card-${room.id}"
+            >
+
+                <h3>
+                    🛏️ ${escapeHtml(room.name)}
+                </h3>
+
+                <p>
+                    Owner:
                     ${
-                        isBedroom
-                            ? "🛏️"
-                            : "🚪"
+                        escapeHtml(
+                            room.bedroomOwner?.display_name ||
+                            room.bedroomOwner?.username ||
+                            "Unknown"
+                        )
                     }
-
-                    ${escapeHtml(
-                        room.name ||
-                        "Room"
-                    )}
-
-                </h1>
-
-                <p
-                    class="${
-                        isBedroom
-                            ? "private"
-                            : "public"
-                    }"
-                >
-
-                    ${
-                        isBedroom
-                            ? "🔒 Private bedroom"
-                            : "🌎 Public room"
-                    }
-
                 </p>
 
                 ${
-                    isBedroom &&
-                    data.bedroomOwner
+                    room.user_id ===
+                    houseData.membership.user_id
                         ? `
-                            <p>
-                                Bedroom owner:
-                                <strong>
-                                    ${escapeHtml(
-                                        data.bedroomOwner.display_name ||
-                                        data.bedroomOwner.username ||
-                                        "Unknown"
-                                    )}
-                                </strong>
-                            </p>
+                            <strong>
+                                You own this bedroom.
+                            </strong>
+                        `
+                        : `
+                            <div class="muted">
+                                Only the bedroom owner can
+                                change its access.
+                            </div>
+                        `
+                }
+
+                ${
+                    room.user_id ===
+                    houseData.membership.user_id
+                        ? `
+                            <div
+                                id="access-${room.id}"
+                                class="access-list"
+                            >
+                                Loading access...
+                            </div>
+
+                            <div style="margin-top:13px">
+
+                                <div class="search-row">
+
+                                    <input
+                                        id="bed-search-${room.id}"
+                                        placeholder="Search House members..."
+                                        oninput="searchBedroomUsers(${room.id})"
+                                    >
+
+                                </div>
+
+                                <div
+                                    id="bed-results-${room.id}"
+                                    class="search-results"
+                                ></div>
+
+                            </div>
                         `
                         : ""
                 }
 
-            `;
+            </div>
 
-        } catch (error) {
+        `).join("");
 
-            console.error(
-                "Load room error:",
-                error
+
+    rooms.forEach(room => {
+
+        if (
+            room.user_id ===
+            houseData.membership.user_id
+        ) {
+
+            loadBedroomAccess(
+                room.id
             );
-
-            roomContainer.innerHTML = `
-                <h1 class="error">
-                    ${escapeHtml(
-                        error.message
-                    )}
-                </h1>
-            `;
-
-            messageInput.disabled = true;
-            sendButton.disabled = true;
         }
 
-    }
+    });
+}
 
 
-    // ========================================================
-    // LOAD MESSAGES
-    // ========================================================
+async function loadBedroomAccess(roomId) {
 
-    async function loadMessages() {
-
-        if (!houseId || !roomId) return;
-
-        try {
-
-            const response =
-                await fetch(
-                    `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}/messages`
-                );
-
-            const data =
-                await response.json();
-
-            if (!response.ok) {
-
-                throw new Error(
-                    data.error ||
-                    "Failed to load messages."
-                );
-
-            }
-
-            const messages =
-                Array.isArray(data)
-                    ? data
-                    : data.messages || [];
+    const container =
+        document.getElementById(
+            `access-${roomId}`
+        );
 
 
-            if (!messages.length) {
+    try {
 
-                messagesContainer.innerHTML = `
-                    <div class="empty">
-                        No messages yet. Be the first to say something!
-                    </div>
-                `;
-
-                return;
-            }
-
-
-            messagesContainer.innerHTML =
-                messages.map(message => {
-
-                    // IMPORTANT:
-                    // The API returns the profile as
-                    // message.profile
-
-                    const profile =
-                        message.profile || {};
-
-                    const displayName =
-                        profile.display_name ||
-                        profile.username ||
-                        message.username ||
-                        message.display_name ||
-                        "Unknown";
-
-                    const avatar =
-                        profile.avatar_url ||
-                        "";
-
-                    return `
-
-                        <div class="message">
-
-                            <div class="message-header">
-
-                                ${
-                                    avatar
-                                        ? `
-                                            <img
-                                                class="avatar"
-                                                src="${escapeHtml(
-                                                    avatar
-                                                )}"
-                                                alt=""
-                                            >
-                                        `
-                                        : `
-                                            <div class="avatar-placeholder">
-                                                👤
-                                            </div>
-                                        `
-                                }
-
-                                <span class="username">
-
-                                    ${escapeHtml(
-                                        displayName
-                                    )}
-
-                                </span>
-
-                            </div>
-
-                            <div>
-                                ${escapeHtml(
-                                    message.message
-                                )}
-                            </div>
-
-                            <div class="time">
-
-                                ${escapeHtml(
-                                    new Date(
-                                        message.created_at
-                                    ).toLocaleString()
-                                )}
-
-                            </div>
-
-                        </div>
-
-                    `;
-
-                }).join("");
-
-
-            messagesContainer.scrollTop =
-                messagesContainer.scrollHeight;
-
-        } catch (error) {
-
-            console.error(
-                "Load messages error:",
-                error
+        const response =
+            await fetch(
+                `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}/access`,
+                {
+                    credentials: "include"
+                }
             );
 
-            messagesContainer.innerHTML = `
-                <div class="error">
-                    ${escapeHtml(
-                        error.message
-                    )}
-                </div>
-            `;
 
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to load access."
+            );
         }
 
-    }
+
+        const access =
+            data.access || [];
 
 
-    // ========================================================
-    // SEND MESSAGE
-    // ========================================================
+        if (!access.length) {
 
-    async function sendMessage() {
+            container.innerHTML =
+                `<div class="muted">
+                    🔒 Nobody else has access.
+                </div>`;
 
-        const message =
-            messageInput.value.trim();
-
-        if (!message) {
             return;
         }
 
-        errorContainer.textContent = "";
 
-        sendButton.disabled = true;
+        container.innerHTML =
+            access.map(item => {
 
-        try {
+                const profile =
+                    item.profile;
 
-            const response =
-                await fetch(
-                    `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}/messages`,
-                    {
-                        method: "POST",
 
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
+                return `
 
-                        body: JSON.stringify({
-                            message
-                        })
-                    }
-                );
+                    <div class="access-user">
 
-            const data =
-                await response.json();
+                        <span>
+                            👤 ${
+                                escapeHtml(
+                                    profile?.display_name ||
+                                    profile?.username ||
+                                    "Unknown"
+                                )
+                            }
+                        </span>
 
-            if (!response.ok) {
+                        <button
+                            class="small-btn danger"
+                            onclick="revokeAccess(
+                                ${roomId},
+                                '${item.user_id}'
+                            )"
+                        >
+                            Revoke
+                        </button>
 
-                throw new Error(
-                    data.error ||
-                    "Failed to send message."
-                );
+                    </div>
 
-            }
+                `;
 
-            messageInput.value = "";
+            }).join("");
 
-            await loadMessages();
+    } catch (error) {
 
-        } catch (error) {
-
-            console.error(
-                "Send message error:",
-                error
-            );
-
-            errorContainer.textContent =
-                error.message;
-
-        } finally {
-
-            sendButton.disabled = false;
-
-            messageInput.focus();
-
-        }
-
+        container.innerHTML =
+            `<div style="color:#ffaaaa">
+                ${escapeHtml(error.message)}
+            </div>`;
     }
+}
 
 
-    // ========================================================
-    // SEND BUTTON
-    // ========================================================
+let bedroomSearchTimers = {};
 
-    sendButton.addEventListener(
-        "click",
-        sendMessage
+
+function searchBedroomUsers(roomId) {
+
+    clearTimeout(
+        bedroomSearchTimers[roomId]
     );
 
 
-    // ========================================================
-    // CTRL + ENTER
-    // ========================================================
-
-    messageInput.addEventListener(
-        "keydown",
-        event => {
-
-            if (
-                event.ctrlKey &&
-                event.key === "Enter"
-            ) {
-
-                event.preventDefault();
-
-                sendMessage();
-
-            }
-
-        }
-    );
+    bedroomSearchTimers[roomId] =
+        setTimeout(
+            () =>
+                performBedroomSearch(
+                    roomId
+                ),
+            250
+        );
+}
 
 
-    // ========================================================
-    // INITIAL LOAD
-    // ========================================================
+async function performBedroomSearch(roomId) {
 
-    if (houseId && roomId) {
-
-        loadRoom();
-
-        loadMessages();
-
-        setInterval(
-            loadMessages,
-            3000
+    const input =
+        document.getElementById(
+            `bed-search-${roomId}`
         );
 
+
+    const results =
+        document.getElementById(
+            `bed-results-${roomId}`
+        );
+
+
+    const query =
+        input.value.trim();
+
+
+    if (query.length < 1) {
+
+        results.innerHTML = "";
+
+        return;
     }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/users/search?q=${encodeURIComponent(query)}`,
+                {
+                    credentials: "include"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Search failed."
+            );
+        }
+
+
+        const users =
+            data.users || [];
+
+
+        const memberIds =
+            new Set(
+                (houseData.members || [])
+                    .map(
+                        m => m.user_id
+                    )
+            );
+
+
+        const bedroom =
+            (houseData.rooms || [])
+                .find(
+                    r =>
+                        Number(r.id) ===
+                        Number(roomId)
+                );
+
+
+        const ownerId =
+            bedroom?.user_id;
+
+
+        const filtered =
+            users.filter(
+                user =>
+                    memberIds.has(user.id) &&
+                    user.id !== ownerId
+            );
+
+
+        if (!filtered.length) {
+
+            results.innerHTML =
+                `<div class="muted">
+                    No matching House members.
+                </div>`;
+
+            return;
+        }
+
+
+        results.innerHTML =
+            filtered.map(user => `
+
+                <div class="search-result">
+
+                    <span>
+                        ${
+                            escapeHtml(
+                                user.display_name ||
+                                user.username ||
+                                "Unknown"
+                            )
+                        }
+                    </span>
+
+                    <button
+                        class="small-btn blue"
+                        onclick="grantAccess(
+                            ${roomId},
+                            '${user.id}'
+                        )"
+                    >
+                        Grant
+                    </button>
+
+                </div>
+
+            `).join("");
+
+    } catch (error) {
+
+        results.innerHTML =
+            `<div style="color:#ffaaaa">
+                ${escapeHtml(error.message)}
+            </div>`;
+    }
+}
+
+
+async function grantAccess(
+    roomId,
+    userId
+) {
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}/access`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    credentials: "include",
+
+                    body: JSON.stringify({
+                        user_id: userId
+                    })
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to grant access."
+            );
+        }
+
+
+        const input =
+            document.getElementById(
+                `bed-search-${roomId}`
+            );
+
+
+        const results =
+            document.getElementById(
+                `bed-results-${roomId}`
+            );
+
+
+        input.value = "";
+
+        results.innerHTML = "";
+
+
+        await loadBedroomAccess(
+            roomId
+        );
+
+    } catch (error) {
+
+        alert(
+            error.message
+        );
+    }
+}
+
+
+async function revokeAccess(
+    roomId,
+    userId
+) {
+
+    if (
+        !confirm(
+            "Revoke this person's bedroom access?"
+        )
+    ) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}/access/${encodeURIComponent(userId)}`,
+                {
+                    method: "DELETE",
+
+                    credentials: "include"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to revoke access."
+            );
+        }
+
+
+        await loadBedroomAccess(
+            roomId
+        );
+
+    } catch (error) {
+
+        alert(
+            error.message
+        );
+    }
+}
+
+
+loadSettings();
 
 </script>
 
