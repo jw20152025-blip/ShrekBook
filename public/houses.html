@@ -1,475 +1,263 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>House Room — ShrekBook</title>
+<title>Houses — ShrekBook</title>
 
 <link rel="stylesheet" href="/styles.css">
 
 <style>
+* {
+    box-sizing: border-box;
+}
+
 body {
     margin: 0;
+    min-height: 100vh;
     background:
-        radial-gradient(circle at top right, rgba(90,255,170,.08), transparent 35%),
+        radial-gradient(circle at top left, rgba(120,255,180,.12), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(80,160,255,.10), transparent 35%),
         #080b10;
-    color: white;
+    color: #fff;
     font-family: Arial, sans-serif;
 }
 
-.room-page {
-    max-width: 1000px;
+.house-page {
+    max-width: 1200px;
     margin: auto;
-    padding: 30px 20px 70px;
+    padding: 30px 20px 80px;
 }
 
-.room-header {
-    padding: 30px;
-    border-radius: 25px;
-    background: rgba(15,20,28,.95);
-    border: 1px solid rgba(100,255,170,.2);
-    margin-bottom: 20px;
+.house-hero {
+    padding: 45px 30px;
+    border-radius: 28px;
+    background:
+        linear-gradient(135deg, rgba(20,30,40,.95), rgba(10,15,22,.92));
+    border: 1px solid rgba(120,255,180,.25);
+    box-shadow:
+        0 0 45px rgba(50,255,150,.08),
+        inset 0 0 30px rgba(255,255,255,.02);
+    margin-bottom: 25px;
 }
 
-.room-header h1 {
+.house-hero h1 {
     margin: 0;
-    font-size: 40px;
+    font-size: clamp(36px, 6vw, 64px);
 }
 
-.room-sub {
-    color: #8f9ba8;
+.house-hero p {
+    color: #aab5c2;
+    font-size: 18px;
+    max-width: 700px;
 }
 
-.room-badges {
+.house-actions {
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 15px;
-}
-
-.badge {
-    padding: 7px 11px;
-    border-radius: 999px;
-    background: rgba(255,255,255,.06);
-    font-size: 13px;
-}
-
-.tax {
-    color: #7dffb1;
-}
-
-.chat {
-    min-height: 500px;
-    padding: 20px;
-    border-radius: 25px;
-    background: rgba(12,17,24,.96);
-    border: 1px solid rgba(255,255,255,.07);
-}
-
-.messages {
-    min-height: 390px;
-    max-height: 600px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
     gap: 12px;
+    flex-wrap: wrap;
 }
 
-.message {
-    display: flex;
-    gap: 10px;
-}
-
-.message-avatar {
-    width: 40px;
-    height: 40px;
-    flex: 0 0 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    background: #18202a;
-}
-
-.message-bubble {
-    max-width: 75%;
-    padding: 11px 14px;
-    border-radius: 15px;
-    background: rgba(255,255,255,.05);
-}
-
-.message-name {
-    font-size: 13px;
-    font-weight: bold;
-    color: #7dffb1;
-}
-
-.message-text {
-    margin-top: 4px;
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-
-.message-time {
-    margin-top: 4px;
-    font-size: 11px;
-    color: #66727e;
-}
-
-.composer {
-    display: flex;
-    gap: 10px;
-    margin-top: 20px;
-}
-
-.composer textarea {
-    flex: 1;
-    resize: none;
-    min-height: 55px;
-    padding: 13px;
-    border-radius: 14px;
-    border: 1px solid rgba(255,255,255,.1);
-    background: #090e14;
-    color: white;
-    font: inherit;
-}
-
-.button {
+.house-button {
     border: 0;
-    border-radius: 13px;
-    padding: 12px 17px;
-    background: #17241c;
-    color: white;
+    border-radius: 14px;
+    padding: 13px 18px;
+    background: #142019;
+    color: #fff;
+    text-decoration: none;
     cursor: pointer;
     font-weight: bold;
+    border: 1px solid rgba(120,255,180,.25);
+    transition: .2s;
 }
 
-.button.primary {
-    background: linear-gradient(135deg,#39dd7b,#159952);
+.house-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 22px rgba(100,255,170,.18);
 }
 
-.notice {
-    padding: 40px;
+.house-button.primary {
+    background: linear-gradient(135deg, #35d879, #1b9e57);
+}
+
+.house-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 18px;
+}
+
+.house-card {
+    border-radius: 22px;
+    padding: 22px;
+    background: rgba(15,20,28,.92);
+    border: 1px solid rgba(255,255,255,.08);
+    transition: .2s;
+}
+
+.house-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(100,255,170,.35);
+    box-shadow: 0 10px 40px rgba(0,0,0,.35);
+}
+
+.house-card h2 {
+    margin-top: 0;
+}
+
+.house-type {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(100,255,170,.1);
+    color: #7dffb1;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.house-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 18px 0;
+}
+
+.house-stat {
+    background: rgba(255,255,255,.035);
+    border-radius: 12px;
+    padding: 11px;
+}
+
+.house-stat small {
+    display: block;
+    color: #8995a3;
+}
+
+.loading,
+.empty,
+.error {
     text-align: center;
-    color: #8e99a5;
+    padding: 50px 20px;
+    color: #9ba7b5;
+}
+
+.error {
+    color: #ff7f8c;
+}
+
+.tax-good {
+    color: #7dffb1;
 }
 </style>
-
 </head>
 
 <body>
 
 <nav class="shrekbook-nav">
-
-<a href="/">Home</a>
-<a href="/houses.html">🏠 Houses</a>
-
+    <a href="/">Home</a>
+    <a href="/profile.html">Profile</a>
+    <a href="/shrekchat.html">💬 ShrekChat</a>
+    <a href="/shreksearch.html">🔎 ShrekSearch</a>
+    <a href="/houses.html">🏠 Houses</a>
 </nav>
 
+<main class="house-page">
 
-<main class="room-page">
+<section class="house-hero">
 
-<div id="page">
+    <h1>🏠 Houses</h1>
 
-<div class="notice">
-🚪 Loading room...
-</div>
+    <p>
+        Build your own place on ShrekBook, join other Houses,
+        hang out in rooms, and create your own little corner
+        of the internet.
+    </p>
 
-</div>
+    <div class="house-actions">
+        <a class="house-button primary" href="/create-house.html">
+            🏗️ Create a House
+        </a>
+
+        <button class="house-button" onclick="loadHouses()">
+            🔄 Refresh
+        </button>
+    </div>
+
+</section>
+
+<section id="house-list">
+
+    <div class="loading">
+        Loading Houses...
+    </div>
+
+</section>
 
 </main>
 
-
 <script>
-
-const params =
-    new URLSearchParams(
-        window.location.search
-    );
-
-const houseId =
-    params.get("house");
-
-const roomId =
-    params.get("room");
-
-
-let roomData = null;
-
-
-if (!houseId || !roomId) {
-
-    showError(
-        "Missing House or Room ID."
-    );
-
-} else {
-
-    loadRoom();
-}
-
-
-async function loadRoom() {
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}`,
-                {
-                    credentials: "include"
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Failed to load room."
-            );
-        }
-
-
-        roomData = data;
-
-
-        renderRoom();
-
-        await loadMessages();
-
-        startPolling();
-
-    } catch (error) {
-
-        showError(
-            error.message
-        );
-    }
-}
-
-
-function renderRoom() {
-
-    const page =
-        document.getElementById("page");
-
-    const house =
-        roomData.house || {};
-
-    const room =
-        roomData.room || {};
-
-    const houseType =
-        roomData.houseType || null;
-
-    const bedroomOwner =
-        roomData.bedroomOwner || null;
-
-
-    const taxReduction =
-        houseType
-            ? Number(
-                houseType.tax_reduction || 0
-              ) * 100
-            : 0;
-
-
-    page.innerHTML = `
-
-        <section class="room-header">
-
-            <a
-                href="/house.html?id=${encodeURIComponent(house.id)}"
-                class="button"
-            >
-                ← Back to House
-            </a>
-
-            <h1>
-                ${
-                    room.room_type === "bedroom"
-                        ? "🛏️"
-                        : "🛋️"
-                }
-
-                ${escapeHtml(
-                    room.name ||
-                    "Room"
-                )}
-            </h1>
-
-            <div class="room-sub">
-
-                🏠
-                ${escapeHtml(
-                    house.name ||
-                    "House"
-                )}
-
-            </div>
-
-
-            <div class="room-badges">
-
-                <span class="badge">
-
-                    ${
-                        room.room_type === "bedroom"
-                            ? "🔒 Private Bedroom"
-                            : "🌐 Public Room"
-                    }
-
-                </span>
-
-
-                ${
-                    houseType
-                        ? `
-                            <span class="badge">
-                                🏠 ${escapeHtml(
-                                    houseType.name
-                                )}
-                            </span>
-                        `
-                        : ""
-                }
-
-
-                <span class="badge tax">
-
-                    📉 Marketplace Tax:
-                    ${
-                        taxReduction
-                            ? `-${taxReduction.toFixed(1)}%`
-                            : "0.0%"
-                    }
-
-                </span>
-
-
-                ${
-                    bedroomOwner
-                        ? `
-                            <span class="badge">
-                                👤 Bedroom of
-                                ${escapeHtml(
-                                    bedroomOwner.display_name ||
-                                    bedroomOwner.username
-                                )}
-                            </span>
-                        `
-                        : ""
-                }
-
-            </div>
-
-        </section>
-
-
-        <section class="chat">
-
-            <div
-                id="messages"
-                class="messages"
-            >
-                <div class="notice">
-                    Loading messages...
-                </div>
-            </div>
-
-
-            <div class="composer">
-
-                <textarea
-                    id="message"
-                    maxlength="2000"
-                    placeholder="Say something..."
-                ></textarea>
-
-                <button
-                    class="button primary"
-                    onclick="sendMessage()"
-                >
-                    Send
-                </button>
-
-            </div>
-
-        </section>
-
-    `;
-
-
-    document
-        .getElementById("message")
-        .addEventListener(
-            "keydown",
-            event => {
-
-                if (
-                    event.key === "Enter" &&
-                    event.ctrlKey
-                ) {
-                    sendMessage();
-                }
-
-            }
-        );
-}
-
-
-async function loadMessages() {
+async function loadHouses() {
 
     const container =
-        document.getElementById(
-            "messages"
-        );
+        document.getElementById("house-list");
 
-    if (!container) return;
-
+    container.innerHTML =
+        `<div class="loading">🏠 Loading Houses...</div>`;
 
     try {
 
         const response =
-            await fetch(
-                `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}/messages`,
-                {
-                    credentials: "include"
-                }
+            await fetch("/api/houses", {
+                credentials: "include"
+            });
+
+        const raw = await response.text();
+
+        let data;
+
+        try {
+            data = JSON.parse(raw);
+        } catch {
+            throw new Error(
+                "Server returned invalid JSON."
             );
-
-
-        const data =
-            await response.json();
-
+        }
 
         if (!response.ok) {
-
             throw new Error(
                 data.error ||
-                "Failed to load messages."
+                "Failed to load Houses."
             );
         }
 
 
-        const messages =
-            Array.isArray(data.messages)
-                ? data.messages
-                : [];
+        // Accept all reasonable response shapes.
+
+        const houses =
+            Array.isArray(data)
+                ? data
+                : Array.isArray(data.houses)
+                    ? data.houses
+                    : Array.isArray(data.data)
+                        ? data.data
+                        : null;
+
+        if (!houses) {
+            console.error("Invalid House response:", data);
+
+            throw new Error(
+                "Invalid House response."
+            );
+        }
 
 
-        if (!messages.length) {
+        if (!houses.length) {
 
             container.innerHTML = `
-                <div class="notice">
-                    💬 No messages yet.
-                    Start the conversation!
+                <div class="empty">
+                    <div style="font-size:50px">🏚️</div>
+                    <h2>No Houses yet</h2>
+                    <p>Be the first person to build one!</p>
                 </div>
             `;
 
@@ -477,234 +265,127 @@ async function loadMessages() {
         }
 
 
-        container.innerHTML =
-            messages.map(renderMessage)
-                .join("");
+        container.innerHTML = `
+            <div class="house-grid">
 
+                ${houses.map(house => {
 
-        container.scrollTop =
-            container.scrollHeight;
+                    const type =
+                        house.houseType ||
+                        house.house_type ||
+                        {};
+
+                    const owner =
+                        house.owner ||
+                        {};
+
+                    const taxReduction =
+                        Number(type.tax_reduction || 0) * 100;
+
+                    return `
+                        <article class="house-card">
+
+                            <span class="house-type">
+                                ${escapeHtml(
+                                    type.name ||
+                                    house.house_type ||
+                                    "House"
+                                )}
+                            </span>
+
+                            <h2>
+                                ${escapeHtml(
+                                    house.name ||
+                                    "Unnamed House"
+                                )}
+                            </h2>
+
+                            <p>
+                                ${escapeHtml(
+                                    house.description ||
+                                    "No description."
+                                )}
+                            </p>
+
+                            <div class="house-meta">
+
+                                <div class="house-stat">
+                                    <small>Owner</small>
+                                    👤 ${
+                                        escapeHtml(
+                                            owner.display_name ||
+                                            owner.username ||
+                                            "Unknown"
+                                        )
+                                    }
+                                </div>
+
+                                <div class="house-stat">
+                                    <small>Rooms</small>
+                                    🚪 ${
+                                        house.roomCount ??
+                                        type.room_count ??
+                                        0
+                                    }
+                                </div>
+
+                                <div class="house-stat">
+                                    <small>Members</small>
+                                    👥 ${
+                                        house.memberCount ??
+                                        0
+                                    }
+                                </div>
+
+                                <div class="house-stat">
+                                    <small>Marketplace Tax</small>
+                                    <span class="tax-good">
+                                        -${taxReduction.toFixed(1)}%
+                                    </span>
+                                </div>
+
+                            </div>
+
+                            <a
+                                class="house-button"
+                                href="/house.html?id=${encodeURIComponent(house.id)}"
+                            >
+                                Enter House →
+                            </a>
+
+                        </article>
+                    `;
+
+                }).join("")}
+
+            </div>
+        `;
 
     } catch (error) {
+
+        console.error(error);
 
         container.innerHTML = `
-            <div class="notice">
-                😭 ${escapeHtml(
-                    error.message
-                )}
-            </div>
-        `;
-    }
-}
+            <div class="error">
 
+                <div style="font-size:50px">😭</div>
 
-function renderMessage(message) {
-
-    const profile =
-        message.profile || {};
-
-    const avatar =
-        profile.avatar_url
-            ? `
-                <img
-                    class="message-avatar"
-                    src="${escapeHtml(
-                        profile.avatar_url
-                    )}"
-                >
-            `
-            : `
-                <div
-                    class="message-avatar"
-                    style="
-                        display:grid;
-                        place-items:center;
-                    "
-                >
-                    👤
-                </div>
-            `;
-
-
-    const time =
-        message.created_at
-            ? new Date(
-                message.created_at
-            ).toLocaleString()
-            : "";
-
-
-    return `
-
-        <div class="message">
-
-            ${avatar}
-
-            <div class="message-bubble">
-
-                <div class="message-name">
-
-                    ${escapeHtml(
-                        profile.display_name ||
-                        profile.username ||
-                        "Unknown"
-                    )}
-
-                    ${
-                        profile.username
-                            ? `
-                                <span
-                                    style="
-                                        color:#66727e;
-                                        font-weight:normal;
-                                    "
-                                >
-                                    @${escapeHtml(
-                                        profile.username
-                                    )}
-                                </span>
-                            `
-                            : ""
-                    }
-
-                </div>
-
-                <div class="message-text">
-                    ${escapeHtml(
-                        message.message
-                    )}
-                </div>
-
-                <div class="message-time">
-                    ${escapeHtml(time)}
-                </div>
-
-            </div>
-
-        </div>
-
-    `;
-}
-
-
-async function sendMessage() {
-
-    const input =
-        document.getElementById(
-            "message"
-        );
-
-    const message =
-        input.value.trim();
-
-    if (!message) return;
-
-
-    input.disabled = true;
-
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}/messages`,
-                {
-
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    credentials: "include",
-
-                    body: JSON.stringify({
-                        message
-                    })
-
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Failed to send message."
-            );
-        }
-
-
-        input.value = "";
-
-        await loadMessages();
-
-    } catch (error) {
-
-        alert(
-            "😭 " + error.message
-        );
-
-    } finally {
-
-        input.disabled = false;
-
-        input.focus();
-    }
-}
-
-
-let pollTimer = null;
-
-
-function startPolling() {
-
-    if (pollTimer) {
-        clearInterval(pollTimer);
-    }
-
-    pollTimer =
-        setInterval(
-            loadMessages,
-            3000
-        );
-}
-
-
-function showError(message) {
-
-    document.getElementById("page")
-        .innerHTML = `
-
-            <div class="notice">
-
-                <div style="font-size:55px">
-                    😭
-                </div>
-
-                <h2>
-                    Couldn't load room
-                </h2>
+                <h2>Couldn't load Houses</h2>
 
                 <p>
-                    ${escapeHtml(message)}
+                    ${escapeHtml(error.message)}
                 </p>
 
-                <a
-                    class="button"
-                    href="/houses.html"
+                <button
+                    class="house-button"
+                    onclick="loadHouses()"
                 >
-                    ← Houses
-                </a>
+                    Try Again
+                </button>
 
             </div>
-
         `;
+    }
 }
 
 
@@ -718,6 +399,8 @@ function escapeHtml(value) {
         .replaceAll("'", "&#039;");
 }
 
+
+loadHouses();
 </script>
 
 </body>

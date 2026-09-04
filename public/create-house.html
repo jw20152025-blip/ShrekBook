@@ -1,157 +1,154 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Create a House — ShrekBook</title>
+<title>Houses — ShrekBook</title>
 
 <link rel="stylesheet" href="/styles.css">
 
 <style>
+* {
+    box-sizing: border-box;
+}
+
 body {
+    margin: 0;
+    min-height: 100vh;
     background:
-        radial-gradient(circle at top, rgba(70,255,150,.12), transparent 40%),
+        radial-gradient(circle at top left, rgba(120,255,180,.12), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(80,160,255,.10), transparent 35%),
         #080b10;
-    color: white;
+    color: #fff;
     font-family: Arial, sans-serif;
 }
 
-.create-page {
-    max-width: 1000px;
+.house-page {
+    max-width: 1200px;
     margin: auto;
-    padding: 35px 20px 80px;
+    padding: 30px 20px 80px;
 }
 
-.create-card {
-    background: rgba(15,20,28,.94);
-    border: 1px solid rgba(120,255,180,.18);
+.house-hero {
+    padding: 45px 30px;
     border-radius: 28px;
-    padding: 35px;
-    box-shadow: 0 20px 80px rgba(0,0,0,.35);
+    background:
+        linear-gradient(135deg, rgba(20,30,40,.95), rgba(10,15,22,.92));
+    border: 1px solid rgba(120,255,180,.25);
+    box-shadow:
+        0 0 45px rgba(50,255,150,.08),
+        inset 0 0 30px rgba(255,255,255,.02);
+    margin-bottom: 25px;
 }
 
-.create-card h1 {
-    font-size: 48px;
-    margin-top: 0;
+.house-hero h1 {
+    margin: 0;
+    font-size: clamp(36px, 6vw, 64px);
 }
 
-.subtitle {
-    color: #9aa7b5;
+.house-hero p {
+    color: #aab5c2;
+    font-size: 18px;
+    max-width: 700px;
 }
 
-.type-grid {
-    display: grid;
-    grid-template-columns:
-        repeat(auto-fit, minmax(190px, 1fr));
-    gap: 14px;
-    margin: 25px 0;
+.house-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
-.type-card {
-    padding: 20px;
-    border-radius: 18px;
-    border: 1px solid rgba(255,255,255,.08);
-    background: rgba(255,255,255,.025);
+.house-button {
+    border: 0;
+    border-radius: 14px;
+    padding: 13px 18px;
+    background: #142019;
+    color: #fff;
+    text-decoration: none;
     cursor: pointer;
+    font-weight: bold;
+    border: 1px solid rgba(120,255,180,.25);
     transition: .2s;
 }
 
-.type-card:hover {
-    transform: translateY(-3px);
-    border-color: rgba(100,255,170,.3);
+.house-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 22px rgba(100,255,170,.18);
 }
 
-.type-card.selected {
-    border-color: #62ff9e;
-    background: rgba(70,255,150,.08);
-    box-shadow: 0 0 25px rgba(70,255,150,.1);
+.house-button.primary {
+    background: linear-gradient(135deg, #35d879, #1b9e57);
 }
 
-.type-card h3 {
-    margin: 0 0 8px;
+.house-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 18px;
 }
 
-.type-price {
-    font-size: 20px;
+.house-card {
+    border-radius: 22px;
+    padding: 22px;
+    background: rgba(15,20,28,.92);
+    border: 1px solid rgba(255,255,255,.08);
+    transition: .2s;
+}
+
+.house-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(100,255,170,.35);
+    box-shadow: 0 10px 40px rgba(0,0,0,.35);
+}
+
+.house-card h2 {
+    margin-top: 0;
+}
+
+.house-type {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(100,255,170,.1);
+    color: #7dffb1;
+    font-size: 13px;
     font-weight: bold;
 }
 
-.type-info {
-    color: #8995a3;
-    font-size: 14px;
-    margin-top: 10px;
-    line-height: 1.6;
+.house-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 18px 0;
 }
 
-.field {
-    margin-top: 20px;
-}
-
-.field label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: bold;
-}
-
-.field input,
-.field textarea {
-    width: 100%;
-    padding: 14px;
-    border-radius: 13px;
-    border: 1px solid rgba(255,255,255,.1);
-    background: #0b1017;
-    color: white;
-    outline: none;
-    font: inherit;
-}
-
-.field textarea {
-    min-height: 130px;
-    resize: vertical;
-}
-
-.balance {
-    margin: 20px 0;
-    padding: 15px;
-    border-radius: 15px;
+.house-stat {
     background: rgba(255,255,255,.035);
+    border-radius: 12px;
+    padding: 11px;
 }
 
-.preview {
-    margin-top: 25px;
-    padding: 20px;
-    border-radius: 18px;
-    background: rgba(100,255,170,.05);
-    border: 1px solid rgba(100,255,170,.15);
+.house-stat small {
+    display: block;
+    color: #8995a3;
 }
 
-.create-button {
-    margin-top: 25px;
-    width: 100%;
-    border: 0;
-    padding: 17px;
-    border-radius: 15px;
-    background: linear-gradient(135deg,#39e47c,#159a53);
-    color: white;
-    font-size: 17px;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-.create-button:disabled {
-    opacity: .5;
-    cursor: not-allowed;
-}
-
-.status {
-    margin-top: 15px;
+.loading,
+.empty,
+.error {
     text-align: center;
-    min-height: 24px;
+    padding: 50px 20px;
+    color: #9ba7b5;
+}
+
+.error {
+    color: #ff7f8c;
+}
+
+.tax-good {
+    color: #7dffb1;
 }
 </style>
-
 </head>
 
 <body>
@@ -159,391 +156,235 @@ body {
 <nav class="shrekbook-nav">
     <a href="/">Home</a>
     <a href="/profile.html">Profile</a>
+    <a href="/shrekchat.html">💬 ShrekChat</a>
+    <a href="/shreksearch.html">🔎 ShrekSearch</a>
     <a href="/houses.html">🏠 Houses</a>
 </nav>
 
-<main class="create-page">
+<main class="house-page">
 
-<div class="create-card">
+<section class="house-hero">
 
-    <h1>🏗️ Build a House</h1>
+    <h1>🏠 Houses</h1>
 
-    <p class="subtitle">
-        Choose a House Type. Better Houses cost more,
-        contain more rooms, and reduce your marketplace tax.
+    <p>
+        Build your own place on ShrekBook, join other Houses,
+        hang out in rooms, and create your own little corner
+        of the internet.
     </p>
 
-    <div id="balance" class="balance">
-        💰 Loading ShrekCoins...
+    <div class="house-actions">
+        <a class="house-button primary" href="/create-house.html">
+            🏗️ Create a House
+        </a>
+
+        <button class="house-button" onclick="loadHouses()">
+            🔄 Refresh
+        </button>
     </div>
 
-    <div class="field">
+</section>
 
-        <label for="name">
-            House Name
-        </label>
+<section id="house-list">
 
-        <input
-            id="name"
-            maxlength="80"
-            placeholder="The Shrek Mansion"
-        >
-
+    <div class="loading">
+        Loading Houses...
     </div>
 
-    <div class="field">
-
-        <label for="description">
-            Description
-        </label>
-
-        <textarea
-            id="description"
-            maxlength="1000"
-            placeholder="Tell everyone what this House is about..."
-        ></textarea>
-
-    </div>
-
-    <h2>Choose your House Type</h2>
-
-    <div
-        id="types"
-        class="type-grid"
-    >
-        Loading...
-    </div>
-
-    <div id="preview"></div>
-
-    <button
-        id="create"
-        class="create-button"
-        disabled
-    >
-        🏗️ Create House
-    </button>
-
-    <div
-        id="status"
-        class="status"
-    ></div>
-
-</div>
+</section>
 
 </main>
 
 <script>
-let houseTypes = [];
-let selectedType = null;
-let currentBalance = 0;
-
-
-async function loadData() {
-
-    try {
-
-        const [typesResponse, meResponse] =
-            await Promise.all([
-                fetch("/api/houses/types", {
-                    credentials: "include"
-                }),
-                fetch("/api/me", {
-                    credentials: "include"
-                })
-            ]);
-
-
-        const typeData =
-            await typesResponse.json();
-
-        const meData =
-            await meResponse.json();
-
-
-        if (!typesResponse.ok) {
-            throw new Error(
-                typeData.error ||
-                "Failed to load House Types."
-            );
-        }
-
-
-        houseTypes =
-            Array.isArray(typeData.houseTypes)
-                ? typeData.houseTypes
-                : Array.isArray(typeData)
-                    ? typeData
-                    : [];
-
-
-        const user =
-            meData.user ||
-            meData.profile ||
-            meData;
-
-
-        currentBalance =
-            Number(
-                user?.shrekcoins ??
-                user?.shrekCoins ??
-                0
-            );
-
-
-        renderBalance();
-        renderTypes();
-
-    } catch (error) {
-
-        document.getElementById("status")
-            .textContent =
-                "😭 " + error.message;
-    }
-}
-
-
-function renderBalance() {
-
-    document.getElementById("balance")
-        .textContent =
-            `💰 Your ShrekCoins: ${currentBalance.toLocaleString()}`;
-}
-
-
-function renderTypes() {
+async function loadHouses() {
 
     const container =
-        document.getElementById("types");
-
-    if (!houseTypes.length) {
-
-        container.innerHTML =
-            "No House Types are available.";
-
-        return;
-    }
-
+        document.getElementById("house-list");
 
     container.innerHTML =
-        houseTypes.map(type => {
-
-            const reduction =
-                Number(type.tax_reduction || 0) * 100;
-
-            return `
-                <div
-                    class="type-card"
-                    data-id="${type.id}"
-                    onclick="selectType(${type.id})"
-                >
-
-                    <h3>
-                        ${escapeHtml(type.name)}
-                    </h3>
-
-                    <div class="type-price">
-                        💰 ${Number(type.cost).toLocaleString()}
-                    </div>
-
-                    <div class="type-info">
-
-                        🚪 ${type.room_count} rooms<br>
-
-                        📉 ${reduction.toFixed(1)}%
-                        marketplace tax reduction
-
-                    </div>
-
-                </div>
-            `;
-
-        }).join("");
-}
-
-
-function selectType(id) {
-
-    selectedType =
-        houseTypes.find(
-            type => Number(type.id) === Number(id)
-        );
-
-    document
-        .querySelectorAll(".type-card")
-        .forEach(card => {
-
-            card.classList.toggle(
-                "selected",
-                Number(card.dataset.id) === Number(id)
-            );
-
-        });
-
-    renderPreview();
-}
-
-
-function renderPreview() {
-
-    const preview =
-        document.getElementById("preview");
-
-    if (!selectedType) {
-
-        preview.innerHTML = "";
-
-        document.getElementById("create")
-            .disabled = true;
-
-        return;
-    }
-
-
-    const reduction =
-        Number(selectedType.tax_reduction || 0) * 100;
-
-    const affordable =
-        currentBalance >=
-        Number(selectedType.cost);
-
-
-    preview.innerHTML = `
-        <div class="preview">
-
-            <h3>
-                ${escapeHtml(selectedType.name)}
-            </h3>
-
-            <p>
-                Cost:
-                <strong>
-                    ${Number(selectedType.cost).toLocaleString()}
-                    ShrekCoins
-                </strong>
-            </p>
-
-            <p>
-                Rooms:
-                <strong>
-                    ${selectedType.room_count}
-                </strong>
-            </p>
-
-            <p>
-                Marketplace tax reduction:
-                <strong>
-                    ${reduction.toFixed(1)}%
-                </strong>
-            </p>
-
-            <p>
-                ${
-                    affordable
-                        ? "✅ You can afford this House."
-                        : "❌ You cannot afford this House."
-                }
-            </p>
-
-        </div>
-    `;
-
-
-    document.getElementById("create")
-        .disabled = !affordable;
-}
-
-
-async function createHouse() {
-
-    const name =
-        document.getElementById("name")
-            .value.trim();
-
-    const description =
-        document.getElementById("description")
-            .value.trim();
-
-    const status =
-        document.getElementById("status");
-
-    const button =
-        document.getElementById("create");
-
-
-    if (!name) {
-
-        status.textContent =
-            "Please enter a House name.";
-
-        return;
-    }
-
-    if (!selectedType) {
-
-        status.textContent =
-            "Choose a House Type first.";
-
-        return;
-    }
-
-
-    button.disabled = true;
-
-    status.textContent =
-        "🏗️ Building your House...";
-
+        `<div class="loading">🏠 Loading Houses...</div>`;
 
     try {
 
         const response =
             await fetch("/api/houses", {
-
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
-
-                credentials: "include",
-
-                body: JSON.stringify({
-                    name,
-                    description,
-                    houseTypeId:
-                        selectedType.id
-                })
+                credentials: "include"
             });
 
+        const raw = await response.text();
 
-        const data =
-            await response.json();
+        let data;
 
+        try {
+            data = JSON.parse(raw);
+        } catch {
+            throw new Error(
+                "Server returned invalid JSON."
+            );
+        }
 
         if (!response.ok) {
             throw new Error(
                 data.error ||
-                "Failed to create House."
+                "Failed to load Houses."
             );
         }
 
 
-        status.textContent =
-            "🎉 House created!";
+        // Accept all reasonable response shapes.
+
+        const houses =
+            Array.isArray(data)
+                ? data
+                : Array.isArray(data.houses)
+                    ? data.houses
+                    : Array.isArray(data.data)
+                        ? data.data
+                        : null;
+
+        if (!houses) {
+            console.error("Invalid House response:", data);
+
+            throw new Error(
+                "Invalid House response."
+            );
+        }
 
 
-        window.location.href =
-            `/house.html?id=${encodeURIComponent(
-                data.house.id
-            )}`;
+        if (!houses.length) {
+
+            container.innerHTML = `
+                <div class="empty">
+                    <div style="font-size:50px">🏚️</div>
+                    <h2>No Houses yet</h2>
+                    <p>Be the first person to build one!</p>
+                </div>
+            `;
+
+            return;
+        }
+
+
+        container.innerHTML = `
+            <div class="house-grid">
+
+                ${houses.map(house => {
+
+                    const type =
+                        house.houseType ||
+                        house.house_type ||
+                        {};
+
+                    const owner =
+                        house.owner ||
+                        {};
+
+                    const taxReduction =
+                        Number(type.tax_reduction || 0) * 100;
+
+                    return `
+                        <article class="house-card">
+
+                            <span class="house-type">
+                                ${escapeHtml(
+                                    type.name ||
+                                    house.house_type ||
+                                    "House"
+                                )}
+                            </span>
+
+                            <h2>
+                                ${escapeHtml(
+                                    house.name ||
+                                    "Unnamed House"
+                                )}
+                            </h2>
+
+                            <p>
+                                ${escapeHtml(
+                                    house.description ||
+                                    "No description."
+                                )}
+                            </p>
+
+                            <div class="house-meta">
+
+                                <div class="house-stat">
+                                    <small>Owner</small>
+                                    👤 ${
+                                        escapeHtml(
+                                            owner.display_name ||
+                                            owner.username ||
+                                            "Unknown"
+                                        )
+                                    }
+                                </div>
+
+                                <div class="house-stat">
+                                    <small>Rooms</small>
+                                    🚪 ${
+                                        house.roomCount ??
+                                        type.room_count ??
+                                        0
+                                    }
+                                </div>
+
+                                <div class="house-stat">
+                                    <small>Members</small>
+                                    👥 ${
+                                        house.memberCount ??
+                                        0
+                                    }
+                                </div>
+
+                                <div class="house-stat">
+                                    <small>Marketplace Tax</small>
+                                    <span class="tax-good">
+                                        -${taxReduction.toFixed(1)}%
+                                    </span>
+                                </div>
+
+                            </div>
+
+                            <a
+                                class="house-button"
+                                href="/house.html?id=${encodeURIComponent(house.id)}"
+                            >
+                                Enter House →
+                            </a>
+
+                        </article>
+                    `;
+
+                }).join("")}
+
+            </div>
+        `;
 
     } catch (error) {
 
-        status.textContent =
-            "😭 " + error.message;
+        console.error(error);
 
-        button.disabled = false;
+        container.innerHTML = `
+            <div class="error">
+
+                <div style="font-size:50px">😭</div>
+
+                <h2>Couldn't load Houses</h2>
+
+                <p>
+                    ${escapeHtml(error.message)}
+                </p>
+
+                <button
+                    class="house-button"
+                    onclick="loadHouses()"
+                >
+                    Try Again
+                </button>
+
+            </div>
+        `;
     }
 }
 
@@ -559,15 +400,7 @@ function escapeHtml(value) {
 }
 
 
-document
-    .getElementById("create")
-    .addEventListener(
-        "click",
-        createHouse
-    );
-
-
-loadData();
+loadHouses();
 </script>
 
 </body>

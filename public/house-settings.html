@@ -4,12 +4,9 @@
 <head>
 
 <meta charset="UTF-8">
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>House Settings — ShrekBook</title>
+<title>House — ShrekBook</title>
 
 <link rel="stylesheet" href="/styles.css">
 
@@ -17,63 +14,158 @@
 body {
     margin: 0;
     background:
-        radial-gradient(circle at top left, rgba(100,255,170,.1), transparent 35%),
+        radial-gradient(circle at top left, rgba(80,255,160,.1), transparent 35%),
         #080b10;
     color: white;
     font-family: Arial, sans-serif;
 }
 
-.settings-page {
-    max-width: 1000px;
+.house-container {
+    max-width: 1150px;
     margin: auto;
     padding: 30px 20px 80px;
 }
 
-.settings-card {
-    padding: 30px;
-    margin-bottom: 20px;
-    border-radius: 25px;
-    background: rgba(15,20,28,.95);
-    border: 1px solid rgba(255,255,255,.07);
+.hero {
+    padding: 35px;
+    border-radius: 28px;
+    background: linear-gradient(
+        135deg,
+        rgba(20,32,28,.96),
+        rgba(10,15,21,.96)
+    );
+    border: 1px solid rgba(100,255,170,.2);
 }
 
-.settings-card h1,
-.settings-card h2 {
-    margin-top: 0;
+.hero-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
 }
 
-.field {
-    margin-top: 18px;
+.hero h1 {
+    margin: 0;
+    font-size: clamp(36px, 6vw, 62px);
 }
 
-.field label {
-    display: block;
-    margin-bottom: 7px;
+.type-badge {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(90,255,160,.1);
+    color: #75ffac;
     font-weight: bold;
 }
 
-.field input,
-.field textarea {
-    width: 100%;
-    padding: 13px;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,.1);
-    background: #090e14;
-    color: white;
-    font: inherit;
+.description {
+    color: #a6b1bd;
+    max-width: 750px;
+    line-height: 1.6;
 }
 
-.field textarea {
-    min-height: 130px;
-    resize: vertical;
+.stats {
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-top: 25px;
+}
+
+.stat {
+    padding: 18px;
+    border-radius: 17px;
+    background: rgba(255,255,255,.035);
+}
+
+.stat small {
+    display: block;
+    color: #8995a3;
+    margin-bottom: 5px;
+}
+
+.section {
+    margin-top: 25px;
+}
+
+.section h2 {
+    font-size: 28px;
+}
+
+.room-grid,
+.member-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fit, minmax(240px, 1fr));
+    gap: 15px;
+}
+
+.room-card,
+.member-card {
+    padding: 20px;
+    border-radius: 20px;
+    background: rgba(15,20,28,.92);
+    border: 1px solid rgba(255,255,255,.07);
+}
+
+.room-card:hover {
+    border-color: rgba(100,255,170,.3);
+}
+
+.room-icon {
+    font-size: 35px;
+}
+
+.room-private {
+    color: #ffcc72;
+}
+
+.room-public {
+    color: #73ffab;
+}
+
+.member-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #171e27;
+}
+
+.member-info {
+    min-width: 0;
+}
+
+.member-name {
+    font-weight: bold;
+}
+
+.member-username {
+    color: #8995a3;
+    font-size: 13px;
+}
+
+.role {
+    margin-left: auto;
+    font-size: 12px;
+    color: #7dffb1;
 }
 
 .button {
+    display: inline-block;
     border: 0;
-    padding: 12px 16px;
+    padding: 11px 15px;
     border-radius: 12px;
-    background: #17241c;
+    background: #16221b;
     color: white;
+    text-decoration: none;
     cursor: pointer;
     font-weight: bold;
 }
@@ -82,47 +174,52 @@ body {
     background: linear-gradient(135deg,#38dc79,#159b54);
 }
 
-.member {
+.button.danger {
+    background: #30151a;
+    color: #ff8e9b;
+}
+
+.invite-box {
+    padding: 20px;
+    border-radius: 20px;
+    background: rgba(255,255,255,.025);
+}
+
+.invite-search {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px;
-    margin-top: 9px;
-    border-radius: 14px;
-    background: rgba(255,255,255,.035);
+    gap: 10px;
 }
 
-.avatar {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    object-fit: cover;
-    background: #18202a;
-}
-
-.member-info {
+.invite-search input {
     flex: 1;
+    padding: 13px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.1);
+    background: #0b1017;
+    color: white;
 }
 
-.username {
-    color: #778391;
-    font-size: 13px;
+.search-results {
+    margin-top: 12px;
+    display: grid;
+    gap: 8px;
 }
 
-.role {
-    color: #76ffab;
-    font-size: 13px;
+.search-user {
+    padding: 12px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.04);
+    cursor: pointer;
+}
+
+.search-user:hover {
+    background: rgba(100,255,170,.08);
 }
 
 .notice {
     text-align: center;
-    padding: 45px;
-    color: #8e99a5;
-}
-
-.status {
-    margin-top: 12px;
-    min-height: 20px;
+    color: #8d99a6;
+    padding: 40px;
 }
 </style>
 
@@ -133,17 +230,20 @@ body {
 <nav class="shrekbook-nav">
 
 <a href="/">Home</a>
+<a href="/profile.html">Profile</a>
+<a href="/shrekchat.html">💬 ShrekChat</a>
+<a href="/shreksearch.html">🔎 ShrekSearch</a>
 <a href="/houses.html">🏠 Houses</a>
 
 </nav>
 
 
-<main class="settings-page">
+<main class="house-container">
 
-<div id="page">
+<div id="content">
 
 <div class="notice">
-⚙️ Loading House Settings...
+🏠 Loading House...
 </div>
 
 </div>
@@ -154,30 +254,31 @@ body {
 <script>
 
 const params =
-    new URLSearchParams(
-        location.search
-    );
+    new URLSearchParams(location.search);
 
 const houseId =
     params.get("id");
 
 
-let houseData = null;
-
-
 if (!houseId) {
 
-    showError(
-        "No House ID was provided."
-    );
+    document.getElementById("content")
+        .innerHTML = `
+            <div class="notice">
+                😭 No House ID was provided.
+            </div>
+        `;
 
 } else {
 
-    loadSettings();
+    loadHouse();
 }
 
 
-async function loadSettings() {
+async function loadHouse() {
+
+    const content =
+        document.getElementById("content");
 
     try {
 
@@ -190,8 +291,21 @@ async function loadSettings() {
             );
 
 
-        const data =
-            await response.json();
+        const raw =
+            await response.text();
+
+        let data;
+
+        try {
+            data = JSON.parse(raw);
+        } catch {
+
+            console.error(raw);
+
+            throw new Error(
+                "Server returned invalid JSON."
+            );
+        }
 
 
         if (!response.ok) {
@@ -203,7 +317,19 @@ async function loadSettings() {
         }
 
 
-        if (!data.house) {
+        // ----------------------------------------------------
+        // EXPECTED API CONTRACT
+        // ----------------------------------------------------
+
+        const house =
+            data.house;
+
+        if (!house) {
+
+            console.error(
+                "Invalid House response:",
+                data
+            );
 
             throw new Error(
                 "Invalid House response."
@@ -211,433 +337,447 @@ async function loadSettings() {
         }
 
 
-        houseData = data;
+        const houseType =
+            data.houseType ||
+            null;
+
+        const owner =
+            data.owner ||
+            null;
+
+        const rooms =
+            Array.isArray(data.rooms)
+                ? data.rooms
+                : [];
+
+        const members =
+            Array.isArray(data.members)
+                ? data.members
+                : [];
 
 
-        const membership =
-            data.membership;
+        const taxReduction =
+            houseType
+                ? Number(
+                    houseType.tax_reduction || 0
+                  ) * 100
+                : 0;
 
 
-        if (
-            !membership ||
-            !["owner", "admin"]
-                .includes(membership.role)
-        ) {
+        content.innerHTML = `
 
-            throw new Error(
-                "You do not have permission to access House Settings."
-            );
-        }
+            <section class="hero">
 
+                <div class="hero-top">
 
-        render();
+                    <div>
 
-    } catch (error) {
+                        <h1>
+                            🏠 ${escapeHtml(
+                                house.name
+                            )}
+                        </h1>
 
-        showError(
-            error.message
-        );
-    }
-}
+                        <div class="type-badge">
+                            ${escapeHtml(
+                                houseType?.name ||
+                                house.house_type ||
+                                "House"
+                            )}
+                        </div>
 
+                    </div>
 
-function render() {
+                    <div>
 
-    const page =
-        document.getElementById("page");
+                        <a
+                            class="button"
+                            href="/houses.html"
+                        >
+                            ← Houses
+                        </a>
 
-    const house =
-        houseData.house;
-
-    const type =
-        houseData.houseType ||
-        {};
-
-    const members =
-        Array.isArray(
-            houseData.members
-        )
-            ? houseData.members
-            : [];
-
-
-    page.innerHTML = `
-
-        <section class="settings-card">
-
-            <h1>
-                ⚙️ ${escapeHtml(
-                    house.name
-                )}
-            </h1>
-
-            <p>
-                Manage your House information
-                and members.
-            </p>
-
-            <div class="field">
-
-                <label>
-                    House Name
-                </label>
-
-                <input
-                    id="house-name"
-                    maxlength="80"
-                    value="${escapeHtml(
-                        house.name
-                    )}"
-                >
-
-            </div>
-
-
-            <div class="field">
-
-                <label>
-                    Description
-                </label>
-
-                <textarea
-                    id="house-description"
-                    maxlength="1000"
-                >${escapeHtml(
-                    house.description || ""
-                )}</textarea>
-
-            </div>
-
-
-            <div class="field">
-
-                <p>
-                    🏠 House Type:
-                    <strong>
-                        ${escapeHtml(
-                            type.name ||
-                            house.house_type ||
-                            "Unknown"
-                        )}
-                    </strong>
-                </p>
-
-                <p>
-                    🚪 Rooms:
-                    <strong>
-                        ${type.room_count || "?"}
-                    </strong>
-                </p>
-
-                <p>
-                    📉 Marketplace Tax Reduction:
-                    <strong style="color:#75ffab">
                         ${
-                            Number(
-                                type.tax_reduction || 0
-                            ) * 100
-                        }%
-                    </strong>
+                            data.membership &&
+                            ["owner","admin"]
+                                .includes(
+                                    data.membership.role
+                                )
+                                ? `
+                                    <a
+                                        class="button"
+                                        href="/house-settings.html?id=${encodeURIComponent(house.id)}"
+                                    >
+                                        ⚙️ Settings
+                                    </a>
+                                `
+                                : ""
+                        }
+
+                    </div>
+
+                </div>
+
+
+                <p class="description">
+                    ${escapeHtml(
+                        house.description ||
+                        "No description."
+                    )}
                 </p>
 
-                <small>
-                    House Type cannot be changed after
-                    creation.
-                </small>
 
-            </div>
+                <div class="stats">
 
+                    <div class="stat">
 
-            <button
-                class="button primary"
-                onclick="saveHouse()"
-            >
-                💾 Save Changes
-            </button>
+                        <small>Owner</small>
 
-            <div
-                id="save-status"
-                class="status"
-            ></div>
+                        👑 ${
+                            escapeHtml(
+                                owner?.display_name ||
+                                owner?.username ||
+                                "Unknown"
+                            )
+                        }
 
-        </section>
+                    </div>
 
 
-        <section class="settings-card">
+                    <div class="stat">
 
-            <h2>
-                👑 House Members
-            </h2>
+                        <small>Rooms</small>
 
-            <p>
-                The owner can promote members to
-                House Admins. Admins can manage
-                members but cannot manage other Admins.
-            </p>
+                        🚪 ${rooms.length}
 
-            <div>
+                    </div>
 
-                ${
-                    members.map(member => {
 
-                        const profile =
-                            member.profile ||
-                            {};
+                    <div class="stat">
 
-                        const isOwner =
-                            member.role === "owner";
+                        <small>Members</small>
 
-                        return `
+                        👥 ${members.length}
 
-                            <div class="member">
+                    </div>
 
-                                ${
-                                    profile.avatar_url
-                                        ? `
-                                            <img
-                                                class="avatar"
-                                                src="${escapeHtml(
-                                                    profile.avatar_url
-                                                )}"
-                                            >
-                                        `
-                                        : `
-                                            <div
-                                                class="avatar"
-                                                style="
-                                                    display:grid;
-                                                    place-items:center;
-                                                "
-                                            >
-                                                👤
-                                            </div>
-                                        `
-                                }
 
-                                <div class="member-info">
+                    <div class="stat">
 
-                                    <strong>
+                        <small>Marketplace Tax</small>
+
+                        <strong
+                            style="color:#74ffab"
+                        >
+                            ${taxReduction
+                                ? `-${taxReduction.toFixed(1)}%`
+                                : "0.0%"
+                            }
+                        </strong>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <section class="section">
+
+                <h2>🚪 Rooms</h2>
+
+                <div class="room-grid">
+
+                    ${
+                        rooms.length
+                            ? rooms.map(room => {
+
+                                const privateRoom =
+                                    room.room_type ===
+                                    "bedroom";
+
+                                return `
+
+                                    <article
+                                        class="room-card"
+                                    >
+
+                                        <div
+                                            class="room-icon"
+                                        >
+                                            ${
+                                                privateRoom
+                                                    ? "🛏️"
+                                                    : "🛋️"
+                                            }
+                                        </div>
+
+                                        <h3>
+                                            ${escapeHtml(
+                                                room.name
+                                            )}
+                                        </h3>
+
+                                        <p class="${
+                                            privateRoom
+                                                ? "room-private"
+                                                : "room-public"
+                                        }">
+
+                                            ${
+                                                privateRoom
+                                                    ? "🔒 Private Bedroom"
+                                                    : "🌐 Public Room"
+                                            }
+
+                                        </p>
+
+                                        ${
+                                            privateRoom &&
+                                            room.bedroomOwner
+                                                ? `
+                                                    <p>
+                                                        👤 Bedroom of
+                                                        <strong>
+                                                            ${escapeHtml(
+                                                                room.bedroomOwner.display_name ||
+                                                                room.bedroomOwner.username
+                                                            )}
+                                                        </strong>
+                                                    </p>
+                                                `
+                                                : ""
+                                        }
+
+                                        <a
+                                            class="button primary"
+                                            href="/house-room.html?house=${encodeURIComponent(house.id)}&room=${encodeURIComponent(room.id)}"
+                                        >
+                                            Enter Room →
+                                        </a>
+
+                                    </article>
+
+                                `;
+
+                            }).join("")
+                            : `
+                                <div class="notice">
+                                    No rooms found.
+                                </div>
+                            `
+                    }
+
+                </div>
+
+            </section>
+
+
+            <section class="section">
+
+                <h2>👥 Members</h2>
+
+                <div class="member-grid">
+
+                    ${
+                        members.map(member => {
+
+                            const profile =
+                                member.profile ||
+                                {};
+
+                            return `
+
+                                <div class="member-card">
+
+                                    ${
+                                        profile.avatar_url
+                                            ? `
+                                                <img
+                                                    class="avatar"
+                                                    src="${escapeHtml(
+                                                        profile.avatar_url
+                                                    )}"
+                                                >
+                                            `
+                                            : `
+                                                <div
+                                                    class="avatar"
+                                                    style="
+                                                        display:grid;
+                                                        place-items:center;
+                                                        font-size:22px;
+                                                    "
+                                                >
+                                                    👤
+                                                </div>
+                                            `
+                                    }
+
+                                    <div class="member-info">
+
+                                        <div class="member-name">
+
+                                            ${escapeHtml(
+                                                profile.display_name ||
+                                                profile.username ||
+                                                "Unknown"
+                                            )}
+
+                                        </div>
+
+                                        <div class="member-username">
+
+                                            @${escapeHtml(
+                                                profile.username ||
+                                                "unknown"
+                                            )}
+
+                                        </div>
+
+                                    </div>
+
+                                    <div class="role">
+
                                         ${escapeHtml(
-                                            profile.display_name ||
-                                            profile.username ||
-                                            "Unknown"
-                                        )}
-                                    </strong>
-
-                                    <div class="username">
-
-                                        @${escapeHtml(
-                                            profile.username ||
-                                            "unknown"
+                                            member.role
                                         )}
 
                                     </div>
 
                                 </div>
 
-                                <div class="role">
+                            `;
 
-                                    ${escapeHtml(
-                                        member.role
-                                    )}
+                        }).join("")
+                    }
 
-                                </div>
+                </div>
 
-
-                                ${
-                                    !isOwner &&
-                                    houseData.membership?.role === "owner"
-                                        ? member.role === "admin"
-                                            ? `
-                                                <button
-                                                    class="button"
-                                                    onclick="demoteAdmin('${member.user_id}')"
-                                                >
-                                                    Demote
-                                                </button>
-                                            `
-                                            : `
-                                                <button
-                                                    class="button"
-                                                    onclick="promoteAdmin('${member.user_id}')"
-                                                >
-                                                    Make Admin
-                                                </button>
-                                            `
-                                        : ""
-                                }
+            </section>
 
 
-                                ${
-                                    !isOwner &&
-                                    (
-                                        houseData.membership?.role === "owner" ||
-                                        (
-                                            houseData.membership?.role === "admin" &&
-                                            member.role === "member"
-                                        )
-                                    )
-                                        ? `
-                                            <button
-                                                class="button"
-                                                onclick="removeMember('${member.user_id}')"
-                                            >
-                                                Remove
-                                            </button>
-                                        `
-                                        : ""
-                                }
+            <section class="section">
 
-                            </div>
+                <h2>📨 Invite Someone</h2>
 
-                        `;
+                <div class="invite-box">
 
-                    }).join("")
+                    <div class="invite-search">
 
+                        <input
+                            id="user-search"
+                            placeholder="Search ShrekBook users..."
+                            autocomplete="off"
+                        >
+
+                        <button
+                            class="button primary"
+                            onclick="searchUsers()"
+                        >
+                            Search
+                        </button>
+
+                    </div>
+
+                    <div
+                        id="search-results"
+                        class="search-results"
+                    ></div>
+
+                </div>
+
+            </section>
+
+        `;
+
+
+        const search =
+            document.getElementById(
+                "user-search"
+            );
+
+        search.addEventListener(
+            "keydown",
+            event => {
+
+                if (event.key === "Enter") {
+                    searchUsers();
                 }
 
-            </div>
-
-        </section>
-
-    `;
-}
-
-
-async function saveHouse() {
-
-    const name =
-        document.getElementById(
-            "house-name"
-        ).value.trim();
-
-    const description =
-        document.getElementById(
-            "house-description"
-        ).value.trim();
-
-    const status =
-        document.getElementById(
-            "save-status"
+            }
         );
-
-
-    status.textContent =
-        "💾 Saving...";
-
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/houses/${encodeURIComponent(houseId)}`,
-                {
-
-                    method: "PUT",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    credentials: "include",
-
-                    body: JSON.stringify({
-                        name,
-                        description
-                    })
-
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Failed to save."
-            );
-        }
-
-
-        status.textContent =
-            "✅ Saved!";
 
     } catch (error) {
 
-        status.textContent =
-            "😭 " + error.message;
+        console.error(error);
+
+        content.innerHTML = `
+
+            <div class="notice">
+
+                <div style="font-size:55px">
+                    😭
+                </div>
+
+                <h2>
+                    Couldn't load House
+                </h2>
+
+                <p>
+                    ${escapeHtml(
+                        error.message
+                    )}
+                </p>
+
+                <button
+                    class="button"
+                    onclick="loadHouse()"
+                >
+                    Try Again
+                </button>
+
+            </div>
+
+        `;
     }
 }
 
 
-async function promoteAdmin(userId) {
+async function searchUsers() {
 
-    if (
-        !confirm(
-            "Make this member a House Admin?"
-        )
-    ) return;
+    const input =
+        document.getElementById(
+            "user-search"
+        );
 
+    const results =
+        document.getElementById(
+            "search-results"
+        );
 
-    await memberAction(
-        `/api/houses/${encodeURIComponent(houseId)}/admins/${encodeURIComponent(userId)}`,
-        {
-            method: "POST"
-        }
-    );
-}
+    const query =
+        input.value.trim();
 
+    if (!query) {
 
-async function demoteAdmin(userId) {
+        results.innerHTML =
+            "<p>Type something to search.</p>";
 
-    if (
-        !confirm(
-            "Remove this member's Admin role?"
-        )
-    ) return;
+        return;
+    }
 
 
-    await memberAction(
-        `/api/houses/${encodeURIComponent(houseId)}/admins/${encodeURIComponent(userId)}`,
-        {
-            method: "DELETE"
-        }
-    );
-}
+    results.innerHTML =
+        "🔎 Searching...";
 
-
-async function removeMember(userId) {
-
-    if (
-        !confirm(
-            "Remove this member from the House?"
-        )
-    ) return;
-
-
-    await memberAction(
-        `/api/houses/${encodeURIComponent(houseId)}/members/${encodeURIComponent(userId)}`,
-        {
-            method: "DELETE"
-        }
-    );
-}
-
-
-async function memberAction(url, options) {
 
     try {
 
         const response =
             await fetch(
-                url,
+                `/api/users/search?q=${encodeURIComponent(query)}`,
                 {
-                    ...options,
                     credentials: "include"
                 }
             );
@@ -651,12 +791,105 @@ async function memberAction(url, options) {
 
             throw new Error(
                 data.error ||
-                "Action failed."
+                "Search failed."
             );
         }
 
 
-        await loadSettings();
+        const users =
+            Array.isArray(data.users)
+                ? data.users
+                : [];
+
+
+        if (!users.length) {
+
+            results.innerHTML =
+                "<p>No users found.</p>";
+
+            return;
+        }
+
+
+        results.innerHTML =
+            users.map(user => `
+
+                <div
+                    class="search-user"
+                    onclick="inviteUser('${user.id}')"
+                >
+
+                    👤
+
+                    <strong>
+                        ${escapeHtml(
+                            user.display_name ||
+                            user.username
+                        )}
+                    </strong>
+
+                    @${escapeHtml(
+                        user.username
+                    )}
+
+                    <span style="float:right">
+                        ➕ Invite
+                    </span>
+
+                </div>
+
+            `).join("");
+
+
+    } catch (error) {
+
+        results.innerHTML =
+            `😭 ${escapeHtml(
+                error.message
+            )}`;
+    }
+}
+
+
+async function inviteUser(userId) {
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${encodeURIComponent(houseId)}/invite`,
+                {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    credentials: "include",
+
+                    body: JSON.stringify({
+                        userId
+                    })
+
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to invite user."
+            );
+        }
+
+
+        alert("📨 Invitation sent!");
 
     } catch (error) {
 
@@ -664,38 +897,6 @@ async function memberAction(url, options) {
             "😭 " + error.message
         );
     }
-}
-
-
-function showError(message) {
-
-    document.getElementById("page")
-        .innerHTML = `
-
-            <div class="notice">
-
-                <div style="font-size:55px">
-                    😭
-                </div>
-
-                <h2>
-                    Couldn't load House Settings
-                </h2>
-
-                <p>
-                    ${escapeHtml(message)}
-                </p>
-
-                <a
-                    class="button"
-                    href="/houses.html"
-                >
-                    ← Houses
-                </a>
-
-            </div>
-
-        `;
 }
 
 
