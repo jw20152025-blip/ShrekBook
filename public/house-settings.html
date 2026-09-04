@@ -3,6 +3,7 @@
 <head>
 
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -28,14 +29,39 @@
             background: white;
             border-radius: 12px;
             padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .back {
+            display: inline-block;
+            margin-bottom: 15px;
+            color: #4b8f29;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .back:hover {
+            text-decoration: underline;
+        }
+
+        #room h1 {
+            margin-bottom: 5px;
+        }
+
+        #room p {
+            color: #666;
+            margin-top: 5px;
         }
 
         #messages {
             height: 500px;
             overflow-y: auto;
             border: 1px solid #ddd;
+            border-radius: 8px;
             padding: 15px;
+            margin-top: 20px;
             margin-bottom: 15px;
+            background: #fafafa;
         }
 
         .message {
@@ -43,9 +69,43 @@
             border-bottom: 1px solid #eee;
         }
 
+        .message:last-child {
+            border-bottom: none;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .avatar-placeholder {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .username {
+            font-weight: bold;
+        }
+
         .time {
             color: #888;
             font-size: 12px;
+            margin-top: 5px;
         }
 
         textarea {
@@ -56,6 +116,13 @@
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 7px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #4b8f29;
         }
 
         button {
@@ -66,10 +133,34 @@
             border: none;
             border-radius: 7px;
             cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #3d7622;
+        }
+
+        button:disabled {
+            background: #999;
+            cursor: not-allowed;
         }
 
         .error {
             color: #b00020;
+        }
+
+        .empty {
+            color: #777;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .private {
+            color: #9a6700;
+        }
+
+        .public {
+            color: #4b8f29;
         }
 
     </style>
@@ -82,6 +173,14 @@
 
     <div class="box">
 
+        <a
+            id="backLink"
+            class="back"
+            href="#"
+        >
+            ← Back to House
+        </a>
+
         <div id="room">
             Loading room...
         </div>
@@ -93,19 +192,28 @@
         <textarea
             id="message"
             placeholder="Write a message..."
+            maxlength="2000"
         ></textarea>
 
         <button id="send">
             Send
         </button>
 
-        <p id="error" class="error"></p>
+        <p
+            id="error"
+            class="error"
+        ></p>
 
     </div>
 
 </main>
 
+
 <script>
+
+    // ========================================================
+    // URL PARAMETERS
+    // ========================================================
 
     const params =
         new URLSearchParams(
@@ -119,6 +227,10 @@
         params.get("room");
 
 
+    // ========================================================
+    // ELEMENTS
+    // ========================================================
+
     const roomContainer =
         document.getElementById("room");
 
@@ -131,6 +243,41 @@
     const errorContainer =
         document.getElementById("error");
 
+    const sendButton =
+        document.getElementById("send");
+
+    const backLink =
+        document.getElementById("backLink");
+
+
+    // ========================================================
+    // VALIDATE URL
+    // ========================================================
+
+    if (!houseId || !roomId) {
+
+        roomContainer.innerHTML = `
+            <h1 class="error">
+                Invalid room link.
+            </h1>
+        `;
+
+        messagesContainer.innerHTML = "";
+
+        messageInput.disabled = true;
+        sendButton.disabled = true;
+
+    } else {
+
+        backLink.href =
+            `/house.html?id=${encodeURIComponent(houseId)}`;
+
+    }
+
+
+    // ========================================================
+    // ESCAPE HTML
+    // ========================================================
 
     function escapeHtml(value) {
 
@@ -144,7 +291,13 @@
     }
 
 
+    // ========================================================
+    // LOAD ROOM
+    // ========================================================
+
     async function loadRoom() {
+
+        if (!houseId || !roomId) return;
 
         try {
 
@@ -168,48 +321,92 @@
             const room =
                 data.room || data;
 
+            const isBedroom =
+                room.room_type === "bedroom";
+
+
             roomContainer.innerHTML = `
 
                 <h1>
 
                     ${
-                        room.room_type === "bedroom"
+                        isBedroom
                             ? "🛏️"
                             : "🚪"
                     }
 
-                    ${escapeHtml(room.name)}
+                    ${escapeHtml(
+                        room.name ||
+                        "Room"
+                    )}
 
                 </h1>
 
-                <p>
+                <p
+                    class="${
+                        isBedroom
+                            ? "private"
+                            : "public"
+                    }"
+                >
 
                     ${
-                        room.room_type === "bedroom"
-                            ? "Private bedroom"
-                            : "Public room"
+                        isBedroom
+                            ? "🔒 Private bedroom"
+                            : "🌎 Public room"
                     }
 
                 </p>
+
+                ${
+                    isBedroom &&
+                    data.bedroomOwner
+                        ? `
+                            <p>
+                                Bedroom owner:
+                                <strong>
+                                    ${escapeHtml(
+                                        data.bedroomOwner.display_name ||
+                                        data.bedroomOwner.username ||
+                                        "Unknown"
+                                    )}
+                                </strong>
+                            </p>
+                        `
+                        : ""
+                }
 
             `;
 
         } catch (error) {
 
-            console.error(error);
+            console.error(
+                "Load room error:",
+                error
+            );
 
             roomContainer.innerHTML = `
                 <h1 class="error">
-                    ${escapeHtml(error.message)}
+                    ${escapeHtml(
+                        error.message
+                    )}
                 </h1>
             `;
 
+            messageInput.disabled = true;
+            sendButton.disabled = true;
         }
 
     }
 
 
+    // ========================================================
+    // LOAD MESSAGES
+    // ========================================================
+
     async function loadMessages() {
+
+        if (!houseId || !roomId) return;
 
         try {
 
@@ -235,111 +432,242 @@
                     ? data
                     : data.messages || [];
 
-            messagesContainer.innerHTML =
-                messages.map(message => `
 
-                    <div class="message">
+            if (!messages.length) {
 
-                        <strong>
-                            ${escapeHtml(
-                                message.username ||
-                                message.display_name ||
-                                "Unknown"
-                            )}
-                        </strong>
-
-                        <div>
-                            ${escapeHtml(
-                                message.message
-                            )}
-                        </div>
-
-                        <div class="time">
-                            ${escapeHtml(
-                                new Date(
-                                    message.created_at
-                                ).toLocaleString()
-                            )}
-                        </div>
-
+                messagesContainer.innerHTML = `
+                    <div class="empty">
+                        No messages yet. Be the first to say something!
                     </div>
+                `;
 
-                `).join("");
+                return;
+            }
+
+
+            messagesContainer.innerHTML =
+                messages.map(message => {
+
+                    // IMPORTANT:
+                    // The API returns the profile as
+                    // message.profile
+
+                    const profile =
+                        message.profile || {};
+
+                    const displayName =
+                        profile.display_name ||
+                        profile.username ||
+                        message.username ||
+                        message.display_name ||
+                        "Unknown";
+
+                    const avatar =
+                        profile.avatar_url ||
+                        "";
+
+                    return `
+
+                        <div class="message">
+
+                            <div class="message-header">
+
+                                ${
+                                    avatar
+                                        ? `
+                                            <img
+                                                class="avatar"
+                                                src="${escapeHtml(
+                                                    avatar
+                                                )}"
+                                                alt=""
+                                            >
+                                        `
+                                        : `
+                                            <div class="avatar-placeholder">
+                                                👤
+                                            </div>
+                                        `
+                                }
+
+                                <span class="username">
+
+                                    ${escapeHtml(
+                                        displayName
+                                    )}
+
+                                </span>
+
+                            </div>
+
+                            <div>
+                                ${escapeHtml(
+                                    message.message
+                                )}
+                            </div>
+
+                            <div class="time">
+
+                                ${escapeHtml(
+                                    new Date(
+                                        message.created_at
+                                    ).toLocaleString()
+                                )}
+
+                            </div>
+
+                        </div>
+
+                    `;
+
+                }).join("");
+
 
             messagesContainer.scrollTop =
                 messagesContainer.scrollHeight;
 
         } catch (error) {
 
-            console.error(error);
+            console.error(
+                "Load messages error:",
+                error
+            );
+
+            messagesContainer.innerHTML = `
+                <div class="error">
+                    ${escapeHtml(
+                        error.message
+                    )}
+                </div>
+            `;
 
         }
 
     }
 
 
-    document
-        .getElementById("send")
-        .addEventListener("click", async () => {
+    // ========================================================
+    // SEND MESSAGE
+    // ========================================================
 
-            const message =
-                messageInput.value.trim();
+    async function sendMessage() {
 
-            if (!message) return;
+        const message =
+            messageInput.value.trim();
 
-            try {
+        if (!message) {
+            return;
+        }
 
-                const response =
-                    await fetch(
-                        `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}/messages`,
-                        {
-                            method: "POST",
+        errorContainer.textContent = "";
 
-                            headers: {
-                                "Content-Type":
-                                    "application/json"
-                            },
+        sendButton.disabled = true;
 
-                            body: JSON.stringify({
-                                message
-                            })
-                        }
-                    );
+        try {
 
-                const data =
-                    await response.json();
+            const response =
+                await fetch(
+                    `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}/messages`,
+                    {
+                        method: "POST",
 
-                if (!response.ok) {
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
 
-                    throw new Error(
-                        data.error ||
-                        "Failed to send message."
-                    );
+                        body: JSON.stringify({
+                            message
+                        })
+                    }
+                );
 
-                }
+            const data =
+                await response.json();
 
-                messageInput.value = "";
+            if (!response.ok) {
 
-                await loadMessages();
-
-            } catch (error) {
-
-                errorContainer.textContent =
-                    error.message;
+                throw new Error(
+                    data.error ||
+                    "Failed to send message."
+                );
 
             }
 
-        });
+            messageInput.value = "";
+
+            await loadMessages();
+
+        } catch (error) {
+
+            console.error(
+                "Send message error:",
+                error
+            );
+
+            errorContainer.textContent =
+                error.message;
+
+        } finally {
+
+            sendButton.disabled = false;
+
+            messageInput.focus();
+
+        }
+
+    }
 
 
-    loadRoom();
-    loadMessages();
+    // ========================================================
+    // SEND BUTTON
+    // ========================================================
 
-
-    setInterval(
-        loadMessages,
-        3000
+    sendButton.addEventListener(
+        "click",
+        sendMessage
     );
+
+
+    // ========================================================
+    // CTRL + ENTER
+    // ========================================================
+
+    messageInput.addEventListener(
+        "keydown",
+        event => {
+
+            if (
+                event.ctrlKey &&
+                event.key === "Enter"
+            ) {
+
+                event.preventDefault();
+
+                sendMessage();
+
+            }
+
+        }
+    );
+
+
+    // ========================================================
+    // INITIAL LOAD
+    // ========================================================
+
+    if (houseId && roomId) {
+
+        loadRoom();
+
+        loadMessages();
+
+        setInterval(
+            loadMessages,
+            3000
+        );
+
+    }
 
 </script>
 

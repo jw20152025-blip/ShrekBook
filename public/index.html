@@ -199,6 +199,98 @@
             margin: 40px auto;
             padding: 20px;
         }
+        /* =========================
+        SHREKBOOK NAVBAR
+        ========================= */
+
+        .shrekbook-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            position: relative;
+            padding: 10px;
+        }
+
+        /* Normal navbar links/buttons */
+        .shrekbook-nav > a,
+        .shrekbook-nav > button,
+        .nav-dropdown-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+
+            padding: 8px 12px;
+
+            text-decoration: none;
+            border: none;
+            border-radius: 8px;
+
+            cursor: pointer;
+        }
+
+        /* Dropdown container */
+        .nav-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        /* More button */
+        .nav-dropdown-button {
+            font: inherit;
+        }
+
+        /* Dropdown menu */
+        .nav-dropdown-menu {
+            display: none;
+
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+
+            min-width: 180px;
+
+            padding: 6px;
+
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+
+            z-index: 9999;
+        }
+
+        /* When JS adds .show */
+        .nav-dropdown-menu.show {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Links INSIDE dropdown */
+        .nav-dropdown-menu a {
+            display: block;
+
+            width: 100%;
+            box-sizing: border-box;
+
+            padding: 9px 12px;
+
+            text-decoration: none;
+            white-space: nowrap;
+
+            border-radius: 7px;
+        }
+
+        /* Hover */
+        .nav-dropdown-menu a:hover {
+            background: #eee;
+        }
+
+        /* Prevent dropdown from being squished */
+        .nav-dropdown {
+            flex-shrink: 0;
+        }
 
     </style>
 
