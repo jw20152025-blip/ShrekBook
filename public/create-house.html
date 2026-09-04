@@ -3,547 +3,362 @@
 <head>
 
 <meta charset="UTF-8">
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Create a House • ShrekBook</title>
+<title>Create a House — ShrekBook</title>
 
 <link rel="stylesheet" href="/styles.css">
 
 <style>
-
 body {
-    margin: 0;
     background:
-        radial-gradient(
-            circle at 20% 10%,
-            rgba(88,224,111,.13),
-            transparent 30%
-        ),
-        #050806;
-    color: #f4fff5;
+        radial-gradient(circle at top, rgba(70,255,150,.12), transparent 40%),
+        #080b10;
+    color: white;
     font-family: Arial, sans-serif;
 }
 
 .create-page {
-    width: min(1050px, calc(100% - 22px));
-    margin: 35px auto 80px;
+    max-width: 1000px;
+    margin: auto;
+    padding: 35px 20px 80px;
 }
 
-.hero {
-    padding: 34px;
-    border-radius: 27px;
-    border: 1px solid rgba(88,224,111,.25);
-    background:
-        linear-gradient(
-            135deg,
-            rgba(22,52,28,.9),
-            rgba(7,17,10,.95)
-        );
+.create-card {
+    background: rgba(15,20,28,.94);
+    border: 1px solid rgba(120,255,180,.18);
+    border-radius: 28px;
+    padding: 35px;
+    box-shadow: 0 20px 80px rgba(0,0,0,.35);
 }
 
-.hero small {
-    color: #58e06f;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-}
-
-.hero h1 {
-    margin: 8px 0;
-    font-size: clamp(34px, 7vw, 58px);
-}
-
-.hero p {
-    max-width: 700px;
-    color: #aab9ad;
-    line-height: 1.7;
-}
-
-.layout {
-    display: grid;
-    grid-template-columns: 1fr 1.25fr;
-    gap: 18px;
-    margin-top: 20px;
-}
-
-.panel {
-    padding: 23px;
-    border-radius: 22px;
-    background: rgba(15,25,17,.78);
-    border: 1px solid rgba(88,224,111,.18);
-}
-
-.panel h2 {
+.create-card h1 {
+    font-size: 48px;
     margin-top: 0;
 }
 
-label {
-    display: block;
-    margin-top: 17px;
-    margin-bottom: 7px;
-    font-weight: 700;
-}
-
-input,
-textarea {
-    width: 100%;
-    box-sizing: border-box;
-    border: 1px solid rgba(255,255,255,.1);
-    border-radius: 13px;
-    padding: 13px;
-    background: rgba(0,0,0,.28);
-    color: white;
-    outline: none;
-}
-
-textarea {
-    min-height: 130px;
-    resize: vertical;
-}
-
-input:focus,
-textarea:focus {
-    border-color: rgba(88,224,111,.65);
-    box-shadow: 0 0 18px rgba(88,224,111,.08);
+.subtitle {
+    color: #9aa7b5;
 }
 
 .type-grid {
     display: grid;
-    gap: 11px;
+    grid-template-columns:
+        repeat(auto-fit, minmax(190px, 1fr));
+    gap: 14px;
+    margin: 25px 0;
 }
 
 .type-card {
-    cursor: pointer;
-    padding: 16px;
-    border-radius: 16px;
+    padding: 20px;
+    border-radius: 18px;
     border: 1px solid rgba(255,255,255,.08);
     background: rgba(255,255,255,.025);
-    transition: .18s;
+    cursor: pointer;
+    transition: .2s;
 }
 
 .type-card:hover {
-    border-color: rgba(88,224,111,.4);
+    transform: translateY(-3px);
+    border-color: rgba(100,255,170,.3);
 }
 
 .type-card.selected {
-    border-color: #58e06f;
-    background: rgba(88,224,111,.09);
-    box-shadow: 0 0 22px rgba(88,224,111,.08);
+    border-color: #62ff9e;
+    background: rgba(70,255,150,.08);
+    box-shadow: 0 0 25px rgba(70,255,150,.1);
 }
 
-.type-top {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
+.type-card h3 {
+    margin: 0 0 8px;
 }
 
-.type-name {
-    font-weight: 900;
-    font-size: 17px;
+.type-price {
+    font-size: 20px;
+    font-weight: bold;
 }
 
-.type-cost {
-    color: #58e06f;
-    font-weight: 900;
+.type-info {
+    color: #8995a3;
+    font-size: 14px;
+    margin-top: 10px;
+    line-height: 1.6;
 }
 
-.type-desc {
-    margin-top: 7px;
-    color: #89978d;
-    font-size: 13px;
+.field {
+    margin-top: 20px;
 }
 
-.type-stats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 7px;
-    margin-top: 12px;
+.field label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
 }
 
-.pill {
-    padding: 6px 9px;
-    border-radius: 999px;
-    background: rgba(255,255,255,.06);
-    color: #c4d0c7;
-    font-size: 12px;
+.field input,
+.field textarea {
+    width: 100%;
+    padding: 14px;
+    border-radius: 13px;
+    border: 1px solid rgba(255,255,255,.1);
+    background: #0b1017;
+    color: white;
+    outline: none;
+    font: inherit;
+}
+
+.field textarea {
+    min-height: 130px;
+    resize: vertical;
+}
+
+.balance {
+    margin: 20px 0;
+    padding: 15px;
+    border-radius: 15px;
+    background: rgba(255,255,255,.035);
 }
 
 .preview {
-    margin-top: 20px;
-    padding: 18px;
-    border-radius: 17px;
-    background: rgba(88,224,111,.055);
-    border: 1px solid rgba(88,224,111,.15);
+    margin-top: 25px;
+    padding: 20px;
+    border-radius: 18px;
+    background: rgba(100,255,170,.05);
+    border: 1px solid rgba(100,255,170,.15);
 }
 
-.preview-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 8px 0;
-    border-bottom: 1px solid rgba(255,255,255,.05);
-}
-
-.preview-row:last-child {
-    border-bottom: 0;
-}
-
-.preview-row span {
-    color: #89978d;
-}
-
-.submit {
+.create-button {
+    margin-top: 25px;
     width: 100%;
-    margin-top: 20px;
-    padding: 15px;
     border: 0;
-    border-radius: 14px;
-    background: #58e06f;
-    color: #061008;
-    font-weight: 900;
-    font-size: 15px;
+    padding: 17px;
+    border-radius: 15px;
+    background: linear-gradient(135deg,#39e47c,#159a53);
+    color: white;
+    font-size: 17px;
+    font-weight: bold;
     cursor: pointer;
 }
 
-.submit:disabled {
+.create-button:disabled {
     opacity: .5;
-    cursor: wait;
-}
-
-.back {
-    display: inline-block;
-    margin-top: 20px;
-    color: #9daf9f;
-    text-decoration: none;
+    cursor: not-allowed;
 }
 
 .status {
-    margin-top: 13px;
-    padding: 12px;
-    border-radius: 12px;
-    display: none;
+    margin-top: 15px;
+    text-align: center;
+    min-height: 24px;
 }
-
-.status.show {
-    display: block;
-}
-
-.status.error {
-    color: #ffaaaa;
-    background: rgba(255,70,70,.08);
-}
-
-.status.success {
-    color: #8cff9d;
-    background: rgba(88,224,111,.08);
-}
-
-@media(max-width: 800px) {
-    .layout {
-        grid-template-columns: 1fr;
-    }
-}
-
 </style>
+
 </head>
 
 <body>
 
 <nav class="shrekbook-nav">
     <a href="/">Home</a>
+    <a href="/profile.html">Profile</a>
     <a href="/houses.html">🏠 Houses</a>
 </nav>
 
-
 <main class="create-page">
 
-<section class="hero">
-
-    <small>ShrekBook Housing</small>
+<div class="create-card">
 
     <h1>🏗️ Build a House</h1>
 
-    <p>
-        Pick your House type, name your place,
-        and spend some hard-earned ShrekCoins.
-        Bigger Houses cost more, but give you more rooms
-        and a larger marketplace tax reduction.
+    <p class="subtitle">
+        Choose a House Type. Better Houses cost more,
+        contain more rooms, and reduce your marketplace tax.
     </p>
 
-</section>
+    <div id="balance" class="balance">
+        💰 Loading ShrekCoins...
+    </div>
 
+    <div class="field">
 
-<div class="layout">
+        <label for="name">
+            House Name
+        </label>
 
-<section class="panel">
-
-    <h2>🏠 House details</h2>
-
-    <label for="house-name">
-        House name
-    </label>
-
-    <input
-        id="house-name"
-        maxlength="80"
-        placeholder="e.g. Shrek Manor"
-    >
-
-
-    <label for="house-description">
-        Description
-    </label>
-
-    <textarea
-        id="house-description"
-        maxlength="1000"
-        placeholder="Tell everyone what your House is about..."
-    ></textarea>
-
-
-    <div class="preview">
-
-        <div class="preview-row">
-            <span>Type</span>
-            <strong id="preview-type">
-                Select a type
-            </strong>
-        </div>
-
-        <div class="preview-row">
-            <span>Cost</span>
-            <strong id="preview-cost">
-                —
-            </strong>
-        </div>
-
-        <div class="preview-row">
-            <span>Rooms</span>
-            <strong id="preview-rooms">
-                —
-            </strong>
-        </div>
-
-        <div class="preview-row">
-            <span>Marketplace tax</span>
-            <strong id="preview-tax">
-                —
-            </strong>
-        </div>
+        <input
+            id="name"
+            maxlength="80"
+            placeholder="The Shrek Mansion"
+        >
 
     </div>
 
+    <div class="field">
+
+        <label for="description">
+            Description
+        </label>
+
+        <textarea
+            id="description"
+            maxlength="1000"
+            placeholder="Tell everyone what this House is about..."
+        ></textarea>
+
+    </div>
+
+    <h2>Choose your House Type</h2>
+
+    <div
+        id="types"
+        class="type-grid"
+    >
+        Loading...
+    </div>
+
+    <div id="preview"></div>
 
     <button
-        id="create-button"
-        class="submit"
-        onclick="createHouse()"
+        id="create"
+        class="create-button"
         disabled
     >
-        🏠 Create House
+        🏗️ Create House
     </button>
-
 
     <div
         id="status"
         class="status"
     ></div>
 
-
-    <a
-        class="back"
-        href="/houses.html"
-    >
-        ← Back to Houses
-    </a>
-
-</section>
-
-
-<section class="panel">
-
-    <h2>Choose your House</h2>
-
-    <div
-        id="type-grid"
-        class="type-grid"
-    >
-        <div style="color:#89978d">
-            Loading House types...
-        </div>
-    </div>
-
-</section>
-
 </div>
 
 </main>
 
-
 <script>
-
 let houseTypes = [];
 let selectedType = null;
+let currentBalance = 0;
 
 
-function escapeHtml(value) {
-
-    return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-
-function formatCoins(value) {
-
-    return Number(
-        value || 0
-    ).toLocaleString();
-}
-
-
-function actualTax(type) {
-
-    const reduction =
-        Number(
-            type?.tax_reduction || 0
-        );
-
-    return Math.max(
-        0,
-        0.125 - reduction
-    );
-}
-
-
-async function loadHouseTypes() {
+async function loadData() {
 
     try {
 
-        const response =
-            await fetch(
-                "/api/houses/types",
-                {
+        const [typesResponse, meResponse] =
+            await Promise.all([
+                fetch("/api/houses/types", {
                     credentials: "include"
-                }
-            );
+                }),
+                fetch("/api/me", {
+                    credentials: "include"
+                })
+            ]);
 
 
-        const data =
-            await response.json();
+        const typeData =
+            await typesResponse.json();
+
+        const meData =
+            await meResponse.json();
 
 
-        if (!response.ok) {
+        if (!typesResponse.ok) {
             throw new Error(
-                data.error ||
-                "Failed to load House types."
+                typeData.error ||
+                "Failed to load House Types."
             );
         }
 
 
         houseTypes =
-            data.houseTypes || [];
+            Array.isArray(typeData.houseTypes)
+                ? typeData.houseTypes
+                : Array.isArray(typeData)
+                    ? typeData
+                    : [];
 
 
-        const grid =
-            document.getElementById(
-                "type-grid"
+        const user =
+            meData.user ||
+            meData.profile ||
+            meData;
+
+
+        currentBalance =
+            Number(
+                user?.shrekcoins ??
+                user?.shrekCoins ??
+                0
             );
 
 
-        if (!houseTypes.length) {
+        renderBalance();
+        renderTypes();
 
-            grid.innerHTML =
-                `<div style="color:#ffaaaa">
-                    No House types are available.
-                </div>`;
+    } catch (error) {
 
-            return;
-        }
+        document.getElementById("status")
+            .textContent =
+                "😭 " + error.message;
+    }
+}
 
 
-        grid.innerHTML =
-            houseTypes.map(type => `
+function renderBalance() {
 
+    document.getElementById("balance")
+        .textContent =
+            `💰 Your ShrekCoins: ${currentBalance.toLocaleString()}`;
+}
+
+
+function renderTypes() {
+
+    const container =
+        document.getElementById("types");
+
+    if (!houseTypes.length) {
+
+        container.innerHTML =
+            "No House Types are available.";
+
+        return;
+    }
+
+
+    container.innerHTML =
+        houseTypes.map(type => {
+
+            const reduction =
+                Number(type.tax_reduction || 0) * 100;
+
+            return `
                 <div
                     class="type-card"
                     data-id="${type.id}"
                     onclick="selectType(${type.id})"
                 >
 
-                    <div class="type-top">
+                    <h3>
+                        ${escapeHtml(type.name)}
+                    </h3>
 
-                        <div class="type-name">
-                            ${escapeHtml(type.name)}
-                        </div>
-
-                        <div class="type-cost">
-                            ${formatCoins(type.cost)}
-                            🪙
-                        </div>
-
+                    <div class="type-price">
+                        💰 ${Number(type.cost).toLocaleString()}
                     </div>
 
-                    <div class="type-desc">
+                    <div class="type-info">
 
-                        ${
-                            type.name === "Dormitory"
-                                ? "A tiny starting home."
-                                : type.name === "Cottage"
-                                    ? "A cozy upgrade from the basics."
-                                    : type.name === "House"
-                                        ? "A proper ShrekBook residence."
-                                        : type.name === "Large House"
-                                            ? "Lots of space for a growing House."
-                                            : "The ultimate ShrekBook residence."
-                        }
+                        🚪 ${type.room_count} rooms<br>
 
-                    </div>
-
-                    <div class="type-stats">
-
-                        <span class="pill">
-                            🚪 ${type.room_count} rooms
-                        </span>
-
-                        <span class="pill">
-                            📉 ${
-                                (
-                                    actualTax(type) * 100
-                                ).toFixed(1)
-                            }% marketplace tax
-                        </span>
-
-                        <span class="pill">
-                            💸 ${
-                                (
-                                    Number(type.tax_reduction) * 100
-                                ).toFixed(1)
-                            }% reduction
-                        </span>
+                        📉 ${reduction.toFixed(1)}%
+                        marketplace tax reduction
 
                     </div>
 
                 </div>
+            `;
 
-            `).join("");
-
-    } catch (error) {
-
-        document.getElementById(
-            "type-grid"
-        ).innerHTML = `
-            <div style="color:#ffaaaa">
-                ${escapeHtml(error.message)}
-            </div>
-        `;
-    }
+        }).join("");
 }
 
 
@@ -551,10 +366,8 @@ function selectType(id) {
 
     selectedType =
         houseTypes.find(
-            type =>
-                Number(type.id) === Number(id)
+            type => Number(type.id) === Number(id)
         );
-
 
     document
         .querySelectorAll(".type-card")
@@ -567,135 +380,141 @@ function selectType(id) {
 
         });
 
+    renderPreview();
+}
+
+
+function renderPreview() {
+
+    const preview =
+        document.getElementById("preview");
 
     if (!selectedType) {
+
+        preview.innerHTML = "";
+
+        document.getElementById("create")
+            .disabled = true;
+
         return;
     }
 
 
-    document.getElementById(
-        "preview-type"
-    ).textContent =
-        selectedType.name;
+    const reduction =
+        Number(selectedType.tax_reduction || 0) * 100;
+
+    const affordable =
+        currentBalance >=
+        Number(selectedType.cost);
 
 
-    document.getElementById(
-        "preview-cost"
-    ).textContent =
-        `${formatCoins(selectedType.cost)} ShrekCoins`;
+    preview.innerHTML = `
+        <div class="preview">
+
+            <h3>
+                ${escapeHtml(selectedType.name)}
+            </h3>
+
+            <p>
+                Cost:
+                <strong>
+                    ${Number(selectedType.cost).toLocaleString()}
+                    ShrekCoins
+                </strong>
+            </p>
+
+            <p>
+                Rooms:
+                <strong>
+                    ${selectedType.room_count}
+                </strong>
+            </p>
+
+            <p>
+                Marketplace tax reduction:
+                <strong>
+                    ${reduction.toFixed(1)}%
+                </strong>
+            </p>
+
+            <p>
+                ${
+                    affordable
+                        ? "✅ You can afford this House."
+                        : "❌ You cannot afford this House."
+                }
+            </p>
+
+        </div>
+    `;
 
 
-    document.getElementById(
-        "preview-rooms"
-    ).textContent =
-        selectedType.room_count;
-
-
-    document.getElementById(
-        "preview-tax"
-    ).textContent =
-        `${(
-            actualTax(selectedType) * 100
-        ).toFixed(1)}%`;
-
-
-    document.getElementById(
-        "create-button"
-    ).disabled = false;
-}
-
-
-function showStatus(message, type) {
-
-    const status =
-        document.getElementById(
-            "status"
-        );
-
-
-    status.textContent =
-        message;
-
-
-    status.className =
-        `status show ${type}`;
+    document.getElementById("create")
+        .disabled = !affordable;
 }
 
 
 async function createHouse() {
 
-    if (!selectedType) {
-
-        showStatus(
-            "Pick a House type first.",
-            "error"
-        );
-
-        return;
-    }
-
-
     const name =
-        document.getElementById(
-            "house-name"
-        ).value.trim();
-
+        document.getElementById("name")
+            .value.trim();
 
     const description =
-        document.getElementById(
-            "house-description"
-        ).value.trim();
+        document.getElementById("description")
+            .value.trim();
+
+    const status =
+        document.getElementById("status");
+
+    const button =
+        document.getElementById("create");
 
 
     if (!name) {
 
-        showStatus(
-            "Give your House a name.",
-            "error"
-        );
+        status.textContent =
+            "Please enter a House name.";
+
+        return;
+    }
+
+    if (!selectedType) {
+
+        status.textContent =
+            "Choose a House Type first.";
 
         return;
     }
 
 
-    const button =
-        document.getElementById(
-            "create-button"
-        );
-
-
     button.disabled = true;
 
-    button.textContent =
-        "🏗️ Building...";
+    status.textContent =
+        "🏗️ Building your House...";
 
 
     try {
 
         const response =
-            await fetch(
-                "/api/houses",
-                {
-                    method: "POST",
+            await fetch("/api/houses", {
 
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
+                method: "POST",
 
-                    credentials: "include",
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
 
-                    body: JSON.stringify({
+                credentials: "include",
 
-                        name,
-
-                        description,
-
-                        house_type_id:
-                            selectedType.id
-                    })
-                }
-            );
+                body: JSON.stringify({
+                    name,
+                    description,
+                    houseTypeId:
+                        selectedType.id
+                })
+            });
 
 
         const data =
@@ -710,38 +529,45 @@ async function createHouse() {
         }
 
 
-        showStatus(
-            "🏠 House created! Opening it...",
-            "success"
-        );
+        status.textContent =
+            "🎉 House created!";
 
 
-        setTimeout(() => {
-
-            window.location.href =
-                `/house.html?id=${encodeURIComponent(
-                    data.house.id
-                )}`;
-
-        }, 700);
+        window.location.href =
+            `/house.html?id=${encodeURIComponent(
+                data.house.id
+            )}`;
 
     } catch (error) {
 
-        showStatus(
-            error.message,
-            "error"
-        );
+        status.textContent =
+            "😭 " + error.message;
 
         button.disabled = false;
-
-        button.textContent =
-            "🏠 Create House";
     }
 }
 
 
-loadHouseTypes();
+function escapeHtml(value) {
 
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+document
+    .getElementById("create")
+    .addEventListener(
+        "click",
+        createHouse
+    );
+
+
+loadData();
 </script>
 
 </body>

@@ -1,434 +1,152 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
 
 <meta charset="UTF-8">
-
 <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
 >
 
-<title>House Settings • ShrekBook</title>
+<title>House Settings — ShrekBook</title>
 
 <link rel="stylesheet" href="/styles.css">
 
 <style>
-
 body {
     margin: 0;
     background:
-        radial-gradient(
-            circle at 15% 10%,
-            rgba(88,224,111,.12),
-            transparent 30%
-        ),
-        #050806;
-    color: #f4fff5;
+        radial-gradient(circle at top left, rgba(100,255,170,.1), transparent 35%),
+        #080b10;
+    color: white;
     font-family: Arial, sans-serif;
 }
 
-.page {
-    width: min(1000px, calc(100% - 18px));
-    margin: 28px auto 80px;
+.settings-page {
+    max-width: 1000px;
+    margin: auto;
+    padding: 30px 20px 80px;
 }
 
-.hero {
+.settings-card {
     padding: 30px;
+    margin-bottom: 20px;
     border-radius: 25px;
-    border: 1px solid rgba(88,224,111,.22);
-    background:
-        linear-gradient(
-            135deg,
-            rgba(22,51,28,.9),
-            rgba(7,17,10,.95)
-        );
+    background: rgba(15,20,28,.95);
+    border: 1px solid rgba(255,255,255,.07);
 }
 
-.hero small {
-    color: #58e06f;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    font-weight: 900;
-}
-
-.hero h1 {
-    margin: 7px 0;
-    font-size: clamp(32px, 7vw, 53px);
-}
-
-.hero p {
-    color: #96a59a;
-}
-
-.back {
-    color: #8f9d94;
-    text-decoration: none;
-}
-
-.panel {
-    margin-top: 18px;
-    padding: 22px;
-    border-radius: 20px;
-    background: rgba(12,20,14,.82);
-    border: 1px solid rgba(88,224,111,.15);
-}
-
-.panel h2 {
+.settings-card h1,
+.settings-card h2 {
     margin-top: 0;
 }
 
-label {
-    display: block;
-    margin-top: 14px;
-    margin-bottom: 7px;
-    font-weight: 800;
+.field {
+    margin-top: 18px;
 }
 
-input,
-textarea {
+.field label {
+    display: block;
+    margin-bottom: 7px;
+    font-weight: bold;
+}
+
+.field input,
+.field textarea {
     width: 100%;
-    box-sizing: border-box;
-    padding: 12px;
+    padding: 13px;
     border-radius: 12px;
     border: 1px solid rgba(255,255,255,.1);
-    background: rgba(0,0,0,.25);
+    background: #090e14;
     color: white;
-    outline: none;
+    font: inherit;
 }
 
-textarea {
-    min-height: 120px;
+.field textarea {
+    min-height: 130px;
     resize: vertical;
 }
 
-.save {
-    margin-top: 15px;
+.button {
     border: 0;
+    padding: 12px 16px;
     border-radius: 12px;
-    padding: 12px 17px;
-    background: #58e06f;
-    color: #061008;
-    font-weight: 900;
+    background: #17241c;
+    color: white;
     cursor: pointer;
+    font-weight: bold;
 }
 
-.status {
-    margin-top: 10px;
-    display: none;
-    padding: 11px;
-    border-radius: 11px;
-}
-
-.status.show {
-    display: block;
-}
-
-.status.success {
-    color: #8cff9d;
-    background: rgba(88,224,111,.07);
-}
-
-.status.error {
-    color: #ffaaaa;
-    background: rgba(255,70,70,.07);
-}
-
-.members {
-    display: grid;
-    gap: 9px;
+.button.primary {
+    background: linear-gradient(135deg,#38dc79,#159b54);
 }
 
 .member {
     display: flex;
     align-items: center;
-    gap: 11px;
-    padding: 13px;
+    gap: 12px;
+    padding: 14px;
+    margin-top: 9px;
     border-radius: 14px;
-    background: rgba(255,255,255,.025);
+    background: rgba(255,255,255,.035);
 }
 
 .avatar {
-    width: 40px;
-    height: 40px;
-    flex: 0 0 40px;
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
-    display: grid;
-    place-items: center;
-    background: #17351d;
-    color: #8cff9d;
-    font-weight: 900;
+    object-fit: cover;
+    background: #18202a;
 }
 
 .member-info {
-    min-width: 0;
     flex: 1;
-}
-
-.member-name {
-    font-weight: 900;
 }
 
 .username {
-    color: #758178;
-    font-size: 12px;
-}
-
-.role {
-    padding: 6px 9px;
-    border-radius: 999px;
-    background: rgba(255,255,255,.06);
-    color: #aeb9b1;
-    font-size: 11px;
-    font-weight: 800;
-}
-
-.role.owner {
-    color: #ffd66b;
-}
-
-.role.admin {
-    color: #8fc7ff;
-}
-
-.member-actions {
-    display: flex;
-    gap: 5px;
-    flex-wrap: wrap;
-}
-
-.small-btn {
-    border: 0;
-    border-radius: 9px;
-    padding: 8px 10px;
-    cursor: pointer;
-    background: rgba(255,255,255,.07);
-    color: white;
-    font-size: 11px;
-    font-weight: 800;
-}
-
-.small-btn.danger {
-    color: #ffaaaa;
-    background: rgba(255,70,70,.08);
-}
-
-.small-btn.blue {
-    color: #9ecfff;
-    background: rgba(100,170,255,.08);
-}
-
-.room-settings {
-    display: grid;
-    gap: 14px;
-}
-
-.room-card {
-    padding: 17px;
-    border-radius: 16px;
-    background: rgba(255,255,255,.025);
-    border: 1px solid rgba(255,255,255,.06);
-}
-
-.room-card h3 {
-    margin: 0 0 5px;
-}
-
-.room-card p {
-    color: #849188;
+    color: #778391;
     font-size: 13px;
 }
 
-.access-list {
-    display: grid;
-    gap: 6px;
-    margin-top: 12px;
+.role {
+    color: #76ffab;
+    font-size: 13px;
 }
 
-.access-user {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 9px;
-    border-radius: 10px;
-    background: rgba(255,255,255,.035);
-}
-
-.access-user span {
-    flex: 1;
-}
-
-.search-row {
-    display: flex;
-    gap: 7px;
-}
-
-.search-results {
-    display: grid;
-    gap: 6px;
-    margin-top: 7px;
-}
-
-.search-result {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 9px;
-    border-radius: 10px;
-    background: rgba(255,255,255,.035);
-}
-
-.search-result span {
-    flex: 1;
-}
-
-.muted {
-    color: #849188;
-}
-
-.loading,
-.empty {
-    padding: 25px;
+.notice {
     text-align: center;
-    color: #849188;
+    padding: 45px;
+    color: #8e99a5;
 }
 
-@media(max-width:650px) {
-
-    .member {
-        align-items: flex-start;
-        flex-wrap: wrap;
-    }
-
-    .member-actions {
-        width: 100%;
-        margin-left: 51px;
-    }
-
-    .search-row {
-        flex-direction: column;
-    }
+.status {
+    margin-top: 12px;
+    min-height: 20px;
 }
-
 </style>
+
 </head>
 
 <body>
 
 <nav class="shrekbook-nav">
-    <a href="/">Home</a>
-    <a href="/houses.html">🏠 Houses</a>
+
+<a href="/">Home</a>
+<a href="/houses.html">🏠 Houses</a>
+
 </nav>
 
 
-<main class="page">
+<main class="settings-page">
 
-<section class="hero">
+<div id="page">
 
-    <a
-        id="back-link"
-        class="back"
-        href="/houses.html"
-    >
-        ← Back
-    </a>
+<div class="notice">
+⚙️ Loading House Settings...
+</div>
 
-    <small>House Management</small>
-
-    <h1>⚙️ House Settings</h1>
-
-    <p id="hero-description">
-        Loading...
-    </p>
-
-</section>
-
-
-<section
-    id="general-panel"
-    class="panel"
->
-
-    <h2>🏠 General</h2>
-
-    <label for="house-name">
-        House name
-    </label>
-
-    <input
-        id="house-name"
-        maxlength="80"
-    >
-
-
-    <label for="house-description">
-        Description
-    </label>
-
-    <textarea
-        id="house-description"
-        maxlength="1000"
-    ></textarea>
-
-
-    <button
-        class="save"
-        onclick="saveSettings()"
-    >
-        💾 Save Changes
-    </button>
-
-
-    <div
-        id="save-status"
-        class="status"
-    ></div>
-
-</section>
-
-
-<section class="panel">
-
-    <h2>👥 Members</h2>
-
-    <p class="muted">
-        Manage House members and administrators.
-    </p>
-
-    <div
-        id="members"
-        class="members"
-    >
-        <div class="loading">
-            Loading members...
-        </div>
-    </div>
-
-</section>
-
-
-<section
-    id="bedrooms-panel"
-    class="panel"
->
-
-    <h2>🛏️ Bedroom Access</h2>
-
-    <p class="muted">
-        Bedroom owners can decide which House members
-        are allowed inside.
-    </p>
-
-    <div
-        id="bedrooms"
-        class="room-settings"
-    >
-        <div class="loading">
-            Loading bedrooms...
-        </div>
-    </div>
-
-</section>
+</div>
 
 </main>
 
@@ -437,9 +155,8 @@ textarea {
 
 const params =
     new URLSearchParams(
-        window.location.search
+        location.search
     );
-
 
 const houseId =
     params.get("id");
@@ -448,62 +165,19 @@ const houseId =
 let houseData = null;
 
 
-function escapeHtml(value) {
+if (!houseId) {
 
-    return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
+    showError(
+        "No House ID was provided."
+    );
 
+} else {
 
-function initials(profile) {
-
-    const text =
-        profile?.display_name ||
-        profile?.username ||
-        "?";
-
-    return text
-        .slice(0, 2)
-        .toUpperCase();
-}
-
-
-function showStatus(
-    message,
-    type
-) {
-
-    const status =
-        document.getElementById(
-            "save-status"
-        );
-
-
-    status.textContent =
-        message;
-
-
-    status.className =
-        `status show ${type}`;
+    loadSettings();
 }
 
 
 async function loadSettings() {
-
-    if (!houseId) {
-
-        document.getElementById(
-            "hero-description"
-        ).textContent =
-            "No House ID was provided.";
-
-        return;
-    }
-
 
     try {
 
@@ -521,9 +195,18 @@ async function loadSettings() {
 
 
         if (!response.ok) {
+
             throw new Error(
                 data.error ||
                 "Failed to load House."
+            );
+        }
+
+
+        if (!data.house) {
+
+            throw new Error(
+                "Invalid House response."
             );
         }
 
@@ -537,115 +220,310 @@ async function loadSettings() {
 
         if (
             !membership ||
-            !["owner", "admin"].includes(
-                membership.role
-            )
+            !["owner", "admin"]
+                .includes(membership.role)
         ) {
 
-            document.getElementById(
-                "hero-description"
-            ).textContent =
-                "You do not have permission to manage this House.";
-
-            document.getElementById(
-                "general-panel"
-            ).style.display =
-                "none";
-
-            document.getElementById(
-                "members"
-            ).innerHTML = `
-                <div class="empty">
-                    🔒 Owner or House Admin access required.
-                </div>
-            `;
-
-            document.getElementById(
-                "bedrooms-panel"
-            ).style.display =
-                "none";
-
-            return;
+            throw new Error(
+                "You do not have permission to access House Settings."
+            );
         }
 
 
-        renderSettings();
+        render();
 
     } catch (error) {
 
-        document.getElementById(
-            "hero-description"
-        ).textContent =
-            error.message;
+        showError(
+            error.message
+        );
     }
 }
 
 
-function renderSettings() {
+function render() {
+
+    const page =
+        document.getElementById("page");
 
     const house =
         houseData.house;
 
+    const type =
+        houseData.houseType ||
+        {};
 
-    document.title =
-        `Settings • ${house.name} • ShrekBook`;
-
-
-    document.getElementById(
-        "back-link"
-    ).href =
-        `/house.html?id=${encodeURIComponent(
-            house.id
-        )}`;
-
-
-    document.getElementById(
-        "hero-description"
-    ).textContent =
-        `Managing ${house.name}`;
+    const members =
+        Array.isArray(
+            houseData.members
+        )
+            ? houseData.members
+            : [];
 
 
-    document.getElementById(
-        "house-name"
-    ).value =
-        house.name || "";
+    page.innerHTML = `
+
+        <section class="settings-card">
+
+            <h1>
+                ⚙️ ${escapeHtml(
+                    house.name
+                )}
+            </h1>
+
+            <p>
+                Manage your House information
+                and members.
+            </p>
+
+            <div class="field">
+
+                <label>
+                    House Name
+                </label>
+
+                <input
+                    id="house-name"
+                    maxlength="80"
+                    value="${escapeHtml(
+                        house.name
+                    )}"
+                >
+
+            </div>
 
 
-    document.getElementById(
-        "house-description"
-    ).value =
-        house.description || "";
+            <div class="field">
+
+                <label>
+                    Description
+                </label>
+
+                <textarea
+                    id="house-description"
+                    maxlength="1000"
+                >${escapeHtml(
+                    house.description || ""
+                )}</textarea>
+
+            </div>
 
 
-    renderMembers();
+            <div class="field">
 
-    renderBedrooms();
+                <p>
+                    🏠 House Type:
+                    <strong>
+                        ${escapeHtml(
+                            type.name ||
+                            house.house_type ||
+                            "Unknown"
+                        )}
+                    </strong>
+                </p>
+
+                <p>
+                    🚪 Rooms:
+                    <strong>
+                        ${type.room_count || "?"}
+                    </strong>
+                </p>
+
+                <p>
+                    📉 Marketplace Tax Reduction:
+                    <strong style="color:#75ffab">
+                        ${
+                            Number(
+                                type.tax_reduction || 0
+                            ) * 100
+                        }%
+                    </strong>
+                </p>
+
+                <small>
+                    House Type cannot be changed after
+                    creation.
+                </small>
+
+            </div>
+
+
+            <button
+                class="button primary"
+                onclick="saveHouse()"
+            >
+                💾 Save Changes
+            </button>
+
+            <div
+                id="save-status"
+                class="status"
+            ></div>
+
+        </section>
+
+
+        <section class="settings-card">
+
+            <h2>
+                👑 House Members
+            </h2>
+
+            <p>
+                The owner can promote members to
+                House Admins. Admins can manage
+                members but cannot manage other Admins.
+            </p>
+
+            <div>
+
+                ${
+                    members.map(member => {
+
+                        const profile =
+                            member.profile ||
+                            {};
+
+                        const isOwner =
+                            member.role === "owner";
+
+                        return `
+
+                            <div class="member">
+
+                                ${
+                                    profile.avatar_url
+                                        ? `
+                                            <img
+                                                class="avatar"
+                                                src="${escapeHtml(
+                                                    profile.avatar_url
+                                                )}"
+                                            >
+                                        `
+                                        : `
+                                            <div
+                                                class="avatar"
+                                                style="
+                                                    display:grid;
+                                                    place-items:center;
+                                                "
+                                            >
+                                                👤
+                                            </div>
+                                        `
+                                }
+
+                                <div class="member-info">
+
+                                    <strong>
+                                        ${escapeHtml(
+                                            profile.display_name ||
+                                            profile.username ||
+                                            "Unknown"
+                                        )}
+                                    </strong>
+
+                                    <div class="username">
+
+                                        @${escapeHtml(
+                                            profile.username ||
+                                            "unknown"
+                                        )}
+
+                                    </div>
+
+                                </div>
+
+                                <div class="role">
+
+                                    ${escapeHtml(
+                                        member.role
+                                    )}
+
+                                </div>
+
+
+                                ${
+                                    !isOwner &&
+                                    houseData.membership?.role === "owner"
+                                        ? member.role === "admin"
+                                            ? `
+                                                <button
+                                                    class="button"
+                                                    onclick="demoteAdmin('${member.user_id}')"
+                                                >
+                                                    Demote
+                                                </button>
+                                            `
+                                            : `
+                                                <button
+                                                    class="button"
+                                                    onclick="promoteAdmin('${member.user_id}')"
+                                                >
+                                                    Make Admin
+                                                </button>
+                                            `
+                                        : ""
+                                }
+
+
+                                ${
+                                    !isOwner &&
+                                    (
+                                        houseData.membership?.role === "owner" ||
+                                        (
+                                            houseData.membership?.role === "admin" &&
+                                            member.role === "member"
+                                        )
+                                    )
+                                        ? `
+                                            <button
+                                                class="button"
+                                                onclick="removeMember('${member.user_id}')"
+                                            >
+                                                Remove
+                                            </button>
+                                        `
+                                        : ""
+                                }
+
+                            </div>
+
+                        `;
+
+                    }).join("")
+
+                }
+
+            </div>
+
+        </section>
+
+    `;
 }
 
 
-async function saveSettings() {
+async function saveHouse() {
 
     const name =
         document.getElementById(
             "house-name"
         ).value.trim();
 
-
     const description =
         document.getElementById(
             "house-description"
         ).value.trim();
 
-
-    if (!name) {
-
-        showStatus(
-            "House name cannot be empty.",
-            "error"
+    const status =
+        document.getElementById(
+            "save-status"
         );
 
-        return;
-    }
+
+    status.textContent =
+        "💾 Saving...";
 
 
     try {
@@ -654,6 +532,7 @@ async function saveSettings() {
             await fetch(
                 `/api/houses/${encodeURIComponent(houseId)}`,
                 {
+
                     method: "PUT",
 
                     headers: {
@@ -667,6 +546,7 @@ async function saveSettings() {
                         name,
                         description
                     })
+
                 }
             );
 
@@ -676,195 +556,22 @@ async function saveSettings() {
 
 
         if (!response.ok) {
+
             throw new Error(
                 data.error ||
-                "Failed to save settings."
+                "Failed to save."
             );
         }
 
 
-        houseData.house =
-            data.house;
-
-
-        showStatus(
-            "✅ House settings saved!",
-            "success"
-        );
+        status.textContent =
+            "✅ Saved!";
 
     } catch (error) {
 
-        showStatus(
-            error.message,
-            "error"
-        );
+        status.textContent =
+            "😭 " + error.message;
     }
-}
-
-
-function renderMembers() {
-
-    const container =
-        document.getElementById(
-            "members"
-        );
-
-
-    const members =
-        houseData.members || [];
-
-
-    const currentRole =
-        houseData.membership.role;
-
-
-    if (!members.length) {
-
-        container.innerHTML =
-            `<div class="empty">
-                No members.
-            </div>`;
-
-        return;
-    }
-
-
-    container.innerHTML =
-        members.map(member => {
-
-            const profile =
-                member.profile;
-
-
-            const role =
-                member.role;
-
-
-            const isOwner =
-                role === "owner";
-
-
-            const isAdmin =
-                role === "admin";
-
-
-            let actions = "";
-
-
-            if (!isOwner) {
-
-                if (
-                    currentRole === "owner"
-                ) {
-
-                    if (isAdmin) {
-
-                        actions += `
-                            <button
-                                class="small-btn blue"
-                                onclick="demoteAdmin('${member.user_id}')"
-                            >
-                                Demote
-                            </button>
-                        `;
-
-                    } else {
-
-                        actions += `
-                            <button
-                                class="small-btn blue"
-                                onclick="promoteAdmin('${member.user_id}')"
-                            >
-                                Make Admin
-                            </button>
-                        `;
-                    }
-
-                }
-
-
-                // Owner can remove anyone except themselves.
-                // Admin can remove normal members.
-                if (
-                    currentRole === "owner" ||
-                    (
-                        currentRole === "admin" &&
-                        !isAdmin
-                    )
-                ) {
-
-                    actions += `
-                        <button
-                            class="small-btn danger"
-                            onclick="removeMember('${member.user_id}')"
-                        >
-                            Remove
-                        </button>
-                    `;
-                }
-            }
-
-
-            return `
-
-                <div class="member">
-
-                    <div class="avatar">
-                        ${escapeHtml(
-                            initials(profile)
-                        )}
-                    </div>
-
-                    <div class="member-info">
-
-                        <div class="member-name">
-                            ${escapeHtml(
-                                profile?.display_name ||
-                                profile?.username ||
-                                "Unknown"
-                            )}
-                        </div>
-
-                        <div class="username">
-                            ${
-                                profile?.username
-                                    ? "@" +
-                                      escapeHtml(
-                                          profile.username
-                                      )
-                                    : ""
-                            }
-                        </div>
-
-                    </div>
-
-                    <span
-                        class="role ${
-                            isOwner
-                                ? "owner"
-                                : isAdmin
-                                    ? "admin"
-                                    : ""
-                        }"
-                    >
-                        ${
-                            isOwner
-                                ? "👑 Owner"
-                                : isAdmin
-                                    ? "🛡️ Admin"
-                                    : "Member"
-                        }
-                    </span>
-
-                    <div class="member-actions">
-                        ${actions}
-                    </div>
-
-                </div>
-
-            `;
-
-        }).join("");
 }
 
 
@@ -874,15 +581,14 @@ async function promoteAdmin(userId) {
         !confirm(
             "Make this member a House Admin?"
         )
-    ) {
-        return;
-    }
+    ) return;
 
 
     await memberAction(
         `/api/houses/${encodeURIComponent(houseId)}/admins/${encodeURIComponent(userId)}`,
-        "POST",
-        "Member promoted to Admin."
+        {
+            method: "POST"
+        }
     );
 }
 
@@ -891,17 +597,16 @@ async function demoteAdmin(userId) {
 
     if (
         !confirm(
-            "Remove this member's Admin privileges?"
+            "Remove this member's Admin role?"
         )
-    ) {
-        return;
-    }
+    ) return;
 
 
     await memberAction(
         `/api/houses/${encodeURIComponent(houseId)}/admins/${encodeURIComponent(userId)}`,
-        "DELETE",
-        "Admin privileges removed."
+        {
+            method: "DELETE"
+        }
     );
 }
 
@@ -912,24 +617,19 @@ async function removeMember(userId) {
         !confirm(
             "Remove this member from the House?"
         )
-    ) {
-        return;
-    }
+    ) return;
 
 
     await memberAction(
         `/api/houses/${encodeURIComponent(houseId)}/members/${encodeURIComponent(userId)}`,
-        "DELETE",
-        "Member removed."
+        {
+            method: "DELETE"
+        }
     );
 }
 
 
-async function memberAction(
-    url,
-    method,
-    successMessage
-) {
+async function memberAction(url, options) {
 
     try {
 
@@ -937,7 +637,7 @@ async function memberAction(
             await fetch(
                 url,
                 {
-                    method,
+                    ...options,
                     credentials: "include"
                 }
             );
@@ -948,6 +648,7 @@ async function memberAction(
 
 
         if (!response.ok) {
+
             throw new Error(
                 data.error ||
                 "Action failed."
@@ -955,543 +656,58 @@ async function memberAction(
         }
 
 
-        showStatus(
-            `✅ ${successMessage}`,
-            "success"
-        );
-
-
-        await reloadHouse();
+        await loadSettings();
 
     } catch (error) {
 
-        showStatus(
-            error.message,
-            "error"
+        alert(
+            "😭 " + error.message
         );
     }
 }
 
 
-async function reloadHouse() {
+function showError(message) {
 
-    const response =
-        await fetch(
-            `/api/houses/${encodeURIComponent(houseId)}`,
-            {
-                credentials: "include"
-            }
-        );
+    document.getElementById("page")
+        .innerHTML = `
 
+            <div class="notice">
 
-    const data =
-        await response.json();
+                <div style="font-size:55px">
+                    😭
+                </div>
 
-
-    if (!response.ok) {
-        throw new Error(
-            data.error ||
-            "Failed to reload House."
-        );
-    }
-
-
-    houseData = data;
-
-    renderSettings();
-}
-
-
-function renderBedrooms() {
-
-    const container =
-        document.getElementById(
-            "bedrooms"
-        );
-
-
-    const rooms =
-        (houseData.rooms || [])
-            .filter(
-                room =>
-                    room.room_type ===
-                    "bedroom"
-            );
-
-
-    if (!rooms.length) {
-
-        container.innerHTML =
-            `<div class="empty">
-                No bedrooms found.
-            </div>`;
-
-        return;
-    }
-
-
-    container.innerHTML =
-        rooms.map(room => `
-
-            <div
-                class="room-card"
-                id="room-card-${room.id}"
-            >
-
-                <h3>
-                    🛏️ ${escapeHtml(room.name)}
-                </h3>
+                <h2>
+                    Couldn't load House Settings
+                </h2>
 
                 <p>
-                    Owner:
-                    ${
-                        escapeHtml(
-                            room.bedroomOwner?.display_name ||
-                            room.bedroomOwner?.username ||
-                            "Unknown"
-                        )
-                    }
+                    ${escapeHtml(message)}
                 </p>
 
-                ${
-                    room.user_id ===
-                    houseData.membership.user_id
-                        ? `
-                            <strong>
-                                You own this bedroom.
-                            </strong>
-                        `
-                        : `
-                            <div class="muted">
-                                Only the bedroom owner can
-                                change its access.
-                            </div>
-                        `
-                }
-
-                ${
-                    room.user_id ===
-                    houseData.membership.user_id
-                        ? `
-                            <div
-                                id="access-${room.id}"
-                                class="access-list"
-                            >
-                                Loading access...
-                            </div>
-
-                            <div style="margin-top:13px">
-
-                                <div class="search-row">
-
-                                    <input
-                                        id="bed-search-${room.id}"
-                                        placeholder="Search House members..."
-                                        oninput="searchBedroomUsers(${room.id})"
-                                    >
-
-                                </div>
-
-                                <div
-                                    id="bed-results-${room.id}"
-                                    class="search-results"
-                                ></div>
-
-                            </div>
-                        `
-                        : ""
-                }
+                <a
+                    class="button"
+                    href="/houses.html"
+                >
+                    ← Houses
+                </a>
 
             </div>
 
-        `).join("");
-
-
-    rooms.forEach(room => {
-
-        if (
-            room.user_id ===
-            houseData.membership.user_id
-        ) {
-
-            loadBedroomAccess(
-                room.id
-            );
-        }
-
-    });
+        `;
 }
 
 
-async function loadBedroomAccess(roomId) {
+function escapeHtml(value) {
 
-    const container =
-        document.getElementById(
-            `access-${roomId}`
-        );
-
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}/access`,
-                {
-                    credentials: "include"
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-            throw new Error(
-                data.error ||
-                "Failed to load access."
-            );
-        }
-
-
-        const access =
-            data.access || [];
-
-
-        if (!access.length) {
-
-            container.innerHTML =
-                `<div class="muted">
-                    🔒 Nobody else has access.
-                </div>`;
-
-            return;
-        }
-
-
-        container.innerHTML =
-            access.map(item => {
-
-                const profile =
-                    item.profile;
-
-
-                return `
-
-                    <div class="access-user">
-
-                        <span>
-                            👤 ${
-                                escapeHtml(
-                                    profile?.display_name ||
-                                    profile?.username ||
-                                    "Unknown"
-                                )
-                            }
-                        </span>
-
-                        <button
-                            class="small-btn danger"
-                            onclick="revokeAccess(
-                                ${roomId},
-                                '${item.user_id}'
-                            )"
-                        >
-                            Revoke
-                        </button>
-
-                    </div>
-
-                `;
-
-            }).join("");
-
-    } catch (error) {
-
-        container.innerHTML =
-            `<div style="color:#ffaaaa">
-                ${escapeHtml(error.message)}
-            </div>`;
-    }
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
 }
-
-
-let bedroomSearchTimers = {};
-
-
-function searchBedroomUsers(roomId) {
-
-    clearTimeout(
-        bedroomSearchTimers[roomId]
-    );
-
-
-    bedroomSearchTimers[roomId] =
-        setTimeout(
-            () =>
-                performBedroomSearch(
-                    roomId
-                ),
-            250
-        );
-}
-
-
-async function performBedroomSearch(roomId) {
-
-    const input =
-        document.getElementById(
-            `bed-search-${roomId}`
-        );
-
-
-    const results =
-        document.getElementById(
-            `bed-results-${roomId}`
-        );
-
-
-    const query =
-        input.value.trim();
-
-
-    if (query.length < 1) {
-
-        results.innerHTML = "";
-
-        return;
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/users/search?q=${encodeURIComponent(query)}`,
-                {
-                    credentials: "include"
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-            throw new Error(
-                data.error ||
-                "Search failed."
-            );
-        }
-
-
-        const users =
-            data.users || [];
-
-
-        const memberIds =
-            new Set(
-                (houseData.members || [])
-                    .map(
-                        m => m.user_id
-                    )
-            );
-
-
-        const bedroom =
-            (houseData.rooms || [])
-                .find(
-                    r =>
-                        Number(r.id) ===
-                        Number(roomId)
-                );
-
-
-        const ownerId =
-            bedroom?.user_id;
-
-
-        const filtered =
-            users.filter(
-                user =>
-                    memberIds.has(user.id) &&
-                    user.id !== ownerId
-            );
-
-
-        if (!filtered.length) {
-
-            results.innerHTML =
-                `<div class="muted">
-                    No matching House members.
-                </div>`;
-
-            return;
-        }
-
-
-        results.innerHTML =
-            filtered.map(user => `
-
-                <div class="search-result">
-
-                    <span>
-                        ${
-                            escapeHtml(
-                                user.display_name ||
-                                user.username ||
-                                "Unknown"
-                            )
-                        }
-                    </span>
-
-                    <button
-                        class="small-btn blue"
-                        onclick="grantAccess(
-                            ${roomId},
-                            '${user.id}'
-                        )"
-                    >
-                        Grant
-                    </button>
-
-                </div>
-
-            `).join("");
-
-    } catch (error) {
-
-        results.innerHTML =
-            `<div style="color:#ffaaaa">
-                ${escapeHtml(error.message)}
-            </div>`;
-    }
-}
-
-
-async function grantAccess(
-    roomId,
-    userId
-) {
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}/access`,
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    credentials: "include",
-
-                    body: JSON.stringify({
-                        user_id: userId
-                    })
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-            throw new Error(
-                data.error ||
-                "Failed to grant access."
-            );
-        }
-
-
-        const input =
-            document.getElementById(
-                `bed-search-${roomId}`
-            );
-
-
-        const results =
-            document.getElementById(
-                `bed-results-${roomId}`
-            );
-
-
-        input.value = "";
-
-        results.innerHTML = "";
-
-
-        await loadBedroomAccess(
-            roomId
-        );
-
-    } catch (error) {
-
-        alert(
-            error.message
-        );
-    }
-}
-
-
-async function revokeAccess(
-    roomId,
-    userId
-) {
-
-    if (
-        !confirm(
-            "Revoke this person's bedroom access?"
-        )
-    ) {
-        return;
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}/access/${encodeURIComponent(userId)}`,
-                {
-                    method: "DELETE",
-
-                    credentials: "include"
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-            throw new Error(
-                data.error ||
-                "Failed to revoke access."
-            );
-        }
-
-
-        await loadBedroomAccess(
-            roomId
-        );
-
-    } catch (error) {
-
-        alert(
-            error.message
-        );
-    }
-}
-
-
-loadSettings();
 
 </script>
 
