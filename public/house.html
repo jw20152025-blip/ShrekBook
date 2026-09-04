@@ -251,59 +251,77 @@ body {
 </main>
 
 
+```html
 <script>
 
-const params =
-    new URLSearchParams(location.search);
+const params = new URLSearchParams(location.search);
+const houseId = params.get("id");
 
-const houseId =
-    params.get("id");
+const content = document.getElementById("content");
 
 
 if (!houseId) {
 
-    document.getElementById("content")
-        .innerHTML = `
-            <div class="notice">
-                😭 No House ID was provided.
-            </div>
-        `;
+    content.innerHTML = `
+        <div class="notice">
+            <div style="font-size:55px;">😭</div>
+            <h2>No House ID was provided.</h2>
+            <a class="button primary" href="/houses.html">
+                ← Back to Houses
+            </a>
+        </div>
+    `;
 
 } else {
 
     loadHouse();
+
 }
 
 
+/* =========================================================
+   LOAD HOUSE
+========================================================= */
+
 async function loadHouse() {
 
-    const content =
-        document.getElementById("content");
+    content.innerHTML = `
+        <div class="notice">
+            <div style="font-size:55px;">🏠</div>
+            <h2>Loading House...</h2>
+        </div>
+    `;
 
     try {
 
-        const response =
-            await fetch(
-                `/api/houses/${encodeURIComponent(houseId)}`,
-                {
-                    credentials: "include"
+        const response = await fetch(
+            `/api/houses/${encodeURIComponent(houseId)}`,
+            {
+                credentials: "include",
+                headers: {
+                    "Accept": "application/json"
                 }
-            );
+            }
+        );
 
 
-        const raw =
-            await response.text();
+        const raw = await response.text();
 
         let data;
 
         try {
-            data = JSON.parse(raw);
-        } catch {
 
-            console.error(raw);
+            data = JSON.parse(raw);
+
+        } catch (error) {
+
+            console.error(
+                "House API returned non-JSON:",
+                raw
+            );
 
             throw new Error(
-                "Server returned invalid JSON."
+                "The House server returned invalid data."
             );
         }
 
@@ -314,17 +332,29 @@ async function loadHouse() {
                 data.error ||
                 "Failed to load House."
             );
+
         }
 
 
-        // ----------------------------------------------------
-        // EXPECTED API CONTRACT
-        // ----------------------------------------------------
+        /*
+            EXPECTED RESPONSE:
 
-        const house =
-            data.house;
+            {
+                house,
+                houseType,
+                owner,
+                rooms,
+                members,
+                membership,
+                canManage,
+                canInvite
+            }
+        */
 
-        if (!house) {
+
+        const house = data.house;
+
+        if (!house || !house.id) {
 
             console.error(
                 "Invalid House response:",
@@ -334,21 +364,23 @@ async function loadHouse() {
             throw new Error(
                 "Invalid House response."
             );
+
         }
 
 
         const houseType =
-            data.houseType ||
-            null;
+            data.houseType || null;
+
 
         const owner =
-            data.owner ||
-            null;
+            data.owner || null;
+
 
         const rooms =
             Array.isArray(data.rooms)
                 ? data.rooms
                 : [];
+
 
         const members =
             Array.isArray(data.members)
@@ -356,13 +388,53 @@ async function loadHouse() {
                 : [];
 
 
+        const membership =
+            data.membership || null;
+
+
+        const canManage =
+            data.canManage === true;
+
+
+        const canInvite =
+            data.canInvite === true;
+
+
+        /* =====================================================
+           TAX
+        ===================================================== */
+
         const taxReduction =
-            houseType
-                ? Number(
-                    houseType.tax_reduction || 0
-                  ) * 100
+            houseType &&
+            houseType.tax_reduction != null
+                ? Number(houseType.tax_reduction) * 100
                 : 0;
 
+
+        const marketplaceTax =
+            Math.max(
+                0,
+                12.5 - taxReduction
+            );
+
+
+        /* =====================================================
+           OWNER
+        ===================================================== */
+
+        const ownerName =
+            owner?.display_name ||
+            owner?.username ||
+            (
+                house.owner_id
+                    ? "Unknown User"
+                    : "No Owner"
+            );
+
+
+        /* =====================================================
+           RENDER
+        ===================================================== */
 
         content.innerHTML = `
 
@@ -373,20 +445,25 @@ async function loadHouse() {
                     <div>
 
                         <h1>
-                            🏠 ${escapeHtml(
-                                house.name
+                            🏠
+                            ${escapeHtml(
+                                house.name ||
+                                "Unnamed House"
                             )}
                         </h1>
 
                         <div class="type-badge">
+
                             ${escapeHtml(
                                 houseType?.name ||
                                 house.house_type ||
                                 "House"
                             )}
+
                         </div>
 
                     </div>
+
 
                     <div>
 
@@ -398,11 +475,7 @@ async function loadHouse() {
                         </a>
 
                         ${
-                            data.membership &&
-                            ["owner","admin"]
-                                .includes(
-                                    data.membership.role
-                                )
+                            canManage
                                 ? `
                                     <a
                                         class="button"
@@ -420,26 +493,38 @@ async function loadHouse() {
 
 
                 <p class="description">
+
                     ${escapeHtml(
                         house.description ||
-                        "No description."
+                        "This House has no description."
                     )}
+
                 </p>
 
 
                 <div class="stats">
 
+
                     <div class="stat">
 
                         <small>Owner</small>
 
-                        👑 ${
-                            escapeHtml(
-                                owner?.display_name ||
-                                owner?.username ||
-                                "Unknown"
-                            )
-                        }
+                        👑
+                        ${escapeHtml(ownerName)}
+
+                    </div>
+
+
+                    <div class="stat">
+
+                        <small>House Type</small>
+
+                        🏠
+                        ${escapeHtml(
+                            houseType?.name ||
+                            house.house_type ||
+                            "Unknown"
+                        )}
 
                     </div>
 
@@ -448,7 +533,18 @@ async function loadHouse() {
 
                         <small>Rooms</small>
 
-                        🚪 ${rooms.length}
+                        🚪
+                        ${rooms.length}
+
+                        ${
+                            houseType?.room_count
+                                ? `
+                                    / ${escapeHtml(
+                                        houseType.room_count
+                                    )}
+                                `
+                                : ""
+                        }
 
                     </div>
 
@@ -457,7 +553,8 @@ async function loadHouse() {
 
                         <small>Members</small>
 
-                        👥 ${members.length}
+                        👥
+                        ${members.length}
 
                     </div>
 
@@ -469,18 +566,37 @@ async function loadHouse() {
                         <strong
                             style="color:#74ffab"
                         >
-                            ${taxReduction
-                                ? `-${taxReduction.toFixed(1)}%`
-                                : "0.0%"
-                            }
+                            ${marketplaceTax.toFixed(1)}%
                         </strong>
 
+                        ${
+                            taxReduction > 0
+                                ? `
+                                    <div
+                                        style="
+                                            color:#75ffac;
+                                            font-size:12px;
+                                            margin-top:4px;
+                                        "
+                                    >
+                                        -${taxReduction.toFixed(1)}%
+                                        House bonus
+                                    </div>
+                                `
+                                : ""
+                        }
+
                     </div>
+
 
                 </div>
 
             </section>
 
+
+            <!-- =================================================
+                 ROOMS
+            ================================================= -->
 
             <section class="section">
 
@@ -490,82 +606,128 @@ async function loadHouse() {
 
                     ${
                         rooms.length
-                            ? rooms.map(room => {
 
-                                const privateRoom =
-                                    room.room_type ===
-                                    "bedroom";
+                        ? rooms.map(room => {
 
-                                return `
+                            const privateRoom =
+                                room.room_type === "bedroom";
 
-                                    <article
-                                        class="room-card"
+
+                            const bedroomOwner =
+                                room.bedroomOwner ||
+                                null;
+
+
+                            return `
+
+                                <article
+                                    class="room-card"
+                                >
+
+                                    <div
+                                        class="room-icon"
                                     >
+                                        ${
+                                            privateRoom
+                                                ? "🛏️"
+                                                : "🛋️"
+                                        }
+                                    </div>
 
-                                        <div
-                                            class="room-icon"
-                                        >
-                                            ${
-                                                privateRoom
-                                                    ? "🛏️"
-                                                    : "🛋️"
-                                            }
-                                        </div>
 
-                                        <h3>
-                                            ${escapeHtml(
-                                                room.name
-                                            )}
-                                        </h3>
+                                    <h3>
 
-                                        <p class="${
+                                        ${escapeHtml(
+                                            room.name ||
+                                            "Unnamed Room"
+                                        )}
+
+                                    </h3>
+
+
+                                    <p
+                                        class="${
                                             privateRoom
                                                 ? "room-private"
                                                 : "room-public"
-                                        }">
-
-                                            ${
-                                                privateRoom
-                                                    ? "🔒 Private Bedroom"
-                                                    : "🌐 Public Room"
-                                            }
-
-                                        </p>
+                                        }"
+                                    >
 
                                         ${
-                                            privateRoom &&
-                                            room.bedroomOwner
-                                                ? `
-                                                    <p>
-                                                        👤 Bedroom of
-                                                        <strong>
-                                                            ${escapeHtml(
-                                                                room.bedroomOwner.display_name ||
-                                                                room.bedroomOwner.username
-                                                            )}
-                                                        </strong>
-                                                    </p>
-                                                `
-                                                : ""
+                                            privateRoom
+                                                ? "🔒 Private Bedroom"
+                                                : "🌐 Public Room"
                                         }
 
-                                        <a
-                                            class="button primary"
-                                            href="/house-room.html?house=${encodeURIComponent(house.id)}&room=${encodeURIComponent(room.id)}"
-                                        >
-                                            Enter Room →
-                                        </a>
+                                    </p>
 
-                                    </article>
 
-                                `;
+                                    ${
+                                        privateRoom
+                                        ? `
 
-                            }).join("")
-                            : `
-                                <div class="notice">
-                                    No rooms found.
+                                            <p>
+
+                                                👤 Bedroom of
+
+                                                <strong>
+
+                                                    ${escapeHtml(
+                                                        bedroomOwner?.display_name ||
+                                                        bedroomOwner?.username ||
+                                                        "Unknown"
+                                                    )}
+
+                                                </strong>
+
+                                            </p>
+
+                                        `
+                                        : ""
+                                    }
+
+
+                                    <a
+                                        class="button primary"
+                                        href="/house-room.html?house=${encodeURIComponent(house.id)}&room=${encodeURIComponent(room.id)}"
+                                    >
+                                        ${
+                                            privateRoom
+                                                ? "🔐 Enter Bedroom →"
+                                                : "🚪 Enter Room →"
+                                        }
+                                    </a>
+
+                                </article>
+
+                            `;
+
+                        }).join("")
+
+                        : `
+
+                            <div class="notice">
+
+                                <div
+                                    style="
+                                        font-size:45px;
+                                    "
+                                >
+                                    🚪
                                 </div>
-                            `
+
+                                <h3>
+                                    No rooms found
+                                </h3>
+
+                                <p>
+                                    This House doesn't have
+                                    any rooms yet.
+                                </p>
+
+                            </div>
+
+                        `
                     }
 
                 </div>
@@ -573,75 +735,124 @@ async function loadHouse() {
             </section>
 
 
+            <!-- =================================================
+                 MEMBERS
+            ================================================= -->
+
             <section class="section">
 
-                <h2>👥 Members</h2>
+                <h2>
+                    👥 Members
+                    <span
+                        style="
+                            color:#7dffb1;
+                            font-size:16px;
+                        "
+                    >
+                        ${members.length}
+                    </span>
+                </h2>
+
 
                 <div class="member-grid">
 
                     ${
-                        members.map(member => {
+                        members.length
+
+                        ? members.map(member => {
 
                             const profile =
-                                member.profile ||
-                                {};
+                                member.profile || {};
+
+
+                            const name =
+                                profile.display_name ||
+                                profile.username ||
+                                "Unknown";
+
+
+                            const username =
+                                profile.username ||
+                                "unknown";
+
 
                             return `
 
-                                <div class="member-card">
+                                <div
+                                    class="member-card"
+                                >
 
                                     ${
                                         profile.avatar_url
-                                            ? `
-                                                <img
-                                                    class="avatar"
-                                                    src="${escapeHtml(
-                                                        profile.avatar_url
-                                                    )}"
-                                                >
-                                            `
-                                            : `
-                                                <div
-                                                    class="avatar"
-                                                    style="
-                                                        display:grid;
-                                                        place-items:center;
-                                                        font-size:22px;
-                                                    "
-                                                >
-                                                    👤
-                                                </div>
-                                            `
+
+                                        ? `
+
+                                            <img
+                                                class="avatar"
+                                                src="${escapeHtml(
+                                                    profile.avatar_url
+                                                )}"
+                                                alt=""
+                                            >
+
+                                        `
+
+                                        : `
+
+                                            <div
+                                                class="avatar"
+                                                style="
+                                                    display:grid;
+                                                    place-items:center;
+                                                    font-size:22px;
+                                                "
+                                            >
+                                                👤
+                                            </div>
+
+                                        `
                                     }
 
-                                    <div class="member-info">
 
-                                        <div class="member-name">
+                                    <div
+                                        class="member-info"
+                                    >
+
+                                        <div
+                                            class="member-name"
+                                        >
 
                                             ${escapeHtml(
-                                                profile.display_name ||
-                                                profile.username ||
-                                                "Unknown"
+                                                name
                                             )}
 
                                         </div>
 
-                                        <div class="member-username">
+
+                                        <div
+                                            class="member-username"
+                                        >
 
                                             @${escapeHtml(
-                                                profile.username ||
-                                                "unknown"
+                                                username
                                             )}
 
                                         </div>
 
                                     </div>
 
-                                    <div class="role">
 
-                                        ${escapeHtml(
-                                            member.role
-                                        )}
+                                    <div
+                                        class="role"
+                                    >
+
+                                        ${
+                                            member.role === "owner"
+                                                ? "👑 Owner"
+                                                : member.role === "admin"
+                                                    ? "🛡️ Admin"
+                                                    : "Member"
+                                        }
 
                                     </div>
 
@@ -650,6 +861,16 @@ async function loadHouse() {
                             `;
 
                         }).join("")
+
+                        : `
+
+                            <div class="notice">
+
+                                No members found.
+
+                            </div>
+
+                        `
                     }
 
                 </div>
@@ -657,72 +878,142 @@ async function loadHouse() {
             </section>
 
 
-            <section class="section">
+            <!-- =================================================
+                 INVITES
+            ================================================= -->
 
-                <h2>📨 Invite Someone</h2>
+            ${
+                canInvite
 
-                <div class="invite-box">
+                ? `
 
-                    <div class="invite-search">
+                    <section
+                        class="section"
+                    >
 
-                        <input
-                            id="user-search"
-                            placeholder="Search ShrekBook users..."
-                            autocomplete="off"
+                        <h2>
+                            📨 Invite Someone
+                        </h2>
+
+
+                        <div
+                            class="invite-box"
                         >
 
-                        <button
-                            class="button primary"
-                            onclick="searchUsers()"
-                        >
-                            Search
-                        </button>
+                            <div
+                                class="invite-search"
+                            >
 
-                    </div>
+                                <input
+                                    id="user-search"
+                                    placeholder="Search ShrekBook users..."
+                                    autocomplete="off"
+                                >
 
-                    <div
-                        id="search-results"
-                        class="search-results"
-                    ></div>
 
-                </div>
+                                <button
+                                    class="button primary"
+                                    id="search-users-button"
+                                    type="button"
+                                >
+                                    🔎 Search
+                                </button>
 
-            </section>
+                            </div>
+
+
+                            <div
+                                id="search-results"
+                                class="search-results"
+                            ></div>
+
+                        </div>
+
+                    </section>
+
+                `
+
+                : ""
+            }
 
         `;
 
 
-        const search =
-            document.getElementById(
-                "user-search"
-            );
+        /* =====================================================
+           USER SEARCH
+        ===================================================== */
 
-        search.addEventListener(
-            "keydown",
-            event => {
+        if (canInvite) {
 
-                if (event.key === "Enter") {
-                    searchUsers();
-                }
+            const search =
+                document.getElementById(
+                    "user-search"
+                );
+
+
+            const searchButton =
+                document.getElementById(
+                    "search-users-button"
+                );
+
+
+            if (search) {
+
+                search.addEventListener(
+                    "keydown",
+                    event => {
+
+                        if (
+                            event.key === "Enter"
+                        ) {
+
+                            searchUsers();
+
+                        }
+
+                    }
+                );
 
             }
-        );
+
+
+            if (searchButton) {
+
+                searchButton.addEventListener(
+                    "click",
+                    searchUsers
+                );
+
+            }
+
+        }
+
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "loadHouse error:",
+            error
+        );
+
 
         content.innerHTML = `
 
             <div class="notice">
 
-                <div style="font-size:55px">
+                <div
+                    style="
+                        font-size:60px;
+                    "
+                >
                     😭
                 </div>
+
 
                 <h2>
                     Couldn't load House
                 </h2>
+
 
                 <p>
                     ${escapeHtml(
@@ -730,19 +1021,26 @@ async function loadHouse() {
                     )}
                 </p>
 
+
                 <button
-                    class="button"
+                    class="button primary"
                     onclick="loadHouse()"
                 >
-                    Try Again
+                    🔄 Try Again
                 </button>
 
             </div>
 
         `;
+
     }
+
 }
 
+
+/* =========================================================
+   SEARCH USERS
+========================================================= */
 
 async function searchUsers() {
 
@@ -751,25 +1049,39 @@ async function searchUsers() {
             "user-search"
         );
 
+
     const results =
         document.getElementById(
             "search-results"
         );
 
+
+    if (!input || !results) {
+        return;
+    }
+
+
     const query =
         input.value.trim();
 
+
     if (!query) {
 
-        results.innerHTML =
-            "<p>Type something to search.</p>";
+        results.innerHTML = `
+            <p>
+                🔎 Type something to search.
+            </p>
+        `;
 
         return;
     }
 
 
-    results.innerHTML =
-        "🔎 Searching...";
+    results.innerHTML = `
+        <p>
+            🔎 Searching ShrekBook...
+        </p>
+    `;
 
 
     try {
@@ -778,13 +1090,32 @@ async function searchUsers() {
             await fetch(
                 `/api/users/search?q=${encodeURIComponent(query)}`,
                 {
-                    credentials: "include"
+                    credentials: "include",
+                    headers: {
+                        "Accept": "application/json"
+                    }
                 }
             );
 
 
-        const data =
-            await response.json();
+        const raw =
+            await response.text();
+
+
+        let data;
+
+
+        try {
+
+            data = JSON.parse(raw);
+
+        } catch {
+
+            throw new Error(
+                "User search returned invalid data."
+            );
+
+        }
 
 
         if (!response.ok) {
@@ -793,6 +1124,7 @@ async function searchUsers() {
                 data.error ||
                 "Search failed."
             );
+
         }
 
 
@@ -804,54 +1136,128 @@ async function searchUsers() {
 
         if (!users.length) {
 
-            results.innerHTML =
-                "<p>No users found.</p>";
+            results.innerHTML = `
+                <p>
+                    😭 No users found.
+                </p>
+            `;
 
             return;
+
         }
 
 
         results.innerHTML =
-            users.map(user => `
+            users.map(user => {
 
-                <div
-                    class="search-user"
-                    onclick="inviteUser('${user.id}')"
-                >
+                const userId =
+                    String(user.id || "");
 
-                    👤
 
-                    <strong>
-                        ${escapeHtml(
-                            user.display_name ||
-                            user.username
-                        )}
-                    </strong>
+                return `
 
-                    @${escapeHtml(
-                        user.username
-                    )}
+                    <div
+                        class="search-user"
+                        data-user-id="${escapeHtml(
+                            userId
+                        )}"
+                    >
 
-                    <span style="float:right">
-                        ➕ Invite
-                    </span>
+                        👤
 
-                </div>
+                        <strong>
+                            ${escapeHtml(
+                                user.display_name ||
+                                user.username ||
+                                "Unknown"
+                            )}
+                        </strong>
 
-            `).join("");
+                        <span
+                            style="
+                                color:#8995a3;
+                            "
+                        >
+                            @${escapeHtml(
+                                user.username ||
+                                "unknown"
+                            )}
+                        </span>
+
+
+                        <span
+                            style="
+                                float:right;
+                                color:#75ffac;
+                                font-weight:bold;
+                            "
+                        >
+                            ➕ Invite
+                        </span>
+
+                    </div>
+
+                `;
+
+            }).join("");
+
+
+        /*
+            Use event listeners instead of putting
+            the UUID directly into onclick="..."
+        */
+
+        results
+            .querySelectorAll(
+                ".search-user"
+            )
+            .forEach(element => {
+
+                element.addEventListener(
+                    "click",
+                    () => {
+
+                        inviteUser(
+                            element.dataset.userId
+                        );
+
+                    }
+                );
+
+            });
 
 
     } catch (error) {
 
-        results.innerHTML =
-            `😭 ${escapeHtml(
-                error.message
-            )}`;
+        console.error(
+            "searchUsers:",
+            error
+        );
+
+
+        results.innerHTML = `
+            <p>
+                😭 ${escapeHtml(
+                    error.message
+                )}
+            </p>
+        `;
+
     }
+
 }
 
 
+/* =========================================================
+   INVITE USER
+========================================================= */
+
 async function inviteUser(userId) {
+
+    if (!userId) {
+        return;
+    }
+
 
     try {
 
@@ -862,12 +1268,14 @@ async function inviteUser(userId) {
 
                     method: "POST",
 
+                    credentials: "include",
+
                     headers: {
                         "Content-Type":
+                            "application/json",
+                        "Accept":
                             "application/json"
                     },
-
-                    credentials: "include",
 
                     body: JSON.stringify({
                         userId
@@ -877,28 +1285,55 @@ async function inviteUser(userId) {
             );
 
 
-        const data =
-            await response.json();
+        const raw =
+            await response.text();
+
+
+        let data;
+
+
+        try {
+
+            data = JSON.parse(raw);
+
+        } catch {
+
+            throw new Error(
+                "Invite request returned invalid data."
+            );
+
+        }
 
 
         if (!response.ok) {
+
             throw new Error(
                 data.error ||
                 "Failed to invite user."
             );
+
         }
 
 
-        alert("📨 Invitation sent!");
+        alert(
+            "📨 Invitation sent!"
+        );
+
 
     } catch (error) {
 
         alert(
             "😭 " + error.message
         );
+
     }
+
 }
 
+
+/* =========================================================
+   HTML ESCAPING
+========================================================= */
 
 function escapeHtml(value) {
 
@@ -908,9 +1343,12 @@ function escapeHtml(value) {
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+
 }
 
 </script>
+```
+
 
 </body>
 </html>
