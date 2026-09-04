@@ -1,1157 +1,2848 @@
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
 
-    <meta charset="UTF-8">
+```
+<meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0">
 
-    <title>ShrekBook - The Social Network for Everyone</title>
-    <link rel="icon" type="image/png" href="/favicon.png">
+<title>ShrekBook — The Social Network for Everyone</title>
 
-    <meta
-        name="description"
-        content="ShrekBook is a fun social network where you can connect with people, share posts, chat, react to content, and compete on the leaderboard.">
+<link
+    rel="icon"
+    type="image/png"
+    href="/favicon.png">
 
-    <meta
-        name="keywords"
-        content="ShrekBook, social network, Shrek, social media, posts, chat, leaderboard">
+<meta
+    name="description"
+    content="ShrekBook is a fun social network where you can connect with people, share posts, chat, react, and compete on the leaderboard.">
 
-    <link
-        rel="stylesheet"
-        href="/styles.css">
+<meta
+    name="keywords"
+    content="ShrekBook, Shrek, social network, social media, posts, chat, leaderboard">
 
-    <style>
+<link
+    rel="stylesheet"
+    href="/styles.css">
 
-        /* ==================================================
-           SHREKBOOK NAVIGATION
-           ================================================== */
 
-        .jump-nav {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin: 15px 0 25px 0;
+<!-- =====================================================
+     SHREKBOOK HOMEPAGE DESIGN
+     ===================================================== -->
+
+<style>
+
+    /* =====================================================
+       GLOBAL HOMEPAGE
+       ===================================================== */
+
+    :root {
+        --sb-bg: #f4f7f2;
+        --sb-card: #ffffff;
+        --sb-card-2: #f8faf7;
+
+        --sb-text: #182018;
+        --sb-muted: #687268;
+
+        --sb-primary: #5d8f45;
+        --sb-primary-dark: #426b31;
+        --sb-primary-light: #e8f2e3;
+
+        --sb-border: #dce4d8;
+
+        --sb-shadow:
+            0 10px 30px rgba(30, 50, 25, 0.08);
+
+        --sb-radius: 18px;
+    }
+
+
+    * {
+        box-sizing: border-box;
+    }
+
+
+    html {
+        scroll-behavior: smooth;
+    }
+
+
+    body {
+        margin: 0;
+
+        background:
+            linear-gradient(
+                180deg,
+                #eef5eb 0%,
+                #f7f9f6 35%,
+                #f4f7f2 100%
+            );
+
+        color: var(--sb-text);
+
+        font-family:
+            system-ui,
+            -apple-system,
+            BlinkMacSystemFont,
+            "Segoe UI",
+            sans-serif;
+    }
+
+
+    a {
+        color: inherit;
+    }
+
+
+    button,
+    input,
+    textarea {
+        font: inherit;
+    }
+
+
+    button {
+        cursor: pointer;
+    }
+
+
+    /* =====================================================
+       NAVBAR
+       ===================================================== */
+
+    .navbar {
+        position: sticky;
+        top: 0;
+
+        z-index: 10000;
+
+        background:
+            rgba(255, 255, 255, 0.94);
+
+        backdrop-filter: blur(16px);
+
+        border-bottom:
+            1px solid var(--sb-border);
+
+        box-shadow:
+            0 4px 20px rgba(0, 0, 0, 0.05);
+    }
+
+
+    .navbar-inner {
+        max-width: 1450px;
+
+        margin: auto;
+
+        padding:
+            12px 20px;
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 20px;
+    }
+
+
+    .logo {
+        display: inline-flex;
+
+        align-items: center;
+
+        gap: 8px;
+
+        text-decoration: none;
+
+        font-size: 21px;
+
+        font-weight: 900;
+
+        white-space: nowrap;
+
+        color: var(--sb-primary-dark);
+    }
+
+
+    .logo:hover {
+        transform: translateY(-1px);
+    }
+
+
+    .shrekbook-nav {
+        display: flex;
+
+        align-items: center;
+
+        gap: 6px;
+
+        flex: 1;
+
+        min-width: 0;
+
+        flex-wrap: wrap;
+    }
+
+
+    .shrekbook-nav > a,
+    .shrekbook-nav > button,
+    .nav-dropdown-button {
+        display: inline-flex;
+
+        align-items: center;
+        justify-content: center;
+
+        min-height: 38px;
+
+        padding:
+            7px 11px;
+
+        border: none;
+
+        border-radius: 10px;
+
+        background: transparent;
+
+        color: var(--sb-text);
+
+        text-decoration: none;
+
+        font-weight: 650;
+
+        white-space: nowrap;
+
+        transition:
+            background 0.15s ease,
+            transform 0.15s ease,
+            color 0.15s ease;
+    }
+
+
+    .shrekbook-nav > a:hover,
+    .shrekbook-nav > button:hover,
+    .nav-dropdown-button:hover {
+        background: var(--sb-primary-light);
+
+        color: var(--sb-primary-dark);
+
+        transform: translateY(-1px);
+    }
+
+
+    /* =====================================================
+       MORE DROPDOWN
+       ===================================================== */
+
+    .nav-dropdown {
+        position: relative;
+
+        display: inline-block;
+
+        flex-shrink: 0;
+    }
+
+
+    .nav-dropdown-button {
+        appearance: none;
+
+        -webkit-appearance: none;
+    }
+
+
+    .nav-dropdown-menu {
+        position: absolute;
+
+        top: calc(100% + 8px);
+
+        left: 0;
+
+        display: none;
+
+        flex-direction: column;
+
+        min-width: 210px;
+
+        padding: 7px;
+
+        background: #ffffff;
+
+        border:
+            1px solid var(--sb-border);
+
+        border-radius: 14px;
+
+        box-shadow:
+            0 18px 45px rgba(0, 0, 0, 0.15);
+
+        z-index: 999999;
+    }
+
+
+    .nav-dropdown-menu.open {
+        display: flex;
+    }
+
+
+    .nav-dropdown-menu a {
+        display: flex;
+
+        align-items: center;
+
+        min-height: 40px;
+
+        padding:
+            8px 11px;
+
+        border-radius: 9px;
+
+        text-decoration: none;
+
+        font-weight: 600;
+
+        white-space: nowrap;
+
+        transition:
+            background 0.15s ease,
+            transform 0.15s ease;
+    }
+
+
+    .nav-dropdown-menu a:hover {
+        background: var(--sb-primary-light);
+
+        transform: translateX(2px);
+    }
+
+
+    /* =====================================================
+       HERO
+       ===================================================== */
+
+    .sb-hero {
+        position: relative;
+
+        overflow: hidden;
+
+        max-width: 1200px;
+
+        margin:
+            28px auto 25px;
+
+        padding:
+            42px 38px;
+
+        border-radius: 26px;
+
+        background:
+            linear-gradient(
+                135deg,
+                #dfeeda,
+                #ffffff 55%,
+                #e9f3e5
+            );
+
+        border:
+            1px solid var(--sb-border);
+
+        box-shadow: var(--sb-shadow);
+    }
+
+
+    .sb-hero::after {
+        content: "🧌";
+
+        position: absolute;
+
+        right: 35px;
+
+        bottom: -30px;
+
+        font-size: 150px;
+
+        opacity: 0.10;
+
+        pointer-events: none;
+    }
+
+
+    .sb-hero-content {
+        position: relative;
+
+        z-index: 1;
+
+        max-width: 760px;
+    }
+
+
+    .sb-eyebrow {
+        display: inline-flex;
+
+        align-items: center;
+
+        gap: 7px;
+
+        padding:
+            6px 10px;
+
+        border-radius: 999px;
+
+        background:
+            rgba(93, 143, 69, 0.12);
+
+        color:
+            var(--sb-primary-dark);
+
+        font-size: 13px;
+
+        font-weight: 800;
+    }
+
+
+    .sb-hero h1 {
+        margin:
+            15px 0 10px;
+
+        font-size:
+            clamp(32px, 5vw, 54px);
+
+        line-height: 1.05;
+
+        letter-spacing:
+            -1.5px;
+    }
+
+
+    .sb-hero p {
+        margin:
+            0 0 20px;
+
+        max-width: 680px;
+
+        color: var(--sb-muted);
+
+        font-size: 17px;
+
+        line-height: 1.6;
+    }
+
+
+    .sb-hero-actions {
+        display: flex;
+
+        flex-wrap: wrap;
+
+        gap: 10px;
+    }
+
+
+    .sb-hero-button {
+        display: inline-flex;
+
+        align-items: center;
+
+        justify-content: center;
+
+        min-height: 44px;
+
+        padding:
+            10px 16px;
+
+        border-radius: 11px;
+
+        border: none;
+
+        background:
+            var(--sb-primary);
+
+        color: white;
+
+        text-decoration: none;
+
+        font-weight: 800;
+
+        box-shadow:
+            0 7px 18px rgba(93, 143, 69, 0.22);
+    }
+
+
+    .sb-hero-button:hover {
+        background:
+            var(--sb-primary-dark);
+
+        transform: translateY(-1px);
+    }
+
+
+    .sb-hero-button.secondary {
+        background: white;
+
+        color:
+            var(--sb-primary-dark);
+
+        border:
+            1px solid var(--sb-border);
+
+        box-shadow: none;
+    }
+
+
+    /* =====================================================
+       MAIN CONTAINER
+       ===================================================== */
+
+    .container {
+        width: min(1200px, calc(100% - 30px));
+
+        margin:
+            0 auto 60px;
+    }
+
+
+    /* =====================================================
+       AUTH
+       ===================================================== */
+
+    .auth-section {
+        display: flex;
+
+        justify-content: center;
+
+        margin:
+            35px 0;
+    }
+
+
+    .auth-box {
+        width: min(520px, 100%);
+
+        padding: 28px;
+
+        background: var(--sb-card);
+
+        border:
+            1px solid var(--sb-border);
+
+        border-radius: var(--sb-radius);
+
+        box-shadow: var(--sb-shadow);
+    }
+
+
+    .auth-box h1 {
+        margin-top: 0;
+    }
+
+
+    .auth-box input,
+    .auth-box textarea {
+        width: 100%;
+
+        margin:
+            7px 0;
+
+        padding:
+            12px 13px;
+
+        border:
+            1px solid var(--sb-border);
+
+        border-radius: 10px;
+
+        outline: none;
+
+        background: #fbfcfa;
+    }
+
+
+    .auth-box input:focus {
+        border-color:
+            var(--sb-primary);
+    }
+
+
+    .auth-box button {
+        width: 100%;
+
+        margin-top: 9px;
+
+        padding:
+            11px 14px;
+
+        border: none;
+
+        border-radius: 10px;
+
+        background:
+            var(--sb-primary);
+
+        color: white;
+
+        font-weight: 800;
+    }
+
+
+    .auth-box .secondary-button {
+        background:
+            var(--sb-primary-light);
+
+        color:
+            var(--sb-primary-dark);
+    }
+
+
+    /* =====================================================
+       QUICK ACTIONS
+       ===================================================== */
+
+    .jump-nav {
+        display: flex;
+
+        flex-wrap: wrap;
+
+        align-items: center;
+
+        gap: 9px;
+
+        margin:
+            20px 0;
+    }
+
+
+    .jump-nav button {
+        border:
+            1px solid var(--sb-border);
+
+        background:
+            var(--sb-card);
+
+        color: var(--sb-text);
+
+        padding:
+            9px 13px;
+
+        border-radius: 11px;
+
+        font-weight: 750;
+
+        box-shadow:
+            0 4px 12px rgba(0, 0, 0, 0.04);
+
+        transition:
+            transform 0.15s ease,
+            background 0.15s ease;
+    }
+
+
+    .jump-nav button:hover {
+        transform: translateY(-2px);
+
+        background:
+            var(--sb-primary-light);
+    }
+
+
+    /* =====================================================
+       CURRENCY
+       ===================================================== */
+
+    .currency-bar {
+        display: flex;
+
+        flex-wrap: wrap;
+
+        gap: 10px;
+
+        margin:
+            15px 0 30px;
+    }
+
+
+    .currency-card {
+        display: flex;
+
+        align-items: center;
+
+        gap: 10px;
+
+        min-width: 175px;
+
+        padding:
+            12px 15px;
+
+        background:
+            var(--sb-card);
+
+        border:
+            1px solid var(--sb-border);
+
+        border-radius: 14px;
+
+        box-shadow:
+            0 5px 15px rgba(0, 0, 0, 0.04);
+    }
+
+
+    .currency-icon {
+        font-size: 26px;
+    }
+
+
+    .currency-label {
+        color: var(--sb-muted);
+
+        font-size: 12px;
+
+        font-weight: 700;
+    }
+
+
+    .currency-value {
+        font-size: 18px;
+
+        font-weight: 900;
+    }
+
+
+    /* =====================================================
+       SECTIONS
+       ===================================================== */
+
+    #posts-section,
+    #people-section,
+    #leaderboard-section {
+        scroll-margin-top: 90px;
+    }
+
+
+    #posts-section,
+    #people-section,
+    #leaderboard-section,
+    .create-post,
+    .telecom-section {
+        margin:
+            25px 0;
+    }
+
+
+    .section-heading {
+        display: flex;
+
+        align-items: end;
+
+        justify-content: space-between;
+
+        gap: 15px;
+
+        margin-bottom: 14px;
+    }
+
+
+    .section-heading h2 {
+        margin:
+            0 0 3px;
+
+        font-size: 25px;
+    }
+
+
+    .section-heading p {
+        margin: 0;
+
+        color: var(--sb-muted);
+
+        font-size: 14px;
+    }
+
+
+    /* =====================================================
+       CREATE POST
+       ===================================================== */
+
+    .create-post {
+        padding:
+            22px;
+
+        background:
+            var(--sb-card);
+
+        border:
+            1px solid var(--sb-border);
+
+        border-radius:
+            var(--sb-radius);
+
+        box-shadow:
+            var(--sb-shadow);
+    }
+
+
+    .create-post h2 {
+        margin-top: 0;
+    }
+
+
+    #post-content {
+        width: 100%;
+
+        min-height: 130px;
+
+        resize: vertical;
+
+        padding:
+            14px;
+
+        border:
+            1px solid var(--sb-border);
+
+        border-radius: 13px;
+
+        background:
+            #fbfcfa;
+
+        outline: none;
+    }
+
+
+    #post-content:focus {
+        border-color:
+            var(--sb-primary);
+    }
+
+
+    .image-upload {
+        margin-top: 13px;
+    }
+
+
+    .image-upload label {
+        display: inline-flex;
+
+        padding:
+            9px 13px;
+
+        border-radius: 10px;
+
+        background:
+            var(--sb-primary-light);
+
+        color:
+            var(--sb-primary-dark);
+
+        font-weight: 750;
+
+        cursor: pointer;
+    }
+
+
+    #post-image {
+        display: block;
+
+        margin-top: 9px;
+
+        max-width: 100%;
+    }
+
+
+    .create-post > button {
+        margin-top: 14px;
+
+        padding:
+            11px 18px;
+
+        border: none;
+
+        border-radius: 11px;
+
+        background:
+            var(--sb-primary);
+
+        color: white;
+
+        font-weight: 850;
+    }
+
+
+    .create-post > button:hover {
+        background:
+            var(--sb-primary-dark);
+    }
+
+
+    #post-status,
+    #login-status,
+    #signup-status {
+        min-height: 20px;
+
+        color:
+            var(--sb-muted);
+    }
+
+
+    /* =====================================================
+       PEOPLE
+       ===================================================== */
+
+    .people-section {
+        padding:
+            22px;
+
+        background:
+            var(--sb-card);
+
+        border:
+            1px solid var(--sb-border);
+
+        border-radius:
+            var(--sb-radius);
+
+        box-shadow:
+            var(--sb-shadow);
+    }
+
+
+    #people-search {
+        width: 100%;
+
+        padding:
+            12px 14px;
+
+        margin:
+            8px 0 17px;
+
+        border:
+            1px solid var(--sb-border);
+
+        border-radius: 11px;
+
+        outline: none;
+
+        background:
+            #fbfcfa;
+    }
+
+
+    #people-search:focus {
+        border-color:
+            var(--sb-primary);
+    }
+
+
+    /* =====================================================
+       LEADERBOARD
+       ===================================================== */
+
+    #leaderboard-section {
+        margin-top: 35px;
+    }
+
+
+    .leaderboard-box {
+        padding:
+            22px;
+
+        background:
+            var(--sb-card);
+
+        border:
+            1px solid var(--sb-border);
+
+        border-radius:
+            var(--sb-radius);
+
+        box-shadow:
+            var(--sb-shadow);
+    }
+
+
+    .leaderboard-switcher {
+        display: flex;
+
+        flex-wrap: wrap;
+
+        gap: 7px;
+
+        margin-bottom: 20px;
+    }
+
+
+    .leaderboard-switcher button {
+        padding:
+            9px 12px;
+
+        border:
+            1px solid var(--sb-border);
+
+        border-radius: 9px;
+
+        background:
+            var(--sb-card-2);
+
+        color: var(--sb-text);
+
+        font-weight: 750;
+    }
+
+
+    .leaderboard-switcher button:hover {
+        background:
+            var(--sb-primary-light);
+    }
+
+
+    .leaderboard-switcher button.active {
+        background:
+            var(--sb-primary);
+
+        color: white;
+
+        border-color:
+            var(--sb-primary);
+    }
+
+
+    .leaderboard-list {
+        display: flex;
+
+        flex-direction: column;
+
+        gap: 9px;
+    }
+
+
+    .leaderboard-user {
+        display: flex;
+
+        align-items: center;
+
+        gap: 12px;
+
+        padding:
+            13px;
+
+        background:
+            var(--sb-card-2);
+
+        border:
+            1px solid var(--sb-border);
+
+        border-radius: 13px;
+    }
+
+
+    .leaderboard-rank {
+        width: 45px;
+
+        text-align: center;
+
+        font-size: 23px;
+
+        font-weight: 900;
+    }
+
+
+    .leaderboard-avatar {
+        width: 48px;
+
+        height: 48px;
+
+        border-radius: 50%;
+
+        object-fit: cover;
+
+        background:
+            var(--sb-primary-light);
+    }
+
+
+    .leaderboard-info {
+        flex: 1;
+
+        min-width: 0;
+    }
+
+
+    .leaderboard-name {
+        font-weight: 850;
+    }
+
+
+    .leaderboard-username {
+        color:
+            var(--sb-muted);
+
+        font-size: 13px;
+    }
+
+
+    .leaderboard-score {
+        font-weight: 900;
+
+        text-align: right;
+    }
+
+
+    .leaderboard-medal {
+        font-size: 27px;
+    }
+
+
+    .leaderboard-loading,
+    .leaderboard-empty {
+        padding: 35px;
+
+        text-align: center;
+
+        color:
+            var(--sb-muted);
+    }
+
+
+    /* =====================================================
+       TELECOM
+       ===================================================== */
+
+    .telecom-section {
+        position: relative;
+
+        overflow: hidden;
+
+        padding:
+            25px;
+
+        background:
+            linear-gradient(
+                135deg,
+                #e5f0df,
+                #ffffff
+            );
+
+        border:
+            1px solid var(--sb-border);
+
+        border-radius:
+            var(--sb-radius);
+
+        box-shadow:
+            var(--sb-shadow);
+    }
+
+
+    .telecom-section h2 {
+        margin-top: 0;
+    }
+
+
+    .telecom-section p {
+        color:
+            var(--sb-muted);
+    }
+
+
+    .telecom-button {
+        display: inline-flex;
+
+        padding:
+            10px 15px;
+
+        border-radius:
+            10px;
+
+        background:
+            var(--sb-primary);
+
+        color: white;
+
+        text-decoration: none;
+
+        font-weight: 800;
+    }
+
+
+    /* =====================================================
+       OTHER
+       ===================================================== */
+
+    .other-section {
+        width:
+            min(1100px, calc(100% - 30px));
+
+        margin:
+            50px auto;
+
+        padding:
+            27px;
+
+        background:
+            var(--sb-card);
+
+        border:
+            1px solid var(--sb-border);
+
+        border-radius:
+            var(--sb-radius);
+
+        box-shadow:
+            var(--sb-shadow);
+    }
+
+
+    .other-section h2 {
+        margin-top: 0;
+    }
+
+
+    .other-section h3 {
+        margin-top: 27px;
+    }
+
+
+    .other-section li {
+        margin:
+            8px 0;
+
+        line-height: 1.5;
+    }
+
+
+    .other-section a {
+        color:
+            var(--sb-primary-dark);
+
+        font-weight: 700;
+    }
+
+
+    /* =====================================================
+       TOAST
+       ===================================================== */
+
+    #sb-toast-container {
+        position: fixed;
+
+        right: 20px;
+
+        bottom: 20px;
+
+        display: flex;
+
+        flex-direction: column;
+
+        gap: 10px;
+
+        z-index: 2147483647;
+
+        pointer-events: none;
+    }
+
+
+    .sb-toast {
+        max-width: 340px;
+
+        padding:
+            13px 16px;
+
+        background:
+            #1d251d;
+
+        color: white;
+
+        border-radius: 12px;
+
+        box-shadow:
+            0 12px 30px rgba(0, 0, 0, 0.25);
+
+        font-weight: 650;
+
+        animation:
+            sbToastIn 0.2s ease;
+    }
+
+
+    @keyframes sbToastIn {
+
+        from {
+            opacity: 0;
+            transform:
+                translateY(10px);
         }
 
-        .jump-nav button {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: bold;
-            background: #eeeeee;
+        to {
+            opacity: 1;
+            transform:
+                translateY(0);
         }
 
-        .jump-nav button:hover {
-            opacity: 0.8;
-        }
+    }
 
 
-        /* ==================================================
-           LEADERBOARD
-           ================================================== */
+    /* =====================================================
+       BACK TO TOP
+       ===================================================== */
 
-        #leaderboard-section {
-            margin-top: 40px;
-            margin-bottom: 40px;
-        }
+    #sb-back-top {
+        position: fixed;
 
-        .leaderboard-box {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow:
-                0 2px 10px
-                rgba(0, 0, 0, 0.08);
-        }
+        right: 20px;
 
-        .leaderboard-switcher {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 20px;
-        }
+        bottom: 20px;
 
-        .leaderboard-switcher button {
-            padding: 9px 13px;
-            border: none;
-            border-radius: 9px;
-            cursor: pointer;
-            background: #eeeeee;
-            font-weight: bold;
-        }
+        width: 45px;
 
-        .leaderboard-switcher button:hover {
-            opacity: 0.8;
-        }
+        height: 45px;
 
-        .leaderboard-switcher button.active {
-            background: #333;
-            color: white;
-        }
+        border: none;
 
-        .leaderboard-list {
-            display: flex;
+        border-radius: 50%;
+
+        background:
+            var(--sb-primary);
+
+        color: white;
+
+        font-size: 18px;
+
+        font-weight: 900;
+
+        box-shadow:
+            0 8px 20px rgba(0, 0, 0, 0.18);
+
+        opacity: 0;
+
+        pointer-events: none;
+
+        transform:
+            translateY(10px);
+
+        transition:
+            opacity 0.2s ease,
+            transform 0.2s ease;
+
+        z-index: 9998;
+    }
+
+
+    #sb-back-top.visible {
+        opacity: 1;
+
+        pointer-events: auto;
+
+        transform:
+            translateY(0);
+    }
+
+
+    /* =====================================================
+       MOBILE
+       ===================================================== */
+
+    @media (max-width: 850px) {
+
+        .navbar-inner {
+            align-items: flex-start;
+
             flex-direction: column;
-            gap: 10px;
+
+            gap: 8px;
         }
 
-        .leaderboard-user {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            border-radius: 12px;
-            background: #f5f5f5;
-        }
-
-        .leaderboard-rank {
-            width: 45px;
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            flex-shrink: 0;
-        }
-
-        .leaderboard-avatar {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            object-fit: cover;
-            flex-shrink: 0;
-        }
-
-        .leaderboard-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .leaderboard-name {
-            font-weight: bold;
-            font-size: 16px;
-        }
-
-        .leaderboard-username {
-            color: #777;
-            font-size: 13px;
-        }
-
-        .leaderboard-score {
-            font-weight: bold;
-            font-size: 16px;
-            text-align: right;
-        }
-
-        .leaderboard-medal {
-            font-size: 28px;
-        }
-
-        .leaderboard-loading {
-            text-align: center;
-            padding: 30px;
-            color: #777;
-        }
-
-        .leaderboard-empty {
-            text-align: center;
-            padding: 30px;
-            color: #777;
-        }
-
-
-        /* ==================================================
-           PEOPLE
-           ================================================== */
-
-        #people-section {
-            scroll-margin-top: 80px;
-        }
-
-
-        /* ==================================================
-           POSTS
-           ================================================== */
-
-        #posts-section {
-            scroll-margin-top: 80px;
-        }
-
-
-        /* ==================================================
-           LEADERBOARD SCROLL
-           ================================================== */
-
-        #leaderboard-section {
-            scroll-margin-top: 80px;
-        }
-
-
-        /* ==================================================
-           OTHER
-           ================================================== */
-
-        .other-section {
-            max-width: 1100px;
-            margin: 40px auto;
-            padding: 20px;
-        }
-        /* =========================
-        SHREKBOOK NAVBAR
-        ========================= */
 
         .shrekbook-nav {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            position: relative;
-            padding: 10px;
+            width: 100%;
         }
 
-        /* Normal navbar links/buttons */
+
+        .sb-hero {
+            padding:
+                30px 23px;
+        }
+
+
+        .sb-hero::after {
+            display: none;
+        }
+
+    }
+
+
+    @media (max-width: 560px) {
+
+        .container {
+            width:
+                min(100% - 18px, 1200px);
+        }
+
+
+        .other-section {
+            width:
+                min(100% - 18px, 1100px);
+        }
+
+
         .shrekbook-nav > a,
         .shrekbook-nav > button,
         .nav-dropdown-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
+            font-size: 13px;
 
-            padding: 8px 12px;
-
-            text-decoration: none;
-            border: none;
-            border-radius: 8px;
-
-            cursor: pointer;
+            padding:
+                7px 9px;
         }
 
-        /* Dropdown container */
-        .nav-dropdown {
-            position: relative;
-            display: inline-block;
-        }
 
-        /* More button */
-        .nav-dropdown-button {
-            font: inherit;
-        }
-
-        /* Dropdown menu */
         .nav-dropdown-menu {
-            display: none;
+            position: fixed;
 
-            position: absolute;
-            top: calc(100% + 6px);
-            left: 0;
+            left: 10px;
 
-            min-width: 180px;
+            right: 10px;
 
-            padding: 6px;
+            top: 70px;
 
-            background: white;
-            border: 1px solid #ccc;
-            border-radius: 10px;
+            width: auto;
 
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            max-height:
+                calc(100vh - 90px);
 
-            z-index: 9999;
+            overflow-y: auto;
         }
 
-        /* When JS adds .show */
-        .nav-dropdown-menu.show {
-            display: flex;
-            flex-direction: column;
+
+        .currency-card {
+            flex: 1;
+
+            min-width: 145px;
         }
 
-        /* Links INSIDE dropdown */
-        .nav-dropdown-menu a {
-            display: block;
 
-            width: 100%;
-            box-sizing: border-box;
-
-            padding: 9px 12px;
-
-            text-decoration: none;
-            white-space: nowrap;
-
-            border-radius: 7px;
+        .leaderboard-user {
+            gap: 8px;
         }
 
-        /* Hover */
-        .nav-dropdown-menu a:hover {
-            background: #eee;
+
+        .leaderboard-rank {
+            width: 32px;
+
+            font-size: 18px;
         }
 
-        /* Prevent dropdown from being squished */
-        .nav-dropdown {
-            flex-shrink: 0;
+
+        .leaderboard-avatar {
+            width: 40px;
+
+            height: 40px;
         }
 
-    </style>
+    }
+
+</style>
+```
 
 </head>
 
-
 <body>
 
-
-<!-- ==================================================
+<!-- =====================================================
      NAVBAR
-     ================================================== -->
+     ===================================================== -->
 
 <header class="navbar">
 
-    <div class="navbar-inner">
+```
+<div class="navbar-inner">
+
+    <a
+        href="/"
+        class="logo">
+
+        🧌 ShrekBook
+
+    </a>
+
+
+    <nav
+        class="shrekbook-nav"
+        aria-label="Main navigation">
+
+
+        <a href="/">
+            Home
+        </a>
+
 
         <a
-            href="/"
-            class="logo">
+            href="/profile.html"
+            id="profile-link">
 
-            🧌 ShrekBook
+            👤 Profile
 
         </a>
 
 
-        <nav class="shrekbook-nav">
+        <a href="/shrekchat.html">
 
-            <a href="/">Home</a>
+            💬 ShrekChat
 
-            <a href="/profile.html" id="profile-link">
-                Profile
-            </a>
+        </a>
 
-            <a href="/shrekchat.html">
-                💬 ShrekChat
-            </a>
 
-            <a href="/shreksearch.html" class="shreksearch-button">
-                🔎 ShrekSearch
-            </a>
+        <a
+            href="/shreksearch.html"
+            class="shreksearch-button">
 
-            <a href="/houses.html">
-                🏠 Houses
-            </a>
+            🔎 ShrekSearch
 
-            <div class="nav-dropdown">
+        </a>
 
-                <button
-                    type="button"
-                    id="more-button"
-                    class="nav-dropdown-button">
-                    More ▾
-                </button>
 
-                <div
-                    id="more-menu"
-                    class="nav-dropdown-menu">
+        <a href="/houses.html">
 
-                    <a href="/about.html">About</a>
-                    <a href="/terms.html">Terms of Service</a>
-                    <a href="/policies.html">Policies</a>
-                    <a href="/svis.html">SVIS</a>
-                    <a href="/inventory.html">Inventory</a>
-                    <a href="/sell.html">Sell</a>
-                    <a href="/creator.html">Creator</a>
-                    <a href="/transfer.html">Transfer</a>
+            🏠 Houses
 
-                    <a
-                        id="admin-button"
-                        href="/admin.html"
-                        style="display:none;">
-                        🛡️ Admin
-                    </a>
+        </a>
 
-                </div>
+
+        <!-- =============================================
+             MORE
+             ============================================= -->
+
+        <div
+            class="nav-dropdown"
+            id="shrekbook-more-dropdown">
+
+
+            <button
+                type="button"
+                id="more-button"
+                class="nav-dropdown-button"
+                aria-haspopup="true"
+                aria-expanded="false">
+
+                More ▾
+
+            </button>
+
+
+            <div
+                id="more-menu"
+                class="nav-dropdown-menu"
+                aria-hidden="true">
+
+
+                <a href="/about.html">
+                    ℹ️ About
+                </a>
+
+
+                <a href="/terms.html">
+                    📜 Terms of Service
+                </a>
+
+
+                <a href="/policies.html">
+                    🛡️ Policies
+                </a>
+
+
+                <a href="/svis.html">
+                    📊 SVIS
+                </a>
+
+
+                <a href="/inventory.html">
+                    🎒 Inventory
+                </a>
+
+
+                <a href="/sell.html">
+                    🛒 Sell
+                </a>
+
+
+                <a href="/creator.html">
+                    🛠️ Creator
+                </a>
+
+
+                <a href="/transfer.html">
+                    🔄 Transfer
+                </a>
+
+
+                <a
+                    id="admin-button"
+                    href="/admin.html"
+                    style="display:none;">
+
+                    🛡️ Admin
+
+                </a>
+
 
             </div>
 
-            <button
-                id="logout-button"
-                onclick="logout()"
-                style="display:none;">
-                Logout
-            </button>
+        </div>
 
-        </nav>
-    </div>
+
+        <button
+            type="button"
+            id="logout-button"
+            onclick="logout()"
+            style="display:none;">
+
+            🚪 Logout
+
+        </button>
+
+
+    </nav>
+
+</div>
+```
 
 </header>
 
+<!-- =====================================================
+     STANDALONE NAVBAR SCRIPT
+
+     IMPORTANT:
+     This does NOT depend on script.js.
+     ===================================================== -->
+
 <script>
+
 (function () {
 
-    function setupMoreMenu() {
+    const button =
+        document.getElementById("more-button");
 
-        const button = document.getElementById("more-button");
-        const menu = document.getElementById("more-menu");
+    const menu =
+        document.getElementById("more-menu");
 
-        if (!button || !menu) {
-            console.error("ShrekBook: More menu elements were not found.");
-            return;
-        }
+    const dropdown =
+        document.getElementById(
+            "shrekbook-more-dropdown"
+        );
 
-        /*
-         * Prevent duplicate event listeners if this gets initialized
-         * more than once.
-         */
-        if (button.dataset.initialized === "true") {
-            return;
-        }
 
-        button.dataset.initialized = "true";
+    if (!button || !menu || !dropdown) {
 
-        button.addEventListener("click", function (event) {
+        console.error(
+            "ShrekBook: Navbar dropdown could not initialize."
+        );
+
+        return;
+
+    }
+
+
+    function closeMenu() {
+
+        menu.classList.remove("open");
+
+        button.setAttribute(
+            "aria-expanded",
+            "false"
+        );
+
+        menu.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+    }
+
+
+    function openMenu() {
+
+        menu.classList.add("open");
+
+        button.setAttribute(
+            "aria-expanded",
+            "true"
+        );
+
+        menu.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+
+    }
+
+
+    button.addEventListener(
+        "click",
+        function (event) {
 
             event.preventDefault();
+
             event.stopPropagation();
 
-            const isOpen = menu.classList.contains("open");
+            if (
+                menu.classList.contains("open")
+            ) {
 
-            if (isOpen) {
-                menu.classList.remove("open");
-                button.setAttribute("aria-expanded", "false");
+                closeMenu();
+
             } else {
-                menu.classList.add("open");
-                button.setAttribute("aria-expanded", "true");
+
+                openMenu();
+
             }
 
-        });
+        }
+    );
 
-        menu.addEventListener("click", function (event) {
+
+    menu.addEventListener(
+        "click",
+        function (event) {
+
             event.stopPropagation();
-        });
 
-        document.addEventListener("click", function () {
+        }
+    );
 
-            menu.classList.remove("open");
-            button.setAttribute("aria-expanded", "false");
 
-        });
+    document.addEventListener(
+        "click",
+        function (event) {
 
-        document.addEventListener("keydown", function (event) {
+            if (
+                !dropdown.contains(event.target)
+            ) {
+
+                closeMenu();
+
+            }
+
+        }
+    );
+
+
+    document.addEventListener(
+        "keydown",
+        function (event) {
 
             if (event.key === "Escape") {
 
-                menu.classList.remove("open");
-                button.setAttribute("aria-expanded", "false");
+                closeMenu();
+
+                button.focus();
 
             }
 
-        });
+        }
+    );
 
-        console.log("ShrekBook: More menu initialized.");
 
-    }
-
-    /*
-     * Run immediately if the DOM is already ready.
-     */
-    if (document.readyState === "loading") {
-
-        document.addEventListener(
-            "DOMContentLoaded",
-            setupMoreMenu
-        );
-
-    } else {
-
-        setupMoreMenu();
-
-    }
+    console.log(
+        "ShrekBook: More dropdown ready."
+    );
 
 })();
+
 </script>
 
-<!-- ==================================================
+<!-- =====================================================
+     HERO
+     ===================================================== -->
+
+<section class="sb-hero">
+
+```
+<div class="sb-hero-content">
+
+    <span class="sb-eyebrow">
+        🧌 Welcome to the swamp
+    </span>
+
+
+    <h1>
+        ShrekBook
+    </h1>
+
+
+    <p>
+        The social network for ogres,
+        cats, developers, and everyone in between.
+        Post things, chat with people, explore Houses,
+        react to content, and see who rules the swamp.
+    </p>
+
+
+    <div class="sb-hero-actions">
+
+        <a
+            href="#posts-section"
+            class="sb-hero-button">
+
+            📝 Explore Posts
+
+        </a>
+
+
+        <a
+            href="/houses.html"
+            class="sb-hero-button secondary">
+
+            🏠 Explore Houses
+
+        </a>
+
+    </div>
+
+</div>
+```
+
+</section>
+
+<!-- =====================================================
      MAIN
-     ================================================== -->
+     ===================================================== -->
 
 <main class="container">
 
-
-<!-- ==================================================
+<!-- =====================================================
      LOGIN / SIGNUP
-     ================================================== -->
+     ===================================================== -->
 
 <section
     id="auth-section"
     class="auth-section">
 
-    <div class="auth-box">
-
-        <h1>
-            Welcome to ShrekBook 🧌
-        </h1>
-
-        <p>
-            The social network for ogres,
-            cats, and everyone in between.
-        </p>
-
-        <p>
-            You can post, share, and interact with others!
-        </p>
+```
+<div class="auth-box">
 
 
-        <!-- LOGIN -->
-
-        <div id="login-box">
-
-            <h2>
-                Login
-            </h2>
+    <h1>
+        Welcome to ShrekBook 🧌
+    </h1>
 
 
-            <input
-                id="login-email"
-                type="email"
-                placeholder="Email">
+    <p>
+        Create an account or log in to enter
+        the swamp.
+    </p>
 
 
-            <input
-                id="login-password"
-                type="password"
-                placeholder="Password">
+    <!-- LOGIN -->
+
+    <div id="login-box">
+
+        <h2>
+            🔐 Login
+        </h2>
 
 
-            <button onclick="login()">
-
-                🔐 Login
-
-            </button>
-
-
-            <p id="login-status"></p>
+        <input
+            id="login-email"
+            type="email"
+            placeholder="Email"
+            autocomplete="email">
 
 
-            <button
-                class="secondary-button"
-                onclick="showSignup()">
-
-                Don't have an account?
-                Sign up
-
-            </button>
-
-        </div>
+        <input
+            id="login-password"
+            type="password"
+            placeholder="Password"
+            autocomplete="current-password">
 
 
+        <button
+            type="button"
+            onclick="login()">
 
-        <!-- SIGNUP -->
+            Login
 
-        <div
-            id="signup-box"
-            style="display:none;">
-
-            <h2>
-                Create Account
-            </h2>
+        </button>
 
 
-            <input
-                id="signup-username"
-                maxlength="30"
-                placeholder="Username">
+        <p id="login-status"></p>
 
 
-            <input
-                id="signup-display-name"
-                maxlength="50"
-                placeholder="Display name">
+        <button
+            type="button"
+            class="secondary-button"
+            onclick="showSignup()">
 
+            Don't have an account?
+            Sign up
 
-            <input
-                id="signup-email"
-                type="email"
-                placeholder="Email">
-
-
-            <input
-                id="signup-password"
-                type="password"
-                placeholder="Password">
-
-
-            <button onclick="signup()">
-
-                📝 Create Account
-
-            </button>
-
-
-            <p id="signup-status"></p>
-
-
-            <button
-                class="secondary-button"
-                onclick="showLogin()">
-
-                Already have an account?
-                Login
-
-            </button>
-
-        </div>
+        </button>
 
     </div>
 
+
+    <!-- SIGNUP -->
+
+    <div
+        id="signup-box"
+        style="display:none;">
+
+
+        <h2>
+            📝 Create Account
+        </h2>
+
+
+        <input
+            id="signup-username"
+            maxlength="30"
+            placeholder="Username"
+            autocomplete="username">
+
+
+        <input
+            id="signup-display-name"
+            maxlength="50"
+            placeholder="Display name"
+            autocomplete="name">
+
+
+        <input
+            id="signup-email"
+            type="email"
+            placeholder="Email"
+            autocomplete="email">
+
+
+        <input
+            id="signup-password"
+            type="password"
+            placeholder="Password"
+            autocomplete="new-password">
+
+
+        <button
+            type="button"
+            onclick="signup()">
+
+            📝 Create Account
+
+        </button>
+
+
+        <p id="signup-status"></p>
+
+
+        <button
+            type="button"
+            class="secondary-button"
+            onclick="showLogin()">
+
+            Already have an account?
+            Login
+
+        </button>
+
+    </div>
+
+</div>
+```
+
 </section>
 
-
-
-<!-- ==================================================
-     MAIN APP
-     ================================================== -->
+<!-- =====================================================
+     APP
+     ===================================================== -->
 
 <section
     id="app-section"
     style="display:none;">
 
+```
+<!-- =================================================
+     QUICK NAV
+     ================================================= -->
 
-    <!-- ==================================================
-         QUICK NAVIGATION
-         ================================================== -->
+<div class="jump-nav">
 
-    <div class="jump-nav">
 
-        <button
-            type="button"
-            onclick="document.getElementById('posts-section').scrollIntoView({behavior:'smooth'})">
+    <button
+        type="button"
+        onclick="
+            document
+            .getElementById('posts-section')
+            .scrollIntoView({behavior:'smooth'});
+        ">
 
-            📝 Posts
+        📝 Posts
 
-        </button>
+    </button>
 
 
-        <button
-            type="button"
-            onclick="document.getElementById('people-section').scrollIntoView({behavior:'smooth'})">
+    <button
+        type="button"
+        onclick="
+            document
+            .getElementById('people-section')
+            .scrollIntoView({behavior:'smooth'});
+        ">
 
-            👥 People
+        👥 People
 
-        </button>
+    </button>
 
 
-        <button
-            type="button"
-            onclick="document.getElementById('leaderboard-section').scrollIntoView({behavior:'smooth'})">
+    <button
+        type="button"
+        onclick="
+            document
+            .getElementById('leaderboard-section')
+            .scrollIntoView({behavior:'smooth'});
+        ">
 
-            🏆 Leaderboard
+        🏆 Leaderboard
 
-        </button>
-        <div id="shrekcoin-display" class="shrekcoin-display">
-            🪙 <span id="shrekcoin-count">0</span> ShrekCoins
-        </div>
-        <span id="hambicoin-count">0</span> Hambicoins
+    </button>
 
-    </div>
 
+    <a
+        href="/houses.html"
+        class="jump-nav button"
+        style="
+            display:inline-flex;
+            align-items:center;
+            text-decoration:none;
+            padding:9px 13px;
+            border:1px solid var(--sb-border);
+            border-radius:11px;
+            background:white;
+            font-weight:750;
+        ">
 
-
-    <!-- ==================================================
-         CREATE POST
-         ================================================== -->
-
-    <section class="create-post">
-
-        <h2>
-            What's on your mind? 🧌
-        </h2>
-
-
-        <textarea
-            id="post-content"
-            maxlength="5000"
-            placeholder="Say something..."></textarea>
-
-
-        <!-- IMAGE PICKER -->
-
-        <div class="image-upload">
-
-            <label for="post-image">
-
-                🖼️ Add an image
-
-            </label>
-
-
-            <input
-                id="post-image"
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif,video/mp4", .sb>
-
-
-            <div
-                id="post-image-preview"
-                style="display:none;">
-
-
-                <img
-                    id="post-preview-image"
-                    alt="Post image preview"
-                    style="
-                        max-width:100%;
-                        max-height:400px;
-                        border-radius:12px;
-                        margin-top:10px;
-                    ">
-
-
-                <br>
-
-
-                <button
-                    type="button"
-                    onclick="clearPostImage()">
-
-                    ❌ Remove image
-
-                </button>
-
-            </div>
-
-        </div>
-
-
-        <button onclick="createPost()">
-
-            📝 Post
-
-        </button>
-
-
-        <p id="post-status"></p>
-
-    </section>
-
-
-
-    <!-- ==================================================
-         POSTS
-         ================================================== -->
-
-    <section
-        id="posts-section">
-
-        <h2>
-            Feed
-        </h2>
-
-
-        <div id="posts">
-
-            Loading posts...
-
-        </div>
-
-    </section>
-
-
-
-    <!-- ==================================================
-         PEOPLE
-         ================================================== -->
-
-    <section
-        id="people-section"
-        class="people-section">
-
-        <h2>
-            People 👥
-        </h2>
-        <input
-            id="people-search"
-            type="search"
-            placeholder="Search for a friend..."
-            autocomplete="off"
-        >
-
-        <div id="people">
-
-            Loading people...
-
-        </div>
-
-    </section>
-
-
-
-    <!-- ==================================================
-         LEADERBOARD
-         ================================================== -->
-
-    <section
-        id="leaderboard-section">
-
-
-        <h2>
-            🏆 ShrekBook Leaderboard
-        </h2>
-
-
-        <p>
-            Who rules the swamp? 🧌
-        </p>
-
-
-        <div class="leaderboard-box">
-
-
-            <!-- ==========================================
-                 SWITCH BUTTONS
-                 ========================================== -->
-
-            <div
-                class="leaderboard-switcher">
-
-
-                <button
-                    id="leaderboard-button-overall"
-                    class="active"
-                    onclick="loadLeaderboard('overall')">
-
-                    🏆 Overall
-
-                </button>
-
-
-                <button
-                    id="leaderboard-button-posts"
-                    onclick="loadLeaderboard('posts')">
-
-                    📝 Posts
-
-                </button>
-
-
-                <button
-                    id="leaderboard-button-comments"
-                    onclick="loadLeaderboard('comments')">
-
-                    💬 Comments
-
-                </button>
-
-
-                <button
-                    id="leaderboard-button-cat"
-                    onclick="loadLeaderboard('cat')">
-
-                    🐱 Cat
-
-                </button>
-
-
-                <button
-                    id="leaderboard-button-gyatt"
-                    onclick="loadLeaderboard('gyatt')">
-
-                    🍑 Gyatt
-
-                </button>
-
-
-                <button
-                    id="leaderboard-button-ogred"
-                    onclick="loadLeaderboard('ogred')">
-
-                    🧌 Ogred
-
-                </button>
-
-            </div>
-
-
-
-            <!-- ==========================================
-                 CURRENT CATEGORY
-                 ========================================== -->
-
-            <h3 id="leaderboard-title">
-
-                🏆 Overall points
-
-            </h3>
-
-
-
-            <!-- ==========================================
-                 TOP FIVE
-                 ========================================== -->
-
-            <div
-                id="leaderboard"
-                class="leaderboard-list">
-
-                <div class="leaderboard-loading">
-
-                    Loading leaderboard... 🧌
-
-                </div>
-
-            </div>
-
-
-        </div>
-
-    </section>
-
-
-
-    <!-- ==================================================
-         SHREKBOOK TELECOM
-         ================================================== -->
-
-    <section class="telecom-section">
-
-        <h2>
-            🧌 ShrekBook Telecom
-        </h2>
-
-
-        <p>
-            Connecting the swamp
-            to the internet since 2026.
-        </p>
-
-
-        <a
-            class="telecom-button"
-            href="/shrekchat.html">
-
-            💬 Open ShrekChat
-
-        </a>
-
-    </section>
-
-
-</section>
-
-
-</main>
-
-
-
-<!-- ==================================================
-     OTHER
-     ================================================== -->
-
-<section class="other-section">
-
-
-    <h2>
-        Other
-    </h2>
-
-
-    <h3>
-        Account Management
-    </h3>
-
-
-    <p>
-        Currently, if you would like to delete
-        or edit your username, you must contact
-        ShrekBook's support team.
-    </p>
-
-
-    <a href="mailto:jw20152025@gmail.com">
-
-        Contact Support
+        🏠 Houses
 
     </a>
 
-
-    <br>
-
-
-    <small>
-
-        We may take up to 24 hours to respond,
-        and are not responsible for any delays.
-
-    </small>
+</div>
 
 
-    <br>
+<!-- =================================================
+     CURRENCIES
+     ================================================= -->
+
+<div class="currency-bar">
 
 
-    <small>
+    <div class="currency-card">
 
-        Please do not send multiple emails
-        about the same issue or request.
+        <div class="currency-icon">
+            🪙
+        </div>
 
-    </small>
+        <div>
+
+            <div class="currency-label">
+                SHREKCOINS
+            </div>
+
+            <div
+                id="shrekcoin-display"
+                class="currency-value">
+
+                <span id="shrekcoin-count">
+                    0
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
 
 
+    <div class="currency-card">
 
-    <!-- ==================================================
-         POLICIES
-         ================================================== -->
+        <div class="currency-icon">
+            💰
+        </div>
 
-    <div>
+        <div>
 
-        <h3>
-            ShrekBook Policies
+            <div class="currency-label">
+                HAMBICOINS
+            </div>
+
+            <div
+                id="hambicoin-display"
+                class="currency-value">
+
+                <span id="hambicoin-count">
+                    0
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+</div>
+
+
+<!-- =================================================
+     CREATE POST
+     ================================================= -->
+
+<section class="create-post">
+
+
+    <h2>
+        What's on your mind? 🧌
+    </h2>
+
+
+    <p style="color:var(--sb-muted);">
+        Share something with the swamp.
+    </p>
+
+
+    <textarea
+        id="post-content"
+        maxlength="5000"
+        placeholder="Say something..."></textarea>
+
+
+    <div class="image-upload">
+
+
+        <label for="post-image">
+
+            🖼️ Add an image or video
+
+        </label>
+
+
+        <input
+            id="post-image"
+            type="file"
+            accept="
+                image/png,
+                image/jpeg,
+                image/webp,
+                image/gif,
+                video/mp4
+            ">
+
+
+        <div
+            id="post-image-preview"
+            style="display:none;">
+
+
+            <img
+                id="post-preview-image"
+                alt="Post image preview"
+                style="
+                    max-width:100%;
+                    max-height:400px;
+                    border-radius:12px;
+                    margin-top:10px;
+                ">
+
+
+            <br>
+
+
+            <button
+                type="button"
+                onclick="clearPostImage()">
+
+                ❌ Remove media
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <button
+        type="button"
+        onclick="createPost()">
+
+        📝 Post
+
+    </button>
+
+
+    <p id="post-status"></p>
+
+</section>
+
+
+<!-- =================================================
+     POSTS
+     ================================================= -->
+
+<section id="posts-section">
+
+
+    <div class="section-heading">
+
+        <div>
+
+            <h2>
+                📰 Feed
+            </h2>
+
+            <p>
+                What's happening around ShrekBook?
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div id="posts">
+
+        Loading posts... 🧌
+
+    </div>
+
+</section>
+
+
+<!-- =================================================
+     PEOPLE
+     ================================================= -->
+
+<section
+    id="people-section"
+    class="people-section">
+
+
+    <div class="section-heading">
+
+        <div>
+
+            <h2>
+                👥 People
+            </h2>
+
+            <p>
+                Find people around the swamp.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <input
+        id="people-search"
+        type="search"
+        placeholder="🔎 Search for a friend..."
+        autocomplete="off">
+
+
+    <div id="people">
+
+        Loading people...
+
+    </div>
+
+</section>
+
+
+<!-- =================================================
+     LEADERBOARD
+     ================================================= -->
+
+<section id="leaderboard-section">
+
+
+    <div class="section-heading">
+
+        <div>
+
+            <h2>
+                🏆 ShrekBook Leaderboard
+            </h2>
+
+            <p>
+                Who rules the swamp?
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="leaderboard-box">
+
+
+        <div class="leaderboard-switcher">
+
+
+            <button
+                id="leaderboard-button-overall"
+                class="active"
+                type="button"
+                onclick="loadLeaderboard('overall')">
+
+                🏆 Overall
+
+            </button>
+
+
+            <button
+                id="leaderboard-button-posts"
+                type="button"
+                onclick="loadLeaderboard('posts')">
+
+                📝 Posts
+
+            </button>
+
+
+            <button
+                id="leaderboard-button-comments"
+                type="button"
+                onclick="loadLeaderboard('comments')">
+
+                💬 Comments
+
+            </button>
+
+
+            <button
+                id="leaderboard-button-cat"
+                type="button"
+                onclick="loadLeaderboard('cat')">
+
+                🐱 Cat
+
+            </button>
+
+
+            <button
+                id="leaderboard-button-gyatt"
+                type="button"
+                onclick="loadLeaderboard('gyatt')">
+
+                🍑 Gyatt
+
+            </button>
+
+
+            <button
+                id="leaderboard-button-ogred"
+                type="button"
+                onclick="loadLeaderboard('ogred')">
+
+                🧌 Ogred
+
+            </button>
+
+
+        </div>
+
+
+        <h3 id="leaderboard-title">
+            🏆 Overall points
         </h3>
 
 
-        <ol>
+        <div
+            id="leaderboard"
+            class="leaderboard-list">
 
-            <li>
-                Do not post inappropriate content.
-            </li>
 
-            <li>
-                Respect other users and their opinions.
-            </li>
+            <div class="leaderboard-loading">
 
-            <li>
-                Do not share personal information or sensitive data.
-            </li>
+                Loading leaderboard... 🧌
 
-            <li>
-                Do not engage in harassment or bullying.
-            </li>
+            </div>
 
-            <li>
-                Do not use ShrekBook for illegal activities.
-            </li>
 
-            <li>
-                Do not create multiple accounts to manipulate the platform.
-            </li>
-
-            <li>
-                Do not impersonate other users or public figures.
-            </li>
-
-            <li>
-                Do not post spam or advertisements.
-            </li>
-
-            <li>
-                Do not attempt to hack or exploit the platform.
-            </li>
-
-            <li>
-                Do not share content that violates copyright
-                or intellectual property rights.
-            </li>
-
-            <li>
-                Do not post content that promotes violence
-                or hate speech.
-            </li>
-
-            <li>
-                Do not post content that is misleading or false.
-            </li>
-
-            <li>
-                Do not post content that is sexually explicit
-                or pornographic.
-            </li>
-
-            <li>
-                Do not post content that is discriminatory or offensive.
-            </li>
-
-            <li>
-                Do not message developers multiple times
-                about the same issue.
-            </li>
-
-            <li>
-                Do not contact developers multiple times per day.
-            </li>
-
-            <li>
-                Do not contact developers about issues
-                that are not related to the platform.
-            </li>
-
-            <li>
-                Do not contact developers about issues
-                that are not your own.
-            </li>
-
-            <li>
-                Do not contact developers about issues
-                that are not urgent.
-            </li>
-
-            <li>
-                If you suspect any violations of these policies,
-                please contact our support team.
-            </li>
-
-        </ol>
+        </div>
 
     </div>
-
-
-
-    <!-- ==================================================
-         DEVELOPERS
-         ================================================== -->
-
-    <h3>
-        Meet the Developers!
-    </h3>
-
-
-    <ul>
-
-        <li>
-            jw20152025@gmail.com
-        </li>
-
-        <li>
-            marshmellowleader
-        </li>
-
-        <li>
-            Arz
-        </li>
-
-        <li>
-            Olive Tree
-        </li>
-
-    </ul>
-    <h3>Sponsors</h3>
-    <p>Click on the link to visit our sponsors.</p>
-    <a href="https://shrekbook.bbroot.com/sponsors.html">Sponsors Page</a>
 
 </section>
 
 
+<!-- =================================================
+     TELECOM
+     ================================================= -->
+
+<section class="telecom-section">
 
 
-
-<section class="ads">
-    <div class="shrekbook_ad1">
-        <script src="https://pl31025712.profitableratecpmnetwork.com/74/10/bd/7410bddbf1a4ab5bef8c019c654f2808.js"></script>
-
+    <h2>
+        🧌 ShrekBook Telecom
+    </h2>
 
 
-    </div>
+    <p>
+        Connecting the swamp to the internet
+        since 2026.
+    </p>
+
+
+    <a
+        class="telecom-button"
+        href="/shrekchat.html">
+
+        💬 Open ShrekChat
+
+    </a>
+
 </section>
-<!-- ==================================================
+```
+
+</section>
+
+</main>
+
+<!-- =====================================================
+     OTHER
+     ===================================================== -->
+
+<section class="other-section">
+
+```
+<h2>
+    Other
+</h2>
+
+
+<p style="color:var(--sb-muted);">
+    Useful information, support, and ShrekBook policies.
+</p>
+
+
+<h3>
+    Account Management
+</h3>
+
+
+<p>
+    Currently, if you would like to delete
+    or edit your username, you must contact
+    ShrekBook's support team.
+</p>
+
+
+<p>
+    <a href="mailto:jw20152025@gmail.com">
+        📧 Contact Support
+    </a>
+</p>
+
+
+<small>
+    We may take up to 24 hours to respond,
+    and are not responsible for delays.
+</small>
+
+
+<h3>
+    ShrekBook Policies
+</h3>
+
+
+<ol>
+
+    <li>
+        Do not post inappropriate content.
+    </li>
+
+    <li>
+        Respect other users and their opinions.
+    </li>
+
+    <li>
+        Do not share personal information or sensitive data.
+    </li>
+
+    <li>
+        Do not engage in harassment or bullying.
+    </li>
+
+    <li>
+        Do not use ShrekBook for illegal activities.
+    </li>
+
+    <li>
+        Do not create multiple accounts to manipulate the platform.
+    </li>
+
+    <li>
+        Do not impersonate other users or public figures.
+    </li>
+
+    <li>
+        Do not post spam or advertisements.
+    </li>
+
+    <li>
+        Do not attempt to hack or exploit the platform.
+    </li>
+
+    <li>
+        Do not share content that violates copyright
+        or intellectual property rights.
+    </li>
+
+    <li>
+        Do not post content that promotes violence
+        or hate speech.
+    </li>
+
+    <li>
+        Do not post misleading or false content.
+    </li>
+
+    <li>
+        Do not post sexually explicit or pornographic content.
+    </li>
+
+    <li>
+        Do not post discriminatory or offensive content.
+    </li>
+
+    <li>
+        Do not message developers repeatedly about the same issue.
+    </li>
+
+    <li>
+        Do not contact developers multiple times per day.
+    </li>
+
+    <li>
+        Do not contact developers about unrelated issues.
+    </li>
+
+    <li>
+        Do not contact developers about issues that are not your own.
+    </li>
+
+    <li>
+        Do not contact developers about non-urgent matters.
+    </li>
+
+    <li>
+        If you suspect a violation of these policies,
+        contact the ShrekBook support team.
+    </li>
+
+</ol>
+
+
+<h3>
+    Meet the Developers!
+</h3>
+
+
+<ul>
+
+    <li>
+        jw20152025@gmail.com
+    </li>
+
+    <li>
+        marshmellowleader
+    </li>
+
+    <li>
+        Arz
+    </li>
+
+    <li>
+        Olive Tree
+    </li>
+
+</ul>
+
+
+<h3>
+    Sponsors
+</h3>
+
+
+<p>
+    Support the people and projects helping ShrekBook grow.
+</p>
+
+
+<a href="/sponsors.html">
+    🤝 Visit Sponsors
+</a>
+```
+
+</section>
+
+<!-- =====================================================
+     TOAST CONTAINER
+     ===================================================== -->
+
+<div
+    id="sb-toast-container"
+    aria-live="polite">
+</div>
+
+<!-- =====================================================
+     BACK TO TOP
+     ===================================================== -->
+
+<button
+ id="sb-back-top"
+ type="button"
+ aria-label="Back to top">
+
+```
+↑
+```
+
+</button>
+
+<!-- =====================================================
+     STANDALONE HOMEPAGE FEATURES
+
+     These do not replace script.js.
+     They only provide UI features.
+     ===================================================== -->
+
+<script>
+
+(function () {
+
+    /* =====================================================
+       TOAST
+       ===================================================== */
+
+    window.shrekToast = function (message) {
+
+        const container =
+            document.getElementById(
+                "sb-toast-container"
+            );
+
+        if (!container) return;
+
+
+        const toast =
+            document.createElement("div");
+
+        toast.className = "sb-toast";
+
+        toast.textContent = message;
+
+
+        container.appendChild(toast);
+
+
+        setTimeout(function () {
+
+            toast.style.opacity = "0";
+
+            toast.style.transform =
+                "translateY(10px)";
+
+
+            setTimeout(function () {
+
+                toast.remove();
+
+            }, 200);
+
+        }, 3000);
+
+    };
+
+
+    /* =====================================================
+       BACK TO TOP
+       ===================================================== */
+
+    const backTop =
+        document.getElementById(
+            "sb-back-top"
+        );
+
+
+    function updateBackTop() {
+
+        if (
+            window.scrollY > 500
+        ) {
+
+            backTop.classList.add(
+                "visible"
+            );
+
+        } else {
+
+            backTop.classList.remove(
+                "visible"
+            );
+
+        }
+
+    }
+
+
+    window.addEventListener(
+        "scroll",
+        updateBackTop,
+        { passive: true }
+    );
+
+
+    backTop.addEventListener(
+        "click",
+        function () {
+
+            window.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
+
+        }
+    );
+
+
+    updateBackTop();
+
+
+    /* =====================================================
+       PEOPLE SEARCH DEBOUNCE
+
+       This does NOT replace loadPeople().
+       It simply avoids hammering the server
+       while someone is typing.
+       ===================================================== */
+
+    const peopleSearch =
+        document.getElementById(
+            "people-search"
+        );
+
+
+    if (peopleSearch) {
+
+        let searchTimer = null;
+
+
+        peopleSearch.addEventListener(
+            "input",
+            function () {
+
+                clearTimeout(searchTimer);
+
+
+                searchTimer = setTimeout(
+                    function () {
+
+                        if (
+                            typeof loadPeople ===
+                            "function"
+                        ) {
+
+                            loadPeople();
+
+                        }
+
+                    },
+                    350
+                );
+
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       KEYBOARD SHORTCUTS
+       ===================================================== */
+
+    document.addEventListener(
+        "keydown",
+        function (event) {
+
+            /*
+             * Ctrl + Enter inside the post box
+             * submits a post.
+             */
+
+            if (
+                event.ctrlKey &&
+                event.key === "Enter" &&
+                document.activeElement &&
+                document.activeElement.id ===
+                    "post-content"
+            ) {
+
+                event.preventDefault();
+
+
+                if (
+                    typeof createPost ===
+                    "function"
+                ) {
+
+                    createPost();
+
+                }
+
+            }
+
+
+            /*
+             * "/" focuses People search.
+             */
+
+            if (
+                event.key === "/" &&
+                document.activeElement !==
+                    document.body &&
+                document.activeElement !==
+                    document.documentElement
+            ) {
+
+                return;
+
+            }
+
+
+            if (
+                event.key === "/" &&
+                peopleSearch
+            ) {
+
+                event.preventDefault();
+
+                peopleSearch.focus();
+
+            }
+
+        }
+    );
+
+
+    console.log(
+        "ShrekBook: Standalone homepage features loaded."
+    );
+
+})();
+
+</script>
+
+<!-- =====================================================
      MAIN SHREKBOOK SCRIPT
-     ================================================== -->
+     ===================================================== -->
 
 <script src="/script.js"></script>
-
 
 </body>
 
