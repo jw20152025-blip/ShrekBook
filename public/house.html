@@ -1,282 +1,1474 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Houses - ShrekBook</title>
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>ShrekBook House</title>
+
+    <link
+        rel="icon"
+        type="image/png"
+        href="/favicon.png">
+
+    <link
+        rel="stylesheet"
+        href="/styles.css">
 
     <style>
-        * {
-            box-sizing: border-box;
-        }
 
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f2f2f2;
-            color: #222;
-        }
+        /* ==================================================
+           HOUSE PAGE
+           ================================================== */
 
-        header {
-            background: white;
-            border-bottom: 1px solid #ddd;
-            padding: 15px 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            font-size: 25px;
-            font-weight: bold;
-            color: #4b8f29;
-        }
-
-        .create-button {
-            background: #4b8f29;
-            color: white;
-            text-decoration: none;
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-weight: bold;
-        }
-
-        main {
+        .house-page {
             max-width: 1100px;
-            margin: 30px auto;
-            padding: 0 20px;
-        }
-
-        .search {
-            width: 100%;
-            padding: 14px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            font-size: 16px;
-            margin: 20px 0;
-        }
-
-        .houses {
-            display: grid;
-            grid-template-columns:
-                repeat(auto-fill, minmax(280px, 1fr));
-            gap: 18px;
-        }
-
-        .house {
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 12px;
+            margin: 40px auto;
             padding: 20px;
         }
 
-        .house h2 {
-            margin-top: 0;
-        }
 
-        .description {
-            color: #666;
-            margin-bottom: 15px;
-        }
+        /* ==================================================
+           HEADER
+           ================================================== */
 
-        .info {
-            line-height: 1.8;
-            font-size: 14px;
-        }
+        .house-header {
 
-        .enter {
-            display: block;
-            text-align: center;
-            background: #4b8f29;
-            color: white;
-            text-decoration: none;
-            padding: 10px;
-            border-radius: 7px;
-            margin-top: 15px;
-        }
-
-        .message {
             background: white;
-            padding: 30px;
-            border-radius: 10px;
-            text-align: center;
+
+            border-radius: 18px;
+
+            padding: 25px;
+
+            margin-bottom: 25px;
+
+            box-shadow:
+                0 3px 15px rgba(0, 0, 0, 0.08);
+
         }
+
+        .house-header h1 {
+
+            margin-top: 0;
+
+            font-size: 32px;
+
+        }
+
+        .house-description {
+
+            color: #666;
+
+            font-size: 16px;
+
+            margin-bottom: 20px;
+
+        }
+
+
+        /* ==================================================
+           HOUSE INFORMATION
+           ================================================== */
+
+        .house-info {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(auto-fit, minmax(180px, 1fr));
+
+            gap: 12px;
+
+            margin-top: 20px;
+
+        }
+
+        .house-info-card {
+
+            background: #f5f5f5;
+
+            border-radius: 12px;
+
+            padding: 15px;
+
+        }
+
+        .house-info-label {
+
+            color: #777;
+
+            font-size: 13px;
+
+            margin-bottom: 5px;
+
+        }
+
+        .house-info-value {
+
+            font-size: 18px;
+
+            font-weight: bold;
+
+        }
+
+
+        /* ==================================================
+           SECTIONS
+           ================================================== */
+
+        .house-section {
+
+            background: white;
+
+            border-radius: 18px;
+
+            padding: 25px;
+
+            margin-bottom: 25px;
+
+            box-shadow:
+                0 3px 15px rgba(0, 0, 0, 0.08);
+
+        }
+
+        .house-section h2 {
+
+            margin-top: 0;
+
+        }
+
+
+        /* ==================================================
+           ROOMS
+           ================================================== */
+
+        .rooms-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(auto-fill, minmax(220px, 1fr));
+
+            gap: 15px;
+
+        }
+
+        .room-card {
+
+            background: #f5f5f5;
+
+            border-radius: 14px;
+
+            padding: 18px;
+
+            transition:
+                transform 0.15s,
+                box-shadow 0.15s;
+
+        }
+
+        .room-card:hover {
+
+            transform: translateY(-2px);
+
+            box-shadow:
+                0 4px 12px rgba(0, 0, 0, 0.10);
+
+        }
+
+        .room-card h3 {
+
+            margin-top: 0;
+
+        }
+
+        .room-type {
+
+            color: #777;
+
+            font-size: 14px;
+
+            margin-bottom: 12px;
+
+        }
+
+        .room-button {
+
+            display: inline-block;
+
+            padding: 9px 13px;
+
+            border-radius: 9px;
+
+            background: #333;
+
+            color: white;
+
+            text-decoration: none;
+
+            font-weight: bold;
+
+        }
+
+        .room-button:hover {
+
+            opacity: 0.85;
+
+        }
+
+
+        /* ==================================================
+           MEMBERS
+           ================================================== */
+
+        .members-list {
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 10px;
+
+        }
+
+        .member-card {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+
+            background: #f5f5f5;
+
+            padding: 12px;
+
+            border-radius: 12px;
+
+        }
+
+        .member-avatar {
+
+            width: 45px;
+
+            height: 45px;
+
+            border-radius: 50%;
+
+            object-fit: cover;
+
+        }
+
+        .member-info {
+
+            flex: 1;
+
+            min-width: 0;
+
+        }
+
+        .member-name {
+
+            font-weight: bold;
+
+        }
+
+        .member-username {
+
+            color: #777;
+
+            font-size: 13px;
+
+        }
+
+        .member-role {
+
+            font-size: 13px;
+
+            font-weight: bold;
+
+        }
+
+
+        /* ==================================================
+           INVITE
+           ================================================== */
+
+        .invite-box {
+
+            display: flex;
+
+            gap: 10px;
+
+            flex-wrap: wrap;
+
+        }
+
+        .invite-box input {
+
+            flex: 1;
+
+            min-width: 220px;
+
+            padding: 11px;
+
+            border-radius: 9px;
+
+            border: 1px solid #ccc;
+
+        }
+
+
+        /* ==================================================
+           SEARCH RESULTS
+           ================================================== */
+
+        #user-search-results {
+
+            margin-top: 10px;
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 8px;
+
+        }
+
+        .user-search-result {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 10px;
+
+            padding: 10px;
+
+            background: #f5f5f5;
+
+            border-radius: 10px;
+
+        }
+
+
+        /* ==================================================
+           BUTTONS
+           ================================================== */
+
+        .house-button {
+
+            padding: 10px 15px;
+
+            border: none;
+
+            border-radius: 10px;
+
+            cursor: pointer;
+
+            font-weight: bold;
+
+        }
+
+        .house-button:hover {
+
+            opacity: 0.85;
+
+        }
+
+        .settings-button {
+
+            display: inline-block;
+
+            padding: 10px 15px;
+
+            background: #eeeeee;
+
+            border-radius: 10px;
+
+            text-decoration: none;
+
+            color: inherit;
+
+            font-weight: bold;
+
+        }
+
+
+        /* ==================================================
+           STATUS
+           ================================================== */
+
+        .status {
+
+            margin-top: 10px;
+
+            font-weight: bold;
+
+        }
+
+        .error {
+
+            color: #b00020;
+
+        }
+
+        .success {
+
+            color: #16803c;
+
+        }
+
+
+        /* ==================================================
+           EMPTY
+           ================================================== */
+
+        .empty {
+
+            text-align: center;
+
+            padding: 25px;
+
+            color: #777;
+
+        }
+
     </style>
+
 </head>
+
 
 <body>
 
-<header>
-    <div class="logo">🏠 ShrekBook Houses</div>
 
-    <a href="create-house.html" class="create-button">
-        + Create House
-    </a>
+<!-- ==================================================
+     NAVBAR
+     ================================================== -->
+
+<header class="navbar">
+
+    <div class="navbar-inner">
+
+        <a
+            href="/"
+            class="logo">
+
+            🧌 ShrekBook
+
+        </a>
+
+        <nav>
+
+            <a href="/">
+                Home
+            </a>
+
+            <a href="/houses.html">
+                🏠 Houses
+            </a>
+
+            <a href="/profile.html">
+                Profile
+            </a>
+
+        </nav>
+
+    </div>
+
 </header>
 
-<main>
 
-    <h1>Houses</h1>
 
-    <p>
-        Explore the Houses of ShrekBook.
-    </p>
+<!-- ==================================================
+     PAGE
+     ================================================== -->
 
-    <input
-        id="search"
-        class="search"
-        type="text"
-        placeholder="Search Houses..."
-    >
+<main class="house-page">
 
-    <div id="houses" class="houses">
-        <div class="message">
-            Loading Houses...
-        </div>
+
+    <!-- ==================================================
+         LOADING
+         ================================================== -->
+
+    <div id="loading">
+
+        Loading House... 🏠
+
+    </div>
+
+
+    <!-- ==================================================
+         ERROR
+         ================================================== -->
+
+    <div
+        id="error"
+        class="house-section error"
+        style="display:none;">
+
+    </div>
+
+
+
+    <!-- ==================================================
+         HOUSE CONTENT
+         ================================================== -->
+
+    <div
+        id="house-content"
+        style="display:none;">
+
+
+        <!-- ==================================================
+             HEADER
+             ================================================== -->
+
+        <section class="house-header">
+
+            <h1 id="house-name">
+                House
+            </h1>
+
+            <p
+                id="house-description"
+                class="house-description">
+            </p>
+
+
+            <div class="house-info">
+
+
+                <div class="house-info-card">
+
+                    <div class="house-info-label">
+                        House Type
+                    </div>
+
+                    <div
+                        id="house-type"
+                        class="house-info-value">
+                    </div>
+
+                </div>
+
+
+                <div class="house-info-card">
+
+                    <div class="house-info-label">
+                        Owner
+                    </div>
+
+                    <div
+                        id="house-owner"
+                        class="house-info-value">
+                    </div>
+
+                </div>
+
+
+                <div class="house-info-card">
+
+                    <div class="house-info-label">
+                        Rooms
+                    </div>
+
+                    <div
+                        id="house-rooms-count"
+                        class="house-info-value">
+                    </div>
+
+                </div>
+
+
+                <div class="house-info-card">
+
+                    <div class="house-info-label">
+                        Marketplace Tax Reduction
+                    </div>
+
+                    <div
+                        id="house-tax-reduction"
+                        class="house-info-value">
+                    </div>
+
+                </div>
+
+
+                <div class="house-info-card">
+
+                    <div class="house-info-label">
+                        Members
+                    </div>
+
+                    <div
+                        id="house-members-count"
+                        class="house-info-value">
+                    </div>
+
+                </div>
+
+
+            </div>
+
+
+            <br>
+
+
+            <a
+                id="settings-link"
+                class="settings-button"
+                href="#">
+
+                ⚙️ House Settings
+
+            </a>
+
+        </section>
+
+
+
+        <!-- ==================================================
+             ROOMS
+             ================================================== -->
+
+        <section class="house-section">
+
+            <h2>
+                🚪 Rooms
+            </h2>
+
+            <p>
+                Common rooms are public.
+                Bedrooms are private unless access is granted.
+            </p>
+
+
+            <div
+                id="rooms"
+                class="rooms-grid">
+
+            </div>
+
+        </section>
+
+
+
+        <!-- ==================================================
+             MEMBERS
+             ================================================== -->
+
+        <section class="house-section">
+
+            <h2>
+                👥 Members
+            </h2>
+
+
+            <div
+                id="members"
+                class="members-list">
+
+            </div>
+
+        </section>
+
+
+
+        <!-- ==================================================
+             INVITE
+             ================================================== -->
+
+        <section class="house-section">
+
+            <h2>
+                ✉️ Invite Someone
+            </h2>
+
+            <p>
+                Search for a ShrekBook user to invite them
+                to this House.
+            </p>
+
+
+            <div class="invite-box">
+
+                <input
+                    id="user-search"
+                    type="search"
+                    placeholder="Search username or display name..."
+                    autocomplete="off">
+
+                <button
+                    class="house-button"
+                    onclick="searchUsers()">
+
+                    🔎 Search
+
+                </button>
+
+            </div>
+
+
+            <div id="user-search-results"></div>
+
+            <p
+                id="invite-status"
+                class="status">
+            </p>
+
+        </section>
+
+
     </div>
 
 </main>
 
+
+
 <script>
-    const container = document.getElementById("houses");
-    const search = document.getElementById("search");
 
-    let houses = [];
+/* ==================================================
+   GET HOUSE ID
+   ================================================== */
 
-    function escapeHtml(value) {
-        return String(value ?? "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
+const params =
+    new URLSearchParams(window.location.search);
 
-    async function loadHouses() {
-        try {
-            const response = await fetch("/api/houses");
+const houseId =
+    params.get("id");
 
-            const data = await response.json();
 
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to load Houses.");
-            }
+/* ==================================================
+   BASIC VALIDATION
+   ================================================== */
 
-            houses = Array.isArray(data) ? data : data.houses || [];
+if (!houseId) {
 
-            render();
+    showError(
+        "No House ID was provided."
+    );
 
-        } catch (error) {
-            console.error(error);
+} else {
 
-            container.innerHTML = `
-                <div class="message">
-                    <h2>Couldn't load Houses 😭</h2>
-                    <p>${escapeHtml(error.message)}</p>
-                </div>
-            `;
-        }
-    }
+    loadHouse();
 
-    function render() {
-        const query = search.value.trim().toLowerCase();
+}
 
-        const filtered = houses.filter(house => {
-            return (
-                String(house.name || "")
-                    .toLowerCase()
-                    .includes(query)
-                ||
-                String(house.description || "")
-                    .toLowerCase()
-                    .includes(query)
-                ||
-                String(house.house_type || "")
-                    .toLowerCase()
-                    .includes(query)
+
+/* ==================================================
+   LOAD HOUSE
+   ================================================== */
+
+async function loadHouse() {
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${encodeURIComponent(houseId)}`
             );
-        });
 
-        if (!filtered.length) {
-            container.innerHTML = `
-                <div class="message">
-                    <h2>No Houses Found</h2>
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Failed to load House."
+            );
+
+        }
+
+
+        renderHouse(data);
+
+
+    } catch (error) {
+
+        console.error(
+            "House loading error:",
+            error
+        );
+
+        showError(
+            error.message ||
+            "Failed to load House."
+        );
+
+    }
+
+}
+
+
+/* ==================================================
+   RENDER HOUSE
+   ================================================== */
+
+function renderHouse(data) {
+
+    const house =
+        data.house || data;
+
+
+    const owner =
+        data.owner || null;
+
+
+    const members =
+        data.members || [];
+
+
+    const rooms =
+        data.rooms || [];
+
+
+    const houseType =
+        data.house_type ||
+        data.houseType ||
+        null;
+
+
+    document.getElementById(
+        "house-name"
+    ).textContent =
+        house.name || "Unnamed House";
+
+
+    document.getElementById(
+        "house-description"
+    ).textContent =
+        house.description ||
+        "No description provided.";
+
+
+    document.getElementById(
+        "house-type"
+    ).textContent =
+        house.house_type ||
+        "Unknown";
+
+
+    document.getElementById(
+        "house-owner"
+    ).textContent =
+        owner
+            ? (
+                owner.display_name ||
+                owner.username ||
+                "Unknown"
+            )
+            : "Unknown";
+
+
+    document.getElementById(
+        "house-rooms-count"
+    ).textContent =
+        rooms.length;
+
+
+    document.getElementById(
+        "house-members-count"
+    ).textContent =
+        members.length;
+
+
+    /* ------------------------------------------
+       TAX REDUCTION
+       ------------------------------------------ */
+
+    let taxReduction = 0;
+
+
+    if (houseType) {
+
+        taxReduction =
+            Number(
+                houseType.tax_reduction ||
+                0
+            );
+
+    }
+
+
+    /*
+       tax_reduction is stored as:
+
+       0.005 = 0.5%
+       0.010 = 1%
+       0.015 = 1.5%
+       etc.
+    */
+
+    document.getElementById(
+        "house-tax-reduction"
+    ).textContent =
+        `${(taxReduction * 100).toFixed(
+            taxReduction * 100 % 1 === 0
+                ? 0
+                : 2
+        )}%`;
+
+
+    /* ------------------------------------------
+       SETTINGS
+       ------------------------------------------ */
+
+    document.getElementById(
+        "settings-link"
+    ).href =
+        `/house-settings.html?id=${encodeURIComponent(
+            house.id
+        )}`;
+
+
+    renderRooms(
+        rooms
+    );
+
+
+    renderMembers(
+        members
+    );
+
+
+    document.getElementById(
+        "loading"
+    ).style.display =
+        "none";
+
+
+    document.getElementById(
+        "house-content"
+    ).style.display =
+        "block";
+
+}
+
+
+/* ==================================================
+   RENDER ROOMS
+   ================================================== */
+
+function renderRooms(rooms) {
+
+    const container =
+        document.getElementById("rooms");
+
+
+    container.innerHTML = "";
+
+
+    if (!rooms.length) {
+
+        container.innerHTML = `
+            <div class="empty">
+                This House has no rooms yet.
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    rooms.forEach(room => {
+
+        const card =
+            document.createElement("div");
+
+
+        card.className =
+            "room-card";
+
+
+        const isBedroom =
+            room.room_type === "bedroom";
+
+
+        const icon =
+            isBedroom
+                ? "🛏️"
+                : "🚪";
+
+
+        const privacy =
+            isBedroom
+                ? "Private bedroom"
+                : "Public room";
+
+
+        card.innerHTML = `
+
+            <h3>
+                ${icon}
+                ${escapeHtml(
+                    room.name ||
+                    "Unnamed Room"
+                )}
+            </h3>
+
+            <div class="room-type">
+
+                ${privacy}
+
+            </div>
+
+            <a
+                class="room-button"
+                href="/house-room.html?house=${encodeURIComponent(
+                    houseId
+                )}&room=${encodeURIComponent(
+                    room.id
+                )}">
+
+                💬 Enter Room
+
+            </a>
+
+        `;
+
+
+        container.appendChild(
+            card
+        );
+
+    });
+
+}
+
+
+/* ==================================================
+   RENDER MEMBERS
+   ================================================== */
+
+function renderMembers(members) {
+
+    const container =
+        document.getElementById("members");
+
+
+    container.innerHTML = "";
+
+
+    if (!members.length) {
+
+        container.innerHTML = `
+            <div class="empty">
+                This House has no members.
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    members.forEach(member => {
+
+        const profile =
+            member.profile ||
+            member.profiles ||
+            member;
+
+
+        const card =
+            document.createElement("div");
+
+
+        card.className =
+            "member-card";
+
+
+        const avatar =
+            profile.avatar_url ||
+            profile.avatar ||
+            "/favicon.png";
+
+
+        const name =
+            profile.display_name ||
+            profile.username ||
+            "Unknown";
+
+
+        const username =
+            profile.username
+                ? `@${profile.username}`
+                : "";
+
+
+        const role =
+            member.role ||
+            "member";
+
+
+        card.innerHTML = `
+
+            <img
+                class="member-avatar"
+                src="${escapeHtml(avatar)}"
+                alt="Member avatar">
+
+            <div class="member-info">
+
+                <div class="member-name">
+
+                    ${escapeHtml(name)}
+
+                </div>
+
+                <div class="member-username">
+
+                    ${escapeHtml(username)}
+
+                </div>
+
+            </div>
+
+            <div class="member-role">
+
+                ${
+                    role === "owner"
+                        ? "👑 Owner"
+                        : role === "admin"
+                            ? "🛡️ Admin"
+                            : "👤 Member"
+                }
+
+            </div>
+
+        `;
+
+
+        container.appendChild(
+            card
+        );
+
+    });
+
+}
+
+
+/* ==================================================
+   SEARCH USERS
+   ================================================== */
+
+async function searchUsers() {
+
+    const input =
+        document.getElementById(
+            "user-search"
+        );
+
+
+    const query =
+        input.value.trim();
+
+
+    const results =
+        document.getElementById(
+            "user-search-results"
+        );
+
+
+    const status =
+        document.getElementById(
+            "invite-status"
+        );
+
+
+    results.innerHTML = "";
+
+
+    status.textContent = "";
+
+
+    if (!query) {
+
+        status.textContent =
+            "Enter a username or display name.";
+
+        return;
+
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/users/search?q=${encodeURIComponent(
+                    query
+                )}`
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Search failed."
+            );
+
+        }
+
+
+        const users =
+            data.users ||
+            data ||
+            [];
+
+
+        if (!users.length) {
+
+            results.innerHTML = `
+                <div class="empty">
+                    No users found.
                 </div>
             `;
 
             return;
+
         }
 
-        container.innerHTML = filtered.map(house => {
 
-            const tax =
-                house.tax_reduction != null
-                    ? (Number(house.tax_reduction) * 100).toFixed(2) + "%"
-                    : "N/A";
+        users.forEach(user => {
 
-            return `
-                <div class="house">
+            const card =
+                document.createElement("div");
 
-                    <h2>
-                        🏠 ${escapeHtml(house.name)}
-                    </h2>
 
-                    <div class="description">
-                        ${escapeHtml(
-                            house.description || "No description."
-                        )}
+            card.className =
+                "user-search-result";
+
+
+            const name =
+                user.display_name ||
+                user.username ||
+                "Unknown";
+
+
+            const username =
+                user.username
+                    ? `@${user.username}`
+                    : "";
+
+
+            card.innerHTML = `
+
+                <div>
+
+                    <strong>
+                        ${escapeHtml(name)}
+                    </strong>
+
+                    <div class="member-username">
+                        ${escapeHtml(username)}
                     </div>
-
-                    <div class="info">
-
-                        👑 Owner:
-                        <strong>
-                            ${escapeHtml(
-                                house.owner_username || "Unknown"
-                            )}
-                        </strong>
-
-                        <br>
-
-                        🏘️ Type:
-                        <strong>
-                            ${escapeHtml(house.house_type)}
-                        </strong>
-
-                        <br>
-
-                        🚪 Rooms:
-                        <strong>
-                            ${escapeHtml(house.room_count)}
-                        </strong>
-
-                        <br>
-
-                        🛒 Tax reduction:
-                        <strong>
-                            ${escapeHtml(tax)}
-                        </strong>
-
-                    </div>
-
-                    <a
-                        class="enter"
-                        href="house.html?id=${encodeURIComponent(house.id)}"
-                    >
-                        Enter House →
-                    </a>
 
                 </div>
+
+                <button
+                    class="house-button"
+                    onclick="inviteUser('${escapeJs(
+                        user.id
+                    )}')">
+
+                    ✉️ Invite
+
+                </button>
+
             `;
 
-        }).join("");
+
+            results.appendChild(
+                card
+            );
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "User search error:",
+            error
+        );
+
+
+        status.textContent =
+            error.message ||
+            "Search failed.";
+
+        status.className =
+            "status error";
+
     }
 
-    search.addEventListener("input", render);
+}
 
-    loadHouses();
+
+/* ==================================================
+   INVITE USER
+   ================================================== */
+
+async function inviteUser(userId) {
+
+    const status =
+        document.getElementById(
+            "invite-status"
+        );
+
+
+    status.textContent =
+        "Sending invitation...";
+
+
+    status.className =
+        "status";
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${encodeURIComponent(
+                    houseId
+                )}/invite`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        invitee_id:
+                            userId
+                    })
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Failed to send invitation."
+            );
+
+        }
+
+
+        status.textContent =
+            "✅ Invitation sent!";
+
+
+        status.className =
+            "status success";
+
+
+    } catch (error) {
+
+        console.error(
+            "Invite error:",
+            error
+        );
+
+
+        status.textContent =
+            error.message ||
+            "Failed to send invitation.";
+
+        status.className =
+            "status error";
+
+    }
+
+}
+
+
+/* ==================================================
+   HTML ESCAPING
+   ================================================== */
+
+function escapeHtml(value) {
+
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+
+}
+
+
+/* ==================================================
+   JS STRING ESCAPING
+   ================================================== */
+
+function escapeJs(value) {
+
+    return String(value ?? "")
+        .replaceAll("\\", "\\\\")
+        .replaceAll("'", "\\'")
+        .replaceAll("\n", "\\n")
+        .replaceAll("\r", "\\r");
+
+}
+
+
+/* ==================================================
+   ERROR
+   ================================================== */
+
+function showError(message) {
+
+    document.getElementById(
+        "loading"
+    ).style.display =
+        "none";
+
+
+    const error =
+        document.getElementById(
+            "error"
+        );
+
+
+    error.textContent =
+        message;
+
+
+    error.style.display =
+        "block";
+
+}
+
 </script>
 
+
 </body>
+
 </html>
