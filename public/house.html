@@ -405,9 +405,8 @@ async function loadHouse() {
         ===================================================== */
 
         const taxReduction =
-            houseType &&
-            houseType.tax_reduction != null
-                ? Number(houseType.tax_reduction) * 100
+            houseType
+                ? Number(houseType.tax_reduction_percent || 0)
                 : 0;
 
 

@@ -359,12 +359,12 @@ async function loadHouse() {
                 : [];
 
 
-        const taxReduction =
-            houseType
-                ? Number(
-                    houseType.tax_reduction || 0
-                  ) * 100
-                : 0;
+                const taxReduction =
+                        houseType
+                                ? Number(
+                                        houseType.tax_reduction_percent || 0
+                                    )
+                                : 0;
 
 
         content.innerHTML = `
@@ -467,7 +467,7 @@ async function loadHouse() {
 
                     <div class="stat">
 
-                        <small>Marketplace Tax</small>
+                        <small>Marketplace Tax Reduction</small>
 
                         <strong
                             style="color:#74ffab"

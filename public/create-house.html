@@ -280,7 +280,7 @@ async function loadHouses() {
                         {};
 
                     const taxReduction =
-                        Number(type.tax_reduction || 0) * 100;
+                        Number(type.tax_reduction_percent || 0);
 
                     return `
                         <article class="house-card">

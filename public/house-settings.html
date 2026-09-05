@@ -356,12 +356,12 @@ async function loadHouse() {
                 : [];
 
 
-        const taxReduction =
-            houseType
-                ? Number(
-                    houseType.tax_reduction || 0
-                  ) * 100
-                : 0;
+                const taxReduction =
+                        houseType
+                                ? Number(
+                                        houseType.tax_reduction_percent || 0
+                                    )
+                                : 0;
 
 
         content.innerHTML = `
@@ -464,7 +464,7 @@ async function loadHouse() {
 
                     <div class="stat">
 
-                        <small>Marketplace Tax</small>
+                        <small>Marketplace Tax Reduction</small>
 
                         <strong
                             style="color:#74ffab"
@@ -644,6 +644,31 @@ async function loadHouse() {
                                         )}
 
                                     </div>
+
+                                    ${
+                                        data.membership &&
+                                        ["owner", "admin"].includes(
+                                            data.membership.role
+                                        ) &&
+                                        member.role !== "owner"
+                                            ? `
+                                                <button
+                                                    onclick='toggleAdmin(${JSON.stringify(member.user_id)}, ${JSON.stringify(member.role)})'>
+                                                    ${
+                                                        member.role === "admin"
+                                                            ? "Demote"
+                                                            : "Make Admin"
+                                                    }
+                                                </button>
+
+                                                <button
+                                                    class="danger"
+                                                    onclick='removeMember(${JSON.stringify(member.user_id)})'>
+                                                    Remove
+                                                </button>
+                                            `
+                                            : ""
+                                    }
 
                                 </div>
 
@@ -896,6 +921,46 @@ async function inviteUser(userId) {
         alert(
             "😭 " + error.message
         );
+    }
+}
+
+async function toggleAdmin(userId, role) {
+    const method = role === "admin" ? "DELETE" : "POST";
+
+    try {
+        const response = await fetch(
+            `/api/houses/${encodeURIComponent(houseId)}/admins/${encodeURIComponent(userId)}`,
+            { method, credentials: "include" }
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not change admin status.");
+        }
+
+        await loadHouse();
+    } catch (error) {
+        alert("😭 " + error.message);
+    }
+}
+
+async function removeMember(userId) {
+    if (!confirm("Remove this member from the House?")) return;
+
+    try {
+        const response = await fetch(
+            `/api/houses/${encodeURIComponent(houseId)}/members/${encodeURIComponent(userId)}`,
+            { method: "DELETE", credentials: "include" }
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not remove member.");
+        }
+
+        await loadHouse();
+    } catch (error) {
+        alert("😭 " + error.message);
     }
 }
 
