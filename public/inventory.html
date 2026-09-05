@@ -935,16 +935,6 @@ async function loadInventory() {
 
                     }
 
-                } else if (
-                    item.item_type === "avatar"
-                ) {
-
-                    buttonText =
-                        "⬇️ Download .SB Avatar";
-
-                    buttonAction =
-                        `downloadAvatar(${Number(item.id)}, ${JSON.stringify(item.name || "ShrekBook-Avatar")})`;
-
                 } else {
 
                     if (isDisplayed) {

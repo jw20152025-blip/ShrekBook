@@ -6152,24 +6152,6 @@ app.post(
 
 
             // ==========================================
-            // AVATAR
-            // ==========================================
-
-            if (
-                item.item_type ===
-                "avatar"
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Avatars cannot be equipped. Download the .SB avatar instead."
-                });
-
-            }
-
-
-
-            // ==========================================
             // TITLE
             // ==========================================
 
@@ -6804,12 +6786,36 @@ app.get("/api/shop/items", async (req, res) => {
         const currentUserId =
             req.session?.user?.id || null;
 
+        let ownedItemIds = new Set();
+
+        if (currentUserId) {
+            const {
+                data: ownedItems,
+                error: ownedError
+            } = await supabase
+                .from("user_shop_items")
+                .select("item_id")
+                .eq("user_id", currentUserId);
+
+            if (ownedError) {
+                console.error("SHOP OWNERSHIP ERROR:", ownedError);
+
+                return res.status(500).json({
+                    error: "Failed to load item ownership."
+                });
+            }
+
+            ownedItemIds = new Set(
+                (ownedItems || []).map(ownedItem => ownedItem.item_id)
+            );
+        }
+
         const formattedItems = (items || []).map(item => ({
             ...item,
 
             owned:
                 currentUserId !== null &&
-                item.user_id === currentUserId
+                ownedItemIds.has(item.id)
         }));
 
         return res.json({

@@ -257,15 +257,18 @@ const params =
     new URLSearchParams(location.search);
 
 const houseId =
-    params.get("id");
+    params.get("house");
+
+const roomId =
+    params.get("room");
 
 
-if (!houseId) {
+if (!houseId || !roomId) {
 
     document.getElementById("content")
         .innerHTML = `
             <div class="notice">
-                😭 No House ID was provided.
+                😭 No room ID was provided.
             </div>
         `;
 
@@ -284,7 +287,7 @@ async function loadHouse() {
 
         const response =
             await fetch(
-                `/api/houses/${encodeURIComponent(houseId)}`,
+                `/api/houses/${encodeURIComponent(houseId)}/rooms/${encodeURIComponent(roomId)}`,
                 {
                     credentials: "include"
                 }
@@ -346,8 +349,8 @@ async function loadHouse() {
             null;
 
         const rooms =
-            Array.isArray(data.rooms)
-                ? data.rooms
+            data.room
+                ? [data.room]
                 : [];
 
         const members =
