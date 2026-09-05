@@ -3394,349 +3394,7 @@ app.get(
 // ONE USER
 // ==================================================
 
-app.get(
-    "/api/users/:id",
-    async (req, res) => {
 
-        try {
-
-            const id = req.params.id;
-
-            if (!id) {
-
-                return res.status(400).json({
-                    error: "No profile ID was provided."
-                });
-
-            }
-
-
-            // ==========================================
-            // GET PROFILE
-            // ==========================================
-
-            const {
-                data: profile,
-                error: profileError
-            } = await supabase
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    display_name,
-                    avatar,
-                    bio,
-                    created_at,
-                    equipped_title_id
-                `)
-                .eq(
-                    "id",
-                    id
-                )
-                .maybeSingle();
-
-
-            if (profileError) {
-
-                console.error(
-                    "PROFILE ERROR:",
-                    profileError
-                );
-
-                return res.status(500).json({
-                    error: profileError.message
-                });
-
-            }
-
-
-            if (!profile) {
-
-                return res.status(404).json({
-                    error: "User not found."
-                });
-
-            }
-
-
-            // ==========================================
-            // GET EQUIPPED TITLE
-            // ==========================================
-
-            let equippedTitle = null;
-
-
-            if (profile.equipped_title_id) {
-
-                const {
-                    data: title,
-                    error: titleError
-                } = await supabase
-                    .from("shop_items")
-                    .select(`
-                        id,
-                        name,
-                        description,
-                        price,
-                        icon,
-                        item_type
-                    `)
-                    .eq(
-                        "id",
-                        profile.equipped_title_id
-                    )
-                    .eq(
-                        "item_type",
-                        "title"
-                    )
-                    .maybeSingle();
-
-
-                if (titleError) {
-
-                    console.error(
-                        "EQUIPPED TITLE ERROR:",
-                        titleError
-                    );
-
-                } else {
-
-                    equippedTitle =
-                        title || null;
-
-                }
-
-            }
-
-
-            // ==========================================
-            // GET ALL DISPLAYED ITEMS
-            // ==========================================
-
-            let displayedItems = [];
-
-
-            const {
-                data: inventoryItems,
-                error: inventoryError
-            } = await supabase
-                .from("user_shop_items")
-                .select(`
-                    id,
-                    item_id,
-                    equipped,
-                    purchased_at
-                `)
-                .eq(
-                    "user_id",
-                    id
-                )
-                .eq(
-                    "equipped",
-                    true
-                );
-
-
-            if (inventoryError) {
-
-                console.error(
-                    "DISPLAYED INVENTORY ERROR:",
-                    inventoryError
-                );
-
-            } else if (
-                inventoryItems &&
-                inventoryItems.length > 0
-            ) {
-
-
-                // ======================================
-                // GET SHOP ITEMS
-                // ======================================
-
-                const itemIds =
-                    inventoryItems.map(
-                        inventoryItem =>
-                            inventoryItem.item_id
-                    );
-
-
-                const {
-                    data: shopItems,
-                    error: shopItemsError
-                } = await supabase
-                    .from("shop_items")
-                    .select(`
-                        id,
-                        name,
-                        description,
-                        price,
-                        icon,
-                        item_type
-                    `)
-                    .in(
-                        "id",
-                        itemIds
-                    );
-
-
-                if (shopItemsError) {
-
-                    console.error(
-                        "DISPLAYED SHOP ITEMS ERROR:",
-                        shopItemsError
-                    );
-
-                } else {
-
-                    displayedItems =
-                        (shopItems || []).map(
-                            shopItem => {
-
-                                const inventoryItem =
-                                    inventoryItems.find(
-                                        inventoryItem =>
-                                            String(
-                                                inventoryItem.item_id
-                                            ) ===
-                                            String(
-                                                shopItem.id
-                                            )
-                                    );
-
-
-                                return {
-
-                                    id:
-                                        shopItem.id,
-
-                                    name:
-                                        shopItem.name,
-
-                                    description:
-                                        shopItem.description,
-
-                                    price:
-                                        shopItem.price,
-
-                                    icon:
-                                        shopItem.icon,
-
-                                    item_type:
-                                        shopItem.item_type,
-
-                                    purchased_at:
-                                        inventoryItem
-                                            ?.purchased_at
-                                            || null,
-
-                                    equipped:
-                                        true
-
-                                };
-
-                            }
-                        );
-
-                }
-
-            }
-
-
-            // ==========================================
-            // GET POSTS
-            // ==========================================
-
-            const {
-                data: posts,
-                error: postsError
-            } = await supabase
-                .from("posts")
-                .select(`
-                    id,
-                    user_id,
-                    content,
-                    image_url,
-                    created_at
-                `)
-                .eq(
-                    "user_id",
-                    id
-                )
-                .order(
-                    "created_at",
-                    {
-                        ascending: false
-                    }
-                );
-
-
-            if (postsError) {
-
-                return res.status(500).json({
-                    error: postsError.message
-                });
-
-            }
-
-
-            // ==========================================
-            // REACTIONS
-            // ==========================================
-
-            const reactions =
-                await getReactionCounts(id);
-
-
-            // ==========================================
-            // RESPONSE
-            // ==========================================
-
-            return res.json({
-
-                ...profile,
-
-                avatar:
-                    getAvatar(
-                        profile.avatar
-                    ),
-
-                equippedTitle:
-                    equippedTitle,
-
-                displayedItems:
-                    displayedItems,
-
-                gyatt:
-                    reactions.gyatt,
-
-                cat:
-                    reactions.cat,
-
-                ogred:
-                    reactions.ogred,
-
-                posts:
-                    posts || []
-
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "ONE USER ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error: "Server error."
-            });
-
-        }
-
-    }
-);
 // ==================================================
 // UPDATE PROFILE
 // ==================================================
@@ -5980,340 +5638,7 @@ app.post(
 // SHOP INVENTORY
 // ==================================================
 
-app.get(
-    "/api/users/:id",
-    async (req, res) => {
 
-        try {
-
-            const id =
-                req.params.id;
-
-
-            if (!id) {
-
-                return res.status(400).json({
-                    error:
-                        "No profile ID was provided."
-                });
-
-            }
-
-
-            // ==========================================
-            // GET PROFILE
-            // ==========================================
-
-            const {
-                data: profile,
-                error: profileError
-            } =
-                await supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar,
-                        bio,
-                        created_at,
-                        equipped_title_id
-                    `)
-                    .eq(
-                        "id",
-                        id
-                    )
-                    .maybeSingle();
-
-
-            if (profileError) {
-
-                console.error(
-                    "PROFILE ERROR:",
-                    profileError
-                );
-
-                return res.status(500).json({
-                    error:
-                        profileError.message
-                });
-
-            }
-
-
-            if (!profile) {
-
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-
-            }
-
-
-            // ==========================================
-            // GET EQUIPPED TITLE
-            // ==========================================
-
-            let equippedTitle =
-                null;
-
-
-            if (
-                profile.equipped_title_id
-            ) {
-
-                const {
-                    data: title,
-                    error: titleError
-                } =
-                    await supabase
-                        .from("shop_items")
-                        .select(`
-                            id,
-                            name,
-                            description,
-                            price,
-                            icon,
-                            item_type
-                        `)
-                        .eq(
-                            "id",
-                            profile.equipped_title_id
-                        )
-                        .eq(
-                            "item_type",
-                            "title"
-                        )
-                        .maybeSingle();
-
-
-                if (titleError) {
-
-                    console.error(
-                        "EQUIPPED TITLE ERROR:",
-                        titleError
-                    );
-
-                } else {
-
-                    equippedTitle =
-                        title || null;
-
-                }
-
-            }
-
-
-            // ==========================================
-            // GET ALL DISPLAYED ITEMS
-            // ==========================================
-
-            let displayedItems = [];
-
-
-            const {
-                data: ownedItems,
-                error: ownedError
-            } =
-                await supabase
-                    .from("user_shop_items")
-                    .select(`
-                        purchased_at,
-                        equipped,
-                        shop_items (
-                            id,
-                            name,
-                            description,
-                            icon,
-                            price,
-                            item_type
-                        )
-                    `)
-                    .eq(
-                        "user_id",
-                        id
-                    );
-
-
-            if (ownedError) {
-
-                console.error(
-                    "DISPLAYED ITEMS ERROR:",
-                    ownedError
-                );
-
-            } else {
-
-                // ======================================
-                // ONLY DISPLAY NORMAL EQUIPPED ITEMS
-                // TITLES ARE HANDLED SEPARATELY
-                // ======================================
-
-                displayedItems =
-                    (ownedItems || [])
-                        .filter(
-                            row =>
-                                row.shop_items &&
-                                row.shop_items.item_type !== "title" &&
-                                row.equipped === true
-                        )
-                        .map(
-                            row => ({
-
-                                id:
-                                    row.shop_items.id,
-
-                                name:
-                                    row.shop_items.name,
-
-                                description:
-                                    row.shop_items.description,
-
-                                icon:
-                                    row.shop_items.icon,
-
-                                price:
-                                    row.shop_items.price,
-
-                                item_type:
-                                    row.shop_items.item_type,
-
-                                purchased_at:
-                                    row.purchased_at,
-
-                                equipped:
-                                    true
-
-                            })
-                        );
-
-            }
-
-
-            // ==========================================
-            // LIMIT DISPLAYED ITEMS
-            // ==========================================
-
-            displayedItems =
-                displayedItems.slice(
-                    0,
-                    5
-                );
-
-
-            console.log(
-                "PROFILE DISPLAYED ITEMS:",
-                id,
-                displayedItems
-            );
-
-
-            // ==========================================
-            // GET POSTS
-            // ==========================================
-
-            const {
-                data: posts,
-                error: postsError
-            } =
-                await supabase
-                    .from("posts")
-                    .select(`
-                        id,
-                        user_id,
-                        content,
-                        image_url,
-                        created_at
-                    `)
-                    .eq(
-                        "user_id",
-                        id
-                    )
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
-                    );
-
-
-            if (postsError) {
-
-                return res.status(500).json({
-                    error:
-                        postsError.message
-                });
-
-            }
-
-
-            // ==========================================
-            // REACTIONS
-            // ==========================================
-
-            const reactions =
-                await getReactionCounts(
-                    id
-                );
-
-
-            // ==========================================
-            // RESPONSE
-            // ==========================================
-
-            return res.json({
-
-                ...profile,
-
-                avatar:
-                    getAvatar(
-                        profile.avatar
-                    ),
-
-                equippedTitle:
-                    equippedTitle,
-
-                displayedItems:
-                    displayedItems,
-
-                displayedCount:
-                    displayedItems.length,
-
-                maxDisplayed:
-                    5,
-
-                gyatt:
-                    reactions.gyatt,
-
-                cat:
-                    reactions.cat,
-
-                ogred:
-                    reactions.ogred,
-
-                posts:
-                    posts || []
-
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "ONE USER ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
 // ==================================================
 // EQUIP SHOP TITLE
 // ==================================================
@@ -14352,7 +13677,349 @@ app.delete("/api/houses/:id/leave", async (req, res) => {
     }
 });
 
+app.get(
+    "/api/users/:id",
+    async (req, res) => {
 
+        try {
+
+            const id = req.params.id;
+
+            if (!id) {
+
+                return res.status(400).json({
+                    error: "No profile ID was provided."
+                });
+
+            }
+
+
+            // ==========================================
+            // GET PROFILE
+            // ==========================================
+
+            const {
+                data: profile,
+                error: profileError
+            } = await supabase
+                .from("profiles")
+                .select(`
+                    id,
+                    username,
+                    display_name,
+                    avatar,
+                    bio,
+                    created_at,
+                    equipped_title_id
+                `)
+                .eq(
+                    "id",
+                    id
+                )
+                .maybeSingle();
+
+
+            if (profileError) {
+
+                console.error(
+                    "PROFILE ERROR:",
+                    profileError
+                );
+
+                return res.status(500).json({
+                    error: profileError.message
+                });
+
+            }
+
+
+            if (!profile) {
+
+                return res.status(404).json({
+                    error: "User not found."
+                });
+
+            }
+
+
+            // ==========================================
+            // GET EQUIPPED TITLE
+            // ==========================================
+
+            let equippedTitle = null;
+
+
+            if (profile.equipped_title_id) {
+
+                const {
+                    data: title,
+                    error: titleError
+                } = await supabase
+                    .from("shop_items")
+                    .select(`
+                        id,
+                        name,
+                        description,
+                        price,
+                        icon,
+                        item_type
+                    `)
+                    .eq(
+                        "id",
+                        profile.equipped_title_id
+                    )
+                    .eq(
+                        "item_type",
+                        "title"
+                    )
+                    .maybeSingle();
+
+
+                if (titleError) {
+
+                    console.error(
+                        "EQUIPPED TITLE ERROR:",
+                        titleError
+                    );
+
+                } else {
+
+                    equippedTitle =
+                        title || null;
+
+                }
+
+            }
+
+
+            // ==========================================
+            // GET ALL DISPLAYED ITEMS
+            // ==========================================
+
+            let displayedItems = [];
+
+
+            const {
+                data: inventoryItems,
+                error: inventoryError
+            } = await supabase
+                .from("user_shop_items")
+                .select(`
+                    id,
+                    item_id,
+                    equipped,
+                    purchased_at
+                `)
+                .eq(
+                    "user_id",
+                    id
+                )
+                .eq(
+                    "equipped",
+                    true
+                );
+
+
+            if (inventoryError) {
+
+                console.error(
+                    "DISPLAYED INVENTORY ERROR:",
+                    inventoryError
+                );
+
+            } else if (
+                inventoryItems &&
+                inventoryItems.length > 0
+            ) {
+
+
+                // ======================================
+                // GET SHOP ITEMS
+                // ======================================
+
+                const itemIds =
+                    inventoryItems.map(
+                        inventoryItem =>
+                            inventoryItem.item_id
+                    );
+
+
+                const {
+                    data: shopItems,
+                    error: shopItemsError
+                } = await supabase
+                    .from("shop_items")
+                    .select(`
+                        id,
+                        name,
+                        description,
+                        price,
+                        icon,
+                        item_type
+                    `)
+                    .in(
+                        "id",
+                        itemIds
+                    );
+
+
+                if (shopItemsError) {
+
+                    console.error(
+                        "DISPLAYED SHOP ITEMS ERROR:",
+                        shopItemsError
+                    );
+
+                } else {
+
+                    displayedItems =
+                        (shopItems || []).map(
+                            shopItem => {
+
+                                const inventoryItem =
+                                    inventoryItems.find(
+                                        inventoryItem =>
+                                            String(
+                                                inventoryItem.item_id
+                                            ) ===
+                                            String(
+                                                shopItem.id
+                                            )
+                                    );
+
+
+                                return {
+
+                                    id:
+                                        shopItem.id,
+
+                                    name:
+                                        shopItem.name,
+
+                                    description:
+                                        shopItem.description,
+
+                                    price:
+                                        shopItem.price,
+
+                                    icon:
+                                        shopItem.icon,
+
+                                    item_type:
+                                        shopItem.item_type,
+
+                                    purchased_at:
+                                        inventoryItem
+                                            ?.purchased_at
+                                            || null,
+
+                                    equipped:
+                                        true
+
+                                };
+
+                            }
+                        );
+
+                }
+
+            }
+
+
+            // ==========================================
+            // GET POSTS
+            // ==========================================
+
+            const {
+                data: posts,
+                error: postsError
+            } = await supabase
+                .from("posts")
+                .select(`
+                    id,
+                    user_id,
+                    content,
+                    image_url,
+                    created_at
+                `)
+                .eq(
+                    "user_id",
+                    id
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                );
+
+
+            if (postsError) {
+
+                return res.status(500).json({
+                    error: postsError.message
+                });
+
+            }
+
+
+            // ==========================================
+            // REACTIONS
+            // ==========================================
+
+            const reactions =
+                await getReactionCounts(id);
+
+
+            // ==========================================
+            // RESPONSE
+            // ==========================================
+
+            return res.json({
+
+                ...profile,
+
+                avatar:
+                    getAvatar(
+                        profile.avatar
+                    ),
+
+                equippedTitle:
+                    equippedTitle,
+
+                displayedItems:
+                    displayedItems,
+
+                gyatt:
+                    reactions.gyatt,
+
+                cat:
+                    reactions.cat,
+
+                ogred:
+                    reactions.ogred,
+
+                posts:
+                    posts || []
+
+            });
+
+
+        } catch (error) {
+
+            console.error(
+                "ONE USER ERROR:",
+                error
+            );
+
+            return res.status(500).json({
+                error: "Server error."
+            });
+
+        }
+
+    }
+);
 
 // ==================================================
 // START
