@@ -2,183 +2,1863 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>Houses - ShrekBook</title>
+    <title>ShrekBook Houses</title>
 
     <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f3f5f7;
-            color: #222;
-        }
-
-        .container {
-            max-width: 1100px;
-            margin: 40px auto;
-            padding: 20px;
-        }
-
-        h1 {
-            margin-bottom: 8px;
-        }
-
-        .subtitle {
-            color: #666;
-            margin-bottom: 25px;
-        }
-
-        .top-bar {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
-        }
-
-        .search {
-            flex: 1;
-            min-width: 220px;
-            padding: 13px;
-            border: 1px solid #ccc;
-            border-radius: 10px;
-            font-size: 16px;
+        * {
             box-sizing: border-box;
         }
 
-        .button {
-            display: inline-block;
-            border: none;
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f1f1f1;
+            color: #222;
+        }
+
+        header {
             background: #222;
             color: white;
-            padding: 13px 18px;
-            border-radius: 10px;
+            padding: 18px 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        header button {
+            border: none;
+            background: #444;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
             cursor: pointer;
-            text-decoration: none;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 25px auto;
+            padding: 0 15px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar input {
+            flex: 1;
+            min-width: 220px;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
             font-size: 15px;
         }
 
-        .button:hover {
+        button {
+            border: none;
+            background: #333;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        button:hover {
             opacity: 0.85;
         }
 
-        #status {
-            margin: 15px 0;
-            color: #666;
-        }
-
-        #houses {
+        .house-grid {
             display: grid;
-            grid-template-columns:
-                repeat(auto-fill, minmax(280px, 1fr));
-            gap: 18px;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
         }
 
         .house-card {
             background: white;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
 
         .house-card h2 {
-            margin-top: 0;
-            margin-bottom: 8px;
+            margin: 0 0 8px;
         }
 
-        .house-type {
-            display: inline-block;
-            background: #eee;
-            padding: 5px 9px;
-            border-radius: 8px;
-            font-size: 13px;
-            margin-bottom: 12px;
-        }
-
-        .description {
-            color: #555;
+        .house-description {
+            color: #666;
             min-height: 45px;
         }
 
         .owner {
-            margin-top: 15px;
-            font-size: 14px;
-            color: #666;
+            margin: 12px 0;
+            color: #555;
         }
 
-        .owner strong {
+        .house-type {
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            width: min(850px, 100%);
+            max-height: 90vh;
+            overflow-y: auto;
+            border-radius: 14px;
+            padding: 25px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+        }
+
+        .close {
+            background: #ddd;
             color: #222;
         }
 
-        .view-button {
+        .rooms {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .room-card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            background: #fafafa;
+        }
+
+        .room-card h3 {
+            margin-top: 0;
+        }
+
+        .room-type {
+            color: #777;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        .members {
+            margin-top: 25px;
+        }
+
+        .member {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .member img {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .member-info {
+            flex: 1;
+        }
+
+        .role {
+            font-size: 12px;
+            color: #777;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .danger {
+            background: #a33;
+        }
+
+        .success {
+            background: #287a3e;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
             display: block;
-            margin-top: 18px;
-            text-align: center;
-            background: #222;
-            color: white;
-            text-decoration: none;
-            padding: 11px;
-            border-radius: 9px;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font: inherit;
+        }
+
+        textarea {
+            min-height: 90px;
+            resize: vertical;
         }
 
         .empty {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
             text-align: center;
-            color: #666;
+            color: #777;
+            padding: 40px;
+        }
+
+        .error {
+            background: #ffdede;
+            color: #8b0000;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .invitation {
+            border: 1px solid #ddd;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .invite-search-results {
+            margin-top: 8px;
+        }
+
+        .invite-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            margin-bottom: 5px;
+        }
+
+        .invite-user img {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        @media (max-width: 600px) {
+            .modal-content {
+                padding: 17px;
+            }
         }
     </style>
 </head>
 
 <body>
 
-<div class="container">
+<header>
+    <h1>🏠 ShrekBook Houses</h1>
 
-    <h1>🏠 Houses</h1>
+    <button onclick="window.location.href='index.html'">
+        Back
+    </button>
+</header>
 
-    <div class="subtitle">
-        Explore the Houses of ShrekBook.
-    </div>
+<main>
 
-    <div class="top-bar">
+    <div id="errorBox" class="error"></div>
+
+    <div class="toolbar">
 
         <input
-            id="house-search"
-            class="search"
+            id="houseSearch"
             type="text"
-            placeholder="🔎 Search Houses..."
+            placeholder="Search Houses..."
             autocomplete="off"
         >
 
-        <a
-            class="button"
-            href="/create-house.html"
-        >
-            ➕ Create House
-        </a>
+        <button onclick="openCreateHouse()">
+            + Create House
+        </button>
+
+        <button onclick="loadInvitations()">
+            📩 Invitations
+        </button>
+
+        <button onclick="loadHouses()">
+            🔄 Refresh
+        </button>
 
     </div>
 
-    <div id="status">
-        Loading Houses...
-    </div>
+    <div id="houseGrid" class="house-grid"></div>
 
-    <div id="houses"></div>
+</main>
+
+
+<!-- ========================================================= -->
+<!-- HOUSE MODAL -->
+<!-- ========================================================= -->
+
+<div id="houseModal" class="modal">
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <h2 id="houseModalTitle">
+                House
+            </h2>
+
+            <button
+                class="close"
+                onclick="closeModal('houseModal')"
+            >
+                ✕
+            </button>
+
+        </div>
+
+        <div id="houseDetails"></div>
+
+    </div>
 
 </div>
 
+
+<!-- ========================================================= -->
+<!-- CREATE HOUSE MODAL -->
+<!-- ========================================================= -->
+
+<div id="createModal" class="modal">
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <h2>Create House</h2>
+
+            <button
+                class="close"
+                onclick="closeModal('createModal')"
+            >
+                ✕
+            </button>
+
+        </div>
+
+        <form id="createHouseForm">
+
+            <div class="form-group">
+
+                <label for="createName">
+                    House Name
+                </label>
+
+                <input
+                    id="createName"
+                    maxlength="100"
+                    required
+                >
+
+            </div>
+
+            <div class="form-group">
+
+                <label for="createDescription">
+                    Description
+                </label>
+
+                <textarea
+                    id="createDescription"
+                    placeholder="Describe your House..."
+                ></textarea>
+
+            </div>
+
+            <div class="form-group">
+
+                <label for="createType">
+                    House Type
+                </label>
+
+                <select
+                    id="createType"
+                    required
+                ></select>
+
+            </div>
+
+            <button
+                type="submit"
+                class="success"
+            >
+                Create House
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- ========================================================= -->
+<!-- INVITATIONS MODAL -->
+<!-- ========================================================= -->
+
+<div id="invitationModal" class="modal">
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <h2>📩 House Invitations</h2>
+
+            <button
+                class="close"
+                onclick="closeModal('invitationModal')"
+            >
+                ✕
+            </button>
+
+        </div>
+
+        <div id="invitations"></div>
+
+    </div>
+
+</div>
+
+
 <script>
 
-let allHouses = [];
+let houses = [];
+let currentHouse = null;
 
 
 // ============================================================
-// ESCAPE HTML
+// ERROR HANDLING
+// ============================================================
+
+function showError(message) {
+
+    const box = document.getElementById("errorBox");
+
+    box.textContent = message;
+    box.style.display = "block";
+
+    setTimeout(() => {
+        box.style.display = "none";
+    }, 5000);
+}
+
+
+// ============================================================
+// MODAL
+// ============================================================
+
+function openModal(id) {
+    document.getElementById(id).classList.add("active");
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove("active");
+}
+
+
+// ============================================================
+// LOAD HOUSES
+// ============================================================
+
+async function loadHouses() {
+
+    try {
+
+        const response =
+            await fetch("/api/houses");
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Failed to load Houses."
+            );
+        }
+
+        houses =
+            data.houses || [];
+
+        renderHouses();
+
+    } catch (error) {
+
+        console.error(error);
+
+        showError(error.message);
+    }
+}
+
+
+// ============================================================
+// SEARCH
+// IMPORTANT:
+// BACKEND DOES NOT HAVE /api/houses/search.
+// SEARCH IS LOCAL.
+// ============================================================
+
+function renderHouses() {
+
+    const grid =
+        document.getElementById("houseGrid");
+
+    const search =
+        document
+            .getElementById("houseSearch")
+            .value
+            .trim()
+            .toLowerCase();
+
+    const filtered =
+        houses.filter(house => {
+
+            const name =
+                String(house.name || "")
+                    .toLowerCase();
+
+            const description =
+                String(house.description || "")
+                    .toLowerCase();
+
+            const type =
+                String(house.house_type || "")
+                    .toLowerCase();
+
+            const username =
+                String(
+                    house.owner?.username || ""
+                ).toLowerCase();
+
+            const displayName =
+                String(
+                    house.owner?.display_name || ""
+                ).toLowerCase();
+
+            return (
+                name.includes(search) ||
+                description.includes(search) ||
+                type.includes(search) ||
+                username.includes(search) ||
+                displayName.includes(search)
+            );
+        });
+
+
+    if (filtered.length === 0) {
+
+        grid.innerHTML = `
+            <div class="empty">
+                No Houses found.
+            </div>
+        `;
+
+        return;
+    }
+
+
+    grid.innerHTML =
+        filtered.map(house => {
+
+            const ownerName =
+                house.owner?.display_name ||
+                house.owner?.username ||
+                "Unknown";
+
+            return `
+                <div class="house-card">
+
+                    <h2>
+                        ${escapeHtml(house.name)}
+                    </h2>
+
+                    <div class="house-description">
+                        ${escapeHtml(
+                            house.description ||
+                            "No description."
+                        )}
+                    </div>
+
+                    <div class="owner">
+                        👤 Owner:
+                        ${escapeHtml(ownerName)}
+                    </div>
+
+                    <div class="house-type">
+                        🏠 ${escapeHtml(
+                            house.house_type ||
+                            "Unknown"
+                        )}
+                    </div>
+
+                    <button
+                        onclick="openHouse(${house.id})"
+                    >
+                        Enter House
+                    </button>
+
+                </div>
+            `;
+        }).join("");
+}
+
+
+// ============================================================
+// HOUSE SEARCH
+// ============================================================
+
+document
+    .getElementById("houseSearch")
+    .addEventListener(
+        "input",
+        renderHouses
+    );
+
+
+// ============================================================
+// OPEN HOUSE
+// ============================================================
+
+async function openHouse(houseId) {
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${houseId}`
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to load House."
+            );
+        }
+
+        currentHouse =
+            data;
+
+        renderHouseDetails();
+
+        openModal("houseModal");
+
+    } catch (error) {
+
+        console.error(error);
+
+        showError(error.message);
+    }
+}
+
+
+// ============================================================
+// RENDER HOUSE
+// ============================================================
+
+function renderHouseDetails() {
+
+    const house =
+        currentHouse.house;
+
+    const rooms =
+        currentHouse.rooms || [];
+
+    const members =
+        currentHouse.members || [];
+
+    const houseType =
+        currentHouse.houseType;
+
+
+    document.getElementById(
+        "houseModalTitle"
+    ).textContent =
+        `🏠 ${house.name}`;
+
+
+    let html = `
+
+        <p>
+            ${escapeHtml(
+                house.description ||
+                "No description."
+            )}
+        </p>
+
+        <p>
+            <strong>Type:</strong>
+            ${escapeHtml(
+                house.house_type || "Unknown"
+            )}
+        </p>
+    `;
+
+
+    if (houseType) {
+
+        html += `
+
+            <p>
+                <strong>Rooms:</strong>
+                ${houseType.room_count}
+            </p>
+
+            <p>
+                <strong>Cost:</strong>
+                ${houseType.cost}
+                ShrekCoins
+            </p>
+
+        `;
+    }
+
+
+    // ========================================================
+    // ROOMS
+    // ========================================================
+
+    html += `
+        <h3>🚪 Rooms</h3>
+
+        <div class="rooms">
+    `;
+
+
+    if (rooms.length === 0) {
+
+        html += `
+            <div class="empty">
+                No rooms.
+            </div>
+        `;
+
+    } else {
+
+        for (const room of rooms) {
+
+            html += `
+
+                <div class="room-card">
+
+                    <h3>
+                        ${escapeHtml(room.name)}
+                    </h3>
+
+                    <div class="room-type">
+                        ${escapeHtml(
+                            room.room_type
+                        )}
+                    </div>
+
+                    <button
+                        onclick="enterRoom(
+                            ${house.id},
+                            ${room.id}
+                        )"
+                    >
+                        Enter Room
+                    </button>
+
+                </div>
+
+            `;
+        }
+    }
+
+
+    html += `
+        </div>
+    `;
+
+
+    // ========================================================
+    // MEMBERS
+    // ========================================================
+
+    html += `
+        <div class="members">
+
+            <h3>
+                👥 Members
+            </h3>
+    `;
+
+
+    if (members.length === 0) {
+
+        html += `
+            <p>No members.</p>
+        `;
+
+    } else {
+
+        for (const member of members) {
+
+            const user =
+                member.user;
+
+            const name =
+                user?.display_name ||
+                user?.username ||
+                "Unknown";
+
+            const avatar =
+                user?.avatar ||
+                "/default-avatar.png";
+
+            html += `
+
+                <div class="member">
+
+                    <img
+                        src="${escapeAttribute(
+                            avatar
+                        )}"
+                        alt=""
+                    >
+
+                    <div class="member-info">
+
+                        <strong>
+                            ${escapeHtml(name)}
+                        </strong>
+
+                        <div class="role">
+                            ${escapeHtml(
+                                member.role
+                            )}
+                        </div>
+
+                    </div>
+            `;
+
+
+            if (
+                currentHouse.canManage &&
+                member.role !== "owner"
+            ) {
+
+                html += `
+
+                    <button
+                        onclick="removeMember(
+                            ${house.id},
+                            '${escapeJs(
+                                member.user_id
+                            )}'
+                        )"
+                    >
+                        Remove
+                    </button>
+
+                `;
+
+
+                if (
+                    currentHouse.membership?.role ===
+                    "owner"
+                ) {
+
+                    if (
+                        member.role ===
+                        "admin"
+                    ) {
+
+                        html += `
+
+                            <button
+                                onclick="demoteAdmin(
+                                    ${house.id},
+                                    '${escapeJs(
+                                        member.user_id
+                                    )}'
+                                )"
+                            >
+                                Demote
+                            </button>
+
+                        `;
+
+                    } else {
+
+                        html += `
+
+                            <button
+                                onclick="promoteAdmin(
+                                    ${house.id},
+                                    '${escapeJs(
+                                        member.user_id
+                                    )}'
+                                )"
+                            >
+                                Admin
+                            </button>
+
+                        `;
+                    }
+                }
+            }
+
+
+            html += `
+                </div>
+            `;
+        }
+    }
+
+
+    html += `
+        </div>
+    `;
+
+
+    // ========================================================
+    // ACTIONS
+    // ========================================================
+
+    html += `
+        <div class="actions">
+    `;
+
+
+    if (currentHouse.canInvite) {
+
+        html += `
+            <button
+                onclick="openInvite(${house.id})"
+            >
+                👤 Invite
+            </button>
+        `;
+    }
+
+
+    if (currentHouse.canManage) {
+
+        html += `
+            <button
+                onclick="openEditHouse()"
+            >
+                ✏️ Edit
+            </button>
+        `;
+    }
+
+
+    if (
+        currentHouse.membership &&
+        currentHouse.membership.role !==
+        "owner"
+    ) {
+
+        html += `
+            <button
+                class="danger"
+                onclick="leaveHouse(${house.id})"
+            >
+                🚪 Leave House
+            </button>
+        `;
+    }
+
+
+    html += `
+        </div>
+    `;
+
+
+    document.getElementById(
+        "houseDetails"
+    ).innerHTML =
+        html;
+}
+
+
+// ============================================================
+// ENTER ROOM
+// ============================================================
+
+async function enterRoom(
+    houseId,
+    roomId
+) {
+
+    // IMPORTANT:
+    // Both IDs are explicitly passed.
+    if (!houseId || !roomId) {
+
+        showError(
+            "No House ID or room ID was provided."
+        );
+
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${houseId}/rooms/${roomId}`
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to load room."
+            );
+        }
+
+
+        if (!data.canAccess) {
+
+            showError(
+                "You do not have access to this room."
+            );
+
+            return;
+        }
+
+
+        /*
+         * This is the important part.
+         *
+         * The room page receives BOTH IDs.
+         */
+        window.location.href =
+            `house-room.html?house=${encodeURIComponent(
+                houseId
+            )}&room=${encodeURIComponent(
+                roomId
+            )}`;
+
+    } catch (error) {
+
+        console.error(error);
+
+        showError(error.message);
+    }
+}
+
+
+// ============================================================
+// CREATE HOUSE
+// ============================================================
+
+async function openCreateHouse() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/houses/types"
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to load House types."
+            );
+        }
+
+
+        const select =
+            document.getElementById(
+                "createType"
+            );
+
+        select.innerHTML = "";
+
+
+        for (
+            const type of
+            data.houseTypes || []
+        ) {
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+            option.value =
+                type.name;
+
+            option.textContent =
+                `${type.name} — ${type.cost} ShrekCoins — ${type.room_count} rooms`;
+
+            select.appendChild(
+                option
+            );
+        }
+
+
+        openModal(
+            "createModal"
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        showError(error.message);
+    }
+}
+
+
+document
+    .getElementById(
+        "createHouseForm"
+    )
+    .addEventListener(
+        "submit",
+        async event => {
+
+            event.preventDefault();
+
+            try {
+
+                const body = {
+
+                    name:
+                        document
+                            .getElementById(
+                                "createName"
+                            )
+                            .value
+                            .trim(),
+
+                    description:
+                        document
+                            .getElementById(
+                                "createDescription"
+                            )
+                            .value
+                            .trim(),
+
+                    houseType:
+                        document
+                            .getElementById(
+                                "createType"
+                            )
+                            .value
+                };
+
+
+                const response =
+                    await fetch(
+                        "/api/houses",
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body:
+                                JSON.stringify(body)
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.error ||
+                        "Failed to create House."
+                    );
+                }
+
+
+                closeModal(
+                    "createModal"
+                );
+
+                await loadHouses();
+
+                await openHouse(
+                    data.house.id
+                );
+
+            } catch (error) {
+
+                console.error(error);
+
+                showError(
+                    error.message
+                );
+            }
+        }
+    );
+
+
+// ============================================================
+// INVITE USER
+// ============================================================
+
+async function openInvite(houseId) {
+
+    const username =
+        prompt(
+            "Enter the username or display name to search:"
+        );
+
+    if (!username) return;
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/users/search?q=${encodeURIComponent(
+                    username
+                )}`
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to search users."
+            );
+        }
+
+
+        const users =
+            data.users || [];
+
+
+        if (users.length === 0) {
+
+            alert(
+                "No users found."
+            );
+
+            return;
+        }
+
+
+        const names =
+            users.map(
+                (user, index) =>
+                    `${index + 1}. ${
+                        user.display_name ||
+                        user.username
+                    } (@${user.username})`
+            );
+
+
+        const answer =
+            prompt(
+                "Choose a user:\n\n" +
+                names.join("\n") +
+                "\n\nEnter the number:"
+            );
+
+
+        const index =
+            Number(answer) - 1;
+
+
+        if (
+            !Number.isInteger(index) ||
+            !users[index]
+        ) {
+            return;
+        }
+
+
+        const selected =
+            users[index];
+
+
+        const inviteResponse =
+            await fetch(
+                `/api/houses/${houseId}/invite`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+                            userId:
+                                selected.id
+                        })
+                }
+            );
+
+
+        const inviteData =
+            await inviteResponse.json();
+
+
+        if (!inviteResponse.ok) {
+            throw new Error(
+                inviteData.error ||
+                "Failed to send invitation."
+            );
+        }
+
+
+        alert(
+            "Invitation sent!"
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        showError(
+            error.message
+        );
+    }
+}
+
+
+// ============================================================
+// INVITATIONS
+// ============================================================
+
+async function loadInvitations() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/houses/invitations"
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to load invitations."
+            );
+        }
+
+
+        const container =
+            document.getElementById(
+                "invitations"
+            );
+
+
+        const invitations =
+            data.invitations || [];
+
+
+        if (invitations.length === 0) {
+
+            container.innerHTML = `
+                <div class="empty">
+                    No pending invitations.
+                </div>
+            `;
+
+        } else {
+
+            container.innerHTML =
+                invitations.map(
+                    invite => {
+
+                        const houseName =
+                            invite.house?.name ||
+                            "Unknown House";
+
+                        const inviter =
+                            invite.inviter
+                                ?.display_name ||
+                            invite.inviter
+                                ?.username ||
+                            "Unknown";
+
+                        return `
+
+                            <div class="invitation">
+
+                                <strong>
+                                    ${escapeHtml(
+                                        houseName
+                                    )}
+                                </strong>
+
+                                <p>
+                                    Invited by
+                                    ${escapeHtml(
+                                        inviter
+                                    )}
+                                </p>
+
+                                <button
+                                    class="success"
+                                    onclick="acceptInvitation(
+                                        ${invite.id}
+                                    )"
+                                >
+                                    Accept
+                                </button>
+
+                                <button
+                                    class="danger"
+                                    onclick="declineInvitation(
+                                        ${invite.id}
+                                    )"
+                                >
+                                    Decline
+                                </button>
+
+                            </div>
+                        `;
+                    }
+                ).join("");
+        }
+
+
+        openModal(
+            "invitationModal"
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        showError(
+            error.message
+        );
+    }
+}
+
+
+async function acceptInvitation(
+    invitationId
+) {
+
+    await invitationAction(
+        invitationId,
+        "accept"
+    );
+}
+
+
+async function declineInvitation(
+    invitationId
+) {
+
+    await invitationAction(
+        invitationId,
+        "decline"
+    );
+}
+
+
+async function invitationAction(
+    invitationId,
+    action
+) {
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/invitations/${invitationId}/${action}`,
+                {
+                    method: "POST"
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Invitation action failed."
+            );
+        }
+
+        await loadInvitations();
+        await loadHouses();
+
+    } catch (error) {
+
+        console.error(error);
+
+        showError(
+            error.message
+        );
+    }
+}
+
+
+// ============================================================
+// REMOVE MEMBER
+// ============================================================
+
+async function removeMember(
+    houseId,
+    userId
+) {
+
+    if (
+        !confirm(
+            "Remove this member from the House?"
+        )
+    ) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${houseId}/members/${encodeURIComponent(
+                    userId
+                )}`,
+                {
+                    method: "DELETE"
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to remove member."
+            );
+        }
+
+        await openHouse(
+            houseId
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        showError(
+            error.message
+        );
+    }
+}
+
+
+// ============================================================
+// PROMOTE ADMIN
+// ============================================================
+
+async function promoteAdmin(
+    houseId,
+    userId
+) {
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${houseId}/admins/${encodeURIComponent(
+                    userId
+                )}`,
+                {
+                    method: "POST"
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to promote admin."
+            );
+        }
+
+        await openHouse(
+            houseId
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        showError(
+            error.message
+        );
+    }
+}
+
+
+// ============================================================
+// DEMOTE ADMIN
+// ============================================================
+
+async function demoteAdmin(
+    houseId,
+    userId
+) {
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${houseId}/admins/${encodeURIComponent(
+                    userId
+                )}`,
+                {
+                    method: "DELETE"
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to demote admin."
+            );
+        }
+
+        await openHouse(
+            houseId
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        showError(error.message);
+    }
+}
+
+
+// ============================================================
+// EDIT HOUSE
+// ============================================================
+
+function openEditHouse() {
+
+    if (!currentHouse) return;
+
+    const house =
+        currentHouse.house;
+
+
+    const name =
+        prompt(
+            "House name:",
+            house.name
+        );
+
+    if (name === null) return;
+
+
+    const description =
+        prompt(
+            "House description:",
+            house.description || ""
+        );
+
+    if (description === null) return;
+
+
+    updateHouse(
+        house.id,
+        name,
+        description
+    );
+}
+
+
+async function updateHouse(
+    houseId,
+    name,
+    description
+) {
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${houseId}`,
+                {
+                    method: "PUT",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+                            name:
+                                name.trim(),
+
+                            description:
+                                description.trim()
+                        })
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to update House."
+            );
+        }
+
+
+        await loadHouses();
+
+        await openHouse(
+            houseId
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        showError(
+            error.message
+        );
+    }
+}
+
+
+// ============================================================
+// LEAVE HOUSE
+// ============================================================
+
+async function leaveHouse(
+    houseId
+) {
+
+    if (
+        !confirm(
+            "Are you sure you want to leave this House?"
+        )
+    ) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${houseId}/leave`,
+                {
+                    method: "DELETE"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to leave House."
+            );
+        }
+
+
+        closeModal(
+            "houseModal"
+        );
+
+        await loadHouses();
+
+    } catch (error) {
+
+        console.error(error);
+
+        showError(
+            error.message
+        );
+    }
+}
+
+
+// ============================================================
+// ESCAPE HELPERS
 // ============================================================
 
 function escapeHtml(value) {
@@ -192,178 +1872,21 @@ function escapeHtml(value) {
 }
 
 
-// ============================================================
-// LOAD HOUSES
-// ============================================================
+function escapeAttribute(value) {
 
-async function loadHouses() {
-
-    const status =
-        document.getElementById("status");
-
-    try {
-
-        status.textContent =
-            "Loading Houses...";
-
-        const response = await fetch(
-            "/api/houses",
-            {
-                credentials: "include"
-            }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(
-                data.error || "Failed to load Houses."
-            );
-        }
-
-        allHouses =
-            Array.isArray(data.houses)
-                ? data.houses
-                : [];
-
-        renderHouses();
-
-    } catch (error) {
-
-        console.error(error);
-
-        status.textContent =
-            "Failed to load Houses: " +
-            error.message;
-    }
+    return escapeHtml(value);
 }
 
 
-// ============================================================
-// RENDER
-// ============================================================
+function escapeJs(value) {
 
-function renderHouses() {
-
-    const container =
-        document.getElementById("houses");
-
-    const status =
-        document.getElementById("status");
-
-    const search =
-        document
-            .getElementById("house-search")
-            .value
-            .trim()
-            .toLowerCase();
-
-
-    // ----------------------------------------------------------
-    // LOCAL SEARCH
-    // ----------------------------------------------------------
-
-    const filtered = allHouses.filter(house => {
-
-        const owner =
-            house.owner || {};
-
-        const searchable = [
-            house.name,
-            house.description,
-            house.house_type,
-            owner.username,
-            owner.display_name
-        ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
-
-        return searchable.includes(search);
-    });
-
-
-    status.textContent =
-        `${filtered.length} House` +
-        `${filtered.length === 1 ? "" : "s"} found`;
-
-
-    if (filtered.length === 0) {
-
-        container.innerHTML = `
-            <div class="empty">
-                🏠 No Houses found.
-            </div>
-        `;
-
-        return;
-    }
-
-
-    container.innerHTML =
-        filtered.map(house => {
-
-            const owner =
-                house.owner || {};
-
-            const ownerName =
-                owner.display_name ||
-                owner.username ||
-                "Unknown Owner";
-
-            const description =
-                house.description ||
-                "No description.";
-
-            return `
-                <div class="house-card">
-
-                    <h2>
-                        ${escapeHtml(house.name)}
-                    </h2>
-
-                    <div class="house-type">
-                        ${escapeHtml(
-                            house.house_type ||
-                            "House"
-                        )}
-                    </div>
-
-                    <div class="description">
-                        ${escapeHtml(description)}
-                    </div>
-
-                    <div class="owner">
-                        👑 Owner:
-                        <strong>
-                            ${escapeHtml(ownerName)}
-                        </strong>
-                    </div>
-
-                    <a
-                        class="view-button"
-                        href="/house.html?id=${encodeURIComponent(house.id)}"
-                    >
-                        Enter House →
-                    </a>
-
-                </div>
-            `;
-
-        }).join("");
+    return String(value ?? "")
+        .replace(/\\/g, "\\\\")
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/\r/g, "\\r")
+        .replace(/\n/g, "\\n");
 }
-
-
-// ============================================================
-// SEARCH
-// ============================================================
-
-document
-    .getElementById("house-search")
-    .addEventListener(
-        "input",
-        renderHouses
-    );
 
 
 // ============================================================
