@@ -12182,7 +12182,7 @@ async function getHouseProfile(userId) {
 
     const { data, error } = await supabase
         .from("profiles")
-        .select("id, username, display_name, avatar_url")
+        .select("id, username, display_name, avatar")
         .eq("id", userId)
         .maybeSingle();
 
@@ -12324,7 +12324,7 @@ app.get("/api/houses", async (req, res) => {
         if (ownerIds.length > 0) {
             const { data, error: ownerError } = await supabase
                 .from("profiles")
-                .select("id, username, display_name, avatar_url")
+                .select("id, username, display_name, avatar")
                 .in("id", ownerIds);
 
             if (ownerError) {
@@ -12413,7 +12413,7 @@ app.get("/api/houses/invitations", async (req, res) => {
         if (inviterIds.length > 0) {
             const { data, error: inviterError } = await supabase
                 .from("profiles")
-                .select("id, username, display_name, avatar_url")
+                .select("id, username, display_name, avatar")
                 .in("id", inviterIds);
 
             if (!inviterError) {
@@ -12629,7 +12629,7 @@ app.get("/api/users/search", async (req, res) => {
 
         const { data, error } = await supabase
             .from("profiles")
-            .select("id, username, display_name, avatar_url")
+            .select("id, username, display_name, avatar")
             .or(
                 `username.ilike.${pattern},display_name.ilike.${pattern}`
             )
@@ -12775,7 +12775,7 @@ app.get("/api/houses/:id", async (req, res) => {
             const { data, error: profileError } = await supabase
                 .from("profiles")
                 .select(
-                    "id, username, display_name, avatar_url"
+                    "id, username, display_name, avatar"
                 )
                 .in("id", memberIds);
 
@@ -13838,7 +13838,7 @@ app.get(
                 const { data } = await supabase
                     .from("profiles")
                     .select(
-                        "id, username, display_name, avatar_url"
+                        "id, username, display_name, avatar"
                     )
                     .in("id", userIds);
 
@@ -14261,7 +14261,7 @@ app.get(
                 const { data: profileData } = await supabase
                     .from("profiles")
                     .select(
-                        "id, username, display_name, avatar_url"
+                        "id, username, display_name, avatar"
                     )
                     .in("id", userIds);
 
