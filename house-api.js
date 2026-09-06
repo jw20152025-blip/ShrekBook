@@ -39,34 +39,19 @@ module.exports = function createHouseRouter({ supabase }) {
     // AUTH
     // ========================================================
 
-    async function requireHouseLogin(req, res, next) {
-        try {
-            /*
-            * Uses the existing ShrekBook session.
-            */
-            const userId = req.session?.user?.id;
+    function requireHouseLogin(req, res) {
+        const userId = req.session?.user?.id;
 
-            if (!userId) {
-                return res.status(401).json({
-                    error: "You must be logged in."
-                });
-            }
-
-            req.houseUserId = userId;
-
-
-
-
-            next();
-        } catch (error) {
-            console.error("House auth error:", error);
-
-            res.status(500).json({
-                error: "Authentication error."
+        if (!userId) {
+            res.status(401).json({
+                error: "You must be logged in."
             });
-        }
-    }
 
+            return null;
+        }
+
+        return userId;
+    }
 
     // ========================================================
     // HELPERS
