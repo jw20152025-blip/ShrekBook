@@ -42,12 +42,9 @@ module.exports = function createHouseRouter({ supabase }) {
     async function requireHouseLogin(req, res, next) {
         try {
             /*
-             * This uses the existing ShrekBook session.
-             *
-             * If your existing server uses a different property
-             * for the logged-in user's UUID, change ONLY this line.
-             */
-            const userId = req.session?.userId;
+            * Uses the existing ShrekBook session.
+            */
+            const userId = req.session?.user?.id;
 
             if (!userId) {
                 return res.status(401).json({
@@ -56,6 +53,9 @@ module.exports = function createHouseRouter({ supabase }) {
             }
 
             req.houseUserId = userId;
+
+
+
 
             next();
         } catch (error) {
