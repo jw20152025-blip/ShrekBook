@@ -1701,7 +1701,7 @@ module.exports = function createHouseRouter({ supabase }) {
             }
         }
     );
-    route.get(
+    router.get(
         "/api/houses/:houseId/rooms/:roomId",
         async (req, res) => {
             const userId = requireHouseLogin(req, res);
