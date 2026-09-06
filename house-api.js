@@ -30,20 +30,13 @@ module.exports = function createHouseRouter({ supabase }) {
     // AUTH
     // ========================================================
 
-    function requireHouseLogin(req, res, next) {
-        const userId = req.session?.user?.id;
-
-        if (!userId) {
-            return res.status(401).json({
-                error: "You must be logged in."
-            });
+    function getHouseUserId(req) {
+        if (req.session && req.session.user) {
+            return req.session.user.id;
         }
 
-        req.houseUserId = userId;
-
-        next();
+        return null;
     }
-
     // ========================================================
     // HELPERS
     // ========================================================
