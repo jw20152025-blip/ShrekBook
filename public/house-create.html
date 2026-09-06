@@ -49,6 +49,29 @@
             border-radius: 10px;
             margin: 10px 0;
         }
+
+        .house-type {
+            border: 2px solid #ccc;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+
+        .house-type:hover {
+            transform: translateY(-2px);
+        }
+
+        .house-type.selected {
+            border-color: #4caf50;
+            background: #eaffea;
+        }
+
+        .house-type h3 {
+            margin-top: 0;
+        }
+
     </style>
 </head>
 
@@ -94,64 +117,71 @@
 let houseTypes = [];
 
 async function loadTypes() {
+    const status = document.getElementById("status");
+    const container = document.getElementById("types");
 
-    const response =
-        await fetch("/api/houses/types");
+    try {
+        status.textContent = "Loading house types...";
 
-    const data =
-        await response.json();
+        const response = await fetch("/api/houses/types");
+        const data = await response.json();
 
-    if (!response.ok) {
-        document.getElementById("status")
-            .textContent =
-            data.error || "Failed to load types.";
+        if (!response.ok) {
+            status.textContent =
+                data.error || "Failed to load types.";
+            return;
+        }
 
-        return;
-    }
+        houseTypes = data.houseTypes || data;
 
-    houseTypes = data.houseTypes;
+        container.innerHTML = "";
 
-    const container =
-        document.getElementById("types");
+        if (!Array.isArray(houseTypes) || houseTypes.length === 0) {
+            status.textContent = "No house types found.";
+            return;
+        }
 
-    container.innerHTML = "";
+        status.textContent = "";
 
-    for (const type of houseTypes) {
+        for (const type of houseTypes) {
+            const div = document.createElement("div");
 
-        const div =
-            document.createElement("div");
+            div.className = "type";
 
-        div.className = "type";
+            div.innerHTML = `
+                <label>
+                    <input
+                        type="radio"
+                        name="houseType"
+                        value="${type.id}"
+                    >
 
-        div.innerHTML = `
-            <label>
-                <input
-                    type="radio"
-                    name="houseType"
-                    value="${type.id}"
-                >
+                    <strong>
+                        ${escapeHtml(type.name)}
+                    </strong>
 
-                <strong>
-                    ${escapeHtml(type.name)}
-                </strong>
+                    <br>
 
-                <br>
+                    💰 ${Number(type.cost).toLocaleString()} ShrekCoins
 
-                💰 ${type.cost} ShrekCoins
+                    <br>
 
-                <br>
+                    🚪 ${type.room_count} rooms
 
-                🚪 ${type.room_count} rooms
+                    <br>
 
-                <br>
+                    🧾 ${(Number(type.tax_reduction) * 100).toFixed(1)}% tax reduction
+                </label>
+            `;
 
-                🧾 ${(Number(
-                    type.tax_reduction
-                ) * 100).toFixed(1)}% tax reduction
-            </label>
-        `;
+            container.appendChild(div);
+        }
 
-        container.appendChild(div);
+    } catch (error) {
+        console.error(error);
+
+        status.textContent =
+            "Failed to load house types.";
     }
 }
 
@@ -202,7 +232,7 @@ async function createHouse() {
             body: JSON.stringify({
                 name,
                 description,
-                houseTypeId:
+                house_type_id:
                     Number(selected.value)
             })
         });
