@@ -199,40 +199,33 @@ module.exports = function createHouseRouter({ supabase }) {
     // HOUSE TYPES
     // ========================================================
 
-    router.get(
-        "/houses/types",
-        requireHouseLogin,
-        async (req, res) => {
-            try {
-                const { data, error } = await supabase
-                    .from("house_types")
-                    .select(`
-                        id,
-                        name,
-                        cost,
-                        tax_reduction,
-                        room_count
-                    `)
-                    .order("cost", {
-                        ascending: true
-                    });
+    router.get("/houses/types", async (req, res) => {
+        try {
+            const { data, error } = await supabase
+                .from("house_types")
+                .select("id, name, cost, tax_reduction, room_count")
+                .order("cost", { ascending: true });
 
-                if (error) {
-                    throw error;
-                }
+            if (error) {
+                console.error("HOUSE TYPES ERROR:", error);
 
-                res.json(data || []);
-
-            } catch (error) {
-                console.error("House types error:", error);
-
-                res.status(500).json({
-                    error: "Failed to load house types."
+                return res.status(500).json({
+                    error: error.message
                 });
             }
-        }
-    );
 
+            return res.json({
+                houseTypes: data || []
+            });
+
+        } catch (error) {
+            console.error("HOUSE TYPES CRASH:", error);
+
+            return res.status(500).json({
+                error: error.message || "Failed to load house types."
+            });
+        }
+    });
     // ========================================================
     // CREATE HOUSE
     // ========================================================
