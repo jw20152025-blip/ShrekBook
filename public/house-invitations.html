@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>House Invitations</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5ef;
+            margin: 0;
+        }
+
+        main {
+            max-width: 900px;
+            margin: auto;
+            padding: 30px;
+        }
+
+        .invitation {
+            background: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 12px;
+        }
+
+        button {
+            padding: 10px 15px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+<main>
+
+    <h1>✉️ House Invitations</h1>
+
+    <button
+        onclick="location.href='house-directory.html'"
+    >
+        House Directory
+    </button>
+
+    <div id="invitations"></div>
+
+</main>
+
+<script>
+async function loadInvitations() {
+
+    const response =
+        await fetch("/api/houses/invitations");
+
+    const data =
+        await response.json();
+
+    const container =
+        document.getElementById("invitations");
+
+    if (!response.ok) {
+        container.innerHTML =
+            `<p>${escapeHtml(
+                data.error || "Failed."
+            )}</p>`;
+
+        return;
+    }
+
+    container.innerHTML = "";
+
+    for (const invitation of data.invitations) {
+
+        const house =
+            invitation.houses;
+
+        const div =
+            document.createElement("div");
+
+        div.className = "invitation";
+
+        div.innerHTML = `
+            <h2>
+                🏠 ${escapeHtml(
+                    house?.name || "House"
+                )}
+            </h2>
+
+            <p>
+                ${escapeHtml(
+                    house?.description || ""
+                )}
+            </p>
+
+            <p>
+                Status:
+                <strong>
+                    ${escapeHtml(
+                        invitation.status
+                    )}
+                </strong>
+            </p>
+
+            ${
+                invitation.status === "pending"
+                ? `
+                    <button
+                        onclick="respond(
+                            ${invitation.id},
+                            'accepted'
+                        )"
+                    >
+                        Accept
+                    </button>
+
+                    <button
+                        onclick="respond(
+                            ${invitation.id},
+                            'declined'
+                        )"
+                    >
+                        Decline
+                    </button>
+                `
+                : ""
+            }
+        `;
+
+        container.appendChild(div);
+    }
+
+    if (!data.invitations.length) {
+        container.innerHTML =
+            "<p>No invitations.</p>";
+    }
+}
+
+async function respond(id, action) {
+
+    const response =
+        await fetch(
+            `/api/houses/invitations/${id}/respond`,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+                    action
+                })
+            }
+        );
+
+    const data =
+        await response.json();
+
+    if (!response.ok) {
+        alert(
+            data.error ||
+            "Failed."
+        );
+
+        return;
+    }
+
+    loadInvitations();
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+loadInvitations();
+</script>
+
+</body>
+</html>

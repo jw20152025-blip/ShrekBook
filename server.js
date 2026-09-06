@@ -104,7 +104,11 @@ const supabase =
 const sessionStore =
     new session.MemoryStore();
 
+const houseRouter = require("./house-api")({
+    supabase
+});
 
+app.use("/api", houseRouter);
 // ==================================================
 // EXPRESS SESSION
 // ==================================================
@@ -5980,340 +5984,7 @@ app.post(
 // SHOP INVENTORY
 // ==================================================
 
-app.get(
-    "/api/users/:id",
-    async (req, res) => {
 
-        try {
-
-            const id =
-                req.params.id;
-
-
-            if (!id) {
-
-                return res.status(400).json({
-                    error:
-                        "No profile ID was provided."
-                });
-
-            }
-
-
-            // ==========================================
-            // GET PROFILE
-            // ==========================================
-
-            const {
-                data: profile,
-                error: profileError
-            } =
-                await supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar,
-                        bio,
-                        created_at,
-                        equipped_title_id
-                    `)
-                    .eq(
-                        "id",
-                        id
-                    )
-                    .maybeSingle();
-
-
-            if (profileError) {
-
-                console.error(
-                    "PROFILE ERROR:",
-                    profileError
-                );
-
-                return res.status(500).json({
-                    error:
-                        profileError.message
-                });
-
-            }
-
-
-            if (!profile) {
-
-                return res.status(404).json({
-                    error:
-                        "User not found."
-                });
-
-            }
-
-
-            // ==========================================
-            // GET EQUIPPED TITLE
-            // ==========================================
-
-            let equippedTitle =
-                null;
-
-
-            if (
-                profile.equipped_title_id
-            ) {
-
-                const {
-                    data: title,
-                    error: titleError
-                } =
-                    await supabase
-                        .from("shop_items")
-                        .select(`
-                            id,
-                            name,
-                            description,
-                            price,
-                            icon,
-                            item_type
-                        `)
-                        .eq(
-                            "id",
-                            profile.equipped_title_id
-                        )
-                        .eq(
-                            "item_type",
-                            "title"
-                        )
-                        .maybeSingle();
-
-
-                if (titleError) {
-
-                    console.error(
-                        "EQUIPPED TITLE ERROR:",
-                        titleError
-                    );
-
-                } else {
-
-                    equippedTitle =
-                        title || null;
-
-                }
-
-            }
-
-
-            // ==========================================
-            // GET ALL DISPLAYED ITEMS
-            // ==========================================
-
-            let displayedItems = [];
-
-
-            const {
-                data: ownedItems,
-                error: ownedError
-            } =
-                await supabase
-                    .from("user_shop_items")
-                    .select(`
-                        purchased_at,
-                        equipped,
-                        shop_items (
-                            id,
-                            name,
-                            description,
-                            icon,
-                            price,
-                            item_type
-                        )
-                    `)
-                    .eq(
-                        "user_id",
-                        id
-                    );
-
-
-            if (ownedError) {
-
-                console.error(
-                    "DISPLAYED ITEMS ERROR:",
-                    ownedError
-                );
-
-            } else {
-
-                // ======================================
-                // ONLY DISPLAY NORMAL EQUIPPED ITEMS
-                // TITLES ARE HANDLED SEPARATELY
-                // ======================================
-
-                displayedItems =
-                    (ownedItems || [])
-                        .filter(
-                            row =>
-                                row.shop_items &&
-                                row.shop_items.item_type !== "title" &&
-                                row.equipped === true
-                        )
-                        .map(
-                            row => ({
-
-                                id:
-                                    row.shop_items.id,
-
-                                name:
-                                    row.shop_items.name,
-
-                                description:
-                                    row.shop_items.description,
-
-                                icon:
-                                    row.shop_items.icon,
-
-                                price:
-                                    row.shop_items.price,
-
-                                item_type:
-                                    row.shop_items.item_type,
-
-                                purchased_at:
-                                    row.purchased_at,
-
-                                equipped:
-                                    true
-
-                            })
-                        );
-
-            }
-
-
-            // ==========================================
-            // LIMIT DISPLAYED ITEMS
-            // ==========================================
-
-            displayedItems =
-                displayedItems.slice(
-                    0,
-                    5
-                );
-
-
-            console.log(
-                "PROFILE DISPLAYED ITEMS:",
-                id,
-                displayedItems
-            );
-
-
-            // ==========================================
-            // GET POSTS
-            // ==========================================
-
-            const {
-                data: posts,
-                error: postsError
-            } =
-                await supabase
-                    .from("posts")
-                    .select(`
-                        id,
-                        user_id,
-                        content,
-                        image_url,
-                        created_at
-                    `)
-                    .eq(
-                        "user_id",
-                        id
-                    )
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
-                    );
-
-
-            if (postsError) {
-
-                return res.status(500).json({
-                    error:
-                        postsError.message
-                });
-
-            }
-
-
-            // ==========================================
-            // REACTIONS
-            // ==========================================
-
-            const reactions =
-                await getReactionCounts(
-                    id
-                );
-
-
-            // ==========================================
-            // RESPONSE
-            // ==========================================
-
-            return res.json({
-
-                ...profile,
-
-                avatar:
-                    getAvatar(
-                        profile.avatar
-                    ),
-
-                equippedTitle:
-                    equippedTitle,
-
-                displayedItems:
-                    displayedItems,
-
-                displayedCount:
-                    displayedItems.length,
-
-                maxDisplayed:
-                    5,
-
-                gyatt:
-                    reactions.gyatt,
-
-                cat:
-                    reactions.cat,
-
-                ogred:
-                    reactions.ogred,
-
-                posts:
-                    posts || []
-
-            });
-
-
-        } catch (error) {
-
-            console.error(
-                "ONE USER ERROR:",
-                error
-            );
-
-            return res.status(500).json({
-                error:
-                    "Server error."
-            });
-
-        }
-
-    }
-);
 // ==================================================
 // EQUIP SHOP TITLE
 // ==================================================
@@ -6482,24 +6153,6 @@ app.post(
                 });
 
             }
-
-
-            // ==========================================
-            // AVATAR
-            // ==========================================
-
-            if (
-                item.item_type ===
-                "avatar"
-            ) {
-
-                return res.status(400).json({
-                    error:
-                        "Avatars cannot be equipped. Download the .SB avatar instead."
-                });
-
-            }
-
 
 
             // ==========================================
@@ -7137,12 +6790,36 @@ app.get("/api/shop/items", async (req, res) => {
         const currentUserId =
             req.session?.user?.id || null;
 
+        let ownedItemIds = new Set();
+
+        if (currentUserId) {
+            const {
+                data: ownedItems,
+                error: ownedError
+            } = await supabase
+                .from("user_shop_items")
+                .select("item_id")
+                .eq("user_id", currentUserId);
+
+            if (ownedError) {
+                console.error("SHOP OWNERSHIP ERROR:", ownedError);
+
+                return res.status(500).json({
+                    error: "Failed to load item ownership."
+                });
+            }
+
+            ownedItemIds = new Set(
+                (ownedItems || []).map(ownedItem => ownedItem.item_id)
+            );
+        }
+
         const formattedItems = (items || []).map(item => ({
             ...item,
 
             owned:
                 currentUserId !== null &&
-                item.user_id === currentUserId
+                ownedItemIds.has(item.id)
         }));
 
         return res.json({
@@ -12138,9 +11815,1306 @@ app.post("/api/currency/transfer", async (req, res) => {
     }
 
 });
+
+
+// ============================================================
+// HOUSES AND ROOMS API
+// ============================================================
+
+function requireHouseLogin(req, res) {
+    const userId = req.session?.user?.id;
+
+    if (!userId) {
+        res.status(401).json({
+            error: "You must be logged in."
+        });
+        return null;
+    }
+
+    return userId;
+}
+
+
+// ------------------------------------------------------------
+// HOUSE HELPERS
+// ------------------------------------------------------------
+
+async function getHouseMembership(houseId, userId) {
+    if (!houseId || !userId) return null;
+
+    const { data, error } = await supabase
+        .from("house_members")
+        .select("id, house_id, user_id, role, joined_at")
+        .eq("house_id", houseId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (error) throw error;
+
+    return data || null;
+}
+
+
+async function getHouseOwner(ownerId) {
+    if (!ownerId) return null;
+
+    const { data, error } = await supabase
+        .from("profiles")
+        .select("id, username, display_name, avatar")
+        .eq("id", ownerId)
+        .maybeSingle();
+
+    if (error) throw error;
+
+    return data || null;
+}
+
+
+async function getHouseType(houseTypeName) {
+    if (!houseTypeName) return null;
+
+    const { data, error } = await supabase
+        .from("house_types")
+        .select("id, name, cost, room_count")
+        .eq("name", houseTypeName)
+        .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return null;
+
+    return {
+        ...data,
+        tax_reduction_percent: getTaxReductionPercent(
+            data.name,
+            data.room_count
+        )
+    };
+}
+
+
+function getTaxReductionPercent(houseTypeName, roomCount = 0) {
+    const name = String(houseTypeName || "").toLowerCase();
+
+    if (name.includes("castle") || name.includes("mansion")) {
+        return 10;
+    }
+
+    if (name.includes("manor") || name.includes("estate")) {
+        return 7.5;
+    }
+
+    if (name.includes("cottage") || name.includes("house")) {
+        return 5;
+    }
+
+    return Math.min(
+        10,
+        Math.max(0, (Number(roomCount) - 1) * 2.5)
+    );
+}
+
+
+async function getHouseMembers(houseId) {
+    const { data: members, error } = await supabase
+        .from("house_members")
+        .select("id, house_id, user_id, role, joined_at")
+        .eq("house_id", houseId)
+        .order("joined_at", { ascending: true });
+
+    if (error) throw error;
+
+    const userIds = [
+        ...new Set(
+            (members || []).map(member => member.user_id)
+        )
+    ];
+
+    let profiles = [];
+
+    if (userIds.length) {
+        const { data, error: profileError } = await supabase
+            .from("profiles")
+            .select("id, username, display_name, avatar")
+            .in("id", userIds);
+
+        if (profileError) throw profileError;
+
+        profiles = data || [];
+    }
+
+    const profileMap = new Map(
+        profiles.map(profile => [profile.id, profile])
+    );
+
+    return (members || []).map(member => ({
+        ...member,
+        profile: profileMap.get(member.user_id) || null
+    }));
+}
+
+
+// ============================================================
+// HOUSE TYPES
+// ============================================================
+
+app.get("/api/houses/types", async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from("house_types")
+            .select("id, name, cost, room_count")
+            .order("cost", { ascending: true });
+
+        if (error) throw error;
+
+        res.json({
+            houseTypes: (data || []).map(houseType => ({
+                ...houseType,
+                tax_reduction_percent: getTaxReductionPercent(
+                    houseType.name,
+                    houseType.room_count
+                )
+            }))
+        });
+
+    } catch (error) {
+        console.error("HOUSE TYPES ERROR:", error);
+
+        res.status(500).json({
+            error: "Failed to load House types."
+        });
+    }
+});
+
+
+// ============================================================
+// CREATE HOUSE
+// ============================================================
+
+app.post("/api/houses", async (req, res) => {
+    const userId = requireHouseLogin(req, res);
+
+    if (!userId) return;
+
+    try {
+        const name = String(req.body?.name || "").trim();
+        const description = String(req.body?.description || "").trim();
+        const houseTypeName = String(req.body?.houseType || "").trim();
+
+        if (!name || !houseTypeName) {
+            return res.status(400).json({
+                error: "House name and type are required."
+            });
+        }
+
+        const houseType = await getHouseType(houseTypeName);
+
+        if (!houseType) {
+            return res.status(400).json({
+                error: "Invalid House type."
+            });
+        }
+
+        const cost = Number(houseType.cost || 0);
+
+        const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("shrekcoins")
+            .eq("id", userId)
+            .single();
+
+        if (profileError) throw profileError;
+
+        const balance = Number(profile.shrekcoins || 0);
+
+        if (balance < cost) {
+            return res.status(400).json({
+                error: "You do not have enough ShrekCoins."
+            });
+        }
+
+        // Create the house.
+        const { data: house, error: houseError } = await supabase
+            .from("houses")
+            .insert({
+                name,
+                description,
+                owner_id: userId,
+                house_type: houseType.name
+            })
+            .select(
+                "id, name, description, owner_id, house_type, created_at"
+            )
+            .single();
+
+        if (houseError) throw houseError;
+
+        // Create the rooms.
+        const roomCount = Math.max(
+            1,
+            Number(houseType.room_count || 1)
+        );
+
+        const rooms = Array.from(
+            { length: roomCount },
+            (_, index) => ({
+                house_id: house.id,
+                name:
+                    index === roomCount - 1
+                        ? "Bedroom"
+                        : `Room ${index + 1}`,
+                room_type:
+                    index === roomCount - 1
+                        ? "bedroom"
+                        : "common",
+                user_id:
+                    index === roomCount - 1
+                        ? userId
+                        : null
+            })
+        );
+
+        const { error: roomError } = await supabase
+            .from("house_rooms")
+            .insert(rooms);
+
+        if (roomError) throw roomError;
+
+        // Add owner as a member.
+        const { error: memberError } = await supabase
+            .from("house_members")
+            .insert({
+                house_id: house.id,
+                user_id: userId,
+                role: "owner"
+            });
+
+        if (memberError) throw memberError;
+
+        // Charge the House cost.
+        const { data: updatedProfile, error: chargeError } =
+            await supabase
+                .from("profiles")
+                .update({
+                    shrekcoins: balance - cost
+                })
+                .eq("id", userId)
+                .eq("shrekcoins", balance)
+                .select("shrekcoins")
+                .maybeSingle();
+
+        if (chargeError) throw chargeError;
+
+        if (!updatedProfile) {
+            return res.status(409).json({
+                error: "Your ShrekCoin balance changed. Please try again."
+            });
+        }
+
+        res.status(201).json({
+            success: true,
+            house
+        });
+
+    } catch (error) {
+        console.error("HOUSE CREATE ERROR:", error);
+
+        res.status(500).json({
+            error: "Failed to create House."
+        });
+    }
+});
+
+
+// ============================================================
+// LIST HOUSES
+// ============================================================
+
+app.get("/api/houses", async (req, res) => {
+    const userId = requireHouseLogin(req, res);
+
+    if (!userId) return;
+
+    try {
+        const { data: houses, error } = await supabase
+            .from("houses")
+            .select(
+                "id, name, description, owner_id, house_type, created_at"
+            )
+            .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        const ownerIds = [
+            ...new Set(
+                (houses || []).map(house => house.owner_id)
+            )
+        ];
+
+        let owners = [];
+
+        if (ownerIds.length) {
+            const { data, error: ownerError } = await supabase
+                .from("profiles")
+                .select("id, username, display_name, avatar")
+                .in("id", ownerIds);
+
+            if (ownerError) throw ownerError;
+
+            owners = data || [];
+        }
+
+        const ownerMap = new Map(
+            owners.map(owner => [owner.id, owner])
+        );
+
+        res.json({
+            houses: (houses || []).map(house => ({
+                ...house,
+                owner: ownerMap.get(house.owner_id) || null
+            }))
+        });
+
+    } catch (error) {
+        console.error("HOUSES LIST ERROR:", error);
+
+        res.status(500).json({
+            error: "Failed to load Houses."
+        });
+    }
+});
+
+
+// ============================================================
+// GET SINGLE HOUSE
+// ============================================================
+
+app.get("/api/houses/:id", async (req, res) => {
+    const userId = requireHouseLogin(req, res);
+
+    if (!userId) return;
+
+    const houseId = Number(req.params.id);
+
+    if (!Number.isInteger(houseId) || houseId <= 0) {
+        return res.status(400).json({
+            error: "Invalid House ID."
+        });
+    }
+
+    try {
+        const { data: house, error: houseError } = await supabase
+            .from("houses")
+            .select(
+                "id, name, description, owner_id, house_type, created_at"
+            )
+            .eq("id", houseId)
+            .maybeSingle();
+
+        if (houseError) throw houseError;
+
+        if (!house) {
+            return res.status(404).json({
+                error: "House not found."
+            });
+        }
+
+        const { data: rooms, error: roomsError } = await supabase
+            .from("house_rooms")
+            .select(
+                "id, house_id, name, room_type, user_id, created_at"
+            )
+            .eq("house_id", houseId)
+            .order("id", { ascending: true });
+
+        if (roomsError) throw roomsError;
+
+        const [owner, members, houseType] = await Promise.all([
+            getHouseOwner(house.owner_id),
+            getHouseMembers(houseId),
+            getHouseType(house.house_type)
+        ]);
+
+        const membership =
+            members.find(
+                member => member.user_id === userId
+            ) ||
+            (
+                house.owner_id === userId
+                    ? {
+                        house_id: houseId,
+                        user_id: userId,
+                        role: "owner"
+                    }
+                    : null
+            );
+
+        res.json({
+            house,
+            owner,
+            rooms: rooms || [],
+            members,
+            membership,
+            houseType
+        });
+
+    } catch (error) {
+        console.error("HOUSE DETAILS ERROR:", error);
+
+        res.status(500).json({
+            error: "Failed to load House."
+        });
+    }
+});
+
+
+// ============================================================
+// GET SINGLE ROOM
+// ============================================================
+
+
+
+
+// ============================================================
+// USER SEARCH FOR HOUSE INVITES
+// ============================================================
+
+app.get("/api/users/search", async (req, res) => {
+    const userId = requireHouseLogin(req, res);
+
+    if (!userId) return;
+
+    const query = String(req.query.q || "").trim();
+
+    if (!query) {
+        return res.json({
+            users: []
+        });
+    }
+
+    try {
+        const safeQuery = query
+            .replace(/[%_]/g, "\\$&")
+            .replace(/\\/g, "\\\\");
+
+        const pattern = `%${safeQuery}%`;
+
+        const { data, error } = await supabase
+            .from("profiles")
+            .select(
+                "id, username, display_name, avatar"
+            )
+            .or(
+                `username.ilike.${pattern},display_name.ilike.${pattern}`
+            )
+            .neq("id", userId)
+            .limit(20);
+
+        if (error) throw error;
+
+        res.json({
+            users: data || []
+        });
+
+    } catch (error) {
+        console.error("HOUSE USER SEARCH ERROR:", error);
+
+        res.status(500).json({
+            error: "Failed to search users."
+        });
+    }
+});
+
+
+// ============================================================
+// GET MY HOUSE INVITATIONS
+// ============================================================
+
+app.get("/api/houses/invitations", async (req, res) => {
+    const userId = requireHouseLogin(req, res);
+
+    if (!userId) return;
+
+    try {
+        const { data, error } = await supabase
+            .from("house_invitations")
+            .select(
+                "id, house_id, inviter_id, invitee_id, status, created_at"
+            )
+            .eq("invitee_id", userId)
+            .eq("status", "pending")
+            .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        const invitations = data || [];
+
+        const houseIds = [
+            ...new Set(
+                invitations.map(invite => invite.house_id)
+            )
+        ];
+
+        const inviterIds = [
+            ...new Set(
+                invitations.map(invite => invite.inviter_id)
+            )
+        ];
+
+        let houses = [];
+        let inviters = [];
+
+        if (houseIds.length) {
+            const { data, error: housesError } =
+                await supabase
+                    .from("houses")
+                    .select("id, name, house_type")
+                    .in("id", houseIds);
+
+            if (housesError) throw housesError;
+
+            houses = data || [];
+        }
+
+        if (inviterIds.length) {
+            const { data, error: invitersError } =
+                await supabase
+                    .from("profiles")
+                    .select("id, username, display_name")
+                    .in("id", inviterIds);
+
+            if (invitersError) throw invitersError;
+
+            inviters = data || [];
+        }
+
+        const houseMap = new Map(
+            houses.map(house => [house.id, house])
+        );
+
+        const inviterMap = new Map(
+            inviters.map(inviter => [inviter.id, inviter])
+        );
+
+        res.json({
+            invitations: invitations.map(invite => ({
+                ...invite,
+                house:
+                    houseMap.get(invite.house_id) ||
+                    null,
+                inviter:
+                    inviterMap.get(invite.inviter_id) ||
+                    null
+            }))
+        });
+
+    } catch (error) {
+        console.error("HOUSE INVITATIONS ERROR:", error);
+
+        res.status(500).json({
+            error: "Failed to load invitations."
+        });
+    }
+});
+
+
+// ============================================================
+// SEND HOUSE INVITATION
+// ============================================================
+
+app.post("/api/houses/:id/invite", async (req, res) => {
+    const userId = requireHouseLogin(req, res);
+
+    if (!userId) return;
+
+    const houseId = Number(req.params.id);
+    const inviteeId = String(
+        req.body?.userId || ""
+    ).trim();
+
+    if (!Number.isInteger(houseId) || houseId <= 0) {
+        return res.status(400).json({
+            error: "Invalid House ID."
+        });
+    }
+
+    if (!inviteeId) {
+        return res.status(400).json({
+            error: "User ID is required."
+        });
+    }
+
+    try {
+        const membership =
+            await getHouseMembership(
+                houseId,
+                userId
+            );
+
+        if (
+            !membership ||
+            !["owner", "admin"].includes(
+                membership.role
+            )
+        ) {
+            return res.status(403).json({
+                error:
+                    "Only House managers can invite users."
+            });
+        }
+
+        if (inviteeId === userId) {
+            return res.status(400).json({
+                error:
+                    "You cannot invite yourself."
+            });
+        }
+
+        const { data: targetUser, error: targetError } =
+            await supabase
+                .from("profiles")
+                .select("id")
+                .eq("id", inviteeId)
+                .maybeSingle();
+
+        if (targetError) throw targetError;
+
+        if (!targetUser) {
+            return res.status(404).json({
+                error: "User not found."
+            });
+        }
+
+        const existingMember =
+            await getHouseMembership(
+                houseId,
+                inviteeId
+            );
+
+        if (existingMember) {
+            return res.status(400).json({
+                error:
+                    "That user is already a member of this House."
+            });
+        }
+
+        const { error } = await supabase
+            .from("house_invitations")
+            .upsert(
+                {
+                    house_id: houseId,
+                    inviter_id: userId,
+                    invitee_id: inviteeId,
+                    status: "pending"
+                },
+                {
+                    onConflict:
+                        "house_id,invitee_id"
+                }
+            );
+
+        if (error) throw error;
+
+        res.json({
+            success: true
+        });
+
+    } catch (error) {
+        console.error("HOUSE INVITE ERROR:", error);
+
+        res.status(500).json({
+            error:
+                "Failed to send invitation."
+        });
+    }
+});
+
+
+// ============================================================
+// ACCEPT / DECLINE INVITATION
+// ============================================================
+
+app.post(
+    "/api/houses/invitations/:id/:action",
+    async (req, res) => {
+        const userId =
+            requireHouseLogin(req, res);
+
+        if (!userId) return;
+
+        const invitationId =
+            Number(req.params.id);
+
+        const status =
+            req.params.action === "accept"
+                ? "accepted"
+                : req.params.action === "decline"
+                    ? "declined"
+                    : null;
+
+        if (
+            !Number.isInteger(invitationId) ||
+            invitationId <= 0
+        ) {
+            return res.status(400).json({
+                error:
+                    "Invalid invitation ID."
+            });
+        }
+
+        if (!status) {
+            return res.status(400).json({
+                error:
+                    "Invalid invitation action."
+            });
+        }
+
+        try {
+            const {
+                data: invitation,
+                error
+            } = await supabase
+                .from("house_invitations")
+                .select(
+                    "id, house_id, invitee_id, status"
+                )
+                .eq("id", invitationId)
+                .eq("invitee_id", userId)
+                .eq("status", "pending")
+                .maybeSingle();
+
+            if (error) throw error;
+
+            if (!invitation) {
+                return res.status(404).json({
+                    error:
+                        "Invitation not found."
+                });
+            }
+
+            if (status === "accepted") {
+                const { error: memberError } =
+                    await supabase
+                        .from("house_members")
+                        .upsert(
+                            {
+                                house_id:
+                                    invitation.house_id,
+                                user_id:
+                                    userId,
+                                role: "member"
+                            },
+                            {
+                                onConflict:
+                                    "house_id,user_id"
+                            }
+                        );
+
+                if (memberError) {
+                    throw memberError;
+                }
+            }
+
+            const {
+                error: updateError
+            } = await supabase
+                .from("house_invitations")
+                .update({ status })
+                .eq("id", invitation.id);
+
+            if (updateError) {
+                throw updateError;
+            }
+
+            res.json({
+                success: true,
+                status
+            });
+
+        } catch (error) {
+            console.error(
+                "HOUSE INVITATION ACTION ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Invitation action failed."
+            });
+        }
+    }
+);
+
+
+// ============================================================
+// UPDATE HOUSE
+// ============================================================
+
+app.put("/api/houses/:id", async (req, res) => {
+    const userId =
+        requireHouseLogin(req, res);
+
+    if (!userId) return;
+
+    const houseId =
+        Number(req.params.id);
+
+    if (
+        !Number.isInteger(houseId) ||
+        houseId <= 0
+    ) {
+        return res.status(400).json({
+            error: "Invalid House ID."
+        });
+    }
+
+    try {
+        const membership =
+            await getHouseMembership(
+                houseId,
+                userId
+            );
+
+        if (
+            !membership ||
+            !["owner", "admin"].includes(
+                membership.role
+            )
+        ) {
+            return res.status(403).json({
+                error:
+                    "Only House managers can edit the House."
+            });
+        }
+
+        const name =
+            String(req.body?.name || "")
+                .trim();
+
+        const description =
+            String(req.body?.description || "")
+                .trim();
+
+        if (!name) {
+            return res.status(400).json({
+                error:
+                    "House name is required."
+            });
+        }
+
+        const {
+            data,
+            error
+        } = await supabase
+            .from("houses")
+            .update({
+                name,
+                description
+            })
+            .eq("id", houseId)
+            .select(
+                "id, name, description, owner_id, house_type, created_at"
+            )
+            .single();
+
+        if (error) throw error;
+
+        res.json({
+            house: data
+        });
+
+    } catch (error) {
+        console.error(
+            "HOUSE UPDATE ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error:
+                "Failed to update House."
+        });
+    }
+});
+
+
+// ============================================================
+// LEAVE HOUSE
+// ============================================================
+
+app.delete(
+    "/api/houses/:id/leave",
+    async (req, res) => {
+        const userId =
+            requireHouseLogin(req, res);
+
+        if (!userId) return;
+
+        const houseId =
+            Number(req.params.id);
+
+        if (
+            !Number.isInteger(houseId) ||
+            houseId <= 0
+        ) {
+            return res.status(400).json({
+                error:
+                    "Invalid House ID."
+            });
+        }
+
+        try {
+            const membership =
+                await getHouseMembership(
+                    houseId,
+                    userId
+                );
+
+            if (!membership) {
+                return res.status(404).json({
+                    error:
+                        "You are not a member of this House."
+                });
+            }
+
+            if (membership.role === "owner") {
+                return res.status(403).json({
+                    error:
+                        "The House owner cannot leave the House."
+                });
+            }
+
+            const { error } =
+                await supabase
+                    .from("house_members")
+                    .delete()
+                    .eq("house_id", houseId)
+                    .eq("user_id", userId);
+
+            if (error) throw error;
+
+            res.json({
+                success: true
+            });
+
+        } catch (error) {
+            console.error(
+                "HOUSE LEAVE ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Failed to leave House."
+            });
+        }
+    }
+);
+
+
+// ============================================================
+// PROMOTE MEMBER TO ADMIN
+// ============================================================
+
+app.post(
+    "/api/houses/:id/admins/:userId",
+    async (req, res) => {
+        const userId =
+            requireHouseLogin(req, res);
+
+        if (!userId) return;
+
+        const houseId =
+            Number(req.params.id);
+
+        const targetId =
+            String(req.params.userId);
+
+        if (
+            !Number.isInteger(houseId) ||
+            houseId <= 0
+        ) {
+            return res.status(400).json({
+                error:
+                    "Invalid House ID."
+            });
+        }
+
+        try {
+            const manager =
+                await getHouseMembership(
+                    houseId,
+                    userId
+                );
+
+            if (
+                !manager ||
+                !["owner", "admin"].includes(
+                    manager.role
+                )
+            ) {
+                return res.status(403).json({
+                    error:
+                        "Only House managers can change admins."
+                });
+            }
+
+            const target =
+                await getHouseMembership(
+                    houseId,
+                    targetId
+                );
+
+            if (!target) {
+                return res.status(404).json({
+                    error:
+                        "Member not found."
+                });
+            }
+
+            if (target.role === "owner") {
+                return res.status(403).json({
+                    error:
+                        "The House owner cannot be changed."
+                });
+            }
+
+            const { error } =
+                await supabase
+                    .from("house_members")
+                    .update({
+                        role: "admin"
+                    })
+                    .eq("house_id", houseId)
+                    .eq("user_id", targetId)
+                    .neq("role", "owner");
+
+            if (error) throw error;
+
+            res.json({
+                success: true
+            });
+
+        } catch (error) {
+            console.error(
+                "HOUSE PROMOTE ADMIN ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Failed to promote admin."
+            });
+        }
+    }
+);
+
+
+// ============================================================
+// DEMOTE ADMIN
+// ============================================================
+
+app.delete(
+    "/api/houses/:id/admins/:userId",
+    async (req, res) => {
+        const userId =
+            requireHouseLogin(req, res);
+
+        if (!userId) return;
+
+        const houseId =
+            Number(req.params.id);
+
+        const targetId =
+            String(req.params.userId);
+
+        if (
+            !Number.isInteger(houseId) ||
+            houseId <= 0
+        ) {
+            return res.status(400).json({
+                error:
+                    "Invalid House ID."
+            });
+        }
+
+        try {
+            const manager =
+                await getHouseMembership(
+                    houseId,
+                    userId
+                );
+
+            if (
+                !manager ||
+                !["owner", "admin"].includes(
+                    manager.role
+                )
+            ) {
+                return res.status(403).json({
+                    error:
+                        "Only House managers can change admins."
+                });
+            }
+
+            const target =
+                await getHouseMembership(
+                    houseId,
+                    targetId
+                );
+
+            if (!target) {
+                return res.status(404).json({
+                    error:
+                        "Member not found."
+                });
+            }
+
+            if (target.role === "owner") {
+                return res.status(403).json({
+                    error:
+                        "The House owner cannot be changed."
+                });
+            }
+
+            const { error } =
+                await supabase
+                    .from("house_members")
+                    .update({
+                        role: "member"
+                    })
+                    .eq("house_id", houseId)
+                    .eq("user_id", targetId)
+                    .eq("role", "admin");
+
+            if (error) throw error;
+
+            res.json({
+                success: true
+            });
+
+        } catch (error) {
+            console.error(
+                "HOUSE DEMOTE ADMIN ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Failed to demote admin."
+            });
+        }
+    }
+);
+
+
+// ============================================================
+// REMOVE MEMBER
+// ============================================================
+
+app.delete(
+    "/api/houses/:id/members/:userId",
+    async (req, res) => {
+        const userId =
+            requireHouseLogin(req, res);
+
+        if (!userId) return;
+
+        const houseId =
+            Number(req.params.id);
+
+        const targetId =
+            String(req.params.userId);
+
+        if (
+            !Number.isInteger(houseId) ||
+            houseId <= 0
+        ) {
+            return res.status(400).json({
+                error:
+                    "Invalid House ID."
+            });
+        }
+
+        try {
+            const manager =
+                await getHouseMembership(
+                    houseId,
+                    userId
+                );
+
+            if (
+                !manager ||
+                !["owner", "admin"].includes(
+                    manager.role
+                )
+            ) {
+                return res.status(403).json({
+                    error:
+                        "Only House managers can remove members."
+                });
+            }
+
+            const target =
+                await getHouseMembership(
+                    houseId,
+                    targetId
+                );
+
+            if (!target) {
+                return res.status(404).json({
+                    error:
+                        "Member not found."
+                });
+            }
+
+            if (target.role === "owner") {
+                return res.status(403).json({
+                    error:
+                        "The House owner cannot be removed."
+                });
+            }
+
+            // An admin cannot remove another admin.
+            if (
+                manager.role === "admin" &&
+                target.role === "admin"
+            ) {
+                return res.status(403).json({
+                    error:
+                        "Admins cannot remove other admins."
+                });
+            }
+
+            const { error } =
+                await supabase
+                    .from("house_members")
+                    .delete()
+                    .eq("house_id", houseId)
+                    .eq("user_id", targetId);
+
+            if (error) throw error;
+
+            res.json({
+                success: true
+            });
+
+        } catch (error) {
+            console.error(
+                "HOUSE REMOVE MEMBER ERROR:",
+                error
+            );
+
+            res.status(500).json({
+                error:
+                    "Failed to remove member."
+            });
+        }
+    }
+);
+
 // ==================================================
 // START
 // ==================================================
+
 
 
 app.listen(PORT, () => {

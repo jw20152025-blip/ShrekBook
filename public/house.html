@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>House</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #eef3eb;
+        }
+
+        header {
+            background: #304d2c;
+            color: white;
+            padding: 25px;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: auto;
+            padding: 25px;
+        }
+
+        .rooms {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(220px, 1fr));
+
+            gap: 15px;
+        }
+
+        .room {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+
+        .members {
+            background: white;
+            padding: 20px;
+            margin-top: 25px;
+            border-radius: 12px;
+        }
+
+        button {
+            padding: 10px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+
+    <h1 id="houseName">
+        Loading...
+    </h1>
+
+    <p id="houseDescription"></p>
+
+</header>
+
+<main>
+
+    <button
+        onclick="location.href='house-directory.html'"
+    >
+        ← Directory
+    </button>
+
+    <button
+        onclick="location.href='house-invitations.html'"
+    >
+        ✉️ Invitations
+    </button>
+
+    <h2>🚪 Rooms</h2>
+
+    <div
+        id="rooms"
+        class="rooms"
+    ></div>
+
+    <div class="members">
+
+        <h2>👥 Members</h2>
+
+        <div id="members"></div>
+
+    </div>
+
+</main>
+
+<script>
+const params =
+    new URLSearchParams(
+        location.search
+    );
+
+const houseId =
+    params.get("id");
+
+async function loadHouse() {
+
+    const response =
+        await fetch(
+            `/api/houses/${houseId}`
+        );
+
+    const data =
+        await response.json();
+
+    if (!response.ok) {
+        document.body.innerHTML =
+            `<h1>${escapeHtml(
+                data.error || "Failed."
+            )}</h1>`;
+
+        return;
+    }
+
+    document.title =
+        data.house.name;
+
+    document.getElementById(
+        "houseName"
+    ).textContent =
+        `🏠 ${data.house.name}`;
+
+    document.getElementById(
+        "houseDescription"
+    ).textContent =
+        data.house.description;
+
+    renderRooms(data.rooms);
+    renderMembers(data.members);
+}
+
+function renderRooms(rooms) {
+
+    const container =
+        document.getElementById("rooms");
+
+    container.innerHTML = "";
+
+    for (const room of rooms) {
+
+        const div =
+            document.createElement("div");
+
+        div.className = "room";
+
+        div.onclick = () => {
+            location.href =
+                `house-room.html?houseId=${houseId}&roomId=${room.id}`;
+        };
+
+        div.innerHTML = `
+            <h3>
+                ${roomIcon(room.room_type)}
+                ${escapeHtml(room.name)}
+            </h3>
+
+            <p>
+                ${escapeHtml(
+                    room.description || ""
+                )}
+            </p>
+        `;
+
+        container.appendChild(div);
+    }
+}
+
+function renderMembers(members) {
+
+    const container =
+        document.getElementById("members");
+
+    container.innerHTML = "";
+
+    for (const member of members) {
+
+        const profile =
+            member.profiles;
+
+        const div =
+            document.createElement("div");
+
+        div.innerHTML = `
+            <strong>
+                ${escapeHtml(
+                    profile?.display_name ||
+                    profile?.username ||
+                    "User"
+                )}
+            </strong>
+
+            — ${escapeHtml(member.role)}
+        `;
+
+        container.appendChild(div);
+    }
+}
+
+function roomIcon(type) {
+
+    return {
+        chat: "💬",
+        media: "🖼️",
+        voice: "🎙️",
+        video: "📹",
+        general: "🏠",
+        announcement: "📢"
+    }[type] || "🚪";
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+loadHouse();
+</script>
+
+</body>
+</html>

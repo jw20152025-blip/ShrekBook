@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>House Room</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #edf2eb;
+        }
+
+        header {
+            padding: 20px;
+            background: #304d2c;
+            color: white;
+        }
+
+        main {
+            max-width: 1000px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        #messages {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            min-height: 400px;
+        }
+
+        .message {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .message-user {
+            font-weight: bold;
+        }
+
+        .composer {
+            background: white;
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 12px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 80px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            cursor: pointer;
+        }
+
+        img,
+        video,
+        audio {
+            max-width: 100%;
+            margin-top: 10px;
+        }
+
+        #videoArea {
+            display: none;
+            background: black;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+        }
+
+        video {
+            width: 45%;
+            margin: 2%;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+
+    <h1 id="roomName">
+        Loading...
+    </h1>
+
+    <p id="roomDescription"></p>
+
+</header>
+
+<main>
+
+    <button onclick="goBack()">
+        ← House
+    </button>
+
+    <button onclick="startCall('voice')">
+        🎙️ Voice
+    </button>
+
+    <button onclick="startCall('video')">
+        📹 Video
+    </button>
+
+    <div id="videoArea">
+
+        <video
+            id="localVideo"
+            autoplay
+            muted
+        ></video>
+
+        <video
+            id="remoteVideo"
+            autoplay
+        ></video>
+
+        <button onclick="leaveCall()">
+            Leave Call
+        </button>
+
+    </div>
+
+    <div id="messages"></div>
+
+    <div class="composer">
+
+        <textarea
+            id="message"
+            placeholder="Write something..."
+        ></textarea>
+
+        <input
+            id="mediaFile"
+            type="file"
+            accept="image/*,video/*,audio/*"
+        >
+
+        <button onclick="sendMessage()">
+            💬 Send
+        </button>
+
+        <p id="uploadStatus"></p>
+
+    </div>
+
+</main>
+
+<script>
+
+const params =
+    new URLSearchParams(
+        location.search
+    );
+
+const houseId =
+    params.get("houseId");
+
+const roomId =
+    params.get("roomId");
+
+let currentCall = null;
+
+let localStream = null;
+
+let peerConnection = null;
+
+
+/* =========================================================
+   LOAD ROOM
+========================================================= */
+
+async function loadRoom() {
+
+    const response =
+        await fetch(
+            `/api/houses/${houseId}/rooms/${roomId}`
+        );
+
+    const data =
+        await response.json();
+
+    if (!response.ok) {
+
+        document.body.innerHTML =
+            `<h1>${escapeHtml(
+                data.error || "Failed."
+            )}</h1>`;
+
+        return;
+    }
+
+    document.title =
+        data.room.name;
+
+    document.getElementById(
+        "roomName"
+    ).textContent =
+        `${roomIcon(data.room.room_type)}
+         ${data.room.name}`;
+
+    document.getElementById(
+        "roomDescription"
+    ).textContent =
+        data.room.description;
+
+    renderMessages(data.messages);
+}
+
+
+/* =========================================================
+   MESSAGES
+========================================================= */
+
+function renderMessages(messages) {
+
+    const container =
+        document.getElementById("messages");
+
+    container.innerHTML = "";
+
+    for (const message of messages) {
+
+        const div =
+            document.createElement("div");
+
+        div.className = "message";
+
+        const profile =
+            message.profiles;
+
+        div.innerHTML = `
+            <div class="message-user">
+                ${escapeHtml(
+                    profile?.display_name ||
+                    profile?.username ||
+                    "User"
+                )}
+            </div>
+
+            <div>
+                ${escapeHtml(
+                    message.content
+                )}
+            </div>
+        `;
+
+        if (message.house_media) {
+
+            for (
+                const media
+                of message.house_media
+            ) {
+
+                div.appendChild(
+                    createMediaElement(media)
+                );
+            }
+        }
+
+        container.appendChild(div);
+    }
+}
+
+
+function createMediaElement(media) {
+
+    const wrapper =
+        document.createElement("div");
+
+    const url =
+        `/house-media/${media.storage_path}`;
+
+    if (media.media_type === "image") {
+
+        const img =
+            document.createElement("img");
+
+        img.src = url;
+
+        wrapper.appendChild(img);
+
+    } else if (
+        media.media_type === "video"
+    ) {
+
+        const video =
+            document.createElement("video");
+
+        video.src = url;
+        video.controls = true;
+
+        wrapper.appendChild(video);
+
+    } else if (
+        media.media_type === "audio"
+    ) {
+
+        const audio =
+            document.createElement("audio");
+
+        audio.src = url;
+        audio.controls = true;
+
+        wrapper.appendChild(audio);
+    }
+
+    return wrapper;
+}
+
+
+/* =========================================================
+   SEND
+========================================================= */
+
+async function sendMessage() {
+
+    const textarea =
+        document.getElementById("message");
+
+    const fileInput =
+        document.getElementById("mediaFile");
+
+    const status =
+        document.getElementById("uploadStatus");
+
+    const content =
+        textarea.value.trim();
+
+    const file =
+        fileInput.files[0];
+
+    if (!content && !file) {
+        return;
+    }
+
+
+    /*
+     * MEDIA
+     */
+
+    if (file) {
+
+        status.textContent =
+            "Uploading...";
+
+        const formData =
+            new FormData();
+
+        formData.append(
+            "file",
+            file
+        );
+
+        formData.append(
+            "content",
+            content
+        );
+
+        const response =
+            await fetch(
+                `/api/houses/${houseId}/rooms/${roomId}/media`,
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            status.textContent =
+                data.error ||
+                "Upload failed.";
+
+            return;
+        }
+
+        textarea.value = "";
+        fileInput.value = "";
+
+        status.textContent =
+            "Uploaded!";
+
+        await loadRoom();
+
+        return;
+    }
+
+
+    /*
+     * TEXT ONLY
+     */
+
+    const response =
+        await fetch(
+            `/api/houses/${houseId}/rooms/${roomId}/messages`,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+                    content
+                })
+            }
+        );
+
+    const data =
+        await response.json();
+
+    if (!response.ok) {
+
+        alert(
+            data.error ||
+            "Failed to send."
+        );
+
+        return;
+    }
+
+    textarea.value = "";
+
+    await loadRoom();
+}
+
+
+/* =========================================================
+   WEBRTC
+========================================================= */
+
+async function startCall(type) {
+
+    const response =
+        await fetch(
+            `/api/houses/${houseId}/rooms/${roomId}/calls`,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+                    type
+                })
+            }
+        );
+
+    const data =
+        await response.json();
+
+    if (!response.ok) {
+
+        alert(
+            data.error ||
+            "Unable to start call."
+        );
+
+        return;
+    }
+
+    currentCall =
+        data.call;
+
+    /*
+     * Camera/microphone access.
+     */
+
+    localStream =
+        await navigator.mediaDevices
+            .getUserMedia({
+                audio: true,
+                video:
+                    type === "video"
+            });
+
+    if (type === "video") {
+
+        document.getElementById(
+            "videoArea"
+        ).style.display = "block";
+
+        document.getElementById(
+            "localVideo"
+        ).srcObject =
+            localStream;
+    }
+
+    peerConnection =
+        new RTCPeerConnection({
+            iceServers: [
+                {
+                    urls:
+                        "stun:stun.l.google.com:19302"
+                }
+            ]
+        });
+
+    for (
+        const track
+        of localStream.getTracks()
+    ) {
+
+        peerConnection.addTrack(
+            track,
+            localStream
+        );
+    }
+
+    peerConnection.ontrack =
+        event => {
+
+            const remoteVideo =
+                document.getElementById(
+                    "remoteVideo"
+                );
+
+            remoteVideo.srcObject =
+                event.streams[0];
+        };
+
+    /*
+     * IMPORTANT:
+     *
+     * This creates the WebRTC connection,
+     * but production multi-user signaling
+     * should use the ShrekBook WebSocket system.
+     *
+     * The REST API above handles call state.
+     */
+}
+
+
+async function leaveCall() {
+
+    if (localStream) {
+
+        for (
+            const track
+            of localStream.getTracks()
+        ) {
+            track.stop();
+        }
+    }
+
+    if (peerConnection) {
+        peerConnection.close();
+    }
+
+    localStream = null;
+    peerConnection = null;
+    currentCall = null;
+
+    document.getElementById(
+        "videoArea"
+    ).style.display = "none";
+}
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+function goBack() {
+
+    location.href =
+        `house.html?id=${houseId}`;
+}
+
+
+function roomIcon(type) {
+
+    return {
+        chat: "💬",
+        media: "🖼️",
+        voice: "🎙️",
+        video: "📹",
+        general: "🏠",
+        announcement: "📢"
+    }[type] || "🚪";
+}
+
+
+function escapeHtml(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+loadRoom();
+
+</script>
+
+</body>
+</html>

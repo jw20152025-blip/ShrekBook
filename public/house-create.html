@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Create House</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5ef;
+            margin: 0;
+        }
+
+        main {
+            max-width: 700px;
+            margin: 50px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+        }
+
+        input,
+        textarea,
+        select,
+        button {
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        .type {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+<main>
+
+    <h1>🏠 Create Your House</h1>
+
+    <label>
+        House name
+    </label>
+
+    <input
+        id="name"
+        maxlength="100"
+        placeholder="My Awesome House"
+    >
+
+    <label>
+        Description
+    </label>
+
+    <textarea
+        id="description"
+        maxlength="1000"
+        placeholder="Tell people about your house..."
+    ></textarea>
+
+    <h2>Choose a house type</h2>
+
+    <div id="types"></div>
+
+    <button onclick="createHouse()">
+        Create House
+    </button>
+
+    <p id="status"></p>
+
+</main>
+
+<script>
+let houseTypes = [];
+
+async function loadTypes() {
+
+    const response =
+        await fetch("/api/houses/types");
+
+    const data =
+        await response.json();
+
+    if (!response.ok) {
+        document.getElementById("status")
+            .textContent =
+            data.error || "Failed to load types.";
+
+        return;
+    }
+
+    houseTypes = data.houseTypes;
+
+    const container =
+        document.getElementById("types");
+
+    container.innerHTML = "";
+
+    for (const type of houseTypes) {
+
+        const div =
+            document.createElement("div");
+
+        div.className = "type";
+
+        div.innerHTML = `
+            <label>
+                <input
+                    type="radio"
+                    name="houseType"
+                    value="${type.id}"
+                >
+
+                <strong>
+                    ${escapeHtml(type.name)}
+                </strong>
+
+                <br>
+
+                💰 ${type.cost} ShrekCoins
+
+                <br>
+
+                🚪 ${type.room_count} rooms
+
+                <br>
+
+                🧾 ${(Number(
+                    type.tax_reduction
+                ) * 100).toFixed(1)}% tax reduction
+            </label>
+        `;
+
+        container.appendChild(div);
+    }
+}
+
+async function createHouse() {
+
+    const name =
+        document.getElementById("name")
+            .value.trim();
+
+    const description =
+        document.getElementById("description")
+            .value.trim();
+
+    const selected =
+        document.querySelector(
+            'input[name="houseType"]:checked'
+        );
+
+    const status =
+        document.getElementById("status");
+
+    if (!name) {
+        status.textContent =
+            "Enter a house name.";
+
+        return;
+    }
+
+    if (!selected) {
+        status.textContent =
+            "Choose a house type.";
+
+        return;
+    }
+
+    status.textContent =
+        "Creating house...";
+
+    const response =
+        await fetch("/api/houses", {
+            method: "POST",
+
+            headers: {
+                "Content-Type":
+                    "application/json"
+            },
+
+            body: JSON.stringify({
+                name,
+                description,
+                houseTypeId:
+                    Number(selected.value)
+            })
+        });
+
+    const data =
+        await response.json();
+
+    if (!response.ok) {
+        status.textContent =
+            data.error ||
+            "Failed to create house.";
+
+        return;
+    }
+
+    location.href =
+        `house.html?id=${data.house.id}`;
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+loadTypes();
+</script>
+
+</body>
+</html>
