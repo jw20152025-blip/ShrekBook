@@ -104,11 +104,7 @@ const supabase =
 const sessionStore =
     new session.MemoryStore();
 
-const houseRouter = require("./house-api")({
-    supabase
-});
 
-app.use("/api", houseRouter);
 // ==================================================
 // EXPRESS SESSION
 // ==================================================
@@ -143,7 +139,15 @@ app.use(
 
     })
 );
+// ==================================================
+// HOUSE SYSTEM
+// ==================================================
 
+const houseRouter = require("./house-api")({
+    supabase
+});
+
+app.use("/api", houseRouter);
 async function awardShrekCoins(
     userId,
     amount,
