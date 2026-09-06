@@ -30,7 +30,7 @@ module.exports = function createHouseRouter({ supabase }) {
     // AUTH
     // ========================================================
 
-    function getHouseUserId(req) {
+    function requireHouseLogin(req, res, next) {
         if (req.session && req.session.user) {
             return req.session.user.id;
         }
