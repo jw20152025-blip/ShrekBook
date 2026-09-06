@@ -230,256 +230,199 @@ module.exports = function createHouseRouter({ supabase }) {
     // CREATE HOUSE
     // ========================================================
 
-    router.post(
-        "/houses",
-        requireHouseLogin,
-        async (req, res) => {
-            const userId = req.houseUserId;
+    router.post("/houses", async (req, res) => {
+        try {
+            const userId = req.session?.user?.id;
 
-            try {
-                const {
-                    name,
-                    description = "",
-                    house_type_id
-                } = req.body;
-
-                if (!name || !name.trim()) {
-                    return res.status(400).json({
-                        error: "House name is required."
-                    });
-                }
-
-                if (!house_type_id) {
-                    return res.status(400).json({
-                        error: "House type is required."
-                    });
-                }
-
-                // ------------------------------------------------
-                // Get house type
-                // ------------------------------------------------
-
-                const { data: houseType, error: houseTypeError } =
-                    await supabase
-                        .from("house_types")
-                        .select(`
-                            id,
-                            name,
-                            cost,
-                            tax_reduction,
-                            room_count
-                        `)
-                        .eq("id", house_type_id)
-                        .single();
-
-                if (houseTypeError || !houseType) {
-                    return res.status(400).json({
-                        error: "Invalid house type."
-                    });
-                }
-
-                // ------------------------------------------------
-                // Get current user
-                // ------------------------------------------------
-
-                const { data: profile, error: profileError } =
-                    await supabase
-                        .from("profiles")
-                        .select(`
-                            id,
-                            shrekcoins
-                        `)
-                        .eq("id", userId)
-                        .single();
-
-                if (profileError || !profile) {
-                    return res.status(404).json({
-                        error: "Profile not found."
-                    });
-                }
-
-                const currentCoins = Number(profile.shrekcoins || 0);
-                const cost = Number(houseType.cost || 0);
-
-                if (currentCoins < cost) {
-                    return res.status(400).json({
-                        error: `You need ${cost} ShrekCoins to buy this house.`
-                    });
-                }
-
-                // ------------------------------------------------
-                // Charge ShrekCoins
-                // ------------------------------------------------
-
-                const newBalance = currentCoins - cost;
-
-                const { error: coinError } = await supabase
-                    .from("profiles")
-                    .update({
-                        shrekcoins: newBalance
-                    })
-                    .eq("id", userId);
-
-                if (coinError) {
-                    throw coinError;
-                }
-
-                // ------------------------------------------------
-                // Create house
-                // ------------------------------------------------
-
-                const { data: house, error: houseError } =
-                    await supabase
-                        .from("houses")
-                        .insert({
-                            name: name.trim(),
-                            description: description || "",
-                            owner_id: userId,
-                            house_type_id: houseType.id
-                        })
-                        .select(`
-                            id,
-                            name,
-                            description,
-                            owner_id,
-                            house_type_id,
-                            created_at
-                        `)
-                        .single();
-
-                if (houseError) {
-
-                    // Refund if house creation fails
-                    await supabase
-                        .from("profiles")
-                        .update({
-                            shrekcoins: currentCoins
-                        })
-                        .eq("id", userId);
-
-                    throw houseError;
-                }
-
-                // ------------------------------------------------
-                // Add owner
-                // ------------------------------------------------
-
-                const { error: memberError } =
-                    await supabase
-                        .from("house_members")
-                        .insert({
-                            house_id: house.id,
-                            user_id: userId,
-                            role: "owner"
-                        });
-
-                if (memberError) {
-
-                    await supabase
-                        .from("houses")
-                        .delete()
-                        .eq("id", house.id);
-
-                    await supabase
-                        .from("profiles")
-                        .update({
-                            shrekcoins: currentCoins
-                        })
-                        .eq("id", userId);
-
-                    throw memberError;
-                }
-
-                // ------------------------------------------------
-                // Create default rooms
-                // ------------------------------------------------
-
-                const defaultRooms = [
-                    {
-                        name: "General",
-                        room_type: "general",
-                        description: "General house discussion.",
-                        position: 0
-                    },
-                    {
-                        name: "Chat",
-                        room_type: "chat",
-                        description: "Talk with house members.",
-                        position: 1
-                    }
-                ];
-
-                if (houseType.room_count >= 3) {
-                    defaultRooms.push({
-                        name: "Media",
-                        room_type: "media",
-                        description: "Share images, videos, and audio.",
-                        position: 2
-                    });
-                }
-
-                if (houseType.room_count >= 4) {
-                    defaultRooms.push({
-                        name: "Voice",
-                        room_type: "voice",
-                        description: "Voice chat room.",
-                        position: 3
-                    });
-                }
-
-                if (houseType.room_count >= 5) {
-                    defaultRooms.push({
-                        name: "Video",
-                        room_type: "video",
-                        description: "Video chat room.",
-                        position: 4
-                    });
-                }
-
-                while (defaultRooms.length < houseType.room_count) {
-                    defaultRooms.push({
-                        name: `Room ${defaultRooms.length + 1}`,
-                        room_type: "chat",
-                        description: "",
-                        position: defaultRooms.length
-                    });
-                }
-
-                const roomsToInsert = defaultRooms
-                    .slice(0, houseType.room_count)
-                    .map(room => ({
-                        house_id: house.id,
-                        name: room.name,
-                        room_type: room.room_type,
-                        description: room.description,
-                        position: room.position
-                    }));
-
-                const { error: roomsError } =
-                    await supabase
-                        .from("house_rooms")
-                        .insert(roomsToInsert);
-
-                if (roomsError) {
-                    console.error("Room creation error:", roomsError);
-                }
-
-                res.status(201).json({
-                    success: true,
-                    house,
-                    house_type: houseType,
-                    shrekcoins_remaining: newBalance
-                });
-
-            } catch (error) {
-                console.error("Create house error:", error);
-
-                res.status(500).json({
-                    error: "Failed to create house."
+            if (!userId) {
+                return res.status(401).json({
+                    error: "You must be logged in."
                 });
             }
+
+            const { name, description, house_type_id } = req.body;
+
+            if (!name || !name.trim()) {
+                return res.status(400).json({
+                    error: "House name is required."
+                });
+            }
+
+            if (!house_type_id) {
+                return res.status(400).json({
+                    error: "You must choose a house type."
+                });
+            }
+
+            // Get the selected house type
+            const { data: houseType, error: typeError } = await supabase
+                .from("house_types")
+                .select("id, name, cost, room_count")
+                .eq("id", house_type_id)
+                .single();
+
+            if (typeError) {
+                console.error("HOUSE TYPE LOOKUP ERROR:", typeError);
+
+                return res.status(500).json({
+                    error: typeError.message
+                });
+            }
+
+            if (!houseType) {
+                return res.status(400).json({
+                    error: "That house type does not exist."
+                });
+            }
+
+            // Check user's ShrekCoins
+            const { data: profile, error: profileError } = await supabase
+                .from("profiles")
+                .select("id, shrekcoins")
+                .eq("id", userId)
+                .single();
+
+            if (profileError) {
+                console.error("PROFILE LOOKUP ERROR:", profileError);
+
+                return res.status(500).json({
+                    error: profileError.message
+                });
+            }
+
+            if (!profile) {
+                return res.status(404).json({
+                    error: "Profile not found."
+                });
+            }
+
+            const coins = Number(profile.shrekcoins);
+            const cost = Number(houseType.cost);
+
+            if (coins < cost) {
+                return res.status(400).json({
+                    error: `You need ${cost.toLocaleString()} ShrekCoins, but you only have ${coins.toLocaleString()}.`
+                });
+            }
+
+            // Create the house
+            const { data: house, error: houseError } = await supabase
+                .from("houses")
+                .insert({
+                    name: name.trim(),
+                    description: description?.trim() || "",
+                    owner_id: userId,
+                    house_type_id: Number(house_type_id)
+                })
+                .select()
+                .single();
+
+            if (houseError) {
+                console.error("HOUSE CREATION ERROR:", houseError);
+
+                return res.status(500).json({
+                    error: houseError.message
+                });
+            }
+
+            // Add owner as a house member
+            const { error: memberError } = await supabase
+                .from("house_members")
+                .insert({
+                    house_id: house.id,
+                    user_id: userId,
+                    role: "owner"
+                });
+
+            if (memberError) {
+                console.error("HOUSE MEMBER ERROR:", memberError);
+
+                // House was created, but membership failed.
+                return res.status(500).json({
+                    error: memberError.message,
+                    house: house
+                });
+            }
+
+            // Give the house its rooms
+            const roomNames = [
+                "General",
+                "Chat",
+                "Media",
+                "Voice",
+                "Video",
+                "Announcements",
+                "Lobby",
+                "Hangout",
+                "Gallery",
+                "Music",
+                "Gaming",
+                "Discussion",
+                "Events",
+                "Community",
+                "Main Room"
+            ];
+
+            const roomsToCreate = [];
+
+            for (
+                let i = 0;
+                i < houseType.room_count;
+                i++
+            ) {
+                roomsToCreate.push({
+                    house_id: house.id,
+                    name: roomNames[i] || `Room ${i + 1}`,
+                    room_type: i === 0 ? "general" : "chat",
+                    description: "",
+                    position: i
+                });
+            }
+
+            if (roomsToCreate.length > 0) {
+                const { error: roomsError } = await supabase
+                    .from("house_rooms")
+                    .insert(roomsToCreate);
+
+                if (roomsError) {
+                    console.error("ROOM CREATION ERROR:", roomsError);
+
+                    return res.status(500).json({
+                        error: roomsError.message,
+                        house: house
+                    });
+                }
+            }
+
+            // Take the ShrekCoins
+            const { error: coinError } = await supabase
+                .from("profiles")
+                .update({
+                    shrekcoins: coins - cost
+                })
+                .eq("id", userId);
+
+            if (coinError) {
+                console.error("SHREKCOIN UPDATE ERROR:", coinError);
+
+                return res.status(500).json({
+                    error: coinError.message,
+                    house: house
+                });
+            }
+
+            return res.status(201).json({
+                house: house
+            });
+
+        } catch (error) {
+            console.error("CREATE HOUSE CRASH:", error);
+
+            return res.status(500).json({
+                error: error.message || "Failed to create house."
+            });
         }
-    );
+    });
 
     // ========================================================
     // HOUSE DIRECTORY
