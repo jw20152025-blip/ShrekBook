@@ -428,105 +428,140 @@ module.exports = function createHouseRouter({ supabase }) {
     // HOUSE DIRECTORY
     // ========================================================
 
-    router.get(
-        "/houses",
-        requireHouseLogin,
-        async (req, res) => {
-            try {
-                const { data: houses, error } =
-                    await supabase
-                        .from("houses")
-                        .select(`
-                            id,
-                            name,
-                            description,
-                            owner_id,
-                            house_type_id,
-                            created_at,
-                            house_types (
-                                id,
-                                name,
-                                cost,
-                                tax_reduction,
-                                room_count
-                            )
-                        `)
-                        .order("created_at", {
-                            ascending: false
-                        });
-
-                if (error) {
-                    throw error;
-                }
-
-                if (!houses || !houses.length) {
-                    return res.json([]);
-                }
-
-                const ownerIds = [
-                    ...new Set(
-                        houses.map(house => house.owner_id)
-                    )
-                ];
-
-                const { data: owners } = await supabase
-                    .from("profiles")
-                    .select(`
+    router.get("/houses", async (req, res) => {
+        try {
+            const { data: houses, error } = await supabase
+                .from("houses")
+                .select(`
+                    id,
+                    name,
+                    description,
+                    owner_id,
+                    house_type_id,
+                    created_at,
+                    updated_at,
+                    house_types (
                         id,
-                        username,
-                        display_name,
-                        avatar_url
-                    `)
+                        name,
+                        cost,
+                        tax_reduction,
+                        room_count
+                    )
+                `)
+                .order("created_at", { ascending: false });
+
+            if (error) {
+                console.error("HOUSE DIRECTORY ERROR:", error);
+
+                return res.status(500).json({
+                    error: error.message
+                });
+            }
+
+            const houseList = houses || [];
+
+            // Get owners
+            const ownerIds = [
+                ...new Set(
+                    houseList
+                        .map(house => house.owner_id)
+                        .filter(Boolean)
+                )
+            ];
+
+            let owners = [];
+
+            if (ownerIds.length > 0) {
+                const { data, error: ownerError } = await supabase
+                    .from("profiles")
+                    .select("id, username, display_name, avatar_url")
                     .in("id", ownerIds);
 
-                const ownerMap = {};
-
-                for (const owner of owners || []) {
-                    ownerMap[owner.id] = owner;
+                if (ownerError) {
+                    console.error("HOUSE OWNER ERROR:", ownerError);
+                } else {
+                    owners = data || [];
                 }
+            }
 
-                const houseIds = houses.map(
-                    house => house.id
-                );
+            const ownerMap = new Map(
+                owners.map(owner => [owner.id, owner])
+            );
 
-                const { data: members } = await supabase
+            // Get member counts
+            const houseIds = houseList.map(house => house.id);
+
+            let members = [];
+
+            if (houseIds.length > 0) {
+                const { data, error: memberError } = await supabase
                     .from("house_members")
-                    .select(`
-                        house_id,
-                        user_id,
-                        role
-                    `)
+                    .select("house_id")
                     .in("house_id", houseIds);
 
-                const memberCounts = {};
-
-                for (const member of members || []) {
-                    memberCounts[member.house_id] =
-                        (memberCounts[member.house_id] || 0) + 1;
+                if (memberError) {
+                    console.error("HOUSE MEMBER ERROR:", memberError);
+                } else {
+                    members = data || [];
                 }
+            }
 
-                const result = houses.map(house => ({
-                    ...house,
+            const memberCounts = {};
 
-                    owner:
-                        ownerMap[house.owner_id] || null,
+            for (const member of members) {
+                memberCounts[member.house_id] =
+                    (memberCounts[member.house_id] || 0) + 1;
+            }
+
+            // Build clean response
+            const result = houseList.map(house => {
+                const owner = ownerMap.get(house.owner_id) || null;
+
+                return {
+                    id: house.id,
+                    name: house.name,
+                    description: house.description,
+                    created_at: house.created_at,
+
+                    owner: owner
+                        ? {
+                            id: owner.id,
+                            username: owner.username,
+                            display_name: owner.display_name,
+                            avatar_url: owner.avatar_url
+                        }
+                        : null,
+
+                    type: house.house_types
+                        ? {
+                            id: house.house_types.id,
+                            name: house.house_types.name,
+                            cost: house.house_types.cost,
+                            tax_reduction:
+                                house.house_types.tax_reduction,
+                            room_count:
+                                house.house_types.room_count
+                        }
+                        : null,
 
                     member_count:
                         memberCounts[house.id] || 0
-                }));
+                };
+            });
 
-                res.json(result);
+            return res.json({
+                houses: result
+            });
 
-            } catch (error) {
-                console.error("House directory error:", error);
+        } catch (error) {
+            console.error("HOUSE DIRECTORY CRASH:", error);
 
-                res.status(500).json({
-                    error: "Failed to load houses."
-                });
-            }
+            return res.status(500).json({
+                error: error.message ||
+                    "Failed to load houses."
+            });
         }
-    );
-
+    });
     // ========================================================
     // SINGLE HOUSE
     // ========================================================

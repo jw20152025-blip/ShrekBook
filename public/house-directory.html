@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -10,65 +12,186 @@
     <title>ShrekBook Houses</title>
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             font-family: Arial, sans-serif;
-            background: #f1f5ef;
+            background: #eef3eb;
+            color: #222;
         }
 
         header {
-            padding: 20px;
-            background: #304d2c;
+            background: #ffffff;
+            border-bottom: 1px solid #ddd;
+            padding: 18px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        header a {
+            text-decoration: none;
             color: white;
+            background: #4d8b45;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: bold;
         }
 
         main {
             max-width: 1100px;
-            margin: auto;
-            padding: 25px;
+            margin: 35px auto;
+            padding: 0 20px;
         }
 
-        .search {
+        .top {
             display: flex;
-            gap: 10px;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 25px;
         }
 
-        input,
-        textarea,
-        select,
-        button {
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
+        .top h2 {
+            margin: 0;
+            font-size: 30px;
         }
 
-        button {
-            cursor: pointer;
+        #status {
+            color: #666;
         }
 
-        .houses {
+        #houses {
             display: grid;
             grid-template-columns:
-                repeat(auto-fit, minmax(280px, 1fr));
+                repeat(auto-fill, minmax(300px, 1fr));
             gap: 20px;
         }
 
-        .house {
+        .house-card {
             background: white;
-            border-radius: 14px;
-            padding: 20px;
+            border-radius: 16px;
+            padding: 22px;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.15s,
+                        box-shadow 0.15s;
+        }
+
+        .house-card:hover {
+            transform: translateY(-3px);
             box-shadow:
-                0 3px 12px rgba(0,0,0,.08);
+                0 7px 20px rgba(0, 0, 0, 0.12);
         }
 
-        .house h2 {
-            margin-top: 0;
+        .house-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
         }
 
-        .house button {
-            width: 100%;
+        .house-icon {
+            font-size: 38px;
+        }
+
+        .house-name {
+            margin: 0;
+            font-size: 23px;
+        }
+
+        .house-type {
+            color: #666;
+            font-weight: bold;
+        }
+
+        .description {
+            color: #555;
+            min-height: 45px;
+            margin: 15px 0;
+        }
+
+        .owner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #ddd;
+        }
+
+        .owner-name {
+            font-weight: bold;
+        }
+
+        .owner-label {
+            color: #888;
+            font-size: 13px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
             margin-top: 15px;
+        }
+
+        .stat {
+            background: #f5f7f4;
+            padding: 10px;
+            border-radius: 9px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #777;
+        }
+
+        .stat-value {
+            margin-top: 3px;
+            font-weight: bold;
+        }
+
+        .view-button {
+            width: 100%;
+            margin-top: 18px;
+            padding: 12px;
+            border: 0;
+            border-radius: 9px;
+            background: #4d8b45;
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .view-button:hover {
+            background: #3e7438;
+        }
+
+        .empty {
+            background: white;
+            padding: 40px;
+            text-align: center;
+            border-radius: 16px;
+            color: #777;
         }
     </style>
 </head>
@@ -76,125 +199,300 @@
 <body>
 
 <header>
+
     <h1>🏠 ShrekBook Houses</h1>
+
+    <a href="/house-create.html">
+        ➕ Create House
+    </a>
+
 </header>
 
 <main>
 
-    <div class="search">
-        <input
-            id="search"
-            type="text"
-            placeholder="Search houses..."
-        >
-
-        <button onclick="loadHouses()">
-            Search
-        </button>
-
-        <button
-            onclick="location.href='house-create.html'"
-        >
-            Create House
-        </button>
-
-        <button
-            onclick="location.href='house-invitations.html'"
-        >
-            Invitations
-        </button>
+    <div class="top">
+        <h2>House Directory</h2>
+        <span id="status">Loading...</span>
     </div>
 
-    <div
-        id="houses"
-        class="houses"
-    ></div>
+    <div id="houses"></div>
 
 </main>
 
 <script>
+
 async function loadHouses() {
-
-    const search =
-        encodeURIComponent(
-            document.getElementById("search").value
-        );
-
-    const response = await fetch(
-        `/api/houses?search=${search}`
-    );
-
-    const data = await response.json();
 
     const container =
         document.getElementById("houses");
 
-    if (!response.ok) {
-        container.innerHTML =
-            `<p>${escapeHtml(data.error || "Failed.")}</p>`;
+    const status =
+        document.getElementById("status");
 
-        return;
-    }
+    try {
 
-    container.innerHTML = "";
+        const response =
+            await fetch("/api/houses");
 
-    for (const house of data.houses) {
+        const data =
+            await response.json();
 
-        const card =
-            document.createElement("div");
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Failed to load houses."
+            );
+        }
 
-        card.className = "house";
+        const houses =
+            data.houses || [];
 
-        card.innerHTML = `
-            <h2>${escapeHtml(house.name)}</h2>
+        status.textContent =
+            `${houses.length} house${
+                houses.length === 1 ? "" : "s"
+            }`;
 
-            <p>
-                ${escapeHtml(
-                    house.description || ""
-                )}
-            </p>
+        if (houses.length === 0) {
 
-            <p>
-                🏰 ${escapeHtml(
-                    house.house_types?.name || "House"
-                )}
-            </p>
+            container.innerHTML = `
+                <div class="empty">
+                    <h2>🏚️ No houses yet</h2>
 
-            <p>
-                👥 ${house.memberCount} members
-            </p>
+                    <p>
+                        Be the first person to create
+                        a ShrekBook house!
+                    </p>
+                </div>
+            `;
 
-            <button
-                onclick="openHouse(${house.id})"
-            >
-                Enter House
-            </button>
+            return;
+        }
+
+        container.innerHTML = "";
+
+        for (const house of houses) {
+
+            const owner =
+                house.owner;
+
+            const type =
+                house.type;
+
+            const taxReduction =
+                type
+                    ? Number(type.tax_reduction) * 100
+                    : 0;
+
+            const card =
+                document.createElement("div");
+
+            card.className =
+                "house-card";
+
+            card.innerHTML = `
+
+                <div class="house-header">
+
+                    <div class="house-icon">
+                        🏠
+                    </div>
+
+                    <div>
+
+                        <h3 class="house-name">
+                            ${escapeHtml(house.name)}
+                        </h3>
+
+                        <div class="house-type">
+                            ${
+                                type
+                                    ? escapeHtml(type.name)
+                                    : "Unknown type"
+                            }
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="description">
+
+                    ${
+                        house.description
+                            ? escapeHtml(
+                                house.description
+                            )
+                            : "No description."
+                    }
+
+                </div>
+
+
+                <div class="owner">
+
+                    ${
+                        owner?.avatar_url
+                            ? `
+                                <img
+                                    class="avatar"
+                                    src="${escapeHtml(
+                                        owner.avatar_url
+                                    )}"
+                                >
+                            `
+                            : `
+                                <div class="avatar">
+                                    👤
+                                </div>
+                            `
+                    }
+
+                    <div>
+
+                        <div class="owner-label">
+                            Owner
+                        </div>
+
+                        <div class="owner-name">
+                            ${
+                                escapeHtml(
+                                    owner?.display_name ||
+                                    owner?.username ||
+                                    "Unknown"
+                                )
+                            }
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="stats">
+
+                    <div class="stat">
+
+                        <div class="stat-label">
+                            💰 House Cost
+                        </div>
+
+                        <div class="stat-value">
+                            ${
+                                type
+                                    ? Number(
+                                        type.cost
+                                    ).toLocaleString()
+                                    : "?"
+                            }
+                            ShrekCoins
+                        </div>
+
+                    </div>
+
+
+                    <div class="stat">
+
+                        <div class="stat-label">
+                            🧾 Tax Reduction
+                        </div>
+
+                        <div class="stat-value">
+                            ${taxReduction.toFixed(1)}%
+                        </div>
+
+                    </div>
+
+
+                    <div class="stat">
+
+                        <div class="stat-label">
+                            🚪 Rooms
+                        </div>
+
+                        <div class="stat-value">
+                            ${
+                                type
+                                    ? type.room_count
+                                    : "?"
+                            }
+                        </div>
+
+                    </div>
+
+
+                    <div class="stat">
+
+                        <div class="stat-label">
+                            👥 Members
+                        </div>
+
+                        <div class="stat-value">
+                            ${house.member_count}
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <button
+                    class="view-button"
+                    onclick="viewHouse(${house.id})"
+                >
+                    Enter House →
+                </button>
+
+            `;
+
+            container.appendChild(card);
+        }
+
+    } catch (error) {
+
+        console.error(error);
+
+        status.textContent = "Error";
+
+        container.innerHTML = `
+            <div class="empty">
+
+                <h2>💀 Couldn't load houses</h2>
+
+                <p>
+                    ${escapeHtml(error.message)}
+                </p>
+
+            </div>
         `;
-
-        container.appendChild(card);
-    }
-
-    if (!data.houses.length) {
-        container.innerHTML =
-            "<p>No houses found.</p>";
     }
 }
 
-function openHouse(id) {
-    location.href = `house.html?id=${id}`;
+
+function viewHouse(id) {
+
+    window.location.href =
+        `/house.html?id=${id}`;
+
 }
+
 
 function escapeHtml(value) {
+
     return String(value)
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+
 }
 
+
 loadHouses();
+
 </script>
 
 </body>
+
 </html>
