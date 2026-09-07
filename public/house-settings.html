@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>House Settings</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #eef3eb;
+            color: #1f2b1d;
+        }
+
+        header {
+            background: #304d2c;
+            color: white;
+            padding: 25px;
+        }
+
+        header h1 {
+            margin: 0;
+        }
+
+        main {
+            max-width: 900px;
+            margin: auto;
+            padding: 25px;
+        }
+
+        .top-buttons {
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 4px;
+        }
+
+        .primary {
+            background: #304d2c;
+            color: white;
+        }
+
+        .secondary {
+            background: white;
+            color: #304d2c;
+            border: 1px solid #ccd7c9;
+        }
+
+        .danger {
+            background: #b52a2a;
+            color: white;
+        }
+
+        .card {
+            background: white;
+            border-radius: 14px;
+            padding: 22px;
+            margin-bottom: 20px;
+            box-shadow:
+                0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .card h2 {
+            margin-top: 0;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 7px;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #ccd7c9;
+            border-radius: 8px;
+            font: inherit;
+            margin-bottom: 15px;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(180px, 1fr));
+
+            gap: 12px;
+        }
+
+        .info {
+            background: #f1f5ef;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #667263;
+        }
+
+        .info-value {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 4px;
+        }
+
+        .member {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid #e4e9e2;
+        }
+
+        .member:last-child {
+            border-bottom: none;
+        }
+
+        .avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #dfe8dc;
+        }
+
+        .member-info {
+            flex: 1;
+        }
+
+        .member-name {
+            font-weight: bold;
+        }
+
+        .member-username {
+            color: #667263;
+            font-size: 13px;
+        }
+
+        .role {
+            display: inline-block;
+            margin-top: 4px;
+            background: #e8efe5;
+            color: #304d2c;
+            border-radius: 10px;
+            padding: 3px 7px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .danger-zone {
+            border: 1px solid #e6aaaa;
+        }
+
+        .danger-zone h2 {
+            color: #a02020;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error {
+            background: #ffe5e5;
+            color: #9b2020;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<header>
+
+    <h1 id="pageTitle">
+        ⚙️ House Settings
+    </h1>
+
+</header>
+
+<main>
+
+    <div class="top-buttons">
+
+        <button
+            class="secondary"
+            onclick="goBack()"
+        >
+            ← Back to House
+        </button>
+
+    </div>
+
+
+    <div
+        id="error"
+        class="error hidden"
+    ></div>
+
+
+    <!-- GENERAL SETTINGS -->
+
+    <section
+        id="generalCard"
+        class="card"
+    >
+
+        <h2>🏠 General</h2>
+
+        <label for="houseName">
+            House Name
+        </label>
+
+        <input
+            id="houseName"
+            type="text"
+            maxlength="100"
+        >
+
+
+        <label for="houseDescription">
+            Description
+        </label>
+
+        <textarea
+            id="houseDescription"
+            maxlength="1000"
+        ></textarea>
+
+
+        <button
+            class="primary"
+            onclick="saveGeneralSettings()"
+        >
+            💾 Save Changes
+        </button>
+
+        <div
+            id="saveStatus"
+            class="status"
+        ></div>
+
+    </section>
+
+
+    <!-- HOUSE TYPE -->
+
+    <section class="card">
+
+        <h2>🏰 House Type</h2>
+
+        <div class="info-grid">
+
+            <div class="info">
+
+                <div class="info-label">
+                    Type
+                </div>
+
+                <div
+                    id="typeName"
+                    class="info-value"
+                >
+                    —
+                </div>
+
+            </div>
+
+
+            <div class="info">
+
+                <div class="info-label">
+                    Purchase Cost
+                </div>
+
+                <div
+                    id="typeCost"
+                    class="info-value"
+                >
+                    —
+                </div>
+
+            </div>
+
+
+            <div class="info">
+
+                <div class="info-label">
+                    Tax Reduction
+                </div>
+
+                <div
+                    id="typeTax"
+                    class="info-value"
+                >
+                    —
+                </div>
+
+            </div>
+
+
+            <div class="info">
+
+                <div class="info-label">
+                    Rooms
+                </div>
+
+                <div
+                    id="typeRooms"
+                    class="info-value"
+                >
+                    —
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- MEMBERS -->
+
+    <section class="card">
+
+        <h2>👥 Members</h2>
+
+        <div id="members"></div>
+
+    </section>
+
+
+    <!-- DANGER ZONE -->
+
+    <section class="card danger-zone">
+
+        <h2>⚠️ Danger Zone</h2>
+
+        <p>
+            These actions can permanently affect your house.
+        </p>
+
+        <button
+            class="danger"
+            onclick="leaveHouse()"
+        >
+            🚪 Leave House
+        </button>
+
+        <button
+            id="deleteButton"
+            class="danger"
+            onclick="deleteHouse()"
+        >
+            🗑️ Delete House
+        </button>
+
+    </section>
+
+</main>
+
+
+<script>
+
+const params =
+    new URLSearchParams(
+        location.search
+    );
+
+const houseId =
+    params.get("id");
+
+let currentHouse = null;
+
+let currentMembership = null;
+
+
+/* =========================================================
+   LOAD
+========================================================= */
+
+async function loadHouse() {
+
+    if (!houseId) {
+
+        showError(
+            "No house ID was provided."
+        );
+
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${houseId}`
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            showError(
+                data.error ||
+                "Failed to load house."
+            );
+
+            return;
+        }
+
+        currentHouse =
+            data.house;
+
+        currentMembership =
+            data.membership;
+
+
+        renderHouse();
+
+    } catch (error) {
+
+        console.error(
+            error
+        );
+
+        showError(
+            "Unable to connect to the server."
+        );
+    }
+}
+
+
+/* =========================================================
+   RENDER
+========================================================= */
+
+function renderHouse() {
+
+    const house =
+        currentHouse;
+
+
+    document.title =
+        `${house.name} Settings`;
+
+
+    document.getElementById(
+        "pageTitle"
+    ).textContent =
+        `⚙️ ${house.name} Settings`;
+
+
+    document.getElementById(
+        "houseName"
+    ).value =
+        house.name || "";
+
+
+    document.getElementById(
+        "houseDescription"
+    ).value =
+        house.description || "";
+
+
+    const type =
+        house.type;
+
+
+    if (type) {
+
+        document.getElementById(
+            "typeName"
+        ).textContent =
+            type.name;
+
+
+        document.getElementById(
+            "typeCost"
+        ).textContent =
+            `${Number(type.cost || 0).toLocaleString()} ShrekCoins`;
+
+
+        document.getElementById(
+            "typeTax"
+        ).textContent =
+            `${(
+                Number(type.tax_reduction || 0) * 100
+            ).toFixed(2)}%`;
+
+
+        document.getElementById(
+            "typeRooms"
+        ).textContent =
+            type.room_count;
+    }
+
+
+    renderMembers(
+        house.members || []
+    );
+
+
+    /*
+     * Only the owner should see
+     * the delete button.
+     */
+
+    const deleteButton =
+        document.getElementById(
+            "deleteButton"
+        );
+
+
+    if (
+        !currentMembership ||
+        currentMembership.role !== "owner"
+    ) {
+
+        deleteButton.style.display =
+            "none";
+    }
+}
+
+
+/* =========================================================
+   MEMBERS
+========================================================= */
+
+function renderMembers(members) {
+
+    const container =
+        document.getElementById(
+            "members"
+        );
+
+    container.innerHTML = "";
+
+
+    for (const member of members) {
+
+        const profile =
+            member.profile || {};
+
+
+        const div =
+            document.createElement(
+                "div"
+            );
+
+        div.className =
+            "member";
+
+
+        const avatar =
+            document.createElement(
+                "img"
+            );
+
+        avatar.className =
+            "avatar";
+
+        avatar.alt =
+            "Avatar";
+
+
+        if (profile.avatar) {
+
+            avatar.src =
+                profile.avatar;
+
+        } else {
+
+            avatar.style.display =
+                "none";
+        }
+
+
+        const info =
+            document.createElement(
+                "div"
+            );
+
+        info.className =
+            "member-info";
+
+
+        info.innerHTML = `
+
+            <div class="member-name">
+                ${escapeHtml(
+                    profile.display_name ||
+                    profile.username ||
+                    "User"
+                )}
+            </div>
+
+            <div class="member-username">
+                ${escapeHtml(
+                    profile.username
+                        ? "@" + profile.username
+                        : ""
+                )}
+            </div>
+
+            <span class="role">
+                ${escapeHtml(
+                    member.role || "member"
+                )}
+            </span>
+
+        `;
+
+
+        div.appendChild(
+            avatar
+        );
+
+        div.appendChild(
+            info
+        );
+
+
+        /*
+         * Management buttons will be
+         * enabled once the matching
+         * permission endpoints are
+         * present in house-api.js.
+         */
+
+        if (
+            currentMembership &&
+            (
+                currentMembership.role === "owner" ||
+                currentMembership.role === "admin"
+            ) &&
+            member.role !== "owner"
+        ) {
+
+            const controls =
+                document.createElement(
+                    "div"
+                );
+
+            controls.innerHTML = `
+
+                <button
+                    class="secondary"
+                    onclick="toggleAdmin('${member.user_id}', '${member.role}')"
+                >
+                    ${
+                        member.role === "admin"
+                            ? "Demote"
+                            : "Make Admin"
+                    }
+                </button>
+
+                <button
+                    class="danger"
+                    onclick="removeMember('${member.user_id}')"
+                >
+                    Remove
+                </button>
+
+            `;
+
+            div.appendChild(
+                controls
+            );
+        }
+
+
+        container.appendChild(
+            div
+        );
+    }
+}
+
+
+/* =========================================================
+   SAVE GENERAL SETTINGS
+========================================================= */
+
+async function saveGeneralSettings() {
+
+    const name =
+        document.getElementById(
+            "houseName"
+        ).value.trim();
+
+    const description =
+        document.getElementById(
+            "houseDescription"
+        ).value.trim();
+
+    const status =
+        document.getElementById(
+            "saveStatus"
+        );
+
+
+    if (!name) {
+
+        status.textContent =
+            "House name cannot be empty.";
+
+        return;
+    }
+
+
+    status.textContent =
+        "Saving...";
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${houseId}`,
+                {
+                    method: "PUT",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        name,
+                        description
+                    })
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            status.textContent =
+                data.error ||
+                "Failed to save.";
+
+            return;
+        }
+
+
+        currentHouse =
+            data.house ||
+            currentHouse;
+
+
+        status.textContent =
+            "Saved! ✓";
+
+
+        document.title =
+            `${name} Settings`;
+
+    } catch (error) {
+
+        console.error(
+            error
+        );
+
+        status.textContent =
+            "Unable to connect to server.";
+    }
+}
+
+
+/* =========================================================
+   ADMIN
+========================================================= */
+
+async function toggleAdmin(
+    userId,
+    currentRole
+) {
+
+    const newRole =
+        currentRole === "admin"
+            ? "member"
+            : "admin";
+
+
+    const confirmed =
+        confirm(
+            newRole === "admin"
+                ? "Make this member an admin?"
+                : "Remove this member's admin privileges?"
+        );
+
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${houseId}/members/${userId}/role`,
+                {
+                    method: "PUT",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        role: newRole
+                    })
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            alert(
+                data.error ||
+                "Failed to change role."
+            );
+
+            return;
+        }
+
+
+        await loadHouse();
+
+    } catch (error) {
+
+        console.error(
+            error
+        );
+
+        alert(
+            "Unable to connect to server."
+        );
+    }
+}
+
+
+/* =========================================================
+   REMOVE MEMBER
+========================================================= */
+
+async function removeMember(userId) {
+
+    if (
+        !confirm(
+            "Remove this member from the house?"
+        )
+    ) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${houseId}/members/${userId}`,
+                {
+                    method: "DELETE"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            alert(
+                data.error ||
+                "Failed to remove member."
+            );
+
+            return;
+        }
+
+
+        await loadHouse();
+
+    } catch (error) {
+
+        console.error(
+            error
+        );
+
+        alert(
+            "Unable to connect to server."
+        );
+    }
+}
+
+
+/* =========================================================
+   LEAVE HOUSE
+========================================================= */
+
+async function leaveHouse() {
+
+    if (
+        !confirm(
+            "Are you sure you want to leave this house?"
+        )
+    ) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${houseId}/leave`,
+                {
+                    method: "POST"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            alert(
+                data.error ||
+                "Unable to leave house."
+            );
+
+            return;
+        }
+
+
+        location.href =
+            "house-directory.html";
+
+    } catch (error) {
+
+        console.error(
+            error
+        );
+
+        alert(
+            "Unable to connect to server."
+        );
+    }
+}
+
+
+/* =========================================================
+   DELETE HOUSE
+========================================================= */
+
+async function deleteHouse() {
+
+    if (
+        !confirm(
+            "DELETE this house permanently? This cannot be undone."
+        )
+    ) {
+        return;
+    }
+
+
+    if (
+        !confirm(
+            "Seriously delete the house?"
+        )
+    ) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/houses/${houseId}`,
+                {
+                    method: "DELETE"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            alert(
+                data.error ||
+                "Unable to delete house."
+            );
+
+            return;
+        }
+
+
+        location.href =
+            "house-directory.html";
+
+    } catch (error) {
+
+        console.error(
+            error
+        );
+
+        alert(
+            "Unable to connect to server."
+        );
+    }
+}
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+function goBack() {
+
+    location.href =
+        `house.html?id=${encodeURIComponent(
+            houseId
+        )}`;
+}
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function escapeHtml(value) {
+
+    return String(value)
+
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
+}
+
+
+function showError(message) {
+
+    const error =
+        document.getElementById(
+            "error"
+        );
+
+    error.textContent =
+        message;
+
+    error.classList.remove(
+        "hidden"
+    );
+}
+
+
+loadHouse();
+
+</script>
+
+</body>
+
+</html>

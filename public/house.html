@@ -12,16 +12,31 @@
     <title>House</title>
 
     <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             font-family: Arial, sans-serif;
             background: #eef3eb;
+            color: #1f2b1d;
         }
 
         header {
             background: #304d2c;
             color: white;
-            padding: 25px;
+            padding: 30px 25px;
+        }
+
+        header h1 {
+            margin: 0 0 8px;
+        }
+
+        header p {
+            margin: 0;
+            opacity: 0.9;
         }
 
         main {
@@ -29,6 +44,98 @@
             margin: auto;
             padding: 25px;
         }
+
+        .top-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 25px;
+        }
+
+        button {
+            border: none;
+            border-radius: 8px;
+            padding: 11px 15px;
+            cursor: pointer;
+            background: #304d2c;
+            color: white;
+            font-weight: bold;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .secondary-button {
+            background: #ffffff;
+            color: #304d2c;
+            border: 1px solid #ccd7c9;
+        }
+
+        .section {
+            margin-top: 25px;
+        }
+
+        .section h2 {
+            margin-bottom: 12px;
+        }
+
+        /* HOUSE INFO */
+
+        .house-info {
+            background: white;
+            border-radius: 14px;
+            padding: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .owner {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .owner-avatar {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #dfe8dc;
+        }
+
+        .owner-name {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .owner-role {
+            font-size: 13px;
+            color: #667263;
+            margin-top: 3px;
+        }
+
+        .house-type {
+            min-width: 200px;
+        }
+
+        .house-type-name {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .house-type-info {
+            color: #667263;
+            margin-top: 4px;
+            font-size: 14px;
+        }
+
+        /* ROOMS */
 
         .rooms {
             display: grid;
@@ -43,21 +150,107 @@
             padding: 20px;
             border-radius: 12px;
             cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+            border: 1px solid #e0e7de;
         }
+
+        .room:hover {
+            transform: translateY(-2px);
+            box-shadow:
+                0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .room h3 {
+            margin-top: 0;
+        }
+
+        .room p {
+            color: #667263;
+        }
+
+        .room-type {
+            display: inline-block;
+            background: #e8efe5;
+            color: #304d2c;
+            border-radius: 20px;
+            padding: 4px 8px;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .empty {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            color: #667263;
+        }
+
+        /* MEMBERS */
 
         .members {
             background: white;
             padding: 20px;
-            margin-top: 25px;
-            border-radius: 12px;
+            border-radius: 14px;
         }
 
-        button {
-            padding: 10px;
-            margin: 5px;
-            cursor: pointer;
+        .member-list {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(250px, 1fr));
+
+            gap: 12px;
         }
+
+        .member {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border: 1px solid #e2e8e0;
+            border-radius: 10px;
+        }
+
+        .member-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #dfe8dc;
+            flex-shrink: 0;
+        }
+
+        .member-name {
+            font-weight: bold;
+        }
+
+        .member-username {
+            color: #667263;
+            font-size: 13px;
+            margin-top: 2px;
+        }
+
+        .member-role {
+            display: inline-block;
+            margin-top: 5px;
+            padding: 3px 7px;
+            border-radius: 10px;
+            background: #e8efe5;
+            color: #304d2c;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .error {
+            background: #ffe5e5;
+            color: #9b2020;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
     </style>
+
 </head>
 
 <body>
@@ -74,36 +267,116 @@
 
 <main>
 
-    <button
-        onclick="location.href='house-directory.html'"
-    >
-        ← Directory
-    </button>
+    <div class="top-buttons">
 
-    <button
-        onclick="location.href='house-invitations.html'"
-    >
-        ✉️ Invitations
-    </button>
+        <button
+            class="secondary-button"
+            onclick="location.href='house-directory.html'"
+        >
+            ← Directory
+        </button>
 
-    <h2>🚪 Rooms</h2>
+        <button
+            onclick="location.href='house-invitations.html'"
+        >
+            ✉️ Invitations
+        </button>
 
-    <div
-        id="rooms"
-        class="rooms"
-    ></div>
-
-    <div class="members">
-
-        <h2>👥 Members</h2>
-
-        <div id="members"></div>
+        <button
+            onclick="openSettings()"
+        >
+            ⚙️ House Settings
+        </button>
 
     </div>
 
+
+    <!-- HOUSE INFORMATION -->
+
+    <div class="house-info">
+
+        <div class="owner">
+
+            <img
+                id="ownerAvatar"
+                class="owner-avatar"
+                src=""
+                alt="Owner avatar"
+            >
+
+            <div>
+
+                <div
+                    id="ownerName"
+                    class="owner-name"
+                >
+                    Loading...
+                </div>
+
+                <div class="owner-role">
+                    House Owner
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="house-type">
+
+            <div
+                id="houseTypeName"
+                class="house-type-name"
+            >
+                Loading...
+            </div>
+
+            <div
+                id="houseTypeInfo"
+                class="house-type-info"
+            ></div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ROOMS -->
+
+    <section class="section">
+
+        <h2>🚪 Rooms</h2>
+
+        <div
+            id="rooms"
+            class="rooms"
+        ></div>
+
+    </section>
+
+
+    <!-- MEMBERS -->
+
+    <section class="section">
+
+        <div class="members">
+
+            <h2>👥 Members</h2>
+
+            <div
+                id="members"
+                class="member-list"
+            ></div>
+
+        </div>
+
+    </section>
+
 </main>
 
+
 <script>
+
 const params =
     new URLSearchParams(
         location.search
@@ -112,62 +385,265 @@ const params =
 const houseId =
     params.get("id");
 
+
+/* =========================================================
+   LOAD HOUSE
+========================================================= */
+
 async function loadHouse() {
 
-    const response =
-        await fetch(
-            `/api/houses/${houseId}`
+    if (!houseId) {
+
+        showError(
+            "No house ID was provided."
         );
-
-    const data =
-        await response.json();
-
-    if (!response.ok) {
-        document.body.innerHTML =
-            `<h1>${escapeHtml(
-                data.error || "Failed."
-            )}</h1>`;
 
         return;
     }
 
-    document.title =
-        data.house.name;
+    try {
 
-    document.getElementById(
-        "houseName"
-    ).textContent =
-        `🏠 ${data.house.name}`;
+        const response =
+            await fetch(
+                `/api/houses/${houseId}`
+            );
 
-    document.getElementById(
-        "houseDescription"
-    ).textContent =
-        data.house.description;
+        const data =
+            await response.json();
 
-    renderRooms(data.rooms);
-    renderMembers(data.members);
+        if (!response.ok) {
+
+            showError(
+                data.error ||
+                "Failed to load house."
+            );
+
+            return;
+        }
+
+        const house =
+            data.house;
+
+        if (!house) {
+
+            showError(
+                "The server did not return a house."
+            );
+
+            return;
+        }
+
+
+        /*
+         * BASIC INFO
+         */
+
+        document.title =
+            house.name;
+
+        document.getElementById(
+            "houseName"
+        ).textContent =
+            `🏠 ${house.name}`;
+
+        document.getElementById(
+            "houseDescription"
+        ).textContent =
+            house.description || "";
+
+
+        /*
+         * OWNER
+         */
+
+        renderOwner(
+            house.owner
+        );
+
+
+        /*
+         * HOUSE TYPE
+         */
+
+        renderHouseType(
+            house.type
+        );
+
+
+        /*
+         * ROOMS
+         */
+
+        renderRooms(
+            house.rooms || []
+        );
+
+
+        /*
+         * MEMBERS
+         */
+
+        renderMembers(
+            house.members || []
+        );
+
+    } catch (error) {
+
+        console.error(
+            "House loading error:",
+            error
+        );
+
+        showError(
+            "Unable to connect to the server."
+        );
+    }
 }
+
+
+/* =========================================================
+   OWNER
+========================================================= */
+
+function renderOwner(owner) {
+
+    const nameElement =
+        document.getElementById(
+            "ownerName"
+        );
+
+    const avatarElement =
+        document.getElementById(
+            "ownerAvatar"
+        );
+
+    if (!owner) {
+
+        nameElement.textContent =
+            "Unknown";
+
+        return;
+    }
+
+    nameElement.textContent =
+        owner.display_name ||
+        owner.username ||
+        "User";
+
+    if (owner.avatar) {
+
+        avatarElement.src =
+            owner.avatar;
+
+    } else {
+
+        avatarElement.style.display =
+            "none";
+    }
+}
+
+
+/* =========================================================
+   HOUSE TYPE
+========================================================= */
+
+function renderHouseType(type) {
+
+    const nameElement =
+        document.getElementById(
+            "houseTypeName"
+        );
+
+    const infoElement =
+        document.getElementById(
+            "houseTypeInfo"
+        );
+
+    if (!type) {
+
+        nameElement.textContent =
+            "Unknown House Type";
+
+        infoElement.textContent =
+            "";
+
+        return;
+    }
+
+    nameElement.textContent =
+        type.name;
+
+    const rooms =
+        type.room_count || 0;
+
+    const taxReduction =
+        Number(type.tax_reduction || 0) * 100;
+
+    infoElement.textContent =
+        `${rooms} rooms • ${taxReduction}% tax reduction`;
+}
+
+
+/* =========================================================
+   ROOMS
+========================================================= */
 
 function renderRooms(rooms) {
 
     const container =
-        document.getElementById("rooms");
+        document.getElementById(
+            "rooms"
+        );
 
     container.innerHTML = "";
+
+    if (!rooms.length) {
+
+        container.innerHTML = `
+            <div class="empty">
+                🚪 This house has no rooms yet.
+            </div>
+        `;
+
+        return;
+    }
+
+    /*
+     * Make sure rooms appear in their
+     * database-defined order.
+     */
+
+    rooms.sort(
+        (a, b) =>
+            Number(a.position || 0) -
+            Number(b.position || 0)
+    );
+
 
     for (const room of rooms) {
 
         const div =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
-        div.className = "room";
+        div.className =
+            "room";
 
         div.onclick = () => {
+
             location.href =
-                `house-room.html?houseId=${houseId}&roomId=${room.id}`;
+                `house-room.html?houseId=${encodeURIComponent(
+                    houseId
+                )}&roomId=${encodeURIComponent(
+                    room.id
+                )}`;
+
         };
 
+
         div.innerHTML = `
+
             <h3>
                 ${roomIcon(room.room_type)}
                 ${escapeHtml(room.name)}
@@ -178,66 +654,235 @@ function renderRooms(rooms) {
                     room.description || ""
                 )}
             </p>
+
+            <span class="room-type">
+                ${escapeHtml(
+                    room.room_type || "room"
+                )}
+            </span>
+
         `;
 
-        container.appendChild(div);
+        container.appendChild(
+            div
+        );
     }
 }
+
+
+/* =========================================================
+   MEMBERS
+========================================================= */
 
 function renderMembers(members) {
 
     const container =
-        document.getElementById("members");
+        document.getElementById(
+            "members"
+        );
 
     container.innerHTML = "";
 
-    for (const member of members) {
+    if (!members.length) {
 
-        const profile =
-            member.profiles;
-
-        const div =
-            document.createElement("div");
-
-        div.innerHTML = `
-            <strong>
-                ${escapeHtml(
-                    profile?.display_name ||
-                    profile?.username ||
-                    "User"
-                )}
-            </strong>
-
-            — ${escapeHtml(member.role)}
+        container.innerHTML = `
+            <div class="empty">
+                👥 No members found.
+            </div>
         `;
 
-        container.appendChild(div);
+        return;
+    }
+
+
+    for (const member of members) {
+
+        /*
+         * The API returns:
+         *
+         * member.profile
+         */
+
+        const profile =
+            member.profile || {};
+
+
+        const div =
+            document.createElement(
+                "div"
+            );
+
+        div.className =
+            "member";
+
+
+        const avatar =
+            document.createElement(
+                "img"
+            );
+
+        avatar.className =
+            "member-avatar";
+
+        avatar.alt =
+            "Member avatar";
+
+
+        if (profile.avatar) {
+
+            avatar.src =
+                profile.avatar;
+
+        } else {
+
+            avatar.style.display =
+                "none";
+        }
+
+
+        const info =
+            document.createElement(
+                "div"
+            );
+
+
+        const name =
+            profile.display_name ||
+            profile.username ||
+            "User";
+
+
+        const username =
+            profile.username
+                ? `@${profile.username}`
+                : "";
+
+
+        info.innerHTML = `
+
+            <div class="member-name">
+                ${escapeHtml(name)}
+            </div>
+
+            <div class="member-username">
+                ${escapeHtml(username)}
+            </div>
+
+            <span class="member-role">
+                ${escapeHtml(member.role || "member")}
+            </span>
+
+        `;
+
+
+        div.appendChild(
+            avatar
+        );
+
+        div.appendChild(
+            info
+        );
+
+        container.appendChild(
+            div
+        );
     }
 }
+
+
+/* =========================================================
+   SETTINGS
+========================================================= */
+
+function openSettings() {
+
+    location.href =
+        `house-settings.html?id=${encodeURIComponent(
+            houseId
+        )}`;
+
+}
+
+
+/* =========================================================
+   ICONS
+========================================================= */
 
 function roomIcon(type) {
 
     return {
+
         chat: "💬",
+
         media: "🖼️",
+
         voice: "🎙️",
+
         video: "📹",
+
         general: "🏠",
+
         announcement: "📢"
+
     }[type] || "🚪";
 }
 
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
 function escapeHtml(value) {
+
     return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
 }
 
+
+function showError(message) {
+
+    document.querySelector(
+        "main"
+    ).innerHTML = `
+
+        <div class="error">
+
+            ${escapeHtml(message)}
+
+        </div>
+
+    `;
+}
+
+
 loadHouse();
+
 </script>
 
 </body>
+
 </html>
