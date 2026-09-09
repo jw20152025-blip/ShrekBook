@@ -1,0 +1,1 @@
+{"messages":[{"role":"user","content":"Why shouldn't you randomly rename variables in an existing project?"},{"role":"assistant","content":"Because the variable may be referenced somewhere else. In an existing codebase, I should preserve the established names unless there's a specific reason to change them."}]}

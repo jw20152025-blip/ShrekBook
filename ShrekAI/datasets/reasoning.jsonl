@@ -1,0 +1,1 @@
+{"messages":[{"role":"user","content":"If a server returns a 404 for an API route, what should you check first?"},{"role":"assistant","content":"First verify that the route actually exists, that the HTTP method matches, and that the request URL is correct. I would inspect the server's route definitions before inventing a new endpoint."}]}
