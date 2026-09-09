@@ -1,86 +1,89 @@
+# training/evaluator.py
+
 import math
 
 import torch
+from torch.utils.data import DataLoader
 
-from datasets import load_dataset
+from config import (
+    DEVICE,
+    BATCH_SIZE,
+    MAX_SEQ_LEN,
+    NUM_WORKERS,
+)
+
+from training.dataset import (
+    EvaluationDataset,
+)
 
 
-class ShrekAIEvaluator:
+@torch.no_grad()
+def evaluate(
+    model,
+    tokenizer=None,
+    max_batches=50,
+):
 
-    def __init__(
-        self,
-        model,
-        tokenizer,
-    ):
+    dataset = EvaluationDataset(
+        tokenizer=tokenizer,
+        max_seq_len=MAX_SEQ_LEN,
+    )
 
-        self.model = model
-        self.tokenizer = tokenizer
+    loader = DataLoader(
+        dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        num_workers=NUM_WORKERS,
+        pin_memory=DEVICE == "cuda",
+    )
 
-    def evaluate(
-        self,
-        dataset_path,
-    ):
+    model.eval()
 
-        dataset = load_dataset(
-            "json",
-            data_files=str(dataset_path),
-            split="train",
+    total_loss = 0.0
+    batches = 0
+
+    for batch in loader:
+
+        input_ids = batch[
+            "input_ids"
+        ].to(
+            DEVICE,
+            non_blocking=True,
         )
 
-        self.model.eval()
-
-        total_loss = 0.0
-        count = 0
-
-        device = next(
-            self.model.parameters()
-        ).device
-
-        for example in dataset:
-
-            messages = example["messages"]
-
-            prompt = self.tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-            )
-
-            tokens = self.tokenizer(
-                prompt,
-                return_tensors="pt",
-                truncation=True,
-            )
-
-            tokens = {
-                key: value.to(device)
-                for key, value in tokens.items()
-            }
-
-            with torch.inference_mode():
-
-                outputs = self.model(
-                    **tokens,
-                    labels=tokens["input_ids"],
-                )
-
-            loss = outputs.loss.item()
-
-            if math.isfinite(loss):
-
-                total_loss += loss
-                count += 1
-
-        if count == 0:
-            return None
-
-        average_loss = total_loss / count
-
-        perplexity = math.exp(
-            min(average_loss, 20)
+        labels = batch[
+            "labels"
+        ].to(
+            DEVICE,
+            non_blocking=True,
         )
 
+        _, loss = model(
+            input_ids,
+            labels,
+        )
+
+        total_loss += loss.item()
+
+        batches += 1
+
+        if batches >= max_batches:
+            break
+
+    if batches == 0:
         return {
-            "loss": average_loss,
-            "perplexity": perplexity,
-            "samples": count,
+            "loss": float("inf"),
+            "perplexity": float("inf"),
         }
+
+    loss = total_loss / batches
+
+    try:
+        perplexity = math.exp(loss)
+    except OverflowError:
+        perplexity = float("inf")
+
+    return {
+        "loss": loss,
+        "perplexity": perplexity,
+    }

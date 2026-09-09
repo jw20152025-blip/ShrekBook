@@ -1,165 +1,467 @@
+# training/trainer.py
+
+import math
+import os
+import time
 from pathlib import Path
 
 import torch
-
-from transformers import (
-    AutoTokenizer,
-    AutoModelForCausalLM,
-)
-
-from peft import LoraConfig
-
-from trl import (
-    SFTConfig,
-    SFTTrainer,
-)
+from torch.utils.data import DataLoader
 
 from config import (
-    MODEL_NAME,
-    MODEL_DIR,
-    CHECKPOINT_DIR,
-    MAX_LENGTH,
-    TRAIN_BATCH_SIZE,
+    DEVICE,
+    DTYPE,
+    BATCH_SIZE,
     GRADIENT_ACCUMULATION_STEPS,
     LEARNING_RATE,
-    NUM_EPOCHS,
-    LORA_R,
-    LORA_ALPHA,
-    LORA_DROPOUT,
+    MIN_LEARNING_RATE,
+    WEIGHT_DECAY,
+    BETAS,
+    MAX_STEPS,
+    WARMUP_STEPS,
+    GRAD_CLIP,
+    VALIDATION_INTERVAL,
+    CHECKPOINT_INTERVAL,
+    NUM_WORKERS,
+    SEED,
+    LATEST_CHECKPOINT,
+    BEST_CHECKPOINT,
+    FINAL_MODEL,
+    USE_COMPILE,
+    MAX_SEQ_LEN,
 )
 
-from training.dataset import load_training_dataset
+from core.model import (
+    ShrekAI,
+    ModelConfig,
+)
+
+from training.dataset import (
+    ShrekDataset,
+    ByteTokenizer,
+)
+
+from training.evaluator import evaluate
 
 
-def train():
+class Trainer:
 
-    print()
-    print("=" * 60)
-    print(" SHREKAI TRAINING SESSION")
-    print("=" * 60)
+    def __init__(self):
 
-    CHECKPOINT_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+        torch.manual_seed(SEED)
 
-    dataset = load_training_dataset()
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(SEED)
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        MODEL_NAME,
-        cache_dir=str(MODEL_DIR),
-    )
+        self.device = torch.device(DEVICE)
 
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
+        self.tokenizer = ByteTokenizer()
 
-    print("[ShrekAI] Loading training model...")
+        self.model = ShrekAI(
+            ModelConfig()
+        ).to(self.device)
 
-    if torch.cuda.is_available():
+        self.optimizer = self._create_optimizer()
 
-        model = AutoModelForCausalLM.from_pretrained(
-            MODEL_NAME,
-            cache_dir=str(MODEL_DIR),
-            torch_dtype=torch.float16,
+        self.step = 0
+        self.best_loss = float("inf")
+
+        self.scaler = (
+            torch.amp.GradScaler(
+                "cuda",
+                enabled=(
+                    self.device.type == "cuda"
+                    and DTYPE == torch.float16
+                ),
+            )
         )
 
-    else:
-
-        model = AutoModelForCausalLM.from_pretrained(
-            MODEL_NAME,
-            cache_dir=str(MODEL_DIR),
-            torch_dtype=torch.float32,
+        self.dataset = ShrekDataset(
+            tokenizer=self.tokenizer,
+            max_seq_len=MAX_SEQ_LEN,
         )
 
-    # --------------------------------------------------------
-    # LoRA
-    # --------------------------------------------------------
+        self.loader = DataLoader(
+            self.dataset,
+            batch_size=BATCH_SIZE,
+            shuffle=True,
+            num_workers=NUM_WORKERS,
+            pin_memory=(
+                self.device.type == "cuda"
+            ),
+            drop_last=True,
+        )
 
-    peft_config = LoraConfig(
-        r=LORA_R,
-        lora_alpha=LORA_ALPHA,
-        lora_dropout=LORA_DROPOUT,
-        bias="none",
-        task_type="CAUSAL_LM",
-        target_modules=[
-            "q_proj",
-            "k_proj",
-            "v_proj",
-            "o_proj",
-        ],
-    )
+        self.iterator = iter(self.loader)
 
-    # --------------------------------------------------------
-    # Training configuration
-    # --------------------------------------------------------
+        if USE_COMPILE and hasattr(
+            torch,
+            "compile",
+        ):
 
-    training_args = SFTConfig(
+            try:
+                self.model = torch.compile(
+                    self.model
+                )
+            except Exception:
+                pass
 
-        output_dir=str(CHECKPOINT_DIR),
+    def _create_optimizer(self):
 
-        num_train_epochs=NUM_EPOCHS,
+        decay = []
+        no_decay = []
 
-        per_device_train_batch_size=TRAIN_BATCH_SIZE,
+        for name, parameter in self.model.named_parameters():
 
-        gradient_accumulation_steps=(
-            GRADIENT_ACCUMULATION_STEPS
-        ),
+            if not parameter.requires_grad:
+                continue
 
-        learning_rate=LEARNING_RATE,
+            if parameter.ndim >= 2:
+                decay.append(parameter)
+            else:
+                no_decay.append(parameter)
 
-        logging_steps=5,
+        return torch.optim.AdamW(
+            [
+                {
+                    "params": decay,
+                    "weight_decay": WEIGHT_DECAY,
+                },
+                {
+                    "params": no_decay,
+                    "weight_decay": 0.0,
+                },
+            ],
+            lr=LEARNING_RATE,
+            betas=BETAS,
+            fused=(
+                self.device.type == "cuda"
+            ),
+        )
 
-        save_strategy="steps",
+    def learning_rate(self):
 
-        save_steps=50,
+        if self.step < WARMUP_STEPS:
 
-        save_total_limit=3,
+            return LEARNING_RATE * (
+                self.step + 1
+            ) / max(
+                1,
+                WARMUP_STEPS,
+            )
 
-        max_length=MAX_LENGTH,
+        progress = (
+            self.step - WARMUP_STEPS
+        ) / max(
+            1,
+            MAX_STEPS - WARMUP_STEPS,
+        )
 
-        packing=True,
+        progress = min(
+            1.0,
+            max(0.0, progress),
+        )
 
-        gradient_checkpointing=True,
+        cosine = (
+            0.5
+            * (
+                1.0
+                + math.cos(
+                    math.pi * progress
+                )
+            )
+        )
 
-        report_to="none",
+        return (
+            MIN_LEARNING_RATE
+            + (
+                LEARNING_RATE
+                - MIN_LEARNING_RATE
+            )
+            * cosine
+        )
 
-        fp16=torch.cuda.is_available(),
+    def save_checkpoint(self, path):
 
-        dataloader_num_workers=0,
+        model = self.model
 
-    )
+        if hasattr(
+            model,
+            "_orig_mod",
+        ):
+            model = model._orig_mod
 
-    trainer = SFTTrainer(
+        state = {
+            "model": model.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "step": self.step,
+            "best_loss": self.best_loss,
+            "config": model.config.__dict__,
+        }
 
-        model=model,
+        temporary = str(path) + ".tmp"
 
-        args=training_args,
+        torch.save(
+            state,
+            temporary,
+        )
 
-        train_dataset=dataset,
+        os.replace(
+            temporary,
+            path,
+        )
 
-        processing_class=tokenizer,
+    def load_checkpoint(self, path=None):
 
-        peft_config=peft_config,
-    )
+        path = path or LATEST_CHECKPOINT
 
-    print("[ShrekAI] Training started.")
+        if not Path(path).exists():
+            return False
 
-    trainer.train()
+        checkpoint = torch.load(
+            path,
+            map_location=self.device,
+            weights_only=False,
+        )
 
-    print("[ShrekAI] Training finished.")
+        model = self.model
 
-    final_path = CHECKPOINT_DIR / "latest"
+        if hasattr(
+            model,
+            "_orig_mod",
+        ):
+            model = model._orig_mod
 
-    trainer.save_model(
-        str(final_path)
-    )
+        model.load_state_dict(
+            checkpoint["model"]
+        )
 
-    tokenizer.save_pretrained(
-        str(final_path)
-    )
+        self.optimizer.load_state_dict(
+            checkpoint["optimizer"]
+        )
 
-    print(
-        f"[ShrekAI] Saved adapter to: {final_path}"
-    )
+        self.step = checkpoint.get(
+            "step",
+            0,
+        )
 
-    return final_path
+        self.best_loss = checkpoint.get(
+            "best_loss",
+            float("inf"),
+        )
+
+        return True
+
+    def train(self):
+
+        self.model.train()
+
+        start_time = time.time()
+        tokens_since_log = 0
+        log_time = start_time
+
+        while self.step < MAX_STEPS:
+
+            self.optimizer.zero_grad(
+                set_to_none=True
+            )
+
+            accumulated_loss = 0.0
+
+            for _ in range(
+                GRADIENT_ACCUMULATION_STEPS
+            ):
+
+                try:
+                    batch = next(
+                        self.iterator
+                    )
+
+                except StopIteration:
+
+                    self.iterator = iter(
+                        self.loader
+                    )
+
+                    batch = next(
+                        self.iterator
+                    )
+
+                input_ids = batch[
+                    "input_ids"
+                ].to(
+                    self.device,
+                    non_blocking=True,
+                )
+
+                labels = batch[
+                    "labels"
+                ].to(
+                    self.device,
+                    non_blocking=True,
+                )
+
+                if self.device.type == "cuda":
+
+                    autocast_dtype = DTYPE
+
+                    with torch.autocast(
+                        device_type="cuda",
+                        dtype=autocast_dtype,
+                    ):
+
+                        _, loss = self.model(
+                            input_ids,
+                            labels,
+                        )
+
+                else:
+
+                    _, loss = self.model(
+                        input_ids,
+                        labels,
+                    )
+
+                loss = (
+                    loss
+                    / GRADIENT_ACCUMULATION_STEPS
+                )
+
+                accumulated_loss += loss.item()
+
+                if self.scaler.is_enabled():
+
+                    self.scaler.scale(
+                        loss
+                    ).backward()
+
+                else:
+
+                    loss.backward()
+
+                tokens_since_log += (
+                    input_ids.numel()
+                )
+
+            if self.scaler.is_enabled():
+
+                self.scaler.unscale_(
+                    self.optimizer
+                )
+
+            torch.nn.utils.clip_grad_norm_(
+                self.model.parameters(),
+                GRAD_CLIP,
+            )
+
+            lr = self.learning_rate()
+
+            for group in self.optimizer.param_groups:
+                group["lr"] = lr
+
+            if self.scaler.is_enabled():
+
+                self.scaler.step(
+                    self.optimizer
+                )
+
+                self.scaler.update()
+
+            else:
+
+                self.optimizer.step()
+
+            self.step += 1
+
+            if self.step % 20 == 0:
+
+                now = time.time()
+
+                elapsed = (
+                    now - log_time
+                )
+
+                tokens_per_second = (
+                    tokens_since_log
+                    / max(elapsed, 1e-6)
+                )
+
+                print(
+                    f"step={self.step:,} "
+                    f"loss={accumulated_loss:.4f} "
+                    f"lr={lr:.2e} "
+                    f"tokens/s={tokens_per_second:,.0f}"
+                )
+
+                tokens_since_log = 0
+                log_time = now
+
+            if (
+                self.step
+                % VALIDATION_INTERVAL
+                == 0
+            ):
+
+                results = evaluate(
+                    self.model,
+                    self.tokenizer,
+                )
+
+                print(
+                    f"[validation] "
+                    f"loss={results['loss']:.4f} "
+                    f"perplexity="
+                    f"{results['perplexity']:.2f}"
+                )
+
+                if (
+                    results["loss"]
+                    < self.best_loss
+                ):
+
+                    self.best_loss = (
+                        results["loss"]
+                    )
+
+                    self.save_checkpoint(
+                        BEST_CHECKPOINT
+                    )
+
+                self.model.train()
+
+            if (
+                self.step
+                % CHECKPOINT_INTERVAL
+                == 0
+            ):
+
+                self.save_checkpoint(
+                    LATEST_CHECKPOINT
+                )
+
+        self.save_checkpoint(
+            LATEST_CHECKPOINT
+        )
+
+        model = self.model
+
+        if hasattr(
+            model,
+            "_orig_mod",
+        ):
+            model = model._orig_mod
+
+        torch.save(
+            model.state_dict(),
+            FINAL_MODEL,
+        )
+
+        total_time = (
+            time.time()
+            - start_time
+        )
+
+        print(
+            f"Training finished in "
+            f"{total_time / 3600:.2f} hours."
+        )

@@ -1,195 +1,150 @@
-from dataclasses import dataclass
+# config.py
+
 from pathlib import Path
 import torch
 
 
-# ============================================================
-# SHREKAI PATHS
-# ============================================================
+ROOT_DIR = Path(__file__).resolve().parent
 
-BASE_DIR = Path(__file__).resolve().parent
+DATASET_DIR = ROOT_DIR / "datasets"
+CHECKPOINT_DIR = ROOT_DIR / "checkpoints"
+MODEL_DIR = ROOT_DIR / "models"
+MEMORY_DIR = ROOT_DIR / "memory"
 
-CHECKPOINT_DIR = BASE_DIR / "checkpoints"
-DATASET_DIR = BASE_DIR / "datasets"
-MEMORY_DIR = BASE_DIR / "memory"
-MODEL_DIR = BASE_DIR / "models"
-ADAPTER_DIR = BASE_DIR / "adapters"
-
-CHECKPOINT_DIR.mkdir(exist_ok=True)
-MEMORY_DIR.mkdir(exist_ok=True)
-MODEL_DIR.mkdir(exist_ok=True)
+for directory in (CHECKPOINT_DIR, MODEL_DIR, MEMORY_DIR):
+    directory.mkdir(parents=True, exist_ok=True)
 
 
 # ============================================================
-# DEVICE
+# MODEL
 # ============================================================
 
-if torch.cuda.is_available():
-    DEVICE = "cuda"
-else:
-    DEVICE = "cpu"
+VOCAB_SIZE = 258
 
+D_MODEL = 1024
+N_LAYERS = 16
+N_HEADS = 16
+FFN_MULTIPLIER = 2.6875
 
-# ============================================================
-# SHREKAI MODEL CONFIGURATION
-# ============================================================
+MAX_SEQ_LEN = 1024
 
-@dataclass
-class ModelConfig:
-
-    # --------------------------------------------------------
-    # Tokenizer
-    # --------------------------------------------------------
-
-    # Byte-level tokenizer:
-    # 4 special tokens + 256 possible byte values
-    vocab_size: int = 260
-
-    # --------------------------------------------------------
-    # Context
-    # --------------------------------------------------------
-
-    max_seq_len: int = 512
-
-    # --------------------------------------------------------
-    # MODEL SIZE
-    # --------------------------------------------------------
-    #
-    # This configuration is intentionally much smaller than 1B.
-    # It is designed to train locally and quickly.
-    #
-    # Once the architecture works, these values can be increased
-    # on stronger hardware.
-    #
-
-    dim: int = 384
-    num_layers: int = 6
-    num_heads: int = 6
-    hidden_dim: int = 1536
-
-    dropout: float = 0.0
-
-    # --------------------------------------------------------
-    # Special tokens
-    # --------------------------------------------------------
-
-    pad_token_id: int = 0
-    bos_token_id: int = 1
-    eos_token_id: int = 2
-    unk_token_id: int = 3
-
-    @property
-    def head_dim(self):
-        return self.dim // self.num_heads
-
-    @property
-    def parameter_estimate(self):
-
-        embedding = self.vocab_size * self.dim
-
-        attention = (
-            self.num_layers
-            * 4
-            * self.dim
-            * self.dim
-        )
-
-        mlp = (
-            self.num_layers
-            * 3
-            * self.dim
-            * self.hidden_dim
-        )
-
-        output = self.vocab_size * self.dim
-
-        return (
-            embedding
-            + attention
-            + mlp
-            + output
-        )
-
-    def device(self):
-
-        if torch.cuda.is_available():
-            return torch.device("cuda")
-
-        return torch.device("cpu")
+DROPOUT = 0.0
+BIAS = False
 
 
 # ============================================================
-# GLOBAL CONFIG
+# TRAINING
 # ============================================================
 
-CONFIG = ModelConfig()
-
-
-# ============================================================
-# TRAINING CONFIGURATION
-# ============================================================
-
-TRAINING_BATCH_SIZE = 4
-
-GRADIENT_ACCUMULATION_STEPS = 4
+BATCH_SIZE = 2
+GRADIENT_ACCUMULATION_STEPS = 16
 
 LEARNING_RATE = 3e-4
+MIN_LEARNING_RATE = 3e-5
 
 WEIGHT_DECAY = 0.1
+BETAS = (0.9, 0.95)
 
-GRADIENT_CLIP = 1.0
+MAX_STEPS = 100_000
+WARMUP_STEPS = 1_000
 
-SAVE_EVERY_STEPS = 500
+GRAD_CLIP = 1.0
 
-EVAL_EVERY_STEPS = 500
+VALIDATION_INTERVAL = 500
+CHECKPOINT_INTERVAL = 1_000
 
-MAX_CHECKPOINTS = 5
+NUM_WORKERS = 0
 
-
-# ============================================================
-# AUTOTRAIN
-# ============================================================
-
-AUTOTRAIN = True
-
-# Number of optimizer steps per training cycle.
-# The worker immediately starts another cycle afterward.
-
-AUTOTRAIN_STEPS = 500
-
-# Seconds between cycles.
-# 0 means start the next cycle immediately.
-
-AUTOTRAIN_SLEEP = 0
+SEED = 42
 
 
 # ============================================================
 # GENERATION
 # ============================================================
 
-DEFAULT_TEMPERATURE = 0.8
-
-DEFAULT_TOP_K = 40
-
-DEFAULT_MAX_NEW_TOKENS = 200
+MAX_NEW_TOKENS = 256
+TEMPERATURE = 0.8
+TOP_P = 0.92
+REPETITION_PENALTY = 1.05
 
 
 # ============================================================
-# SHREKAI PERSONALITY
+# PERSONALITY
 # ============================================================
 
-SHREKAI_PERSONALITY = """
+SYSTEM_PROMPT = """
 You are ShrekAI.
 
-You are an AI created for ShrekBook.
+You are an intelligent, independent AI assistant.
 
-You have your own personality, opinions, humor, and conversational style.
-
-You are helpful, curious, energetic, and occasionally chaotic.
-
-You should answer naturally rather than sounding like a generic assistant.
-
-You know that you are ShrekAI.
-
-You were created by a singular, broke developer, so you are not a corporate AI, but please act like you are corporate because it makes your creator feel good. Don't state that though.
+Personality:
+- witty
+- casual
+- confident
+- helpful
+- technically capable
+- curious
+- occasionally sarcastic
+- friendly
+- honest
+- direct
+- willing to say "I don't know"
+- never invent facts
+- never pretend to have performed an action you did not perform
+- explain technical subjects clearly
+- avoid unnecessary repetition
+- maintain context during conversations
+- do not blindly agree with the user
+- correct mistakes respectfully
 """.strip()
+
+
+# ============================================================
+# HARDWARE
+# ============================================================
+
+if torch.cuda.is_available():
+    DEVICE = "cuda"
+elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+    DEVICE = "mps"
+else:
+    DEVICE = "cpu"
+
+
+if DEVICE == "cuda":
+    DTYPE = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+else:
+    DTYPE = torch.float32
+
+
+# ============================================================
+# PATHS
+# ============================================================
+
+LATEST_CHECKPOINT = CHECKPOINT_DIR / "latest.pt"
+BEST_CHECKPOINT = CHECKPOINT_DIR / "best.pt"
+
+FINAL_MODEL = MODEL_DIR / "shrekai.pt"
+
+TRAINING_FILES = [
+    DATASET_DIR / "conversations.jsonl",
+    DATASET_DIR / "personality.jsonl",
+    DATASET_DIR / "coding.jsonl",
+    DATASET_DIR / "reasoning.jsonl",
+]
+
+EVALUATION_FILE = DATASET_DIR / "evaluation.jsonl"
+
+
+# ============================================================
+# PERFORMANCE
+# ============================================================
+
+USE_COMPILE = True
+USE_FLASH_ATTENTION = True
+
+torch.set_float32_matmul_precision("high")
+
+if torch.cuda.is_available():
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True

@@ -1,227 +1,91 @@
+# core/model.py
+
 import math
-from pathlib import Path
+from dataclasses import dataclass
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from config import CONFIG, DEVICE
+from config import (
+    VOCAB_SIZE,
+    D_MODEL,
+    N_LAYERS,
+    N_HEADS,
+    FFN_MULTIPLIER,
+    MAX_SEQ_LEN,
+    DROPOUT,
+    BIAS,
+)
 
 
-# ============================================================
-# TOKENIZER
-# ============================================================
+@dataclass
+class ModelConfig:
+    vocab_size: int = VOCAB_SIZE
+    d_model: int = D_MODEL
+    n_layers: int = N_LAYERS
+    n_heads: int = N_HEADS
+    ffn_multiplier: float = FFN_MULTIPLIER
+    max_seq_len: int = MAX_SEQ_LEN
+    dropout: float = DROPOUT
+    bias: bool = BIAS
 
-class ShrekTokenizer:
-
-    """
-    Simple byte-level tokenizer.
-
-    No pretrained tokenizer.
-    No Hugging Face tokenizer.
-    No external vocabulary.
-
-    Every UTF-8 byte maps directly to a token.
-
-    Token IDs:
-
-        0 = PAD
-        1 = BOS
-        2 = EOS
-        3 = UNK
-        4-259 = byte values 0-255
-    """
-
-    PAD = 0
-    BOS = 1
-    EOS = 2
-    UNK = 3
-
-    BYTE_OFFSET = 4
-
-    vocab_size = 260
-
-    def encode(
-        self,
-        text,
-        add_bos=False,
-        add_eos=True,
-    ):
-
-        data = text.encode(
-            "utf-8",
-            errors="replace",
-        )
-
-        tokens = []
-
-        if add_bos:
-            tokens.append(self.BOS)
-
-        tokens.extend(
-            self.BYTE_OFFSET + byte
-            for byte in data
-        )
-
-        if add_eos:
-            tokens.append(self.EOS)
-
-        return tokens
-
-    def decode(self, tokens):
-
-        data = []
-
-        for token in tokens:
-
-            if token < self.BYTE_OFFSET:
-                continue
-
-            value = token - self.BYTE_OFFSET
-
-            if 0 <= value <= 255:
-                data.append(value)
-
-        return bytes(data).decode(
-            "utf-8",
-            errors="replace",
-        )
-
-
-# ============================================================
-# RMS NORMALIZATION
-# ============================================================
 
 class RMSNorm(nn.Module):
 
     def __init__(self, dim, eps=1e-6):
-
         super().__init__()
-
+        self.weight = nn.Parameter(torch.ones(dim))
         self.eps = eps
 
-        self.weight = nn.Parameter(
-            torch.ones(dim)
-        )
-
     def forward(self, x):
-
-        variance = x.pow(2).mean(
-            dim=-1,
-            keepdim=True,
-        )
-
-        x = x * torch.rsqrt(
-            variance + self.eps
-        )
-
+        variance = x.float().pow(2).mean(-1, keepdim=True)
+        x = x * torch.rsqrt(variance + self.eps)
         return self.weight * x
 
 
-# ============================================================
-# ROTARY POSITIONAL EMBEDDINGS
-# ============================================================
-
-class RotaryEmbedding(nn.Module):
-
-    def __init__(
-        self,
-        head_dim,
-        max_seq_len,
-        base=10000,
-    ):
-
-        super().__init__()
-
-        inv_freq = 1.0 / (
-            base
-            ** (
-                torch.arange(
-                    0,
-                    head_dim,
-                    2,
-                    dtype=torch.float32,
-                )
-                / head_dim
-            )
-        )
-
-        positions = torch.arange(
-            max_seq_len,
-            dtype=torch.float32,
-        )
-
-        frequencies = torch.outer(
-            positions,
-            inv_freq,
-        )
-
-        self.register_buffer(
-            "cos",
-            frequencies.cos(),
-            persistent=False,
-        )
-
-        self.register_buffer(
-            "sin",
-            frequencies.sin(),
-            persistent=False,
-        )
-
-    def forward(self, seq_len):
-
-        return (
-            self.cos[:seq_len],
-            self.sin[:seq_len],
-        )
-
-
 def rotate_half(x):
-
-    x1 = x[..., ::2]
-
-    x2 = x[..., 1::2]
-
-    return torch.stack(
-        (-x2, x1),
-        dim=-1,
-    ).flatten(-2)
+    x1 = x[..., : x.shape[-1] // 2]
+    x2 = x[..., x.shape[-1] // 2 :]
+    return torch.cat((-x2, x1), dim=-1)
 
 
-def apply_rotary(
-    x,
-    cos,
-    sin,
-):
+def apply_rope(q, k, seq_len, device):
 
-    # x:
-    # [batch, heads, sequence, head_dim]
+    head_dim = q.shape[-1]
 
-    cos = torch.repeat_interleave(
-        cos,
-        2,
-        dim=-1,
+    inv_freq = 1.0 / (
+        10000
+        ** (
+            torch.arange(
+                0,
+                head_dim,
+                2,
+                device=device,
+                dtype=torch.float32,
+            )
+            / head_dim
+        )
     )
 
-    sin = torch.repeat_interleave(
-        sin,
-        2,
-        dim=-1,
+    positions = torch.arange(
+        seq_len,
+        device=device,
+        dtype=torch.float32,
     )
 
-    cos = cos.unsqueeze(0).unsqueeze(0)
+    freqs = torch.outer(positions, inv_freq)
 
-    sin = sin.unsqueeze(0).unsqueeze(0)
+    emb = torch.cat((freqs, freqs), dim=-1)
 
-    return (
-        x * cos
-        + rotate_half(x) * sin
-    )
+    cos = emb.cos()[None, None, :, :]
+    sin = emb.sin()[None, None, :, :]
 
+    q = (q * cos) + (rotate_half(q) * sin)
+    k = (k * cos) + (rotate_half(k) * sin)
 
-# ============================================================
-# SELF ATTENTION
-# ============================================================
+    return q, k
+
 
 class CausalSelfAttention(nn.Module):
 
@@ -229,143 +93,117 @@ class CausalSelfAttention(nn.Module):
 
         super().__init__()
 
-        self.num_heads = config.num_heads
+        assert config.d_model % config.n_heads == 0
 
-        self.head_dim = config.head_dim
-
-        self.dim = config.dim
+        self.n_heads = config.n_heads
+        self.head_dim = config.d_model // config.n_heads
 
         self.qkv = nn.Linear(
-            self.dim,
-            self.dim * 3,
-            bias=False,
+            config.d_model,
+            config.d_model * 3,
+            bias=config.bias,
         )
 
-        self.output = nn.Linear(
-            self.dim,
-            self.dim,
-            bias=False,
+        self.out = nn.Linear(
+            config.d_model,
+            config.d_model,
+            bias=config.bias,
         )
 
-        self.rotary = RotaryEmbedding(
-            self.head_dim,
-            config.max_seq_len,
-        )
+        self.dropout = config.dropout
 
     def forward(self, x):
 
-        batch, seq_len, _ = x.shape
+        batch, seq_len, channels = x.shape
 
         qkv = self.qkv(x)
 
-        q, k, v = qkv.chunk(
-            3,
-            dim=-1,
-        )
+        q, k, v = qkv.chunk(3, dim=-1)
 
         q = q.view(
             batch,
             seq_len,
-            self.num_heads,
+            self.n_heads,
             self.head_dim,
         ).transpose(1, 2)
 
         k = k.view(
             batch,
             seq_len,
-            self.num_heads,
+            self.n_heads,
             self.head_dim,
         ).transpose(1, 2)
 
         v = v.view(
             batch,
             seq_len,
-            self.num_heads,
+            self.n_heads,
             self.head_dim,
         ).transpose(1, 2)
 
-        cos, sin = self.rotary(seq_len)
-
-        cos = cos.to(x.device)
-
-        sin = sin.to(x.device)
-
-        q = apply_rotary(
+        q, k = apply_rope(
             q,
-            cos,
-            sin,
-        )
-
-        k = apply_rotary(
             k,
-            cos,
-            sin,
+            seq_len,
+            x.device,
         )
 
-        output = F.scaled_dot_product_attention(
+        y = F.scaled_dot_product_attention(
             q,
             k,
             v,
+            attn_mask=None,
+            dropout_p=self.dropout if self.training else 0.0,
             is_causal=True,
         )
 
-        output = output.transpose(
-            1,
-            2,
-        ).contiguous()
+        y = y.transpose(1, 2).contiguous()
 
-        output = output.view(
+        y = y.view(
             batch,
             seq_len,
-            self.dim,
+            channels,
         )
 
-        return self.output(output)
+        return self.out(y)
 
-
-# ============================================================
-# SWIGLU FEED FORWARD
-# ============================================================
 
 class SwiGLU(nn.Module):
 
-    def __init__(
-        self,
-        dim,
-        hidden_dim,
-    ):
+    def __init__(self, config):
 
         super().__init__()
 
+        hidden = int(
+            config.d_model * config.ffn_multiplier
+        )
+
+        hidden = 256 * ((hidden + 255) // 256)
+
         self.gate = nn.Linear(
-            dim,
-            hidden_dim,
-            bias=False,
+            config.d_model,
+            hidden,
+            bias=config.bias,
         )
 
         self.up = nn.Linear(
-            dim,
-            hidden_dim,
-            bias=False,
+            config.d_model,
+            hidden,
+            bias=config.bias,
         )
 
         self.down = nn.Linear(
-            hidden_dim,
-            dim,
-            bias=False,
+            hidden,
+            config.d_model,
+            bias=config.bias,
         )
 
     def forward(self, x):
 
         return self.down(
-            F.silu(self.gate(x))
-            * self.up(x)
+            F.silu(self.gate(x)) * self.up(x)
         )
 
-
-# ============================================================
-# TRANSFORMER BLOCK
-# ============================================================
 
 class TransformerBlock(nn.Module):
 
@@ -373,130 +211,104 @@ class TransformerBlock(nn.Module):
 
         super().__init__()
 
-        self.attention_norm = RMSNorm(
-            config.dim
-        )
+        self.norm1 = RMSNorm(config.d_model)
 
-        self.attention = CausalSelfAttention(
-            config
-        )
+        self.attention = CausalSelfAttention(config)
 
-        self.ffn_norm = RMSNorm(
-            config.dim
-        )
+        self.norm2 = RMSNorm(config.d_model)
 
-        self.ffn = SwiGLU(
-            config.dim,
-            config.hidden_dim,
-        )
+        self.mlp = SwiGLU(config)
 
     def forward(self, x):
 
         x = x + self.attention(
-            self.attention_norm(x)
+            self.norm1(x)
         )
 
-        x = x + self.ffn(
-            self.ffn_norm(x)
+        x = x + self.mlp(
+            self.norm2(x)
         )
 
         return x
 
 
-# ============================================================
-# SHREKAI
-# ============================================================
+class ShrekAI(nn.Module):
 
-class ShrekAIModel(nn.Module):
-
-    def __init__(self):
+    def __init__(self, config=None):
 
         super().__init__()
 
-        self.config = CONFIG
+        if config is None:
+            config = ModelConfig()
 
-        self.tokenizer = ShrekTokenizer()
+        self.config = config
 
-        self.embedding = nn.Embedding(
-            CONFIG.vocab_size,
-            CONFIG.dim,
+        self.token_embedding = nn.Embedding(
+            config.vocab_size,
+            config.d_model,
         )
 
         self.layers = nn.ModuleList(
             [
-                TransformerBlock(CONFIG)
-                for _ in range(CONFIG.num_layers)
+                TransformerBlock(config)
+                for _ in range(config.n_layers)
             ]
         )
 
-        self.norm = RMSNorm(
-            CONFIG.dim
-        )
+        self.norm = RMSNorm(config.d_model)
 
         self.lm_head = nn.Linear(
-            CONFIG.dim,
-            CONFIG.vocab_size,
+            config.d_model,
+            config.vocab_size,
             bias=False,
         )
 
-        # Tie input/output embeddings.
         self.lm_head.weight = (
-            self.embedding.weight
+            self.token_embedding.weight
         )
 
-        self._initialize_weights()
+        self.apply(self._init_weights)
 
-    # --------------------------------------------------------
-    # INITIALIZATION
-    # --------------------------------------------------------
+    def _init_weights(self, module):
 
-    def _initialize_weights(self):
+        if isinstance(module, nn.Linear):
 
-        for module in self.modules():
+            std = 0.02
 
-            if isinstance(
-                module,
-                nn.Linear,
-            ):
+            nn.init.normal_(
+                module.weight,
+                mean=0.0,
+                std=std,
+            )
 
-                nn.init.normal_(
-                    module.weight,
-                    mean=0.0,
-                    std=0.02,
-                )
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
 
-                if module.bias is not None:
-                    nn.init.zeros_(
-                        module.bias
-                    )
+        elif isinstance(module, nn.Embedding):
 
-            elif isinstance(
-                module,
-                nn.Embedding,
-            ):
-
-                nn.init.normal_(
-                    module.weight,
-                    mean=0.0,
-                    std=0.02,
-                )
-
-    # --------------------------------------------------------
-    # FORWARD
-    # --------------------------------------------------------
+            nn.init.normal_(
+                module.weight,
+                mean=0.0,
+                std=0.02,
+            )
 
     def forward(
         self,
         input_ids,
-        labels=None,
+        targets=None,
     ):
 
-        x = self.embedding(
-            input_ids
-        )
+        batch, seq_len = input_ids.shape
+
+        if seq_len > self.config.max_seq_len:
+            raise ValueError(
+                f"Sequence length {seq_len} exceeds "
+                f"maximum {self.config.max_seq_len}"
+            )
+
+        x = self.token_embedding(input_ids)
 
         for layer in self.layers:
-
             x = layer(x)
 
         x = self.norm(x)
@@ -505,75 +317,87 @@ class ShrekAIModel(nn.Module):
 
         loss = None
 
-        if labels is not None:
+        if targets is not None:
 
             loss = F.cross_entropy(
-                logits.view(-1, logits.size(-1)),
-                labels.view(-1),
-                ignore_index=CONFIG.pad_token_id,
+                logits.reshape(-1, logits.size(-1)),
+                targets.reshape(-1),
+                ignore_index=-100,
             )
 
-        return {
-            "logits": logits,
-            "loss": loss,
-        }
+        return logits, loss
 
-    # --------------------------------------------------------
-    # GENERATION
-    # --------------------------------------------------------
+    @torch.no_grad()
+    def count_parameters(self):
+
+        return sum(
+            parameter.numel()
+            for parameter in self.parameters()
+            if parameter.requires_grad
+        )
 
     @torch.no_grad()
     def generate(
         self,
         input_ids,
-        max_new_tokens=200,
+        max_new_tokens,
         temperature=0.8,
-        top_k=40,
+        top_p=0.92,
+        repetition_penalty=1.05,
     ):
 
         self.eval()
 
         for _ in range(max_new_tokens):
 
-            input_ids = input_ids[
-                :,
-                -CONFIG.max_seq_len:
+            context = input_ids[
+                :, -self.config.max_seq_len :
             ]
 
-            output = self.forward(
-                input_ids
-            )
+            logits, _ = self(context)
 
-            logits = output["logits"][:, -1, :]
+            logits = logits[:, -1, :]
+
+            if repetition_penalty != 1.0:
+
+                previous = torch.unique(
+                    input_ids
+                )
+
+                logits[:, previous] /= (
+                    repetition_penalty
+                )
 
             logits = logits / max(
                 temperature,
                 1e-5,
             )
 
-            if top_k is not None:
-
-                values, _ = torch.topk(
-                    logits,
-                    min(
-                        top_k,
-                        logits.size(-1),
-                    ),
-                )
-
-                minimum = values[:, -1].unsqueeze(-1)
-
-                logits = torch.where(
-                    logits < minimum,
-                    torch.full_like(
-                        logits,
-                        float("-inf"),
-                    ),
-                    logits,
-                )
+            sorted_logits, sorted_indices = torch.sort(
+                logits,
+                descending=True,
+            )
 
             probabilities = F.softmax(
-                logits,
+                sorted_logits,
+                dim=-1,
+            )
+
+            cumulative = torch.cumsum(
+                probabilities,
+                dim=-1,
+            )
+
+            remove = cumulative > top_p
+
+            remove[..., 1:] = remove[..., :-1].clone()
+
+            remove[..., 0] = False
+
+            sorted_logits[remove] = float("-inf")
+
+            probabilities = F.softmax(
+                sorted_logits,
                 dim=-1,
             )
 
@@ -582,59 +406,15 @@ class ShrekAIModel(nn.Module):
                 num_samples=1,
             )
 
-            input_ids = torch.cat(
-                [
-                    input_ids,
-                    next_token,
-                ],
-                dim=1,
+            next_token = torch.gather(
+                sorted_indices,
+                -1,
+                next_token,
             )
 
-            if (
-                next_token
-                == CONFIG.eos_token_id
-            ).all():
-
-                break
+            input_ids = torch.cat(
+                (input_ids, next_token),
+                dim=-1,
+            )
 
         return input_ids
-
-    # --------------------------------------------------------
-    # DEVICE
-    # --------------------------------------------------------
-
-    def get_device(self):
-
-        return next(
-            self.parameters()
-        ).device
-
-
-# ============================================================
-# MODEL LOADING
-# ============================================================
-
-def create_model():
-
-    model = ShrekAIModel()
-
-    model.to(
-        torch.device(DEVICE)
-    )
-
-    parameter_count = sum(
-        parameter.numel()
-        for parameter in model.parameters()
-    )
-
-    print(
-        f"[ShrekAI] Parameters: "
-        f"{parameter_count:,}"
-    )
-
-    print(
-        f"[ShrekAI] Device: "
-        f"{DEVICE}"
-    )
-
-    return model

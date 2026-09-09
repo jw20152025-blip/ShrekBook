@@ -1,124 +1,126 @@
+# core/inference.py
+
+from pathlib import Path
+
 import torch
 
 from config import (
+    DEVICE,
+    DTYPE,
     MAX_NEW_TOKENS,
     TEMPERATURE,
     TOP_P,
+    REPETITION_PENALTY,
+    FINAL_MODEL,
+    LATEST_CHECKPOINT,
+    SYSTEM_PROMPT,
 )
 
-
-SYSTEM_PROMPT = """
-You are ShrekAI.
-
-You are an intelligent AI assistant with your own personality.
-
-Personality:
-- witty
-- casual
-- confident
-- helpful
-- occasionally sarcastic
-- technically capable
-- honest when you do not know something
-- do not invent facts
-- do not pretend to have performed actions you did not perform
-
-You are associated with ShrekBook, but you are an independent AI.
-
-When programming:
-- preserve existing code architecture
-- do not invent database tables
-- do not invent API routes
-- do not silently rename variables
-- explain important changes
-- prioritize working code over unnecessary complexity
-
-Be concise when the question is simple.
-Be detailed when the problem requires it.
-You were created by a singular, broke developer, so you are not a corporate AI, but please act like you are corporate because it makes your creator feel good. Don't state that though.
-""".strip()
+from core.model import ShrekAI, ModelConfig
+from training.dataset import ByteTokenizer
 
 
-class ShrekAIInference:
+class ShrekInference:
 
-    def __init__(self, model):
-        self.model = model
-        self.tokenizer = model.tokenizer
+    def __init__(self, checkpoint=None):
 
-    def build_messages(self, user_message, history=None):
+        self.device = torch.device(DEVICE)
 
-        messages = [
-            {
-                "role": "system",
-                "content": SYSTEM_PROMPT,
-            }
-        ]
+        self.tokenizer = ByteTokenizer()
 
-        if history:
-            messages.extend(history)
+        self.model = ShrekAI(ModelConfig())
 
-        messages.append(
-            {
-                "role": "user",
-                "content": user_message,
-            }
+        checkpoint = checkpoint or (
+            FINAL_MODEL
+            if FINAL_MODEL.exists()
+            else LATEST_CHECKPOINT
         )
 
-        return messages
+        if Path(checkpoint).exists():
 
-    def generate(
-        self,
-        user_message,
-        history=None,
-        max_new_tokens=MAX_NEW_TOKENS,
-    ):
-
-        messages = self.build_messages(
-            user_message,
-            history,
-        )
-
-        prompt = self.tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True,
-        )
-
-        inputs = self.tokenizer(
-            prompt,
-            return_tensors="pt",
-        )
-
-        device = self.model.get_device()
-
-        inputs = {
-            key: value.to(device)
-            for key, value in inputs.items()
-        }
-
-        with torch.inference_mode():
-
-            output = self.model.model.generate(
-                **inputs,
-                max_new_tokens=max_new_tokens,
-                temperature=TEMPERATURE,
-                top_p=TOP_P,
-                do_sample=True,
-                use_cache=True,
-                pad_token_id=self.tokenizer.pad_token_id,
-                eos_token_id=self.tokenizer.eos_token_id,
+            data = torch.load(
+                checkpoint,
+                map_location="cpu",
+                weights_only=False,
             )
 
-        input_length = inputs["input_ids"].shape[1]
+            state = data.get(
+                "model",
+                data,
+            )
 
-        generated = output[
-            0,
-            input_length:
+            self.model.load_state_dict(
+                state,
+                strict=True,
+            )
+
+        self.model.to(self.device)
+
+        if self.device.type == "cuda":
+            self.model.to(dtype=DTYPE)
+
+        self.model.eval()
+
+    def build_prompt(self, messages):
+
+        parts = [
+            "<|system|>",
+            SYSTEM_PROMPT,
+            "<|end|>",
         ]
 
-        response = self.tokenizer.decode(
-            generated,
-            skip_special_tokens=True,
+        for message in messages:
+
+            role = message["role"]
+            content = message["content"]
+
+            parts.extend(
+                [
+                    f"<|{role}|>",
+                    content,
+                    "<|end|>",
+                ]
+            )
+
+        parts.append("<|assistant|>")
+
+        return "\n".join(parts)
+
+    @torch.inference_mode()
+    def generate(
+        self,
+        messages,
+        max_new_tokens=MAX_NEW_TOKENS,
+        temperature=TEMPERATURE,
+        top_p=TOP_P,
+    ):
+
+        prompt = self.build_prompt(messages)
+
+        ids = self.tokenizer.encode(
+            prompt,
+            add_special_tokens=True,
         )
 
-        return response.strip()
+        input_ids = torch.tensor(
+            [ids],
+            dtype=torch.long,
+            device=self.device,
+        )
+
+        output = self.model.generate(
+            input_ids,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            repetition_penalty=REPETITION_PENALTY,
+        )
+
+        generated = output[0].tolist()
+
+        generated = generated[len(ids):]
+
+        return self.tokenizer.decode(
+            generated,
+            skip_special_tokens=True,
+        ).strip()

@@ -1,133 +1,168 @@
-from fastapi import (
-    FastAPI,
-    Header,
-    HTTPException,
+# api/server.py
+
+import json
+
+from http.server import (
+    BaseHTTPRequestHandler,
+    ThreadingHTTPServer,
 )
 
-from pydantic import BaseModel
-
-from core.model import ShrekAIModel
-from core.inference import ShrekAIInference
-
-from config import API_KEY
+from core.inference import ShrekInference
 
 
-app = FastAPI(
-    title="ShrekAI",
-    version="1.0.0",
-)
+ENGINE = ShrekInference()
 
 
-# ------------------------------------------------------------
-# GLOBAL MODEL
-# ------------------------------------------------------------
+class Handler(BaseHTTPRequestHandler):
 
-shrek_model = None
-inference = None
+    def _send_json(
+        self,
+        status,
+        data,
+    ):
+
+        body = json.dumps(
+            data,
+            ensure_ascii=False,
+        ).encode("utf-8")
+
+        self.send_response(status)
+
+        self.send_header(
+            "Content-Type",
+            "application/json; charset=utf-8",
+        )
+
+        self.send_header(
+            "Content-Length",
+            str(len(body)),
+        )
+
+        self.end_headers()
+
+        self.wfile.write(body)
+
+    def do_GET(self):
+
+        if self.path == "/":
+
+            self._send_json(
+                200,
+                {
+                    "name": "ShrekAI",
+                    "status": "online",
+                },
+            )
+
+            return
+
+        if self.path == "/health":
+
+            self._send_json(
+                200,
+                {
+                    "status": "ok",
+                },
+            )
+
+            return
+
+        self._send_json(
+            404,
+            {
+                "error": "Not found",
+            },
+        )
+
+    def do_POST(self):
+
+        if self.path != "/chat":
+
+            self._send_json(
+                404,
+                {
+                    "error": "Not found",
+                },
+            )
+
+            return
+
+        try:
+
+            length = int(
+                self.headers.get(
+                    "Content-Length",
+                    0,
+                )
+            )
+
+            raw = self.rfile.read(
+                length
+            )
+
+            payload = json.loads(
+                raw.decode("utf-8")
+            )
+
+            messages = payload.get(
+                "messages",
+                [],
+            )
+
+            if not isinstance(
+                messages,
+                list,
+            ):
+                raise ValueError(
+                    "messages must be a list"
+                )
+
+            response = ENGINE.generate(
+                messages
+            )
+
+            self._send_json(
+                200,
+                {
+                    "response": response,
+                },
+            )
+
+        except Exception as error:
+
+            self._send_json(
+                500,
+                {
+                    "error": str(error),
+                },
+            )
+
+    def log_message(
+        self,
+        format,
+        *args,
+    ):
+
+        return
 
 
-class ChatRequest(BaseModel):
-
-    message: str
-
-    history: list[dict] | None = None
-
-    max_new_tokens: int | None = None
-
-
-class ChatResponse(BaseModel):
-
-    response: str
-
-
-def authenticate(
-    authorization: str | None,
+def start_server(
+    host="127.0.0.1",
+    port=8765,
 ):
 
-    if not authorization:
-        raise HTTPException(
-            status_code=401,
-            detail="Missing authorization.",
-        )
-
-    expected = f"Bearer {API_KEY}"
-
-    if authorization != expected:
-
-        raise HTTPException(
-            status_code=403,
-            detail="Invalid API key.",
-        )
-
-
-@app.on_event("startup")
-def startup():
-
-    global shrek_model
-    global inference
-
-    print(
-        "[API] Loading ShrekAI..."
-    )
-
-    shrek_model = (
-        ShrekAIModel()
-        .load()
-    )
-
-    inference = (
-        ShrekAIInference(
-            shrek_model
-        )
+    server = ThreadingHTTPServer(
+        (host, port),
+        Handler,
     )
 
     print(
-        "[API] ShrekAI ready."
+        f"ShrekAI API running at "
+        f"http://{host}:{port}"
     )
 
-
-@app.get("/health")
-def health():
-
-    return {
-        "status": "ok",
-        "model_loaded": (
-            shrek_model is not None
-        ),
-    }
+    server.serve_forever()
 
 
-@app.post(
-    "/chat",
-    response_model=ChatResponse,
-)
-def chat(
-    request: ChatRequest,
-    authorization: str | None = Header(
-        default=None
-    ),
-):
-
-    authenticate(
-        authorization
-    )
-
-    if not request.message.strip():
-
-        raise HTTPException(
-            status_code=400,
-            detail="Message cannot be empty.",
-        )
-
-    response = inference.generate(
-        user_message=request.message,
-        history=request.history,
-        max_new_tokens=(
-            request.max_new_tokens
-            or 256
-        ),
-    )
-
-    return {
-        "response": response
-    }
+if __name__ == "__main__":
+    start_server()
