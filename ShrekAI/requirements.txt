@@ -1,0 +1,13 @@
+torch
+transformers
+datasets
+accelerate
+peft
+trl
+safetensors
+sentencepiece
+fastapi
+uvicorn[standard]
+pydantic
+psutil
+numpy
