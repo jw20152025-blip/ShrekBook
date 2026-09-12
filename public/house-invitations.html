@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
 
@@ -13,181 +12,224 @@
 
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background: #f1f5ef;
             margin: 0;
+            background: #101114;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        header {
+            padding: 20px;
+            background: #17191f;
+            border-bottom: 1px solid #292c35;
         }
 
         main {
-            max-width: 900px;
-            margin: auto;
-            padding: 30px;
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 20px;
         }
 
-        .invitation {
-            background: white;
+        .invite {
             padding: 20px;
-            margin-bottom: 15px;
+            background: #17191f;
+            border: 1px solid #292c35;
             border-radius: 12px;
+            margin-bottom: 15px;
         }
 
         button {
-            padding: 10px 15px;
-            margin-right: 10px;
+            padding: 10px 14px;
+            border: 0;
+            border-radius: 8px;
+            background: #292d37;
+            color: white;
             cursor: pointer;
+            margin-right: 8px;
+        }
+
+        .accept {
+            background: #267a43;
         }
     </style>
 </head>
 
 <body>
 
-<main>
-
-    <h1>✉️ House Invitations</h1>
+<header>
 
     <button
-        onclick="location.href='house-directory.html'"
+        onclick="location.href='/house-directory.html'"
     >
-        House Directory
+        ← Houses
     </button>
 
-    <div id="invitations"></div>
+</header>
+
+<main>
+
+    <h1>📨 Invitations</h1>
+
+    <div id="invitations">
+        Loading...
+    </div>
 
 </main>
 
 <script>
-async function loadInvitations() {
+    async function api(url, options = {}) {
+        const response =
+            await fetch(url, {
+                credentials: "include",
+                ...options,
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(options.headers || {})
+                }
+            });
 
-    const response =
-        await fetch("/api/houses/invitations");
+        const data =
+            await response.json()
+                .catch(() => ({}));
 
-    const data =
-        await response.json();
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Request failed."
+            );
+        }
 
-    const container =
-        document.getElementById("invitations");
-
-    if (!response.ok) {
-        container.innerHTML =
-            `<p>${escapeHtml(
-                data.error || "Failed."
-            )}</p>`;
-
-        return;
+        return data;
     }
 
-    container.innerHTML = "";
+    async function load() {
+        try {
+            const data =
+                await api(
+                    "/api/houses/invitations"
+                );
 
-    for (const invitation of data.invitations) {
+            const container =
+                document.getElementById(
+                    "invitations"
+                );
 
-        const house =
-            invitation.houses;
+            container.innerHTML = "";
 
-        const div =
-            document.createElement("div");
+            if (!data.invitations.length) {
+                container.innerHTML =
+                    "<p>No pending invitations.</p>";
 
-        div.className = "invitation";
+                return;
+            }
 
-        div.innerHTML = `
-            <h2>
-                🏠 ${escapeHtml(
-                    house?.name || "House"
-                )}
-            </h2>
+            for (const invite of data.invitations) {
+                const card =
+                    document.createElement(
+                        "div"
+                    );
 
-            <p>
-                ${escapeHtml(
-                    house?.description || ""
-                )}
-            </p>
+                card.className =
+                    "invite";
 
-            <p>
-                Status:
-                <strong>
-                    ${escapeHtml(
-                        invitation.status
-                    )}
-                </strong>
-            </p>
+                card.innerHTML = `
+                    <h2>
+                        ${escapeHtml(
+                            invite.house?.name ||
+                            "Unknown House"
+                        )}
+                    </h2>
 
-            ${
-                invitation.status === "pending"
-                ? `
-                    <button
-                        onclick="respond(
-                            ${invitation.id},
-                            'accepted'
-                        )"
-                    >
+                    <p>
+                        Invited by
+                        <strong>
+                            ${escapeHtml(
+                                invite.inviter?.display_name ||
+                                invite.inviter?.username ||
+                                "Unknown"
+                            )}
+                        </strong>
+                    </p>
+
+                    <button class="accept">
                         Accept
                     </button>
 
-                    <button
-                        onclick="respond(
-                            ${invitation.id},
-                            'declined'
-                        )"
-                    >
+                    <button>
                         Decline
                     </button>
-                `
-                : ""
+                `;
+
+                const buttons =
+                    card.querySelectorAll(
+                        "button"
+                    );
+
+                buttons[0].onclick =
+                    () =>
+                        respond(
+                            invite.id,
+                            "accept"
+                        );
+
+                buttons[1].onclick =
+                    () =>
+                        respond(
+                            invite.id,
+                            "decline"
+                        );
+
+                container.appendChild(card);
             }
-        `;
 
-        container.appendChild(div);
+        } catch (error) {
+            alert(error.message);
+        }
     }
 
-    if (!data.invitations.length) {
-        container.innerHTML =
-            "<p>No invitations.</p>";
-    }
-}
+    async function respond(
+        id,
+        action
+    ) {
+        try {
+            const data =
+                await api(
+                    `/api/houses/invitations/${id}/respond`,
+                    {
+                        method: "POST",
+                        body: JSON.stringify({
+                            action
+                        })
+                    }
+                );
 
-async function respond(id, action) {
+            if (
+                action === "accept" &&
+                data.house_id
+            ) {
+                location.href =
+                    `/house.html?id=${data.house_id}`;
 
-    const response =
-        await fetch(
-            `/api/houses/invitations/${id}/respond`,
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
-
-                body: JSON.stringify({
-                    action
-                })
+                return;
             }
-        );
 
-    const data =
-        await response.json();
+            await load();
 
-    if (!response.ok) {
-        alert(
-            data.error ||
-            "Failed."
-        );
-
-        return;
+        } catch (error) {
+            alert(error.message);
+        }
     }
 
-    loadInvitations();
-}
+    function escapeHtml(value) {
+        return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
 
-function escapeHtml(value) {
-    return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-}
-
-loadInvitations();
+    load();
 </script>
 
 </body>

@@ -1,91 +1,25 @@
-// ============================================================
-// SHREKBOOK HOUSES API
-// ============================================================
-
 const express = require("express");
-const multer = require("multer");
 const crypto = require("crypto");
 
-const router = express.Router();
-
-// ============================================================
-// MULTER
-// ============================================================
-
-const upload = multer({
-    storage: multer.memoryStorage(),
-
-    limits: {
-        fileSize: 100 * 1024 * 1024
-    }
-});
-
-// ============================================================
-// ROUTER FACTORY
-// ============================================================
-
 module.exports = function createHouseRouter({ supabase }) {
+    const router = express.Router();
 
     // ========================================================
     // AUTH
     // ========================================================
 
-    function requireHouseLogin(req, res, next) {
-
-        const userId = req.session?.user?.id;
-
-        if (!userId) {
+    function requireLogin(req, res, next) {
+        if (!req.session?.user?.id) {
             return res.status(401).json({
                 error: "You must be logged in."
             });
         }
 
-        req.houseUserId = userId;
-
+        req.houseUserId = req.session.user.id;
         next();
     }
 
-    // ========================================================
-    // HOUSE HELPERS
-    // ========================================================
-
-    async function getHouse(houseId) {
-
-        const { data, error } = await supabase
-            .from("houses")
-            .select(`
-                id,
-                name,
-                description,
-                owner_id,
-                house_type_id,
-                created_at,
-                updated_at,
-                house_types (
-                    id,
-                    name,
-                    cost,
-                    tax_reduction,
-                    room_count
-                )
-            `)
-            .eq("id", houseId)
-            .maybeSingle();
-
-        if (error) {
-            console.error("GET HOUSE ERROR:", error);
-            return null;
-        }
-
-        return data;
-    }
-
     async function getMembership(houseId, userId) {
-
-        if (!houseId || !userId) {
-            return null;
-        }
-
         const { data, error } = await supabase
             .from("house_members")
             .select(`
@@ -106,51 +40,63 @@ module.exports = function createHouseRouter({ supabase }) {
         return data;
     }
 
-    async function isHouseMember(houseId, userId) {
-
-        const membership =
-            await getMembership(
-                houseId,
-                userId
+    async function requireHouseMember(req, res, next) {
+        try {
+            const membership = await getMembership(
+                req.params.houseId,
+                req.houseUserId
             );
 
-        return !!membership;
+            if (!membership) {
+                return res.status(403).json({
+                    error: "You are not a member of this house."
+                });
+            }
+
+            req.houseMembership = membership;
+            next();
+        } catch (error) {
+            console.error(error);
+
+            return res.status(500).json({
+                error: "Failed to check house membership."
+            });
+        }
     }
 
-    async function isHouseAdmin(houseId, userId) {
-
-        const membership =
-            await getMembership(
-                houseId,
-                userId
-            );
-
-        if (!membership) {
-            return false;
+    function requireAdmin(req, res, next) {
+        if (
+            req.houseMembership.role !== "owner" &&
+            req.houseMembership.role !== "admin"
+        ) {
+            return res.status(403).json({
+                error: "House admin permission required."
+            });
         }
 
-        return (
-            membership.role === "owner" ||
-            membership.role === "admin"
-        );
+        next();
     }
 
-    async function getRoom(roomId, houseId) {
+    function requireOwner(req, res, next) {
+        if (req.houseMembership.role !== "owner") {
+            return res.status(403).json({
+                error: "House owner permission required."
+            });
+        }
 
+        next();
+    }
+
+    async function getProfile(userId) {
         const { data, error } = await supabase
-            .from("house_rooms")
+            .from("profiles")
             .select(`
                 id,
-                house_id,
-                name,
-                room_type,
-                description,
-                position,
-                created_at,
-                updated_at
+                username,
+                display_name,
+                avatar
             `)
-            .eq("id", roomId)
-            .eq("house_id", houseId)
+            .eq("id", userId)
             .maybeSingle();
 
         if (error) {
@@ -160,11 +106,24 @@ module.exports = function createHouseRouter({ supabase }) {
         return data;
     }
 
-    async function getRoomHouseId(roomId) {
+    async function getHouse(houseId) {
+        const { data, error } = await supabase
+            .from("houses")
+            .select("*")
+            .eq("id", houseId)
+            .maybeSingle();
 
+        if (error) {
+            throw error;
+        }
+
+        return data;
+    }
+
+    async function getRoom(roomId) {
         const { data, error } = await supabase
             .from("house_rooms")
-            .select("house_id")
+            .select("*")
             .eq("id", roomId)
             .maybeSingle();
 
@@ -172,141 +131,62 @@ module.exports = function createHouseRouter({ supabase }) {
             throw error;
         }
 
-        return data?.house_id || null;
+        return data;
+    }
+
+    async function roomBelongsToHouse(roomId, houseId) {
+        const room = await getRoom(roomId);
+
+        if (!room || String(room.house_id) !== String(houseId)) {
+            return null;
+        }
+
+        return room;
     }
 
     // ========================================================
-    // MEDIA HELPERS
-    // ========================================================
-
-    function getExtension(fileName) {
-
-        const dot =
-            fileName.lastIndexOf(".");
-
-        if (dot === -1) {
-            return "";
-        }
-
-        return fileName
-            .substring(dot)
-            .toLowerCase();
-    }
-
-    function getMediaType(mimeType) {
-
-        if (mimeType.startsWith("image/")) {
-            return "image";
-        }
-
-        if (mimeType.startsWith("video/")) {
-            return "video";
-        }
-
-        if (mimeType.startsWith("audio/")) {
-            return "audio";
-        }
-
-        return null;
-    }
-
-    function isAllowedMediaType(mimeType) {
-
-        const allowed = [
-
-            // Images
-            "image/jpeg",
-            "image/png",
-            "image/gif",
-            "image/webp",
-
-            // Video
-            "video/mp4",
-            "video/webm",
-            "video/ogg",
-
-            // Audio
-            "audio/mpeg",
-            "audio/mp3",
-            "audio/wav",
-            "audio/ogg",
-            "audio/webm",
-            "audio/mp4",
-            "audio/aac"
-        ];
-
-        return allowed.includes(mimeType);
-    }
-
-    async function attachMediaUrls(messages) {
-
-        for (const message of messages || []) {
-
-            if (!message.house_media) {
-                message.house_media = [];
-                continue;
-            }
-
-            for (const media of message.house_media) {
-
-                const { data } =
-                    supabase.storage
-                        .from("house-media")
-                        .getPublicUrl(
-                            media.storage_path
-                        );
-
-                media.url =
-                    data?.publicUrl || null;
-            }
-        }
-
-        return messages || [];
-    }
-
-    // ========================================================
-    // HOUSE TYPES
+    // DIRECTORY
     // ========================================================
 
     router.get(
-        "/houses/types",
+        "/houses",
+        requireLogin,
         async (req, res) => {
-
             try {
+                const { data, error } = await supabase
+                    .from("houses")
+                    .select("*")
+                    .order("created_at", {
+                        ascending: false
+                    });
 
-                const { data, error } =
-                    await supabase
-                        .from("house_types")
-                        .select(`
-                            id,
-                            name,
-                            cost,
-                            tax_reduction,
-                            room_count
-                        `)
-                        .order("cost", {
-                            ascending: true
-                        });
+                if (error) throw error;
 
-                if (error) {
-                    throw error;
+                const houses = [];
+
+                for (const house of data || []) {
+                    const { count } = await supabase
+                        .from("house_members")
+                        .select("*", {
+                            count: "exact",
+                            head: true
+                        })
+                        .eq("house_id", house.id);
+
+                    houses.push({
+                        ...house,
+                        member_count: count || 0
+                    });
                 }
 
                 res.json({
-                    houseTypes: data || []
+                    houses
                 });
-
             } catch (error) {
-
-                console.error(
-                    "HOUSE TYPES ERROR:",
-                    error
-                );
+                console.error(error);
 
                 res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to load house types."
+                    error: "Failed to load houses."
                 });
             }
         }
@@ -318,754 +198,120 @@ module.exports = function createHouseRouter({ supabase }) {
 
     router.post(
         "/houses",
-        requireHouseLogin,
+        requireLogin,
         async (req, res) => {
-
             try {
+                const name = String(req.body.name || "").trim();
+                const description = String(
+                    req.body.description || ""
+                ).trim();
 
-                const userId =
-                    req.houseUserId;
-
-                const {
-                    name,
-                    description,
-                    house_type_id
-                } = req.body;
-
-                if (
-                    typeof name !== "string" ||
-                    !name.trim()
-                ) {
+                if (!name) {
                     return res.status(400).json({
-                        error:
-                            "House name is required."
+                        error: "House name is required."
                     });
                 }
 
-                if (!house_type_id) {
+                if (name.length > 80) {
                     return res.status(400).json({
-                        error:
-                            "You must choose a house type."
+                        error: "House name is too long."
                     });
                 }
 
-                // ------------------------------------------------
-                // House type
-                // ------------------------------------------------
-
-                const {
-                    data: houseType,
-                    error: typeError
-                } = await supabase
-                    .from("house_types")
-                    .select(`
-                        id,
-                        name,
-                        cost,
-                        tax_reduction,
-                        room_count
-                    `)
-                    .eq(
-                        "id",
-                        Number(house_type_id)
-                    )
-                    .maybeSingle();
-
-                if (typeError) {
-                    throw typeError;
-                }
-
-                if (!houseType) {
-                    return res.status(400).json({
-                        error:
-                            "That house type does not exist."
-                    });
-                }
-
-                // ------------------------------------------------
-                // Profile / ShrekCoins
-                // ------------------------------------------------
-
-                const {
-                    data: profile,
-                    error: profileError
-                } = await supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        shrekcoins
-                    `)
-                    .eq("id", userId)
-                    .maybeSingle();
-
-                if (profileError) {
-                    throw profileError;
-                }
-
-                if (!profile) {
-                    return res.status(404).json({
-                        error:
-                            "Profile not found."
-                    });
-                }
-
-                const coins =
-                    Number(profile.shrekcoins || 0);
-
-                const cost =
-                    Number(houseType.cost || 0);
-
-                if (coins < cost) {
-
-                    return res.status(400).json({
-                        error:
-                            `You need ${cost.toLocaleString()} ShrekCoins, but you only have ${coins.toLocaleString()}.`
-                    });
-                }
-
-                // ------------------------------------------------
-                // Create house
-                // ------------------------------------------------
-
-                const {
-                    data: house,
-                    error: houseError
-                } = await supabase
+                const { data: house, error } = await supabase
                     .from("houses")
                     .insert({
-                        name: name.trim(),
-                        description:
-                            typeof description === "string"
-                                ? description.trim()
-                                : "",
-                        owner_id: userId,
-                        house_type_id:
-                            Number(house_type_id)
-                    })
-                    .select(`
-                        id,
                         name,
                         description,
-                        owner_id,
-                        house_type_id,
-                        created_at,
-                        updated_at
-                    `)
+                        owner_id: req.houseUserId
+                    })
+                    .select()
                     .single();
 
-                if (houseError) {
-                    throw houseError;
-                }
+                if (error) throw error;
 
-                // ------------------------------------------------
-                // Owner membership
-                // ------------------------------------------------
-
-                const {
-                    error: memberError
-                } = await supabase
+                const { error: memberError } = await supabase
                     .from("house_members")
                     .insert({
                         house_id: house.id,
-                        user_id: userId,
+                        user_id: req.houseUserId,
                         role: "owner"
                     });
 
-                if (memberError) {
+                if (memberError) throw memberError;
 
-                    await supabase
-                        .from("houses")
-                        .delete()
-                        .eq("id", house.id);
-
-                    throw memberError;
-                }
-
-                // ------------------------------------------------
-                // Create rooms
-                // ------------------------------------------------
-
-                const roomTemplates = [
-
+                const defaultRooms = [
                     {
-                        name: "General",
-                        type: "general"
+                        house_id: house.id,
+                        name: "general",
+                        description: "General house chat",
+                        room_type: "text",
+                        position: 0
                     },
-
                     {
-                        name: "Chat",
-                        type: "chat"
+                        house_id: house.id,
+                        name: "announcements",
+                        description: "Important house announcements",
+                        room_type: "announcement",
+                        position: 1
                     },
-
                     {
-                        name: "Media",
-                        type: "media"
-                    },
-
-                    {
-                        name: "Voice",
-                        type: "voice"
-                    },
-
-                    {
-                        name: "Video",
-                        type: "video"
-                    },
-
-                    {
-                        name: "Announcements",
-                        type: "announcement"
-                    },
-
-                    {
-                        name: "Lobby",
-                        type: "chat"
-                    },
-
-                    {
-                        name: "Hangout",
-                        type: "chat"
-                    },
-
-                    {
-                        name: "Gallery",
-                        type: "media"
-                    },
-
-                    {
-                        name: "Music",
-                        type: "media"
-                    },
-
-                    {
-                        name: "Gaming",
-                        type: "chat"
-                    },
-
-                    {
-                        name: "Discussion",
-                        type: "chat"
-                    },
-
-                    {
-                        name: "Events",
-                        type: "chat"
-                    },
-
-                    {
-                        name: "Community",
-                        type: "chat"
-                    },
-
-                    {
-                        name: "Main Room",
-                        type: "general"
+                        house_id: house.id,
+                        name: "voice",
+                        description: "House voice chat",
+                        room_type: "voice",
+                        position: 2
                     }
                 ];
 
-                const rooms = [];
+                const { error: roomError } = await supabase
+                    .from("house_rooms")
+                    .insert(defaultRooms);
 
-                for (
-                    let i = 0;
-                    i < Number(houseType.room_count);
-                    i++
-                ) {
-
-                    const template =
-                        roomTemplates[i] || {
-                            name:
-                                `Room ${i + 1}`,
-                            type: "chat"
-                        };
-
-                    rooms.push({
-                        house_id: house.id,
-                        name: template.name,
-                        room_type: template.type,
-                        description: "",
-                        position: i
-                    });
-                }
-
-                if (rooms.length) {
-
-                    const {
-                        error: roomsError
-                    } = await supabase
-                        .from("house_rooms")
-                        .insert(rooms);
-
-                    if (roomsError) {
-
-                        await supabase
-                            .from("house_members")
-                            .delete()
-                            .eq(
-                                "house_id",
-                                house.id
-                            );
-
-                        await supabase
-                            .from("houses")
-                            .delete()
-                            .eq(
-                                "id",
-                                house.id
-                            );
-
-                        throw roomsError;
-                    }
-                }
-
-                // ------------------------------------------------
-                // Charge ShrekCoins
-                // ------------------------------------------------
-
-                const {
-                    error: coinError
-                } = await supabase
-                    .from("profiles")
-                    .update({
-                        shrekcoins:
-                            coins - cost
-                    })
-                    .eq("id", userId);
-
-                if (coinError) {
-                    throw coinError;
-                }
+                if (roomError) throw roomError;
 
                 res.status(201).json({
-                    success: true,
                     house
                 });
-
             } catch (error) {
-
-                console.error(
-                    "CREATE HOUSE ERROR:",
-                    error
-                );
+                console.error(error);
 
                 res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to create house."
+                    error: "Failed to create house."
                 });
             }
         }
     );
 
     // ========================================================
-    // HOUSE DIRECTORY
+    // HOUSE DETAILS
     // ========================================================
 
     router.get(
-        "/houses",
+        "/houses/:houseId",
+        requireLogin,
+        requireHouseMember,
         async (req, res) => {
-
             try {
-
-                const {
-                    data: houses,
-                    error
-                } = await supabase
-                    .from("houses")
-                    .select(`
-                        id,
-                        name,
-                        description,
-                        owner_id,
-                        house_type_id,
-                        created_at,
-                        updated_at,
-                        house_types (
-                            id,
-                            name,
-                            cost,
-                            tax_reduction,
-                            room_count
-                        )
-                    `)
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
-                    );
-
-                if (error) {
-                    throw error;
-                }
-
-                const houseList =
-                    houses || [];
-
-                // ------------------------------------------------
-                // Owners
-                // ------------------------------------------------
-
-                const ownerIds = [
-                    ...new Set(
-                        houseList
-                            .map(
-                                house =>
-                                    house.owner_id
-                            )
-                            .filter(Boolean)
-                    )
-                ];
-
-                let owners = [];
-
-                if (ownerIds.length) {
-
-                    const {
-                        data,
-                        error: ownerError
-                    } = await supabase
-                        .from("profiles")
-                        .select(`
-                            id,
-                            username,
-                            display_name,
-                            avatar
-                        `)
-                        .in(
-                            "id",
-                            ownerIds
-                        );
-
-                    if (ownerError) {
-                        throw ownerError;
-                    }
-
-                    owners = data || [];
-                }
-
-                const ownerMap =
-                    new Map(
-                        owners.map(
-                            owner => [
-                                owner.id,
-                                owner
-                            ]
-                        )
-                    );
-
-                // ------------------------------------------------
-                // Member counts
-                // ------------------------------------------------
-
-                const houseIds =
-                    houseList.map(
-                        house => house.id
-                    );
-
-                let memberRows = [];
-
-                if (houseIds.length) {
-
-                    const {
-                        data,
-                        error: memberError
-                    } = await supabase
-                        .from("house_members")
-                        .select(
-                            "house_id"
-                        )
-                        .in(
-                            "house_id",
-                            houseIds
-                        );
-
-                    if (memberError) {
-                        throw memberError;
-                    }
-
-                    memberRows = data || [];
-                }
-
-                const memberCounts = {};
-
-                for (
-                    const member
-                    of memberRows
-                ) {
-
-                    memberCounts[
-                        member.house_id
-                    ] =
-                        (
-                            memberCounts[
-                                member.house_id
-                            ] || 0
-                        ) + 1;
-                }
-
-                // ------------------------------------------------
-                // Rooms
-                // ------------------------------------------------
-
-                let roomRows = [];
-
-                if (houseIds.length) {
-
-                    const {
-                        data,
-                        error: roomError
-                    } = await supabase
-                        .from("house_rooms")
-                        .select(`
-                            id,
-                            house_id
-                        `)
-                        .in(
-                            "house_id",
-                            houseIds
-                        );
-
-                    if (roomError) {
-                        throw roomError;
-                    }
-
-                    roomRows = data || [];
-                }
-
-                const roomCounts = {};
-
-                for (
-                    const room
-                    of roomRows
-                ) {
-
-                    roomCounts[
-                        room.house_id
-                    ] =
-                        (
-                            roomCounts[
-                                room.house_id
-                            ] || 0
-                        ) + 1;
-                }
-
-                // ------------------------------------------------
-                // Build response
-                // ------------------------------------------------
-
-                const result =
-                    houseList.map(
-                        house => {
-
-                            const owner =
-                                ownerMap.get(
-                                    house.owner_id
-                                ) || null;
-
-                            const type =
-                                house.house_types ||
-                                null;
-
-                            return {
-
-                                id: house.id,
-
-                                name:
-                                    house.name,
-
-                                description:
-                                    house.description,
-
-                                created_at:
-                                    house.created_at,
-
-                                owner:
-                                    owner
-                                        ? {
-                                            id:
-                                                owner.id,
-
-                                            username:
-                                                owner.username,
-
-                                            display_name:
-                                                owner.display_name,
-
-                                            avatar:
-                                                owner.avatar
-                                        }
-                                        : null,
-
-                                type:
-                                    type
-                                        ? {
-                                            id:
-                                                type.id,
-
-                                            name:
-                                                type.name,
-
-                                            cost:
-                                                type.cost,
-
-                                            tax_reduction:
-                                                type.tax_reduction,
-
-                                            room_count:
-                                                type.room_count
-                                        }
-                                        : null,
-
-                                member_count:
-                                    memberCounts[
-                                        house.id
-                                    ] || 0,
-
-                                room_count:
-                                    roomCounts[
-                                        house.id
-                                    ] || 0
-                            };
-                        }
-                    );
-
-                res.json({
-                    houses: result
-                });
-
-            } catch (error) {
-
-                console.error(
-                    "HOUSE DIRECTORY ERROR:",
-                    error
-                );
-
-                res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to load houses."
-                });
-            }
-        }
-    );
-
-    // ========================================================
-    // SINGLE HOUSE
-    // ========================================================
-
-    router.get(
-        "/houses/:id",
-        requireHouseLogin,
-        async (req, res) => {
-
-            try {
-
-                const houseId =
-                    req.params.id;
-
-                const userId =
-                    req.houseUserId;
-
-                // ------------------------------------------------
-                // House
-                // ------------------------------------------------
-
-                const house =
-                    await getHouse(
-                        houseId
-                    );
+                const house = await getHouse(req.params.houseId);
 
                 if (!house) {
                     return res.status(404).json({
-                        error:
-                            "House not found."
+                        error: "House not found."
                     });
                 }
 
-                // ------------------------------------------------
-                // Membership
-                // ------------------------------------------------
-
-                const membership =
-                    await getMembership(
-                        houseId,
-                        userId
-                    );
-
-                if (!membership) {
-                    return res.status(403).json({
-                        error:
-                            "You are not a member of this house."
-                    });
-                }
-
-                // ------------------------------------------------
-                // Owner
-                // ------------------------------------------------
-
-                const {
-                    data: owner,
-                    error: ownerError
-                } = await supabase
-                    .from("profiles")
-                    .select(`
-                        id,
-                        username,
-                        display_name,
-                        avatar
-                    `)
-                    .eq(
-                        "id",
-                        house.owner_id
-                    )
-                    .maybeSingle();
-
-                if (ownerError) {
-                    throw ownerError;
-                }
-
-                // ------------------------------------------------
-                // Rooms
-                // ------------------------------------------------
-
-                const {
-                    data: rooms,
-                    error: roomsError
-                } = await supabase
+                const { data: rooms, error: roomError } = await supabase
                     .from("house_rooms")
-                    .select(`
-                        id,
-                        house_id,
-                        name,
-                        room_type,
-                        description,
-                        position,
-                        created_at,
-                        updated_at
-                    `)
-                    .eq(
-                        "house_id",
-                        houseId
-                    )
-                    .order(
-                        "position",
-                        {
-                            ascending: true
-                        }
-                    );
+                    .select("*")
+                    .eq("house_id", house.id)
+                    .order("position", {
+                        ascending: true
+                    });
 
-                if (roomsError) {
-                    throw roomsError;
-                }
+                if (roomError) throw roomError;
 
-                // ------------------------------------------------
-                // Members
-                // ------------------------------------------------
-
-                const {
-                    data: members,
-                    error: membersError
-                } = await supabase
+                const { data: members, error: memberError } = await supabase
                     .from("house_members")
                     .select(`
                         id,
@@ -1074,182 +320,647 @@ module.exports = function createHouseRouter({ supabase }) {
                         role,
                         joined_at
                     `)
-                    .eq(
-                        "house_id",
-                        houseId
-                    )
-                    .order(
-                        "joined_at",
-                        {
-                            ascending: true
-                        }
-                    );
+                    .eq("house_id", house.id)
+                    .order("joined_at", {
+                        ascending: true
+                    });
 
-                if (membersError) {
-                    throw membersError;
+                if (memberError) throw memberError;
+
+                const membersWithProfiles = [];
+
+                for (const member of members || []) {
+                    const profile = await getProfile(member.user_id);
+
+                    membersWithProfiles.push({
+                        ...member,
+                        profile
+                    });
                 }
-
-                const memberIds = [
-                    ...new Set(
-                        (members || [])
-                            .map(
-                                member =>
-                                    member.user_id
-                            )
-                    )
-                ];
-
-                let profiles = [];
-
-                if (memberIds.length) {
-
-                    const {
-                        data,
-                        error: profileError
-                    } = await supabase
-                        .from("profiles")
-                        .select(`
-                            id,
-                            username,
-                            display_name,
-                            avatar
-                        `)
-                        .in(
-                            "id",
-                            memberIds
-                        );
-
-                    if (profileError) {
-                        throw profileError;
-                    }
-
-                    profiles = data || [];
-                }
-
-                const profileMap =
-                    new Map(
-                        profiles.map(
-                            profile => [
-                                profile.id,
-                                profile
-                            ]
-                        )
-                    );
-
-                const enrichedMembers =
-                    (members || [])
-                        .map(
-                            member => ({
-
-                                id:
-                                    member.id,
-
-                                house_id:
-                                    member.house_id,
-
-                                user_id:
-                                    member.user_id,
-
-                                role:
-                                    member.role,
-
-                                joined_at:
-                                    member.joined_at,
-
-                                profile:
-                                    profileMap.get(
-                                        member.user_id
-                                    ) || null
-                            })
-                        );
-
-                // ------------------------------------------------
-                // Clean house object
-                // ------------------------------------------------
-
-                const cleanHouse = {
-
-                    id:
-                        house.id,
-
-                    name:
-                        house.name,
-
-                    description:
-                        house.description,
-
-                    owner_id:
-                        house.owner_id,
-
-                    house_type_id:
-                        house.house_type_id,
-
-                    created_at:
-                        house.created_at,
-
-                    updated_at:
-                        house.updated_at,
-
-                    type:
-                        house.house_types
-                            ? {
-                                id:
-                                    house.house_types.id,
-
-                                name:
-                                    house.house_types.name,
-
-                                cost:
-                                    house.house_types.cost,
-
-                                tax_reduction:
-                                    house.house_types
-                                        .tax_reduction,
-
-                                room_count:
-                                    house.house_types
-                                        .room_count
-                            }
-                            : null,
-
-                    owner:
-                        owner || null,
-
-                    member_count:
-                        enrichedMembers.length,
-
-                    room_count:
-                        (rooms || []).length
-                };
 
                 res.json({
-
-                    house:
-                        cleanHouse,
-
-                    membership,
-
-                    owner:
-                        owner || null,
-
-                    rooms:
-                        rooms || [],
-
-                    members:
-                        enrichedMembers
+                    house,
+                    membership: req.houseMembership,
+                    rooms: rooms || [],
+                    members: membersWithProfiles
                 });
-
             } catch (error) {
-
-                console.error(
-                    "GET HOUSE ERROR:",
-                    error
-                );
+                console.error(error);
 
                 res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to load house."
+                    error: "Failed to load house."
+                });
+            }
+        }
+    );
+
+    // ========================================================
+    // UPDATE HOUSE
+    // ========================================================
+
+    router.put(
+        "/houses/:houseId",
+        requireLogin,
+        requireHouseMember,
+        requireAdmin,
+        async (req, res) => {
+            try {
+                const name = String(req.body.name || "").trim();
+                const description = String(
+                    req.body.description || ""
+                ).trim();
+
+                if (!name) {
+                    return res.status(400).json({
+                        error: "House name is required."
+                    });
+                }
+
+                const { data, error } = await supabase
+                    .from("houses")
+                    .update({
+                        name,
+                        description
+                    })
+                    .eq("id", req.params.houseId)
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                res.json({
+                    house: data
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    error: "Failed to update house."
+                });
+            }
+        }
+    );
+
+    // ========================================================
+    // DELETE HOUSE
+    // ========================================================
+
+    router.delete(
+        "/houses/:houseId",
+        requireLogin,
+        requireHouseMember,
+        requireOwner,
+        async (req, res) => {
+            try {
+                const { error } = await supabase
+                    .from("houses")
+                    .delete()
+                    .eq("id", req.params.houseId);
+
+                if (error) throw error;
+
+                res.json({
+                    success: true
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    error: "Failed to delete house."
+                });
+            }
+        }
+    );
+
+    // ========================================================
+    // MEMBERS
+    // ========================================================
+
+    router.get(
+        "/houses/:houseId/members",
+        requireLogin,
+        requireHouseMember,
+        async (req, res) => {
+            try {
+                const { data, error } = await supabase
+                    .from("house_members")
+                    .select("*")
+                    .eq("house_id", req.params.houseId)
+                    .order("joined_at", {
+                        ascending: true
+                    });
+
+                if (error) throw error;
+
+                const members = [];
+
+                for (const member of data || []) {
+                    members.push({
+                        ...member,
+                        profile: await getProfile(member.user_id)
+                    });
+                }
+
+                res.json({
+                    members
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    error: "Failed to load members."
+                });
+            }
+        }
+    );
+
+    // ========================================================
+    // CHANGE MEMBER ROLE
+    // ========================================================
+
+    router.put(
+        "/houses/:houseId/members/:userId/role",
+        requireLogin,
+        requireHouseMember,
+        requireOwner,
+        async (req, res) => {
+            try {
+                const role = req.body.role;
+
+                if (!["admin", "member"].includes(role)) {
+                    return res.status(400).json({
+                        error: "Invalid role."
+                    });
+                }
+
+                if (
+                    String(req.params.userId) ===
+                    String(req.houseUserId)
+                ) {
+                    return res.status(400).json({
+                        error: "You cannot change your own owner role."
+                    });
+                }
+
+                const { data, error } = await supabase
+                    .from("house_members")
+                    .update({
+                        role
+                    })
+                    .eq("house_id", req.params.houseId)
+                    .eq("user_id", req.params.userId)
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                res.json({
+                    membership: data
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    error: "Failed to change member role."
+                });
+            }
+        }
+    );
+
+    // ========================================================
+    // REMOVE MEMBER
+    // ========================================================
+
+    router.delete(
+        "/houses/:houseId/members/:userId",
+        requireLogin,
+        requireHouseMember,
+        async (req, res) => {
+            try {
+                const target = await getMembership(
+                    req.params.houseId,
+                    req.params.userId
+                );
+
+                if (!target) {
+                    return res.status(404).json({
+                        error: "Member not found."
+                    });
+                }
+
+                if (target.role === "owner") {
+                    return res.status(400).json({
+                        error: "The owner cannot be removed."
+                    });
+                }
+
+                if (
+                    req.houseMembership.role === "member"
+                ) {
+                    return res.status(403).json({
+                        error: "You do not have permission."
+                    });
+                }
+
+                if (
+                    req.houseMembership.role === "admin" &&
+                    target.role === "admin"
+                ) {
+                    return res.status(403).json({
+                        error: "Admins cannot remove other admins."
+                    });
+                }
+
+                const { error } = await supabase
+                    .from("house_members")
+                    .delete()
+                    .eq("house_id", req.params.houseId)
+                    .eq("user_id", req.params.userId);
+
+                if (error) throw error;
+
+                res.json({
+                    success: true
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    error: "Failed to remove member."
+                });
+            }
+        }
+    );
+
+    // ========================================================
+    // LEAVE HOUSE
+    // ========================================================
+
+    router.post(
+        "/houses/:houseId/leave",
+        requireLogin,
+        requireHouseMember,
+        async (req, res) => {
+            try {
+                if (req.houseMembership.role === "owner") {
+                    return res.status(400).json({
+                        error: "The owner cannot leave. Delete the house instead."
+                    });
+                }
+
+                const { error } = await supabase
+                    .from("house_members")
+                    .delete()
+                    .eq("house_id", req.params.houseId)
+                    .eq("user_id", req.houseUserId);
+
+                if (error) throw error;
+
+                res.json({
+                    success: true
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    error: "Failed to leave house."
+                });
+            }
+        }
+    );
+
+    // ========================================================
+    // ROOMS
+    // ========================================================
+
+    router.get(
+        "/houses/:houseId/rooms",
+        requireLogin,
+        requireHouseMember,
+        async (req, res) => {
+            try {
+                const { data, error } = await supabase
+                    .from("house_rooms")
+                    .select("*")
+                    .eq("house_id", req.params.houseId)
+                    .order("position", {
+                        ascending: true
+                    });
+
+                if (error) throw error;
+
+                res.json({
+                    rooms: data || []
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    error: "Failed to load rooms."
+                });
+            }
+        }
+    );
+
+    router.post(
+        "/houses/:houseId/rooms",
+        requireLogin,
+        requireHouseMember,
+        requireAdmin,
+        async (req, res) => {
+            try {
+                const name = String(req.body.name || "").trim();
+                const description = String(
+                    req.body.description || ""
+                ).trim();
+
+                const roomType = [
+                    "text",
+                    "voice",
+                    "media",
+                    "announcement"
+                ].includes(req.body.room_type)
+                    ? req.body.room_type
+                    : "text";
+
+                if (!name) {
+                    return res.status(400).json({
+                        error: "Room name is required."
+                    });
+                }
+
+                const { data: positionData } = await supabase
+                    .from("house_rooms")
+                    .select("position")
+                    .eq("house_id", req.params.houseId)
+                    .order("position", {
+                        ascending: false
+                    })
+                    .limit(1);
+
+                const position =
+                    positionData?.length
+                        ? positionData[0].position + 1
+                        : 0;
+
+                const { data, error } = await supabase
+                    .from("house_rooms")
+                    .insert({
+                        house_id: req.params.houseId,
+                        name,
+                        description,
+                        room_type: roomType,
+                        position
+                    })
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                res.status(201).json({
+                    room: data
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    error: "Failed to create room."
+                });
+            }
+        }
+    );
+
+    router.put(
+        "/houses/:houseId/rooms/:roomId",
+        requireLogin,
+        requireHouseMember,
+        requireAdmin,
+        async (req, res) => {
+            try {
+                const room = await roomBelongsToHouse(
+                    req.params.roomId,
+                    req.params.houseId
+                );
+
+                if (!room) {
+                    return res.status(404).json({
+                        error: "Room not found."
+                    });
+                }
+
+                const updates = {};
+
+                if (req.body.name !== undefined) {
+                    updates.name = String(
+                        req.body.name
+                    ).trim();
+                }
+
+                if (req.body.description !== undefined) {
+                    updates.description = String(
+                        req.body.description
+                    ).trim();
+                }
+
+                if (
+                    req.body.room_type &&
+                    [
+                        "text",
+                        "voice",
+                        "media",
+                        "announcement"
+                    ].includes(req.body.room_type)
+                ) {
+                    updates.room_type = req.body.room_type;
+                }
+
+                if (req.body.position !== undefined) {
+                    updates.position =
+                        Number(req.body.position) || 0;
+                }
+
+                const { data, error } = await supabase
+                    .from("house_rooms")
+                    .update(updates)
+                    .eq("id", room.id)
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                res.json({
+                    room: data
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    error: "Failed to update room."
+                });
+            }
+        }
+    );
+
+    router.delete(
+        "/houses/:houseId/rooms/:roomId",
+        requireLogin,
+        requireHouseMember,
+        requireAdmin,
+        async (req, res) => {
+            try {
+                const room = await roomBelongsToHouse(
+                    req.params.roomId,
+                    req.params.houseId
+                );
+
+                if (!room) {
+                    return res.status(404).json({
+                        error: "Room not found."
+                    });
+                }
+
+                const { error } = await supabase
+                    .from("house_rooms")
+                    .delete()
+                    .eq("id", room.id);
+
+                if (error) throw error;
+
+                res.json({
+                    success: true
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    error: "Failed to delete room."
+                });
+            }
+        }
+    );
+
+    // ========================================================
+    // MESSAGES
+    // ========================================================
+
+    router.get(
+        "/houses/:houseId/rooms/:roomId/messages",
+        requireLogin,
+        requireHouseMember,
+        async (req, res) => {
+            try {
+                const room = await roomBelongsToHouse(
+                    req.params.roomId,
+                    req.params.houseId
+                );
+
+                if (!room) {
+                    return res.status(404).json({
+                        error: "Room not found."
+                    });
+                }
+
+                const limit = Math.min(
+                    Math.max(Number(req.query.limit) || 100, 1),
+                    200
+                );
+
+                const { data, error } = await supabase
+                    .from("house_messages")
+                    .select("*")
+                    .eq("room_id", room.id)
+                    .order("id", {
+                        ascending: false
+                    })
+                    .limit(limit);
+
+                if (error) throw error;
+
+                const messages = [];
+
+                for (const message of (data || []).reverse()) {
+                    const profile = await getProfile(
+                        message.user_id
+                    );
+
+                    const { data: media } = await supabase
+                        .from("house_message_media")
+                        .select("*")
+                        .eq("message_id", message.id);
+
+                    messages.push({
+                        ...message,
+                        profile,
+                        media: media || []
+                    });
+                }
+
+                res.json({
+                    messages
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    error: "Failed to load messages."
+                });
+            }
+        }
+    );
+
+    router.post(
+        "/houses/:houseId/rooms/:roomId/messages",
+        requireLogin,
+        requireHouseMember,
+        async (req, res) => {
+            try {
+                const room = await roomBelongsToHouse(
+                    req.params.roomId,
+                    req.params.houseId
+                );
+
+                if (!room) {
+                    return res.status(404).json({
+                        error: "Room not found."
+                    });
+                }
+
+                const content = String(
+                    req.body.content || ""
+                ).trim();
+
+                if (!content) {
+                    return res.status(400).json({
+                        error: "Message cannot be empty."
+                    });
+                }
+
+                const { data, error } = await supabase
+                    .from("house_messages")
+                    .insert({
+                        room_id: room.id,
+                        user_id: req.houseUserId,
+                        content
+                    })
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                res.status(201).json({
+                    message: {
+                        ...data,
+                        profile: await getProfile(
+                            req.houseUserId
+                        ),
+                        media: []
+                    }
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    error: "Failed to send message."
                 });
             }
         }
@@ -1261,2336 +972,646 @@ module.exports = function createHouseRouter({ supabase }) {
 
     router.get(
         "/houses/invitations",
-        requireHouseLogin,
+        requireLogin,
         async (req, res) => {
-
             try {
-
-                const userId =
-                    req.houseUserId;
-
-                const {
-                    data: invitations,
-                    error
-                } = await supabase
+                const { data, error } = await supabase
                     .from("house_invitations")
-                    .select(`
-                        id,
-                        house_id,
-                        inviter_id,
-                        invitee_id,
-                        status,
-                        created_at,
-                        responded_at
-                    `)
-                    .eq(
-                        "invitee_id",
-                        userId
-                    )
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
+                    .select("*")
+                    .eq("invitee_id", req.houseUserId)
+                    .eq("status", "pending")
+                    .order("created_at", {
+                        ascending: false
+                    });
+
+                if (error) throw error;
+
+                const invitations = [];
+
+                for (const invite of data || []) {
+                    const house = await getHouse(
+                        invite.house_id
                     );
 
-                if (error) {
-                    throw error;
-                }
-
-                const rows =
-                    invitations || [];
-
-                const houseIds = [
-                    ...new Set(
-                        rows.map(
-                            invitation =>
-                                invitation.house_id
-                        )
-                    )
-                ];
-
-                const inviterIds = [
-                    ...new Set(
-                        rows.map(
-                            invitation =>
-                                invitation.inviter_id
-                        )
-                    )
-                ];
-
-                let houses = [];
-                let inviters = [];
-
-                if (houseIds.length) {
-
-                    const {
-                        data,
-                        error: houseError
-                    } = await supabase
-                        .from("houses")
-                        .select(`
-                            id,
-                            name,
-                            description,
-                            owner_id,
-                            house_type_id
-                        `)
-                        .in(
-                            "id",
-                            houseIds
-                        );
-
-                    if (houseError) {
-                        throw houseError;
-                    }
-
-                    houses = data || [];
-                }
-
-                if (inviterIds.length) {
-
-                    const {
-                        data,
-                        error: inviterError
-                    } = await supabase
-                        .from("profiles")
-                        .select(`
-                            id,
-                            username,
-                            display_name,
-                            avatar
-                        `)
-                        .in(
-                            "id",
-                            inviterIds
-                        );
-
-                    if (inviterError) {
-                        throw inviterError;
-                    }
-
-                    inviters = data || [];
-                }
-
-                const houseMap =
-                    new Map(
-                        houses.map(
-                            house => [
-                                house.id,
-                                house
-                            ]
-                        )
+                    const inviter = await getProfile(
+                        invite.inviter_id
                     );
 
-                const inviterMap =
-                    new Map(
-                        inviters.map(
-                            inviter => [
-                                inviter.id,
-                                inviter
-                            ]
-                        )
-                    );
+                    invitations.push({
+                        ...invite,
+                        house,
+                        inviter
+                    });
+                }
 
-                res.json(
-                    rows.map(
-                        invitation => ({
-
-                            ...invitation,
-
-                            house:
-                                houseMap.get(
-                                    invitation.house_id
-                                ) || null,
-
-                            inviter:
-                                inviterMap.get(
-                                    invitation.inviter_id
-                                ) || null
-                        })
-                    )
-                );
-
+                res.json({
+                    invitations
+                });
             } catch (error) {
-
-                console.error(
-                    "GET INVITATIONS ERROR:",
-                    error
-                );
+                console.error(error);
 
                 res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to load invitations."
+                    error: "Failed to load invitations."
                 });
             }
         }
     );
 
-    // ========================================================
-    // SEND INVITATION
-    // ========================================================
-
     router.post(
-        "/houses/:id/invitations",
-        requireHouseLogin,
+        "/houses/:houseId/invitations",
+        requireLogin,
+        requireHouseMember,
+        requireAdmin,
         async (req, res) => {
-
             try {
+                const username = String(
+                    req.body.username || ""
+                ).trim();
 
-                const houseId =
-                    req.params.id;
-
-                const inviterId =
-                    req.houseUserId;
-
-                const {
-                    invitee_id
-                } = req.body;
-
-                if (!invitee_id) {
+                if (!username) {
                     return res.status(400).json({
-                        error:
-                            "Invitee is required."
+                        error: "Username is required."
+                    });
+                }
+
+                const { data: profile, error: profileError } =
+                    await supabase
+                        .from("profiles")
+                        .select("id, username, display_name, avatar")
+                        .eq("username", username)
+                        .maybeSingle();
+
+                if (profileError) throw profileError;
+
+                if (!profile) {
+                    return res.status(404).json({
+                        error: "User not found."
                     });
                 }
 
                 if (
-                    invitee_id ===
-                    inviterId
+                    String(profile.id) ===
+                    String(req.houseUserId)
                 ) {
                     return res.status(400).json({
-                        error:
-                            "You cannot invite yourself."
+                        error: "You cannot invite yourself."
                     });
                 }
 
-                const house =
-                    await getHouse(
-                        houseId
-                    );
-
-                if (!house) {
-                    return res.status(404).json({
-                        error:
-                            "House not found."
-                    });
-                }
-
-                const admin =
-                    await isHouseAdmin(
-                        houseId,
-                        inviterId
-                    );
-
-                if (!admin) {
-                    return res.status(403).json({
-                        error:
-                            "Only the owner or an admin can invite people."
-                    });
-                }
-
-                const {
-                    data: invitee,
-                    error: inviteeError
-                } = await supabase
-                    .from("profiles")
-                    .select("id")
-                    .eq(
-                        "id",
-                        invitee_id
-                    )
-                    .maybeSingle();
-
-                if (inviteeError) {
-                    throw inviteeError;
-                }
-
-                if (!invitee) {
-                    return res.status(404).json({
-                        error:
-                            "User not found."
-                    });
-                }
-
-                if (
-                    await isHouseMember(
-                        houseId,
-                        invitee_id
-                    )
-                ) {
-                    return res.status(400).json({
-                        error:
-                            "That user is already a member of this house."
-                    });
-                }
-
-                const {
-                    data: existing
-                } = await supabase
-                    .from("house_invitations")
-                    .select("id")
-                    .eq(
-                        "house_id",
-                        houseId
-                    )
-                    .eq(
-                        "invitee_id",
-                        invitee_id
-                    )
-                    .eq(
-                        "status",
-                        "pending"
-                    )
-                    .maybeSingle();
+                const existing = await getMembership(
+                    req.params.houseId,
+                    profile.id
+                );
 
                 if (existing) {
                     return res.status(400).json({
-                        error:
-                            "That user already has a pending invitation."
+                        error: "That user is already a member."
                     });
                 }
 
-                const {
-                    data: invitation,
-                    error
-                } = await supabase
+                const { data, error } = await supabase
                     .from("house_invitations")
-                    .insert({
-                        house_id:
-                            houseId,
-
-                        inviter_id:
-                            inviterId,
-
-                        invitee_id:
-                            invitee_id,
-
-                        status:
-                            "pending"
-                    })
+                    .upsert(
+                        {
+                            house_id: req.params.houseId,
+                            inviter_id: req.houseUserId,
+                            invitee_id: profile.id,
+                            status: "pending",
+                            responded_at: null
+                        },
+                        {
+                            onConflict:
+                                "house_id,invitee_id"
+                        }
+                    )
                     .select()
                     .single();
 
-                if (error) {
-                    throw error;
-                }
+                if (error) throw error;
 
                 res.status(201).json({
-                    success: true,
-                    invitation
+                    invitation: data
                 });
-
             } catch (error) {
-
-                console.error(
-                    "SEND INVITATION ERROR:",
-                    error
-                );
+                console.error(error);
 
                 res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to send invitation."
+                    error: "Failed to send invitation."
                 });
             }
         }
     );
-
-    // ========================================================
-    // ACCEPT / DECLINE INVITATION
-    // ========================================================
 
     router.post(
         "/houses/invitations/:id/respond",
-        requireHouseLogin,
+        requireLogin,
         async (req, res) => {
-
             try {
+                const action = req.body.action;
 
-                const invitationId =
-                    req.params.id;
-
-                const userId =
-                    req.houseUserId;
-
-                const {
-                    response
-                } = req.body;
-
-                if (
-                    response !== "accepted" &&
-                    response !== "declined"
-                ) {
+                if (!["accept", "decline"].includes(action)) {
                     return res.status(400).json({
-                        error:
-                            "Response must be accepted or declined."
+                        error: "Invalid invitation action."
                     });
                 }
 
-                const {
-                    data: invitation,
-                    error
-                } = await supabase
-                    .from("house_invitations")
-                    .select(`
-                        id,
-                        house_id,
-                        inviter_id,
-                        invitee_id,
-                        status
-                    `)
-                    .eq(
-                        "id",
-                        invitationId
-                    )
-                    .maybeSingle();
+                const { data: invitation, error } =
+                    await supabase
+                        .from("house_invitations")
+                        .select("*")
+                        .eq("id", req.params.id)
+                        .eq("invitee_id", req.houseUserId)
+                        .eq("status", "pending")
+                        .maybeSingle();
 
-                if (error) {
-                    throw error;
-                }
+                if (error) throw error;
 
                 if (!invitation) {
                     return res.status(404).json({
-                        error:
-                            "Invitation not found."
+                        error: "Invitation not found."
                     });
                 }
 
-                if (
-                    invitation.invitee_id !==
-                    userId
-                ) {
-                    return res.status(403).json({
-                        error:
-                            "You cannot respond to this invitation."
+                if (action === "decline") {
+                    await supabase
+                        .from("house_invitations")
+                        .update({
+                            status: "declined",
+                            responded_at: new Date().toISOString()
+                        })
+                        .eq("id", invitation.id);
+
+                    return res.json({
+                        success: true
                     });
                 }
 
-                if (
-                    invitation.status !==
-                    "pending"
-                ) {
-                    return res.status(400).json({
-                        error:
-                            "This invitation has already been answered."
-                    });
-                }
+                const existing = await getMembership(
+                    invitation.house_id,
+                    req.houseUserId
+                );
 
-                if (
-                    response ===
-                    "accepted"
-                ) {
-
-                    const member =
-                        await isHouseMember(
-                            invitation.house_id,
-                            userId
-                        );
-
-                    if (!member) {
-
-                        const {
-                            error:
-                                memberError
-                        } = await supabase
+                if (!existing) {
+                    const { error: memberError } =
+                        await supabase
                             .from("house_members")
                             .insert({
-                                house_id:
-                                    invitation.house_id,
-
-                                user_id:
-                                    userId,
-
-                                role:
-                                    "member"
+                                house_id: invitation.house_id,
+                                user_id: req.houseUserId,
+                                role: "member"
                             });
 
-                        if (memberError) {
-                            throw memberError;
-                        }
-                    }
+                    if (memberError) throw memberError;
                 }
 
-                const {
-                    data: updated,
-                    error:
-                        updateError
-                } = await supabase
-                    .from("house_invitations")
-                    .update({
-
-                        status:
-                            response,
-
-                        responded_at:
-                            new Date()
-                                .toISOString()
-
-                    })
-                    .eq(
-                        "id",
-                        invitationId
-                    )
-                    .select()
-                    .single();
-
-                if (updateError) {
-                    throw updateError;
-                }
-
-                res.json({
-                    success: true,
-                    invitation: updated
-                });
-
-            } catch (error) {
-
-                console.error(
-                    "RESPOND INVITATION ERROR:",
-                    error
-                );
-
-                res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to respond to invitation."
-                });
-            }
-        }
-    );
-
-    // ========================================================
-    // GET ROOM
-    // ========================================================
-
-    router.get(
-        "/houses/:houseId/rooms/:roomId",
-        requireHouseLogin,
-        async (req, res) => {
-
-            try {
-
-                const houseId =
-                    req.params.houseId;
-
-                const roomId =
-                    req.params.roomId;
-
-                const userId =
-                    req.houseUserId;
-
-                // ------------------------------------------------
-                // Membership
-                // ------------------------------------------------
-
-                const member =
-                    await isHouseMember(
-                        houseId,
-                        userId
-                    );
-
-                if (!member) {
-                    return res.status(403).json({
-                        error:
-                            "You are not a member of this house."
-                    });
-                }
-
-                // ------------------------------------------------
-                // Room
-                // ------------------------------------------------
-
-                const room =
-                    await getRoom(
-                        roomId,
-                        houseId
-                    );
-
-                if (!room) {
-                    return res.status(404).json({
-                        error:
-                            "Room not found."
-                    });
-                }
-
-                // ------------------------------------------------
-                // Messages
-                // ------------------------------------------------
-
-                const {
-                    data: messages,
-                    error:
-                        messagesError
-                } = await supabase
-                    .from("house_messages")
-                    .select(`
-                        id,
-                        room_id,
-                        user_id,
-                        content,
-                        created_at,
-                        updated_at,
-                        house_media (
-                            id,
-                            room_id,
-                            user_id,
-                            message_id,
-                            media_type,
-                            file_name,
-                            storage_path,
-                            mime_type,
-                            file_size,
-                            created_at
-                        )
-                    `)
-                    .eq(
-                        "room_id",
-                        roomId
-                    )
-                    .order(
-                        "created_at",
-                        {
-                            ascending: true
-                        }
-                    );
-
-                if (messagesError) {
-                    throw messagesError;
-                }
-
-                await attachMediaUrls(
-                    messages || []
-                );
-
-                // ------------------------------------------------
-                // Message profiles
-                // ------------------------------------------------
-
-                const userIds = [
-                    ...new Set(
-                        (messages || [])
-                            .map(
-                                message =>
-                                    message.user_id
-                            )
-                    )
-                ];
-
-                let profiles = [];
-
-                if (userIds.length) {
-
-                    const {
-                        data,
-                        error:
-                            profileError
-                    } = await supabase
-                        .from("profiles")
-                        .select(`
-                            id,
-                            username,
-                            display_name,
-                            avatar
-                        `)
-                        .in(
-                            "id",
-                            userIds
-                        );
-
-                    if (profileError) {
-                        throw profileError;
-                    }
-
-                    profiles =
-                        data || [];
-                }
-
-                const profileMap =
-                    new Map(
-                        profiles.map(
-                            profile => [
-                                profile.id,
-                                profile
-                            ]
-                        )
-                    );
-
-                const enrichedMessages =
-                    (messages || [])
-                        .map(
-                            message => ({
-
-                                ...message,
-
-                                profile:
-                                    profileMap.get(
-                                        message.user_id
-                                    ) || null
-                            })
-                        );
-
-                res.json({
-
-                    room,
-
-                    messages:
-                        enrichedMessages
-                });
-
-            } catch (error) {
-
-                console.error(
-                    "GET ROOM ERROR:",
-                    error
-                );
-
-                res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to load house room."
-                });
-            }
-        }
-    );
-
-    // ========================================================
-    // SEND MESSAGE
-    // ========================================================
-
-    router.post(
-        "/houses/:houseId/rooms/:roomId/messages",
-        requireHouseLogin,
-        async (req, res) => {
-
-            try {
-
-                const houseId =
-                    req.params.houseId;
-
-                const roomId =
-                    req.params.roomId;
-
-                const userId =
-                    req.houseUserId;
-
-                const content =
-                    typeof req.body.content === "string"
-                        ? req.body.content.trim()
-                        : "";
-
-                if (!content) {
-                    return res.status(400).json({
-                        error:
-                            "Message cannot be empty."
-                    });
-                }
-
-                if (content.length > 10000) {
-                    return res.status(400).json({
-                        error:
-                            "Message is too long."
-                    });
-                }
-
-                if (
-                    !(await isHouseMember(
-                        houseId,
-                        userId
-                    ))
-                ) {
-                    return res.status(403).json({
-                        error:
-                            "You are not a member of this house."
-                    });
-                }
-
-                const room =
-                    await getRoom(
-                        roomId,
-                        houseId
-                    );
-
-                if (!room) {
-                    return res.status(404).json({
-                        error:
-                            "Room not found."
-                    });
-                }
-
-                const {
-                    data: message,
-                    error
-                } = await supabase
-                    .from("house_messages")
-                    .insert({
-                        room_id:
-                            roomId,
-
-                        user_id:
-                            userId,
-
-                        content
-                    })
-                    .select(`
-                        id,
-                        room_id,
-                        user_id,
-                        content,
-                        created_at,
-                        updated_at
-                    `)
-                    .single();
-
-                if (error) {
-                    throw error;
-                }
-
-                res.status(201).json({
-                    success: true,
-                    message
-                });
-
-            } catch (error) {
-
-                console.error(
-                    "SEND MESSAGE ERROR:",
-                    error
-                );
-
-                res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to send message."
-                });
-            }
-        }
-    );
-
-    // ========================================================
-    // DELETE MESSAGE
-    // ========================================================
-
-    router.delete(
-        "/houses/:houseId/messages/:messageId",
-        requireHouseLogin,
-        async (req, res) => {
-
-            try {
-
-                const houseId =
-                    req.params.houseId;
-
-                const messageId =
-                    req.params.messageId;
-
-                const userId =
-                    req.houseUserId;
-
-                const {
-                    data: message,
-                    error
-                } = await supabase
-                    .from("house_messages")
-                    .select(`
-                        id,
-                        room_id,
-                        user_id
-                    `)
-                    .eq(
-                        "id",
-                        messageId
-                    )
-                    .maybeSingle();
-
-                if (error) {
-                    throw error;
-                }
-
-                if (!message) {
-                    return res.status(404).json({
-                        error:
-                            "Message not found."
-                    });
-                }
-
-                const messageHouseId =
-                    await getRoomHouseId(
-                        message.room_id
-                    );
-
-                if (
-                    String(messageHouseId) !==
-                    String(houseId)
-                ) {
-                    return res.status(404).json({
-                        error:
-                            "Message not found."
-                    });
-                }
-
-                const admin =
-                    await isHouseAdmin(
-                        houseId,
-                        userId
-                    );
-
-                const owner =
-                    message.user_id ===
-                    userId;
-
-                if (!admin && !owner) {
-                    return res.status(403).json({
-                        error:
-                            "You do not have permission to delete this message."
-                    });
-                }
-
-                const {
-                    data: media
-                } = await supabase
-                    .from("house_media")
-                    .select(
-                        "storage_path"
-                    )
-                    .eq(
-                        "message_id",
-                        messageId
-                    );
-
-                const {
-                    error:
-                        deleteError
-                } = await supabase
-                    .from("house_messages")
-                    .delete()
-                    .eq(
-                        "id",
-                        messageId
-                    );
-
-                if (deleteError) {
-                    throw deleteError;
-                }
-
-                if (
-                    media &&
-                    media.length
-                ) {
-
-                    const paths =
-                        media
-                            .map(
-                                item =>
-                                    item.storage_path
-                            )
-                            .filter(Boolean);
-
-                    if (paths.length) {
-
-                        await supabase.storage
-                            .from(
-                                "house-media"
-                            )
-                            .remove(paths);
-                    }
-                }
-
-                res.json({
-                    success: true
-                });
-
-            } catch (error) {
-
-                console.error(
-                    "DELETE MESSAGE ERROR:",
-                    error
-                );
-
-                res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to delete message."
-                });
-            }
-        }
-    );
-
-    // ========================================================
-    // MEDIA UPLOAD
-    // ========================================================
-
-    router.post(
-        "/houses/:houseId/rooms/:roomId/media",
-        requireHouseLogin,
-        upload.single("file"),
-        async (req, res) => {
-
-            try {
-
-                const houseId =
-                    req.params.houseId;
-
-                const roomId =
-                    req.params.roomId;
-
-                const userId =
-                    req.houseUserId;
-
-                if (!req.file) {
-                    return res.status(400).json({
-                        error:
-                            "No file uploaded."
-                    });
-                }
-
-                if (
-                    !isAllowedMediaType(
-                        req.file.mimetype
-                    )
-                ) {
-                    return res.status(400).json({
-                        error:
-                            "This file type is not supported."
-                    });
-                }
-
-                if (
-                    !(await isHouseMember(
-                        houseId,
-                        userId
-                    ))
-                ) {
-                    return res.status(403).json({
-                        error:
-                            "You are not a member of this house."
-                    });
-                }
-
-                const room =
-                    await getRoom(
-                        roomId,
-                        houseId
-                    );
-
-                if (!room) {
-                    return res.status(404).json({
-                        error:
-                            "Room not found."
-                    });
-                }
-
-                const mediaType =
-                    getMediaType(
-                        req.file.mimetype
-                    );
-
-                const extension =
-                    getExtension(
-                        req.file.originalname
-                    );
-
-                const safeName =
-                    `${Date.now()}-${crypto.randomUUID()}${extension}`;
-
-                const storagePath =
-                    `houses/${houseId}/rooms/${roomId}/${userId}/${safeName}`;
-
-                // ------------------------------------------------
-                // Upload file
-                // ------------------------------------------------
-
-                const {
-                    error: uploadError
-                } = await supabase.storage
-                    .from("house-media")
-                    .upload(
-                        storagePath,
-                        req.file.buffer,
-                        {
-                            contentType:
-                                req.file.mimetype,
-
-                            upsert:
-                                false
-                        }
-                    );
-
-                if (uploadError) {
-                    throw uploadError;
-                }
-
-                const content =
-                    typeof req.body.content === "string"
-                        ? req.body.content.trim()
-                        : "";
-
-                if (content.length > 10000) {
-
-                    await supabase.storage
-                        .from("house-media")
-                        .remove([
-                            storagePath
-                        ]);
-
-                    return res.status(400).json({
-                        error:
-                            "Message is too long."
-                    });
-                }
-
-                // ------------------------------------------------
-                // Create message
-                // ------------------------------------------------
-
-                const {
-                    data: message,
-                    error:
-                        messageError
-                } = await supabase
-                    .from("house_messages")
-                    .insert({
-                        room_id:
-                            roomId,
-
-                        user_id:
-                            userId,
-
-                        content
-                    })
-                    .select(`
-                        id,
-                        room_id,
-                        user_id,
-                        content,
-                        created_at,
-                        updated_at
-                    `)
-                    .single();
-
-                if (messageError) {
-
-                    await supabase.storage
-                        .from("house-media")
-                        .remove([
-                            storagePath
-                        ]);
-
-                    throw messageError;
-                }
-
-                // ------------------------------------------------
-                // Media database record
-                // ------------------------------------------------
-
-                const {
-                    data: media,
-                    error:
-                        mediaError
-                } = await supabase
-                    .from("house_media")
-                    .insert({
-
-                        room_id:
-                            roomId,
-
-                        user_id:
-                            userId,
-
-                        message_id:
-                            message.id,
-
-                        media_type:
-                            mediaType,
-
-                        file_name:
-                            req.file.originalname,
-
-                        storage_path:
-                            storagePath,
-
-                        mime_type:
-                            req.file.mimetype,
-
-                        file_size:
-                            req.file.size
-                    })
-                    .select(`
-                        id,
-                        room_id,
-                        user_id,
-                        message_id,
-                        media_type,
-                        file_name,
-                        storage_path,
-                        mime_type,
-                        file_size,
-                        created_at
-                    `)
-                    .single();
-
-                if (mediaError) {
-
+                const { error: inviteError } =
                     await supabase
-                        .from(
-                            "house_messages"
-                        )
-                        .delete()
-                        .eq(
-                            "id",
-                            message.id
-                        );
+                        .from("house_invitations")
+                        .update({
+                            status: "accepted",
+                            responded_at:
+                                new Date().toISOString()
+                        })
+                        .eq("id", invitation.id);
 
-                    await supabase.storage
-                        .from(
-                            "house-media"
-                        )
-                        .remove([
-                            storagePath
-                        ]);
+                if (inviteError) throw inviteError;
 
-                    throw mediaError;
-                }
-
-                const {
-                    data: publicUrlData
-                } =
-                    supabase.storage
-                        .from(
-                            "house-media"
-                        )
-                        .getPublicUrl(
-                            storagePath
-                        );
-
-                media.url =
-                    publicUrlData?.publicUrl ||
-                    null;
-
-                res.status(201).json({
-
+                res.json({
                     success: true,
-
-                    message,
-
-                    media
+                    house_id: invitation.house_id
                 });
-
             } catch (error) {
-
-                console.error(
-                    "MEDIA UPLOAD ERROR:",
-                    error
-                );
+                console.error(error);
 
                 res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to upload media."
+                    error: "Failed to respond to invitation."
                 });
             }
         }
     );
 
     // ========================================================
-    // CREATE CALL
+    // CALLS
     // ========================================================
 
     router.post(
         "/houses/:houseId/rooms/:roomId/calls",
-        requireHouseLogin,
+        requireLogin,
+        requireHouseMember,
         async (req, res) => {
-
             try {
-
-                const houseId =
-                    req.params.houseId;
-
-                const roomId =
-                    req.params.roomId;
-
-                const userId =
-                    req.houseUserId;
-
-                const {
-                    call_type
-                } = req.body;
-
-                if (
-                    call_type !== "voice" &&
-                    call_type !== "video"
-                ) {
-                    return res.status(400).json({
-                        error:
-                            "Call type must be voice or video."
-                    });
-                }
-
-                if (
-                    !(await isHouseMember(
-                        houseId,
-                        userId
-                    ))
-                ) {
-                    return res.status(403).json({
-                        error:
-                            "You are not a member of this house."
-                    });
-                }
-
-                const room =
-                    await getRoom(
-                        roomId,
-                        houseId
-                    );
+                const room = await roomBelongsToHouse(
+                    req.params.roomId,
+                    req.params.houseId
+                );
 
                 if (!room) {
                     return res.status(404).json({
-                        error:
-                            "Room not found."
+                        error: "Room not found."
                     });
                 }
 
-                const {
-                    data: existing
-                } = await supabase
+                const callType =
+                    req.body.call_type === "video"
+                        ? "video"
+                        : "voice";
+
+                const { data: existing } = await supabase
                     .from("house_calls")
-                    .select(`
-                        id,
-                        room_id,
-                        started_by,
-                        call_type,
-                        active,
-                        created_at
-                    `)
-                    .eq(
-                        "room_id",
-                        roomId
-                    )
-                    .eq(
-                        "active",
-                        true
-                    )
+                    .select("*")
+                    .eq("room_id", room.id)
+                    .eq("active", true)
                     .maybeSingle();
 
                 if (existing) {
-
                     return res.json({
-                        success: true,
                         call: existing
                     });
                 }
 
-                const {
-                    data: call,
-                    error
-                } = await supabase
+                const { data, error } = await supabase
                     .from("house_calls")
                     .insert({
-
-                        room_id:
-                            roomId,
-
-                        started_by:
-                            userId,
-
-                        call_type:
-                            call_type,
-
-                        active:
-                            true
+                        room_id: room.id,
+                        started_by: req.houseUserId,
+                        call_type: callType,
+                        active: true
                     })
-                    .select(`
-                        id,
-                        room_id,
-                        started_by,
-                        call_type,
-                        active,
-                        created_at
-                    `)
+                    .select()
                     .single();
 
-                if (error) {
-                    throw error;
-                }
+                if (error) throw error;
 
-                const {
-                    error:
-                        participantError
-                } = await supabase
-                    .from(
-                        "house_call_participants"
-                    )
-                    .insert({
-
-                        call_id:
-                            call.id,
-
-                        user_id:
-                            userId
-                    });
-
-                if (participantError) {
-
-                    await supabase
-                        .from(
-                            "house_calls"
-                        )
-                        .delete()
-                        .eq(
-                            "id",
-                            call.id
-                        );
-
-                    throw participantError;
-                }
+                await supabase
+                    .from("house_call_participants")
+                    .upsert(
+                        {
+                            call_id: data.id,
+                            user_id: req.houseUserId,
+                            left_at: null
+                        },
+                        {
+                            onConflict:
+                                "call_id,user_id"
+                        }
+                    );
 
                 res.status(201).json({
-                    success: true,
-                    call
+                    call: data
                 });
-
             } catch (error) {
-
-                console.error(
-                    "CREATE CALL ERROR:",
-                    error
-                );
+                console.error(error);
 
                 res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to create call."
+                    error: "Failed to start call."
                 });
             }
         }
     );
-
-    // ========================================================
-    // ACTIVE CALL
-    // ========================================================
 
     router.get(
         "/houses/:houseId/rooms/:roomId/calls/active",
-        requireHouseLogin,
+        requireLogin,
+        requireHouseMember,
         async (req, res) => {
-
             try {
-
-                const houseId =
-                    req.params.houseId;
-
-                const roomId =
-                    req.params.roomId;
-
-                const userId =
-                    req.houseUserId;
-
-                if (
-                    !(await isHouseMember(
-                        houseId,
-                        userId
-                    ))
-                ) {
-                    return res.status(403).json({
-                        error:
-                            "You are not a member of this house."
-                    });
-                }
-
-                const {
-                    data: call,
-                    error
-                } = await supabase
-                    .from("house_calls")
-                    .select(`
-                        id,
-                        room_id,
-                        started_by,
-                        call_type,
-                        active,
-                        created_at
-                    `)
-                    .eq(
-                        "room_id",
-                        roomId
-                    )
-                    .eq(
-                        "active",
-                        true
-                    )
-                    .maybeSingle();
-
-                if (error) {
-                    throw error;
-                }
-
-                if (!call) {
-
-                    return res.json({
-                        call: null,
-                        participants: []
-                    });
-                }
-
-                const {
-                    data: participants,
-                    error:
-                        participantError
-                } = await supabase
-                    .from(
-                        "house_call_participants"
-                    )
-                    .select(`
-                        id,
-                        call_id,
-                        user_id,
-                        joined_at,
-                        left_at
-                    `)
-                    .eq(
-                        "call_id",
-                        call.id
-                    )
-                    .is(
-                        "left_at",
-                        null
-                    );
-
-                if (participantError) {
-                    throw participantError;
-                }
-
-                res.json({
-
-                    call,
-
-                    participants:
-                        participants || []
-                });
-
-            } catch (error) {
-
-                console.error(
-                    "ACTIVE CALL ERROR:",
-                    error
+                const room = await roomBelongsToHouse(
+                    req.params.roomId,
+                    req.params.houseId
                 );
 
+                if (!room) {
+                    return res.status(404).json({
+                        error: "Room not found."
+                    });
+                }
+
+                const { data, error } = await supabase
+                    .from("house_calls")
+                    .select("*")
+                    .eq("room_id", room.id)
+                    .eq("active", true)
+                    .maybeSingle();
+
+                if (error) throw error;
+
+                res.json({
+                    call: data || null
+                });
+            } catch (error) {
+                console.error(error);
+
                 res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to load active call."
+                    error: "Failed to check active call."
                 });
             }
         }
     );
-
-    // ========================================================
-    // JOIN CALL
-    // ========================================================
 
     router.post(
         "/houses/calls/:callId/join",
-        requireHouseLogin,
+        requireLogin,
         async (req, res) => {
-
             try {
-
-                const callId =
-                    req.params.callId;
-
-                const userId =
-                    req.houseUserId;
-
-                const {
-                    data: call,
-                    error
-                } = await supabase
+                const { data: call, error } = await supabase
                     .from("house_calls")
-                    .select(`
-                        id,
-                        room_id,
-                        started_by,
-                        call_type,
-                        active,
-                        created_at
-                    `)
-                    .eq(
-                        "id",
-                        callId
-                    )
+                    .select("*")
+                    .eq("id", req.params.callId)
+                    .eq("active", true)
                     .maybeSingle();
 
-                if (error) {
-                    throw error;
-                }
+                if (error) throw error;
 
                 if (!call) {
                     return res.status(404).json({
-                        error:
-                            "Call not found."
+                        error: "Call not found."
                     });
                 }
 
-                if (!call.active) {
-                    return res.status(400).json({
-                        error:
-                            "This call has ended."
-                    });
-                }
+                const room = await getRoom(call.room_id);
 
-                const houseId =
-                    await getRoomHouseId(
-                        call.room_id
-                    );
-
-                if (
-                    !(await isHouseMember(
-                        houseId,
-                        userId
-                    ))
-                ) {
-                    return res.status(403).json({
-                        error:
-                            "You are not a member of this house."
-                    });
-                }
-
-                const {
-                    data: existing
-                } = await supabase
-                    .from(
-                        "house_call_participants"
-                    )
-                    .select(`
-                        id,
-                        call_id,
-                        user_id,
-                        joined_at,
-                        left_at
-                    `)
-                    .eq(
-                        "call_id",
-                        callId
-                    )
-                    .eq(
-                        "user_id",
-                        userId
-                    )
-                    .maybeSingle();
-
-                let participant;
-
-                if (existing) {
-
-                    const {
-                        data,
-                        error:
-                            updateError
-                    } = await supabase
-                        .from(
-                            "house_call_participants"
-                        )
-                        .update({
-                            left_at:
-                                null
-                        })
-                        .eq(
-                            "id",
-                            existing.id
-                        )
-                        .select()
-                        .single();
-
-                    if (updateError) {
-                        throw updateError;
-                    }
-
-                    participant =
-                        data;
-
-                } else {
-
-                    const {
-                        data,
-                        error:
-                            insertError
-                    } = await supabase
-                        .from(
-                            "house_call_participants"
-                        )
-                        .insert({
-
-                            call_id:
-                                callId,
-
-                            user_id:
-                                userId
-                        })
-                        .select()
-                        .single();
-
-                    if (insertError) {
-                        throw insertError;
-                    }
-
-                    participant =
-                        data;
-                }
-
-                res.json({
-
-                    success: true,
-
-                    call,
-
-                    participant
-                });
-
-            } catch (error) {
-
-                console.error(
-                    "JOIN CALL ERROR:",
-                    error
+                const membership = await getMembership(
+                    room.house_id,
+                    req.houseUserId
                 );
 
-                res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to join call."
-                });
-            }
-        }
-    );
-
-    // ========================================================
-    // LEAVE CALL
-    // ========================================================
-
-    router.post(
-        "/houses/calls/:callId/leave",
-        requireHouseLogin,
-        async (req, res) => {
-
-            try {
-
-                const callId =
-                    req.params.callId;
-
-                const userId =
-                    req.houseUserId;
-
-                const {
-                    data: participant,
-                    error
-                } = await supabase
-                    .from(
-                        "house_call_participants"
-                    )
-                    .select(`
-                        id,
-                        call_id,
-                        user_id,
-                        left_at
-                    `)
-                    .eq(
-                        "call_id",
-                        callId
-                    )
-                    .eq(
-                        "user_id",
-                        userId
-                    )
-                    .maybeSingle();
-
-                if (error) {
-                    throw error;
-                }
-
-                if (!participant) {
-                    return res.status(404).json({
-                        error:
-                            "You are not in this call."
-                    });
-                }
-
-                const {
-                    error:
-                        updateError
-                } = await supabase
-                    .from(
-                        "house_call_participants"
-                    )
-                    .update({
-                        left_at:
-                            new Date()
-                                .toISOString()
-                    })
-                    .eq(
-                        "id",
-                        participant.id
-                    );
-
-                if (updateError) {
-                    throw updateError;
-                }
-
-                res.json({
-                    success: true
-                });
-
-            } catch (error) {
-
-                console.error(
-                    "LEAVE CALL ERROR:",
-                    error
-                );
-
-                res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to leave call."
-                });
-            }
-        }
-    );
-
-    // ========================================================
-    // END CALL
-    // ========================================================
-
-    router.post(
-        "/houses/calls/:callId/end",
-        requireHouseLogin,
-        async (req, res) => {
-
-            try {
-
-                const callId =
-                    req.params.callId;
-
-                const userId =
-                    req.houseUserId;
-
-                const {
-                    data: call,
-                    error
-                } = await supabase
-                    .from("house_calls")
-                    .select(`
-                        id,
-                        room_id,
-                        started_by,
-                        active
-                    `)
-                    .eq(
-                        "id",
-                        callId
-                    )
-                    .maybeSingle();
-
-                if (error) {
-                    throw error;
-                }
-
-                if (!call) {
-                    return res.status(404).json({
-                        error:
-                            "Call not found."
-                    });
-                }
-
-                const houseId =
-                    await getRoomHouseId(
-                        call.room_id
-                    );
-
-                const admin =
-                    await isHouseAdmin(
-                        houseId,
-                        userId
-                    );
-
-                if (
-                    call.started_by !==
-                        userId &&
-                    !admin
-                ) {
+                if (!membership) {
                     return res.status(403).json({
-                        error:
-                            "You do not have permission to end this call."
+                        error: "You are not a house member."
                     });
-                }
-
-                const {
-                    error:
-                        updateError
-                } = await supabase
-                    .from("house_calls")
-                    .update({
-                        active:
-                            false
-                    })
-                    .eq(
-                        "id",
-                        callId
-                    );
-
-                if (updateError) {
-                    throw updateError;
                 }
 
                 await supabase
-                    .from(
-                        "house_call_participants"
-                    )
-                    .update({
-                        left_at:
-                            new Date()
-                                .toISOString()
-                    })
-                    .eq(
-                        "call_id",
-                        callId
-                    )
-                    .is(
-                        "left_at",
-                        null
+                    .from("house_call_participants")
+                    .upsert(
+                        {
+                            call_id: call.id,
+                            user_id: req.houseUserId,
+                            left_at: null
+                        },
+                        {
+                            onConflict:
+                                "call_id,user_id"
+                        }
                     );
+
+                res.json({
+                    call
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    error: "Failed to join call."
+                });
+            }
+        }
+    );
+
+    router.post(
+        "/houses/calls/:callId/leave",
+        requireLogin,
+        async (req, res) => {
+            try {
+                const { error } = await supabase
+                    .from("house_call_participants")
+                    .update({
+                        left_at: new Date().toISOString()
+                    })
+                    .eq("call_id", req.params.callId)
+                    .eq("user_id", req.houseUserId);
+
+                if (error) throw error;
 
                 res.json({
                     success: true
                 });
-
             } catch (error) {
-
-                console.error(
-                    "END CALL ERROR:",
-                    error
-                );
+                console.error(error);
 
                 res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to end call."
+                    error: "Failed to leave call."
+                });
+            }
+        }
+    );
+
+    router.post(
+        "/houses/calls/:callId/end",
+        requireLogin,
+        async (req, res) => {
+            try {
+                const { data: call, error } = await supabase
+                    .from("house_calls")
+                    .select("*")
+                    .eq("id", req.params.callId)
+                    .maybeSingle();
+
+                if (error) throw error;
+
+                if (!call) {
+                    return res.status(404).json({
+                        error: "Call not found."
+                    });
+                }
+
+                if (
+                    String(call.started_by) !==
+                    String(req.houseUserId)
+                ) {
+                    const room = await getRoom(call.room_id);
+
+                    const membership = await getMembership(
+                        room.house_id,
+                        req.houseUserId
+                    );
+
+                    if (
+                        !membership ||
+                        !["owner", "admin"].includes(
+                            membership.role
+                        )
+                    ) {
+                        return res.status(403).json({
+                            error: "You cannot end this call."
+                        });
+                    }
+                }
+
+                const { error: updateError } =
+                    await supabase
+                        .from("house_calls")
+                        .update({
+                            active: false,
+                            ended_at:
+                                new Date().toISOString()
+                        })
+                        .eq("id", call.id);
+
+                if (updateError) throw updateError;
+
+                res.json({
+                    success: true
+                });
+            } catch (error) {
+                console.error(error);
+
+                res.status(500).json({
+                    error: "Failed to end call."
                 });
             }
         }
     );
 
     // ========================================================
-    // SEND CALL SIGNAL
+    // WEBRTC SIGNALING
     // ========================================================
 
     router.post(
         "/houses/calls/:callId/signals",
-        requireHouseLogin,
+        requireLogin,
         async (req, res) => {
-
             try {
-
-                const callId =
-                    req.params.callId;
-
-                const userId =
-                    req.houseUserId;
-
-                const {
-                    recipient_id = null,
-                    signal_type,
-                    signal_data
-                } = req.body;
-
-                if (
-                    ![
-                        "offer",
-                        "answer",
-                        "ice-candidate"
-                    ].includes(
-                        signal_type
-                    )
-                ) {
-                    return res.status(400).json({
-                        error:
-                            "Invalid signal type."
-                    });
-                }
-
-                if (
-                    !signal_data ||
-                    typeof signal_data !==
-                        "object"
-                ) {
-                    return res.status(400).json({
-                        error:
-                            "Signal data is required."
-                    });
-                }
-
-                const {
-                    data: call,
-                    error
-                } = await supabase
+                const { data: call, error } = await supabase
                     .from("house_calls")
-                    .select(`
-                        id,
-                        room_id,
-                        active
-                    `)
-                    .eq(
-                        "id",
-                        callId
-                    )
+                    .select("*")
+                    .eq("id", req.params.callId)
+                    .eq("active", true)
                     .maybeSingle();
 
-                if (error) {
-                    throw error;
-                }
+                if (error) throw error;
 
                 if (!call) {
                     return res.status(404).json({
-                        error:
-                            "Call not found."
+                        error: "Call not found."
                     });
                 }
 
-                if (!call.active) {
-                    return res.status(400).json({
-                        error:
-                            "This call has ended."
-                    });
-                }
+                const room = await getRoom(call.room_id);
 
-                const houseId =
-                    await getRoomHouseId(
-                        call.room_id
-                    );
-
-                if (
-                    !(await isHouseMember(
-                        houseId,
-                        userId
-                    ))
-                ) {
-                    return res.status(403).json({
-                        error:
-                            "You are not a member of this house."
-                    });
-                }
-
-                if (
-                    recipient_id &&
-                    !(await isHouseMember(
-                        houseId,
-                        recipient_id
-                    ))
-                ) {
-                    return res.status(400).json({
-                        error:
-                            "Recipient is not a member of this house."
-                    });
-                }
-
-                const {
-                    data: signal,
-                    error:
-                        signalError
-                } = await supabase
-                    .from(
-                        "house_call_signals"
-                    )
-                    .insert({
-
-                        call_id:
-                            callId,
-
-                        sender_id:
-                            userId,
-
-                        recipient_id:
-                            recipient_id,
-
-                        signal_type:
-                            signal_type,
-
-                        signal_data:
-                            signal_data
-                    })
-                    .select(`
-                        id,
-                        call_id,
-                        sender_id,
-                        recipient_id,
-                        signal_type,
-                        signal_data,
-                        created_at
-                    `)
-                    .single();
-
-                if (signalError) {
-                    throw signalError;
-                }
-
-                res.status(201).json({
-
-                    success: true,
-
-                    signal
-                });
-
-            } catch (error) {
-
-                console.error(
-                    "SEND SIGNAL ERROR:",
-                    error
+                const membership = await getMembership(
+                    room.house_id,
+                    req.houseUserId
                 );
 
+                if (!membership) {
+                    return res.status(403).json({
+                        error: "You are not a member of this house."
+                    });
+                }
+
+                const allowedTypes = [
+                    "offer",
+                    "answer",
+                    "ice-candidate"
+                ];
+
+                if (
+                    !allowedTypes.includes(
+                        req.body.signal_type
+                    )
+                ) {
+                    return res.status(400).json({
+                        error: "Invalid signal type."
+                    });
+                }
+
+                const { data, error: signalError } =
+                    await supabase
+                        .from("house_call_signals")
+                        .insert({
+                            call_id: call.id,
+                            sender_id: req.houseUserId,
+                            recipient_id:
+                                req.body.recipient_id || null,
+                            signal_type:
+                                req.body.signal_type,
+                            signal_data:
+                                req.body.signal_data
+                        })
+                        .select()
+                        .single();
+
+                if (signalError) throw signalError;
+
+                res.status(201).json({
+                    signal: data
+                });
+            } catch (error) {
+                console.error(error);
+
                 res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to send call signal."
+                    error: "Failed to send signal."
                 });
             }
         }
     );
-
-    // ========================================================
-    // GET CALL SIGNALS
-    // ========================================================
 
     router.get(
         "/houses/calls/:callId/signals",
-        requireHouseLogin,
+        requireLogin,
         async (req, res) => {
-
             try {
+                const after = Number(
+                    req.query.after || 0
+                );
 
-                const callId =
-                    req.params.callId;
-
-                const userId =
-                    req.houseUserId;
-
-                const afterId =
-                    Number(
-                        req.query.after_id ||
-                        0
-                    );
-
-                const {
-                    data: call,
-                    error
-                } = await supabase
+                const { data: call, error } = await supabase
                     .from("house_calls")
-                    .select(`
-                        id,
-                        room_id,
-                        active
-                    `)
-                    .eq(
-                        "id",
-                        callId
-                    )
+                    .select("*")
+                    .eq("id", req.params.callId)
                     .maybeSingle();
 
-                if (error) {
-                    throw error;
-                }
+                if (error) throw error;
 
                 if (!call) {
                     return res.status(404).json({
-                        error:
-                            "Call not found."
+                        error: "Call not found."
                     });
                 }
 
-                const houseId =
-                    await getRoomHouseId(
-                        call.room_id
-                    );
+                const room = await getRoom(call.room_id);
 
-                if (
-                    !(await isHouseMember(
-                        houseId,
-                        userId
-                    ))
-                ) {
+                const membership = await getMembership(
+                    room.house_id,
+                    req.houseUserId
+                );
+
+                if (!membership) {
                     return res.status(403).json({
-                        error:
-                            "You are not a member of this house."
+                        error: "You are not a member."
                     });
                 }
 
-                const {
-                    data: signals,
-                    error:
-                        signalError
-                } = await supabase
-                    .from(
-                        "house_call_signals"
-                    )
-                    .select(`
-                        id,
-                        call_id,
-                        sender_id,
-                        recipient_id,
-                        signal_type,
-                        signal_data,
-                        created_at
-                    `)
-                    .eq(
-                        "call_id",
-                        callId
-                    )
-                    .gt(
-                        "id",
-                        afterId
-                    )
-                    .neq(
-                        "sender_id",
-                        userId
-                    )
-                    .or(
-                        `recipient_id.eq.${userId},recipient_id.is.null`
-                    )
-                    .order(
-                        "id",
-                        {
+                const { data, error: signalError } =
+                    await supabase
+                        .from("house_call_signals")
+                        .select("*")
+                        .eq("call_id", call.id)
+                        .gt("id", after)
+                        .or(
+                            `recipient_id.is.null,recipient_id.eq.${req.houseUserId}`
+                        )
+                        .neq("sender_id", req.houseUserId)
+                        .order("id", {
                             ascending: true
-                        }
-                    )
-                    .limit(100);
+                        })
+                        .limit(100);
 
-                if (signalError) {
-                    throw signalError;
-                }
+                if (signalError) throw signalError;
 
                 res.json({
-
-                    signals:
-                        signals || [],
-
-                    active:
-                        call.active
+                    signals: data || []
                 });
-
             } catch (error) {
-
-                console.error(
-                    "GET SIGNALS ERROR:",
-                    error
-                );
+                console.error(error);
 
                 res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to get call signals."
+                    error: "Failed to load signals."
                 });
             }
         }
     );
-
-    // ========================================================
-    // DELETE CALL SIGNALS
-    // ========================================================
-
-    router.delete(
-        "/houses/calls/:callId/signals",
-        requireHouseLogin,
-        async (req, res) => {
-
-            try {
-
-                const callId =
-                    req.params.callId;
-
-                const userId =
-                    req.houseUserId;
-
-                const {
-                    data: call,
-                    error
-                } = await supabase
-                    .from("house_calls")
-                    .select(`
-                        id,
-                        room_id
-                    `)
-                    .eq(
-                        "id",
-                        callId
-                    )
-                    .maybeSingle();
-
-                if (error) {
-                    throw error;
-                }
-
-                if (!call) {
-                    return res.status(404).json({
-                        error:
-                            "Call not found."
-                    });
-                }
-
-                const houseId =
-                    await getRoomHouseId(
-                        call.room_id
-                    );
-
-                if (
-                    !(await isHouseAdmin(
-                        houseId,
-                        userId
-                    ))
-                ) {
-                    return res.status(403).json({
-                        error:
-                            "Only house admins can clear call signals."
-                    });
-                }
-
-                const {
-                    error:
-                        deleteError
-                } = await supabase
-                    .from(
-                        "house_call_signals"
-                    )
-                    .delete()
-                    .eq(
-                        "call_id",
-                        callId
-                    );
-
-                if (deleteError) {
-                    throw deleteError;
-                }
-
-                res.json({
-                    success: true
-                });
-
-            } catch (error) {
-
-                console.error(
-                    "DELETE SIGNALS ERROR:",
-                    error
-                );
-
-                res.status(500).json({
-                    error:
-                        error.message ||
-                        "Failed to delete call signals."
-                });
-            }
-        }
-    );
-
-    // ========================================================
-    // RETURN ROUTER
-    // ========================================================
 
     return router;
 };

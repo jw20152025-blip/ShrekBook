@@ -110,7 +110,7 @@ class ByteTokenizer:
 
         return output.decode(
             "utf-8",
-            errors="replace",
+            errors="ignore",
         )
 
 

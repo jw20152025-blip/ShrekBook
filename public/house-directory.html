@@ -1,15 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>ShrekBook Houses</title>
+    <title>House Room</title>
 
     <style>
         * {
@@ -18,180 +13,123 @@
 
         body {
             margin: 0;
+            background: #101114;
+            color: white;
             font-family: Arial, sans-serif;
-            background: #eef3eb;
-            color: #222;
         }
 
         header {
-            background: #ffffff;
-            border-bottom: 1px solid #ddd;
-            padding: 18px 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-
-        header h1 {
-            margin: 0;
-            font-size: 24px;
-        }
-
-        header a {
-            text-decoration: none;
-            color: white;
-            background: #4d8b45;
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-weight: bold;
-        }
-
-        main {
-            max-width: 1100px;
-            margin: 35px auto;
+            height: 64px;
             padding: 0 20px;
-        }
-
-        .top {
             display: flex;
+            align-items: center;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
+            background: #17191f;
+            border-bottom: 1px solid #292c35;
         }
 
-        .top h2 {
-            margin: 0;
-            font-size: 30px;
-        }
-
-        #status {
-            color: #666;
-        }
-
-        #houses {
-            display: grid;
-            grid-template-columns:
-                repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-        }
-
-        .house-card {
-            background: white;
-            border-radius: 16px;
-            padding: 22px;
-            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
-            transition: transform 0.15s,
-                        box-shadow 0.15s;
-        }
-
-        .house-card:hover {
-            transform: translateY(-3px);
-            box-shadow:
-                0 7px 20px rgba(0, 0, 0, 0.12);
-        }
-
-        .house-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 10px;
-        }
-
-        .house-icon {
-            font-size: 38px;
-        }
-
-        .house-name {
-            margin: 0;
-            font-size: 23px;
-        }
-
-        .house-type {
-            color: #666;
-            font-weight: bold;
-        }
-
-        .description {
-            color: #555;
-            min-height: 45px;
-            margin: 15px 0;
-        }
-
-        .owner {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 15px 0;
-            padding-top: 15px;
-            border-top: 1px solid #eee;
-        }
-
-        .avatar {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            object-fit: cover;
-            background: #ddd;
-        }
-
-        .owner-name {
-            font-weight: bold;
-        }
-
-        .owner-label {
-            color: #888;
-            font-size: 13px;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-top: 15px;
-        }
-
-        .stat {
-            background: #f5f7f4;
-            padding: 10px;
-            border-radius: 9px;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: #777;
-        }
-
-        .stat-value {
-            margin-top: 3px;
-            font-weight: bold;
-        }
-
-        .view-button {
-            width: 100%;
-            margin-top: 18px;
-            padding: 12px;
+        button {
             border: 0;
-            border-radius: 9px;
-            background: #4d8b45;
+            border-radius: 8px;
+            padding: 10px 14px;
+            background: #292d37;
             color: white;
-            font-size: 15px;
-            font-weight: bold;
             cursor: pointer;
         }
 
-        .view-button:hover {
-            background: #3e7438;
+        button:hover {
+            background: #363b48;
         }
 
-        .empty {
-            background: white;
-            padding: 40px;
-            text-align: center;
-            border-radius: 16px;
-            color: #777;
+        .chat {
+            height: calc(100vh - 64px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .message {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .name {
+            font-weight: bold;
+        }
+
+        .time {
+            color: #777e89;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+
+        .content {
+            margin-top: 4px;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .composer {
+            display: flex;
+            gap: 10px;
+            padding: 14px;
+            border-top: 1px solid #292c35;
+        }
+
+        input {
+            flex: 1;
+            border: 1px solid #30343e;
+            border-radius: 8px;
+            background: #20232a;
+            color: white;
+            padding: 12px;
+            outline: none;
+        }
+
+        .call-panel {
+            position: fixed;
+            right: 20px;
+            bottom: 80px;
+            width: 320px;
+            padding: 16px;
+            border-radius: 14px;
+            background: #1a1d24;
+            border: 1px solid #343844;
+            display: none;
+        }
+
+        .call-panel.show {
+            display: block;
+        }
+
+        .call-title {
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        .call-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        #participants {
+            margin-top: 14px;
+            color: #a1a6b0;
+            font-size: 13px;
         }
     </style>
 </head>
@@ -199,300 +137,620 @@
 <body>
 
 <header>
-
-    <h1>🏠 ShrekBook Houses</h1>
-
-    <a href="/house-create.html">
-        ➕ Create House
-    </a>
-
-</header>
-
-<main>
-
-    <div class="top">
-        <h2>House Directory</h2>
-        <span id="status">Loading...</span>
+    <div>
+        <strong id="roomName">
+            Loading...
+        </strong>
     </div>
 
-    <div id="houses"></div>
+    <div>
+        <button onclick="startVoice()">
+            🎤 Start Voice
+        </button>
 
-</main>
+        <button onclick="location.href='/house.html?id=' + houseId">
+            ← House
+        </button>
+    </div>
+</header>
+
+<div class="chat">
+
+    <div id="messages"></div>
+
+    <form class="composer" id="messageForm">
+
+        <input
+            id="messageInput"
+            maxlength="4000"
+            autocomplete="off"
+            placeholder="Message..."
+        >
+
+        <button>
+            Send
+        </button>
+
+    </form>
+
+</div>
+
+<div class="call-panel" id="callPanel">
+
+    <div class="call-title">
+        🎤 House Voice
+    </div>
+
+    <div class="call-buttons">
+
+        <button onclick="muteMicrophone()">
+            🎙️ Mute
+        </button>
+
+        <button onclick="leaveVoice()">
+            📞 Leave
+        </button>
+
+        <button onclick="endVoice()">
+            🛑 End
+        </button>
+
+    </div>
+
+    <div id="participants">
+        Connecting...
+    </div>
+
+    <audio id="remoteAudio" autoplay></audio>
+
+</div>
 
 <script>
+    const params =
+        new URLSearchParams(location.search);
 
-async function loadHouses() {
+    const houseId =
+        params.get("house");
 
-    const container =
-        document.getElementById("houses");
+    const roomId =
+        params.get("room");
 
-    const status =
-        document.getElementById("status");
+    let currentCall = null;
 
-    try {
+    let localStream = null;
 
+    let peerConnections = {};
+
+    let signalCursor = 0;
+
+    let signalTimer = null;
+
+    let messageTimer = null;
+
+    let muted = false;
+
+    async function api(url, options = {}) {
         const response =
-            await fetch("/api/houses");
+            await fetch(url, {
+                credentials: "include",
+                ...options,
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(options.headers || {})
+                }
+            });
 
         const data =
-            await response.json();
+            await response.json()
+                .catch(() => ({}));
 
         if (!response.ok) {
             throw new Error(
                 data.error ||
-                "Failed to load houses."
+                "Request failed."
             );
         }
 
-        const houses =
-            data.houses || [];
+        return data;
+    }
 
-        status.textContent =
-            `${houses.length} house${
-                houses.length === 1 ? "" : "s"
-            }`;
+    async function loadRoom() {
+        const data =
+            await api(
+                `/api/houses/${houseId}`
+            );
 
-        if (houses.length === 0) {
+        const room =
+            data.rooms.find(
+                r =>
+                    String(r.id) ===
+                    String(roomId)
+            );
 
-            container.innerHTML = `
-                <div class="empty">
-                    <h2>🏚️ No houses yet</h2>
+        if (!room) {
+            throw new Error(
+                "Room not found."
+            );
+        }
 
-                    <p>
-                        Be the first person to create
-                        a ShrekBook house!
-                    </p>
-                </div>
-            `;
+        document.getElementById(
+            "roomName"
+        ).textContent =
+            `${room.room_type === "voice" ? "🎤" : "💬"} ${room.name}`;
 
+        await loadMessages();
+
+        messageTimer =
+            setInterval(
+                loadMessages,
+                2500
+            );
+    }
+
+    async function loadMessages() {
+        try {
+            const data =
+                await api(
+                    `/api/houses/${houseId}/rooms/${roomId}/messages`
+                );
+
+            const container =
+                document.getElementById(
+                    "messages"
+                );
+
+            const atBottom =
+                container.scrollHeight -
+                container.scrollTop -
+                container.clientHeight <
+                100;
+
+            container.innerHTML = "";
+
+            for (const message of data.messages) {
+                const wrapper =
+                    document.createElement("div");
+
+                wrapper.className =
+                    "message";
+
+                const avatar =
+                    document.createElement("img");
+
+                avatar.className =
+                    "avatar";
+
+                avatar.src =
+                    message.profile?.avatar ||
+                    "/default-avatar.png";
+
+                const body =
+                    document.createElement("div");
+
+                const header =
+                    document.createElement("div");
+
+                const name =
+                    document.createElement("span");
+
+                name.className =
+                    "name";
+
+                name.textContent =
+                    message.profile?.display_name ||
+                    message.profile?.username ||
+                    "Unknown";
+
+                const time =
+                    document.createElement("span");
+
+                time.className =
+                    "time";
+
+                time.textContent =
+                    new Date(
+                        message.created_at
+                    ).toLocaleString();
+
+                const content =
+                    document.createElement("div");
+
+                content.className =
+                    "content";
+
+                content.textContent =
+                    message.content;
+
+                header.appendChild(name);
+                header.appendChild(time);
+
+                body.appendChild(header);
+                body.appendChild(content);
+
+                wrapper.appendChild(avatar);
+                wrapper.appendChild(body);
+
+                container.appendChild(wrapper);
+            }
+
+            if (atBottom) {
+                container.scrollTop =
+                    container.scrollHeight;
+            }
+
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    document.getElementById(
+        "messageForm"
+    ).addEventListener(
+        "submit",
+        async event => {
+            event.preventDefault();
+
+            const input =
+                document.getElementById(
+                    "messageInput"
+                );
+
+            const content =
+                input.value.trim();
+
+            if (!content) return;
+
+            try {
+                await api(
+                    `/api/houses/${houseId}/rooms/${roomId}/messages`,
+                    {
+                        method: "POST",
+                        body: JSON.stringify({
+                            content
+                        })
+                    }
+                );
+
+                input.value = "";
+
+                await loadMessages();
+
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+    );
+
+    // ========================================================
+    // WEBRTC
+    // ========================================================
+
+    async function startVoice() {
+        try {
+            if (currentCall) {
+                return;
+            }
+
+            const data =
+                await api(
+                    `/api/houses/${houseId}/rooms/${roomId}/calls`,
+                    {
+                        method: "POST",
+                        body: JSON.stringify({
+                            call_type: "voice"
+                        })
+                    }
+                );
+
+            currentCall =
+                data.call;
+
+            await joinCall();
+
+        } catch (error) {
+            alert(error.message);
+        }
+    }
+
+    async function joinCall() {
+        if (!currentCall) {
             return;
         }
 
-        container.innerHTML = "";
+        await api(
+            `/api/houses/calls/${currentCall.id}/join`,
+            {
+                method: "POST"
+            }
+        );
 
-        for (const house of houses) {
+        localStream =
+            await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: false
+            });
 
-            const owner =
-                house.owner;
+        document.getElementById(
+            "callPanel"
+        ).classList.add("show");
 
-            const type =
-                house.type;
+        document.getElementById(
+            "participants"
+        ).textContent =
+            "🎤 Voice connected";
 
-            const taxReduction =
-                type
-                    ? Number(type.tax_reduction) * 100
-                    : 0;
+        startSignalPolling();
+    }
 
-            const card =
-                document.createElement("div");
+    function startSignalPolling() {
+        clearInterval(signalTimer);
 
-            card.className =
-                "house-card";
+        signalTimer =
+            setInterval(
+                pollSignals,
+                800
+            );
 
-            card.innerHTML = `
+        pollSignals();
+    }
 
-                <div class="house-header">
+    async function pollSignals() {
+        if (!currentCall) return;
 
-                    <div class="house-icon">
-                        🏠
-                    </div>
+        try {
+            const data =
+                await api(
+                    `/api/houses/calls/${currentCall.id}/signals?after=${signalCursor}`
+                );
 
-                    <div>
+            for (const signal of data.signals) {
+                signalCursor =
+                    Math.max(
+                        signalCursor,
+                        Number(signal.id)
+                    );
 
-                        <h3 class="house-name">
-                            ${escapeHtml(house.name)}
-                        </h3>
+                await handleSignal(signal);
+            }
 
-                        <div class="house-type">
-                            ${
-                                type
-                                    ? escapeHtml(type.name)
-                                    : "Unknown type"
-                            }
-                        </div>
+        } catch (error) {
+            console.error(error);
+        }
+    }
 
-                    </div>
+    async function handleSignal(signal) {
+        const senderId =
+            signal.sender_id;
 
-                </div>
-
-
-                <div class="description">
-
-                    ${
-                        house.description
-                            ? escapeHtml(
-                                house.description
-                            )
-                            : "No description."
-                    }
-
-                </div>
-
-
-                <div class="owner">
-
-                    ${
-                        owner?.avatar_url
-                            ? `
-                                <img
-                                    class="avatar"
-                                    src="${escapeHtml(
-                                        owner.avatar_url
-                                    )}"
-                                >
-                            `
-                            : `
-                                <div class="avatar">
-                                    👤
-                                </div>
-                            `
-                    }
-
-                    <div>
-
-                        <div class="owner-label">
-                            Owner
-                        </div>
-
-                        <div class="owner-name">
-                            ${
-                                escapeHtml(
-                                    owner?.display_name ||
-                                    owner?.username ||
-                                    "Unknown"
-                                )
-                            }
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <div class="stats">
-
-                    <div class="stat">
-
-                        <div class="stat-label">
-                            💰 House Cost
-                        </div>
-
-                        <div class="stat-value">
-                            ${
-                                type
-                                    ? Number(
-                                        type.cost
-                                    ).toLocaleString()
-                                    : "?"
-                            }
-                            ShrekCoins
-                        </div>
-
-                    </div>
-
-
-                    <div class="stat">
-
-                        <div class="stat-label">
-                            🧾 Tax Reduction
-                        </div>
-
-                        <div class="stat-value">
-                            ${taxReduction.toFixed(1)}%
-                        </div>
-
-                    </div>
-
-
-                    <div class="stat">
-
-                        <div class="stat-label">
-                            🚪 Rooms
-                        </div>
-
-                        <div class="stat-value">
-                            ${
-                                type
-                                    ? type.room_count
-                                    : "?"
-                            }
-                        </div>
-
-                    </div>
-
-
-                    <div class="stat">
-
-                        <div class="stat-label">
-                            👥 Members
-                        </div>
-
-                        <div class="stat-value">
-                            ${house.member_count}
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <button
-                    class="view-button"
-                    onclick="viewHouse(${house.id})"
-                >
-                    Enter House →
-                </button>
-
-            `;
-
-            container.appendChild(card);
+        if (!peerConnections[senderId]) {
+            createPeerConnection(senderId);
         }
 
-    } catch (error) {
+        const peer =
+            peerConnections[senderId];
 
-        console.error(error);
+        if (
+            signal.signal_type ===
+            "offer"
+        ) {
+            await peer.setRemoteDescription(
+                new RTCSessionDescription(
+                    signal.signal_data
+                )
+            );
 
-        status.textContent = "Error";
+            const answer =
+                await peer.createAnswer();
 
-        container.innerHTML = `
-            <div class="empty">
+            await peer.setLocalDescription(
+                answer
+            );
 
-                <h2>💀 Couldn't load houses</h2>
+            await sendSignal(
+                "answer",
+                answer,
+                senderId
+            );
+        }
 
-                <p>
-                    ${escapeHtml(error.message)}
-                </p>
+        if (
+            signal.signal_type ===
+            "answer"
+        ) {
+            await peer.setRemoteDescription(
+                new RTCSessionDescription(
+                    signal.signal_data
+                )
+            );
+        }
 
-            </div>
-        `;
+        if (
+            signal.signal_type ===
+            "ice-candidate"
+        ) {
+            try {
+                await peer.addIceCandidate(
+                    new RTCIceCandidate(
+                        signal.signal_data
+                    )
+                );
+            } catch (error) {
+                console.error(error);
+            }
+        }
     }
-}
 
+    function createPeerConnection(userId) {
+        const peer =
+            new RTCPeerConnection({
+                iceServers: [
+                    {
+                        urls:
+                            "stun:stun.l.google.com:19302"
+                    }
+                ]
+            });
 
-function viewHouse(id) {
+        peerConnections[userId] =
+            peer;
 
-    window.location.href =
-        `/house.html?id=${id}`;
+        for (const track of localStream.getTracks()) {
+            peer.addTrack(
+                track,
+                localStream
+            );
+        }
 
-}
+        peer.onicecandidate =
+            async event => {
+                if (!event.candidate) {
+                    return;
+                }
 
+                await sendSignal(
+                    "ice-candidate",
+                    event.candidate,
+                    userId
+                );
+            };
 
-function escapeHtml(value) {
+        peer.ontrack =
+            event => {
+                const audio =
+                    document.getElementById(
+                        "remoteAudio"
+                    );
 
-    return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+                audio.srcObject =
+                    event.streams[0];
+            };
 
-}
+        peer.onconnectionstatechange =
+            () => {
+                if (
+                    ["failed", "closed"]
+                        .includes(
+                            peer.connectionState
+                        )
+                ) {
+                    delete peerConnections[userId];
+                }
+            };
 
+        return peer;
+    }
 
-loadHouses();
+    async function sendSignal(
+        signalType,
+        signalData,
+        recipientId = null
+    ) {
+        await api(
+            `/api/houses/calls/${currentCall.id}/signals`,
+            {
+                method: "POST",
+                body: JSON.stringify({
+                    signal_type:
+                        signalType,
+                    signal_data:
+                        signalData,
+                    recipient_id:
+                        recipientId
+                })
+            }
+        );
+    }
 
+    function muteMicrophone() {
+        if (!localStream) return;
+
+        muted = !muted;
+
+        for (
+            const track
+            of localStream.getAudioTracks()
+        ) {
+            track.enabled =
+                !muted;
+        }
+    }
+
+    async function leaveVoice() {
+        if (!currentCall) {
+            return;
+        }
+
+        try {
+            await api(
+                `/api/houses/calls/${currentCall.id}/leave`,
+                {
+                    method: "POST"
+                }
+            );
+        } catch (error) {
+            console.error(error);
+        }
+
+        cleanupVoice();
+    }
+
+    async function endVoice() {
+        if (!currentCall) {
+            return;
+        }
+
+        try {
+            await api(
+                `/api/houses/calls/${currentCall.id}/end`,
+                {
+                    method: "POST"
+                }
+            );
+        } catch (error) {
+            alert(error.message);
+        }
+
+        cleanupVoice();
+    }
+
+    function cleanupVoice() {
+        clearInterval(signalTimer);
+
+        for (
+            const peer
+            of Object.values(
+                peerConnections
+            )
+        ) {
+            peer.close();
+        }
+
+        peerConnections = {};
+
+        if (localStream) {
+            for (
+                const track
+                of localStream.getTracks()
+            ) {
+                track.stop();
+            }
+        }
+
+        localStream = null;
+        currentCall = null;
+
+        document.getElementById(
+            "callPanel"
+        ).classList.remove("show");
+    }
+
+    loadRoom()
+        .catch(error => {
+            alert(error.message);
+            location.href =
+                `/house.html?id=${houseId}`;
+        });
 </script>
 
 </body>
-
 </html>

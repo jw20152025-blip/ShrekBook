@@ -35,25 +35,53 @@ class RMSNorm(nn.Module):
 
     def __init__(self, dim, eps=1e-6):
         super().__init__()
-        self.weight = nn.Parameter(torch.ones(dim))
+
+        self.weight = nn.Parameter(
+            torch.ones(dim)
+        )
+
         self.eps = eps
 
     def forward(self, x):
-        variance = x.float().pow(2).mean(-1, keepdim=True)
-        x = x * torch.rsqrt(variance + self.eps)
-        return self.weight * x
+
+        # Compute variance in FP32 for numerical stability.
+        variance = (
+            x.float()
+            .pow(2)
+            .mean(-1, keepdim=True)
+        )
+
+        # Convert the normalization factor back to
+        # the input dtype so BF16 inputs remain BF16.
+        inv_rms = torch.rsqrt(
+            variance + self.eps
+        ).to(dtype=x.dtype)
+
+        x = x * inv_rms
+
+        # The parameter itself is stored in FP32,
+        # but the output must match x's dtype.
+        weight = self.weight.to(dtype=x.dtype)
+
+        return weight * x
 
 
 def rotate_half(x):
+
     x1 = x[..., : x.shape[-1] // 2]
     x2 = x[..., x.shape[-1] // 2 :]
-    return torch.cat((-x2, x1), dim=-1)
+
+    return torch.cat(
+        (-x2, x1),
+        dim=-1,
+    )
 
 
 def apply_rope(q, k, seq_len, device):
 
     head_dim = q.shape[-1]
 
+    # RoPE math is calculated in FP32 for stability.
     inv_freq = 1.0 / (
         10000
         ** (
@@ -74,15 +102,41 @@ def apply_rope(q, k, seq_len, device):
         dtype=torch.float32,
     )
 
-    freqs = torch.outer(positions, inv_freq)
+    freqs = torch.outer(
+        positions,
+        inv_freq,
+    )
 
-    emb = torch.cat((freqs, freqs), dim=-1)
+    emb = torch.cat(
+        (freqs, freqs),
+        dim=-1,
+    )
 
-    cos = emb.cos()[None, None, :, :]
-    sin = emb.sin()[None, None, :, :]
+    # Calculate trig functions in FP32,
+    # then convert them back to the Q/K dtype.
+    cos = emb.cos()[
+        None,
+        None,
+        :,
+        :
+    ].to(dtype=q.dtype)
 
-    q = (q * cos) + (rotate_half(q) * sin)
-    k = (k * cos) + (rotate_half(k) * sin)
+    sin = emb.sin()[
+        None,
+        None,
+        :,
+        :
+    ].to(dtype=q.dtype)
+
+    q = (
+        q * cos
+        + rotate_half(q) * sin
+    )
+
+    k = (
+        k * cos
+        + rotate_half(k) * sin
+    )
 
     return q, k
 
@@ -93,10 +147,16 @@ class CausalSelfAttention(nn.Module):
 
         super().__init__()
 
-        assert config.d_model % config.n_heads == 0
+        assert (
+            config.d_model % config.n_heads == 0
+        )
 
         self.n_heads = config.n_heads
-        self.head_dim = config.d_model // config.n_heads
+
+        self.head_dim = (
+            config.d_model
+            // config.n_heads
+        )
 
         self.qkv = nn.Linear(
             config.d_model,
@@ -118,7 +178,10 @@ class CausalSelfAttention(nn.Module):
 
         qkv = self.qkv(x)
 
-        q, k, v = qkv.chunk(3, dim=-1)
+        q, k, v = qkv.chunk(
+            3,
+            dim=-1,
+        )
 
         q = q.view(
             batch,
@@ -153,11 +216,18 @@ class CausalSelfAttention(nn.Module):
             k,
             v,
             attn_mask=None,
-            dropout_p=self.dropout if self.training else 0.0,
+            dropout_p=(
+                self.dropout
+                if self.training
+                else 0.0
+            ),
             is_causal=True,
         )
 
-        y = y.transpose(1, 2).contiguous()
+        y = (
+            y.transpose(1, 2)
+            .contiguous()
+        )
 
         y = y.view(
             batch,
@@ -175,10 +245,13 @@ class SwiGLU(nn.Module):
         super().__init__()
 
         hidden = int(
-            config.d_model * config.ffn_multiplier
+            config.d_model
+            * config.ffn_multiplier
         )
 
-        hidden = 256 * ((hidden + 255) // 256)
+        hidden = 256 * (
+            (hidden + 255) // 256
+        )
 
         self.gate = nn.Linear(
             config.d_model,
@@ -201,7 +274,10 @@ class SwiGLU(nn.Module):
     def forward(self, x):
 
         return self.down(
-            F.silu(self.gate(x)) * self.up(x)
+            F.silu(
+                self.gate(x)
+            )
+            * self.up(x)
         )
 
 
@@ -211,13 +287,21 @@ class TransformerBlock(nn.Module):
 
         super().__init__()
 
-        self.norm1 = RMSNorm(config.d_model)
+        self.norm1 = RMSNorm(
+            config.d_model
+        )
 
-        self.attention = CausalSelfAttention(config)
+        self.attention = CausalSelfAttention(
+            config
+        )
 
-        self.norm2 = RMSNorm(config.d_model)
+        self.norm2 = RMSNorm(
+            config.d_model
+        )
 
-        self.mlp = SwiGLU(config)
+        self.mlp = SwiGLU(
+            config
+        )
 
     def forward(self, x):
 
@@ -255,7 +339,9 @@ class ShrekAI(nn.Module):
             ]
         )
 
-        self.norm = RMSNorm(config.d_model)
+        self.norm = RMSNorm(
+            config.d_model
+        )
 
         self.lm_head = nn.Linear(
             config.d_model,
@@ -263,15 +349,21 @@ class ShrekAI(nn.Module):
             bias=False,
         )
 
+        # Weight tying.
         self.lm_head.weight = (
             self.token_embedding.weight
         )
 
-        self.apply(self._init_weights)
+        self.apply(
+            self._init_weights
+        )
 
     def _init_weights(self, module):
 
-        if isinstance(module, nn.Linear):
+        if isinstance(
+            module,
+            nn.Linear,
+        ):
 
             std = 0.02
 
@@ -282,9 +374,15 @@ class ShrekAI(nn.Module):
             )
 
             if module.bias is not None:
-                nn.init.zeros_(module.bias)
 
-        elif isinstance(module, nn.Embedding):
+                nn.init.zeros_(
+                    module.bias
+                )
+
+        elif isinstance(
+            module,
+            nn.Embedding,
+        ):
 
             nn.init.normal_(
                 module.weight,
@@ -300,15 +398,22 @@ class ShrekAI(nn.Module):
 
         batch, seq_len = input_ids.shape
 
-        if seq_len > self.config.max_seq_len:
+        if (
+            seq_len
+            > self.config.max_seq_len
+        ):
+
             raise ValueError(
                 f"Sequence length {seq_len} exceeds "
                 f"maximum {self.config.max_seq_len}"
             )
 
-        x = self.token_embedding(input_ids)
+        x = self.token_embedding(
+            input_ids
+        )
 
         for layer in self.layers:
+
             x = layer(x)
 
         x = self.norm(x)
@@ -320,7 +425,10 @@ class ShrekAI(nn.Module):
         if targets is not None:
 
             loss = F.cross_entropy(
-                logits.reshape(-1, logits.size(-1)),
+                logits.reshape(
+                    -1,
+                    logits.size(-1),
+                ),
                 targets.reshape(-1),
                 ignore_index=-100,
             )
@@ -351,14 +459,20 @@ class ShrekAI(nn.Module):
         for _ in range(max_new_tokens):
 
             context = input_ids[
-                :, -self.config.max_seq_len :
+                :,
+                -self.config.max_seq_len:
             ]
 
-            logits, _ = self(context)
+            logits, _ = self(
+                context
+            )
 
             logits = logits[:, -1, :]
 
-            if repetition_penalty != 1.0:
+            if (
+                repetition_penalty
+                != 1.0
+            ):
 
                 previous = torch.unique(
                     input_ids
@@ -373,9 +487,11 @@ class ShrekAI(nn.Module):
                 1e-5,
             )
 
-            sorted_logits, sorted_indices = torch.sort(
-                logits,
-                descending=True,
+            sorted_logits, sorted_indices = (
+                torch.sort(
+                    logits,
+                    descending=True,
+                )
             )
 
             probabilities = F.softmax(
@@ -388,22 +504,31 @@ class ShrekAI(nn.Module):
                 dim=-1,
             )
 
-            remove = cumulative > top_p
+            remove = (
+                cumulative > top_p
+            )
 
-            remove[..., 1:] = remove[..., :-1].clone()
+            remove[..., 1:] = (
+                remove[..., :-1]
+                .clone()
+            )
 
             remove[..., 0] = False
 
-            sorted_logits[remove] = float("-inf")
+            sorted_logits[remove] = (
+                float("-inf")
+            )
 
             probabilities = F.softmax(
                 sorted_logits,
                 dim=-1,
             )
 
-            next_token = torch.multinomial(
-                probabilities,
-                num_samples=1,
+            next_token = (
+                torch.multinomial(
+                    probabilities,
+                    num_samples=1,
+                )
             )
 
             next_token = torch.gather(
@@ -413,7 +538,10 @@ class ShrekAI(nn.Module):
             )
 
             input_ids = torch.cat(
-                (input_ids, next_token),
+                (
+                    input_ids,
+                    next_token,
+                ),
                 dim=-1,
             )
 

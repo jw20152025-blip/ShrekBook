@@ -1,616 +1,683 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>House Room</title>
+    <title>House</title>
 
     <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #edf2eb;
-        }
-
-        header {
-            padding: 20px;
-            background: #304d2c;
-            color: white;
-        }
-
-        main {
-            max-width: 1000px;
-            margin: auto;
-            padding: 20px;
-        }
-
-        #messages {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            min-height: 400px;
-        }
-
-        .message {
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .message-user {
-            font-weight: bold;
-        }
-
-        .composer {
-            background: white;
-            margin-top: 15px;
-            padding: 15px;
-            border-radius: 12px;
-        }
-
-        textarea {
-            width: 100%;
-            min-height: 80px;
+        * {
             box-sizing: border-box;
         }
 
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #101114;
+            color: white;
+        }
+
+        .topbar {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 22px;
+            background: #17191f;
+            border-bottom: 1px solid #292c35;
+        }
+
+        .house-title {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+
         button {
-            padding: 10px 15px;
-            margin: 5px;
+            border: 0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            background: #272a33;
+            color: white;
             cursor: pointer;
         }
 
-        img,
-        video,
-        audio {
-            max-width: 100%;
-            margin-top: 10px;
+        button:hover {
+            background: #343844;
         }
 
-        #videoArea {
-            display: none;
-            background: black;
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 15px;
+        .layout {
+            display: grid;
+            grid-template-columns: 240px 1fr 260px;
+            height: calc(100vh - 64px);
         }
 
-        video {
-            width: 45%;
-            margin: 2%;
+        .sidebar,
+        .members {
+            background: #15171c;
+            border-right: 1px solid #292c35;
+            overflow-y: auto;
+        }
+
+        .members {
+            border-right: 0;
+            border-left: 1px solid #292c35;
+            padding: 18px;
+        }
+
+        .sidebar {
+            padding: 16px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #8d929e;
+            margin: 8px 0;
+            font-weight: bold;
+        }
+
+        .room {
+            width: 100%;
+            text-align: left;
+            margin-bottom: 5px;
+            background: transparent;
+        }
+
+        .room.active {
+            background: #292d38;
+        }
+
+        .main {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .room-header {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 1px solid #292c35;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .message {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #2c303a;
+        }
+
+        .message-name {
+            font-weight: bold;
+        }
+
+        .message-time {
+            color: #747985;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+
+        .message-content {
+            margin-top: 4px;
+            color: #d7dae0;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .composer {
+            padding: 14px;
+            border-top: 1px solid #292c35;
+            display: flex;
+            gap: 10px;
+        }
+
+        .composer input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #30343e;
+            background: #20232a;
+            color: white;
+            outline: none;
+        }
+
+        .member {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .member-info {
+            min-width: 0;
+        }
+
+        .member-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .member-role {
+            color: #8e949f;
+            font-size: 12px;
+        }
+
+        .empty {
+            color: #777d88;
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        @media(max-width: 900px) {
+            .layout {
+                grid-template-columns: 190px 1fr;
+            }
+
+            .members {
+                display: none;
+            }
+        }
+
+        @media(max-width: 650px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                display: none;
+            }
         }
     </style>
 </head>
 
 <body>
 
-<header>
+<header class="topbar">
+    <div class="house-title" id="houseName">
+        Loading house...
+    </div>
 
-    <h1 id="roomName">
-        Loading...
-    </h1>
-
-    <p id="roomDescription"></p>
-
+    <div class="actions">
+        <button onclick="openSettings()">⚙️ Settings</button>
+        <button onclick="leaveHouse()">Leave</button>
+    </div>
 </header>
 
-<main>
+<div class="layout">
 
-    <button onclick="goBack()">
-        ← House
-    </button>
+    <aside class="sidebar">
+        <div class="section-title">Rooms</div>
 
-    <button onclick="startCall('voice')">
-        🎙️ Voice
-    </button>
+        <div id="rooms"></div>
 
-    <button onclick="startCall('video')">
-        📹 Video
-    </button>
+        <div style="margin-top:20px;">
+            <button id="createRoomButton" onclick="createRoom()" style="width:100%;">
+                + Create Room
+            </button>
+        </div>
+    </aside>
 
-    <div id="videoArea">
+    <main class="main">
 
-        <video
-            id="localVideo"
-            autoplay
-            muted
-        ></video>
+        <div class="room-header">
+            <div>
+                <strong id="roomName">Select a room</strong>
+                <div id="roomDescription" style="font-size:12px;color:#858b96;"></div>
+            </div>
+        </div>
 
-        <video
-            id="remoteVideo"
-            autoplay
-        ></video>
+        <div class="messages" id="messages">
+            <div class="empty">
+                Select a room.
+            </div>
+        </div>
 
-        <button onclick="leaveCall()">
-            Leave Call
-        </button>
+        <form class="composer" id="messageForm">
+            <input
+                id="messageInput"
+                autocomplete="off"
+                maxlength="4000"
+                placeholder="Message this room..."
+            >
 
-    </div>
+            <button type="submit">
+                Send
+            </button>
+        </form>
 
-    <div id="messages"></div>
+    </main>
 
-    <div class="composer">
+    <aside class="members">
 
-        <textarea
-            id="message"
-            placeholder="Write something..."
-        ></textarea>
+        <div class="section-title">
+            Members
+        </div>
 
-        <input
-            id="mediaFile"
-            type="file"
-            accept="image/*,video/*,audio/*"
-        >
+        <div id="members"></div>
 
-        <button onclick="sendMessage()">
-            💬 Send
-        </button>
+    </aside>
 
-        <p id="uploadStatus"></p>
-
-    </div>
-
-</main>
+</div>
 
 <script>
+    const params = new URLSearchParams(location.search);
+    const houseId = params.get("id");
 
-const params =
-    new URLSearchParams(
-        location.search
-    );
+    let houseData = null;
+    let selectedRoom = null;
+    let messageTimer = null;
 
-const houseId =
-    params.get("houseId");
-
-const roomId =
-    params.get("roomId");
-
-let currentCall = null;
-
-let localStream = null;
-
-let peerConnection = null;
-
-
-/* =========================================================
-   LOAD ROOM
-========================================================= */
-
-async function loadRoom() {
-
-    const response =
-        await fetch(
-            `/api/houses/${houseId}/rooms/${roomId}`
-        );
-
-    const data =
-        await response.json();
-
-    if (!response.ok) {
-
-        document.body.innerHTML =
-            `<h1>${escapeHtml(
-                data.error || "Failed."
-            )}</h1>`;
-
-        return;
+    if (!houseId) {
+        alert("No house ID.");
+        location.href = "/house-directory.html";
     }
 
-    document.title =
-        data.room.name;
-
-    document.getElementById(
-        "roomName"
-    ).textContent =
-        `${roomIcon(data.room.room_type)}
-         ${data.room.name}`;
-
-    document.getElementById(
-        "roomDescription"
-    ).textContent =
-        data.room.description;
-
-    renderMessages(data.messages);
-}
-
-
-/* =========================================================
-   MESSAGES
-========================================================= */
-
-function renderMessages(messages) {
-
-    const container =
-        document.getElementById("messages");
-
-    container.innerHTML = "";
-
-    for (const message of messages) {
-
-        const div =
-            document.createElement("div");
-
-        div.className = "message";
-
-        const profile =
-            message.profiles;
-
-        div.innerHTML = `
-            <div class="message-user">
-                ${escapeHtml(
-                    profile?.display_name ||
-                    profile?.username ||
-                    "User"
-                )}
-            </div>
-
-            <div>
-                ${escapeHtml(
-                    message.content
-                )}
-            </div>
-        `;
-
-        if (message.house_media) {
-
-            for (
-                const media
-                of message.house_media
-            ) {
-
-                div.appendChild(
-                    createMediaElement(media)
-                );
+    async function api(url, options = {}) {
+        const response = await fetch(url, {
+            credentials: "include",
+            ...options,
+            headers: {
+                "Content-Type": "application/json",
+                ...(options.headers || {})
             }
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Request failed."
+            );
         }
 
-        container.appendChild(div);
+        return data;
     }
-}
 
+    async function loadHouse() {
+        try {
+            houseData = await api(
+                `/api/houses/${houseId}`
+            );
 
-function createMediaElement(media) {
+            document.getElementById("houseName").textContent =
+                houseData.house.name;
 
-    const wrapper =
-        document.createElement("div");
+            renderRooms();
+            renderMembers();
 
-    const url =
-        `/house-media/${media.storage_path}`;
+            if (houseData.rooms.length) {
+                selectRoom(
+                    selectedRoom?.id ||
+                    houseData.rooms[0].id
+                );
+            }
 
-    if (media.media_type === "image") {
+            const isAdmin =
+                houseData.membership.role === "owner" ||
+                houseData.membership.role === "admin";
 
-        const img =
+            document.getElementById(
+                "createRoomButton"
+            ).style.display = isAdmin
+                ? "block"
+                : "none";
+
+        } catch (error) {
+            alert(error.message);
+            location.href = "/house-directory.html";
+        }
+    }
+
+    function renderRooms() {
+        const container =
+            document.getElementById("rooms");
+
+        container.innerHTML = "";
+
+        for (const room of houseData.rooms) {
+            const button =
+                document.createElement("button");
+
+            button.className = "room";
+
+            if (
+                selectedRoom &&
+                String(selectedRoom.id) ===
+                String(room.id)
+            ) {
+                button.classList.add("active");
+            }
+
+            let icon = "💬";
+
+            if (room.room_type === "voice") {
+                icon = "🎤";
+            }
+
+            if (room.room_type === "media") {
+                icon = "🖼️";
+            }
+
+            if (room.room_type === "announcement") {
+                icon = "📢";
+            }
+
+            button.textContent =
+                `${icon} ${room.name}`;
+
+            button.onclick = () =>
+                selectRoom(room.id);
+
+            container.appendChild(button);
+        }
+    }
+
+    function renderMembers() {
+        const container =
+            document.getElementById("members");
+
+        container.innerHTML = "";
+
+        for (const member of houseData.members) {
+            const wrapper =
+                document.createElement("div");
+
+            wrapper.className = "member";
+
+            const avatar =
+                document.createElement("img");
+
+            avatar.className = "avatar";
+
+            avatar.src =
+                member.profile?.avatar ||
+                "/default-avatar.png";
+
+            const info =
+                document.createElement("div");
+
+            info.className = "member-info";
+
+            const name =
+                document.createElement("div");
+
+            name.className = "member-name";
+
+            name.textContent =
+                member.profile?.display_name ||
+                member.profile?.username ||
+                "Unknown user";
+
+            const role =
+                document.createElement("div");
+
+            role.className = "member-role";
+
+            role.textContent =
+                member.role;
+
+            info.appendChild(name);
+            info.appendChild(role);
+
+            wrapper.appendChild(avatar);
+            wrapper.appendChild(info);
+
+            container.appendChild(wrapper);
+        }
+    }
+
+    async function selectRoom(roomId) {
+        const room =
+            houseData.rooms.find(
+                r => String(r.id) === String(roomId)
+            );
+
+        if (!room) return;
+
+        selectedRoom = room;
+
+        document.getElementById("roomName")
+            .textContent =
+            `${room.room_type === "voice" ? "🎤" : "💬"} ${room.name}`;
+
+        document.getElementById("roomDescription")
+            .textContent =
+            room.description || "";
+
+        renderRooms();
+
+        await loadMessages();
+
+        clearInterval(messageTimer);
+
+        messageTimer = setInterval(
+            loadMessages,
+            2500
+        );
+    }
+
+    async function loadMessages() {
+        if (!selectedRoom) return;
+
+        try {
+            const data = await api(
+                `/api/houses/${houseId}/rooms/${selectedRoom.id}/messages`
+            );
+
+            const container =
+                document.getElementById("messages");
+
+            const wasAtBottom =
+                container.scrollHeight -
+                container.scrollTop -
+                container.clientHeight < 100;
+
+            container.innerHTML = "";
+
+            if (!data.messages.length) {
+                container.innerHTML =
+                    `<div class="empty">No messages yet.</div>`;
+
+                return;
+            }
+
+            for (const message of data.messages) {
+                renderMessage(message, container);
+            }
+
+            if (wasAtBottom) {
+                container.scrollTop =
+                    container.scrollHeight;
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    function renderMessage(message, container) {
+        const wrapper =
+            document.createElement("div");
+
+        wrapper.className = "message";
+
+        const avatar =
             document.createElement("img");
 
-        img.src = url;
+        avatar.className = "avatar";
 
-        wrapper.appendChild(img);
+        avatar.src =
+            message.profile?.avatar ||
+            "/default-avatar.png";
 
-    } else if (
-        media.media_type === "video"
-    ) {
+        const body =
+            document.createElement("div");
 
-        const video =
-            document.createElement("video");
+        const header =
+            document.createElement("div");
 
-        video.src = url;
-        video.controls = true;
+        const name =
+            document.createElement("span");
 
-        wrapper.appendChild(video);
+        name.className = "message-name";
 
-    } else if (
-        media.media_type === "audio"
-    ) {
+        name.textContent =
+            message.profile?.display_name ||
+            message.profile?.username ||
+            "Unknown";
 
-        const audio =
-            document.createElement("audio");
+        const time =
+            document.createElement("span");
 
-        audio.src = url;
-        audio.controls = true;
+        time.className = "message-time";
 
-        wrapper.appendChild(audio);
+        time.textContent =
+            new Date(
+                message.created_at
+            ).toLocaleString();
+
+        const content =
+            document.createElement("div");
+
+        content.className =
+            "message-content";
+
+        content.textContent =
+            message.content;
+
+        header.appendChild(name);
+        header.appendChild(time);
+
+        body.appendChild(header);
+        body.appendChild(content);
+
+        wrapper.appendChild(avatar);
+        wrapper.appendChild(body);
+
+        container.appendChild(wrapper);
     }
 
-    return wrapper;
-}
+    document.getElementById("messageForm")
+        .addEventListener("submit", async event => {
+            event.preventDefault();
 
+            if (!selectedRoom) return;
 
-/* =========================================================
-   SEND
-========================================================= */
+            const input =
+                document.getElementById("messageInput");
 
-async function sendMessage() {
+            const content =
+                input.value.trim();
 
-    const textarea =
-        document.getElementById("message");
+            if (!content) return;
 
-    const fileInput =
-        document.getElementById("mediaFile");
+            input.disabled = true;
 
-    const status =
-        document.getElementById("uploadStatus");
+            try {
+                await api(
+                    `/api/houses/${houseId}/rooms/${selectedRoom.id}/messages`,
+                    {
+                        method: "POST",
+                        body: JSON.stringify({
+                            content
+                        })
+                    }
+                );
 
-    const content =
-        textarea.value.trim();
+                input.value = "";
 
-    const file =
-        fileInput.files[0];
+                await loadMessages();
 
-    if (!content && !file) {
-        return;
-    }
+            } catch (error) {
+                alert(error.message);
+            }
 
+            input.disabled = false;
+            input.focus();
+        });
 
-    /*
-     * MEDIA
-     */
+    async function createRoom() {
+        const name =
+            prompt("Room name:");
 
-    if (file) {
+        if (!name) return;
 
-        status.textContent =
-            "Uploading...";
+        const type =
+            prompt(
+                "Room type: text, voice, media, announcement",
+                "text"
+            ) || "text";
 
-        const formData =
-            new FormData();
-
-        formData.append(
-            "file",
-            file
-        );
-
-        formData.append(
-            "content",
-            content
-        );
-
-        const response =
-            await fetch(
-                `/api/houses/${houseId}/rooms/${roomId}/media`,
+        try {
+            await api(
+                `/api/houses/${houseId}/rooms`,
                 {
                     method: "POST",
-                    body: formData
+                    body: JSON.stringify({
+                        name,
+                        room_type: type
+                    })
                 }
             );
 
-        const data =
-            await response.json();
+            await loadHouse();
 
-        if (!response.ok) {
+        } catch (error) {
+            alert(error.message);
+        }
+    }
 
-            status.textContent =
-                data.error ||
-                "Upload failed.";
-
+    async function leaveHouse() {
+        if (
+            !confirm(
+                "Leave this house?"
+            )
+        ) {
             return;
         }
 
-        textarea.value = "";
-        fileInput.value = "";
-
-        status.textContent =
-            "Uploaded!";
-
-        await loadRoom();
-
-        return;
-    }
-
-
-    /*
-     * TEXT ONLY
-     */
-
-    const response =
-        await fetch(
-            `/api/houses/${houseId}/rooms/${roomId}/messages`,
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
-
-                body: JSON.stringify({
-                    content
-                })
-            }
-        );
-
-    const data =
-        await response.json();
-
-    if (!response.ok) {
-
-        alert(
-            data.error ||
-            "Failed to send."
-        );
-
-        return;
-    }
-
-    textarea.value = "";
-
-    await loadRoom();
-}
-
-
-/* =========================================================
-   WEBRTC
-========================================================= */
-
-async function startCall(type) {
-
-    const response =
-        await fetch(
-            `/api/houses/${houseId}/rooms/${roomId}/calls`,
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
-
-                body: JSON.stringify({
-                    type
-                })
-            }
-        );
-
-    const data =
-        await response.json();
-
-    if (!response.ok) {
-
-        alert(
-            data.error ||
-            "Unable to start call."
-        );
-
-        return;
-    }
-
-    currentCall =
-        data.call;
-
-    /*
-     * Camera/microphone access.
-     */
-
-    localStream =
-        await navigator.mediaDevices
-            .getUserMedia({
-                audio: true,
-                video:
-                    type === "video"
-            });
-
-    if (type === "video") {
-
-        document.getElementById(
-            "videoArea"
-        ).style.display = "block";
-
-        document.getElementById(
-            "localVideo"
-        ).srcObject =
-            localStream;
-    }
-
-    peerConnection =
-        new RTCPeerConnection({
-            iceServers: [
+        try {
+            await api(
+                `/api/houses/${houseId}/leave`,
                 {
-                    urls:
-                        "stun:stun.l.google.com:19302"
+                    method: "POST"
                 }
-            ]
-        });
+            );
 
-    for (
-        const track
-        of localStream.getTracks()
-    ) {
+            location.href =
+                "/house-directory.html";
 
-        peerConnection.addTrack(
-            track,
-            localStream
-        );
-    }
-
-    peerConnection.ontrack =
-        event => {
-
-            const remoteVideo =
-                document.getElementById(
-                    "remoteVideo"
-                );
-
-            remoteVideo.srcObject =
-                event.streams[0];
-        };
-
-    /*
-     * IMPORTANT:
-     *
-     * This creates the WebRTC connection,
-     * but production multi-user signaling
-     * should use the ShrekBook WebSocket system.
-     *
-     * The REST API above handles call state.
-     */
-}
-
-
-async function leaveCall() {
-
-    if (localStream) {
-
-        for (
-            const track
-            of localStream.getTracks()
-        ) {
-            track.stop();
+        } catch (error) {
+            alert(error.message);
         }
     }
 
-    if (peerConnection) {
-        peerConnection.close();
+    function openSettings() {
+        location.href =
+            `/house-settings.html?id=${encodeURIComponent(houseId)}`;
     }
 
-    localStream = null;
-    peerConnection = null;
-    currentCall = null;
-
-    document.getElementById(
-        "videoArea"
-    ).style.display = "none";
-}
-
-
-/* =========================================================
-   NAVIGATION
-========================================================= */
-
-function goBack() {
-
-    location.href =
-        `house.html?id=${houseId}`;
-}
-
-
-function roomIcon(type) {
-
-    return {
-        chat: "💬",
-        media: "🖼️",
-        voice: "🎙️",
-        video: "📹",
-        general: "🏠",
-        announcement: "📢"
-    }[type] || "🚪";
-}
-
-
-function escapeHtml(value) {
-    return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-}
-
-
-loadRoom();
-
+    loadHouse();
 </script>
 
 </body>
