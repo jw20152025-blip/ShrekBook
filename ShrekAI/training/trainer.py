@@ -1,5 +1,6 @@
 import math
 import os
+import signal
 import time
 from pathlib import Path
 
@@ -48,10 +49,30 @@ from training.evaluator import evaluate
 
 SESSION_STEPS = 1_000
 
-# Logging every step is unnecessary overhead.
-LOG_INTERVAL = 5
+# Print every optimizer step.
+LOG_INTERVAL = 1
 
+# Target only used for displaying performance status.
 TARGET_SECONDS_PER_STEP = 1.0
+
+# ------------------------------------------------------------
+# SAFETY CHECKPOINT
+# ------------------------------------------------------------
+#
+# Even if config.py says 100, we save every 25 steps here.
+#
+# This dramatically reduces how much training can be lost if
+# Windows crashes, restarts, or the computer loses power.
+#
+# Example:
+#
+# step 800 -> checkpoint
+# step 825 -> checkpoint
+# step 850 -> checkpoint
+#
+# If the computer dies at step 847, step 825 is recoverable.
+#
+SAFETY_CHECKPOINT_INTERVAL = 25
 
 
 # ============================================================
@@ -63,10 +84,8 @@ if torch.cuda.is_available():
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
-    # Let cuDNN choose the fastest kernels when possible.
     torch.backends.cudnn.benchmark = True
 
-    # High precision matmul mode for FP32 operations.
     torch.set_float32_matmul_precision("high")
 
 
@@ -84,6 +103,15 @@ class Trainer:
             torch.cuda.manual_seed_all(SEED)
 
         self.device = torch.device(DEVICE)
+
+        # ----------------------------------------------------
+        # SHUTDOWN / EMERGENCY STATE
+        # ----------------------------------------------------
+
+        self.shutdown_requested = False
+        self.emergency_save_in_progress = False
+
+        self._install_signal_handlers()
 
         # ----------------------------------------------------
         # TOKENIZER
@@ -219,6 +247,66 @@ class Trainer:
         # ----------------------------------------------------
 
         self._print_startup_info()
+
+    # ========================================================
+    # SIGNAL HANDLERS
+    # ========================================================
+
+    def _install_signal_handlers(self):
+
+        def request_shutdown(signum, frame):
+
+            if self.shutdown_requested:
+                print()
+                print(
+                    "[emergency] Shutdown requested again."
+                )
+                print(
+                    "[emergency] Please wait for the checkpoint."
+                )
+                return
+
+            self.shutdown_requested = True
+
+            print()
+            print("=" * 72)
+            print(
+                "[emergency] Shutdown signal received."
+            )
+            print(
+                "[emergency] Finishing the current optimizer step."
+            )
+            print(
+                "[emergency] A checkpoint will be saved immediately after it."
+            )
+            print("=" * 72)
+
+        # Windows supports SIGINT.
+        try:
+            signal.signal(
+                signal.SIGINT,
+                request_shutdown,
+            )
+        except (ValueError, OSError):
+            pass
+
+        # SIGTERM exists on modern Python/Windows.
+        try:
+            signal.signal(
+                signal.SIGTERM,
+                request_shutdown,
+            )
+        except (ValueError, OSError, AttributeError):
+            pass
+
+        # SIGBREAK is useful for Ctrl+Break on Windows.
+        try:
+            signal.signal(
+                signal.SIGBREAK,
+                request_shutdown,
+            )
+        except (ValueError, OSError, AttributeError):
+            pass
 
     # ========================================================
     # OPTIMIZER
@@ -416,8 +504,13 @@ class Trainer:
         )
 
         print(
-            f"Checkpoint interval:    "
+            f"Configured checkpoint:  "
             f"{CHECKPOINT_INTERVAL:,}"
+        )
+
+        print(
+            f"Safety checkpoint:      "
+            f"{SAFETY_CHECKPOINT_INTERVAL:,}"
         )
 
         print(
@@ -453,6 +546,10 @@ class Trainer:
         print(
             "The first step may take longer while "
             "PyTorch initializes."
+        )
+
+        print(
+            "Emergency checkpoint protection: ENABLED"
         )
 
         print("=" * 72)
@@ -619,17 +716,99 @@ class Trainer:
             "rng": self._get_rng_state(),
         }
 
-        temporary = str(path) + ".tmp"
+        path = Path(path)
+
+        path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        temporary = path.with_suffix(
+            path.suffix + ".tmp"
+        )
+
+        # ----------------------------------------------------
+        # WRITE COMPLETE CHECKPOINT FIRST
+        # ----------------------------------------------------
 
         torch.save(
             state,
             temporary,
         )
 
+        # ----------------------------------------------------
+        # ATOMIC REPLACEMENT
+        # ----------------------------------------------------
+        #
+        # latest.pt is only replaced after torch.save()
+        # successfully finishes.
+        #
+        # Therefore a shutdown during the write should leave
+        # the previous valid latest.pt untouched.
+        #
+
         os.replace(
             temporary,
             path,
         )
+
+    # ========================================================
+    # EMERGENCY CHECKPOINT
+    # ========================================================
+
+    def _emergency_save(self, reason):
+
+        if self.emergency_save_in_progress:
+            return
+
+        self.emergency_save_in_progress = True
+
+        print()
+        print("=" * 72)
+        print(
+            f"[emergency] {reason}"
+        )
+        print(
+            f"[emergency] Saving checkpoint at "
+            f"completed step {self.step:,}..."
+        )
+
+        emergency_start = time.perf_counter()
+
+        try:
+
+            self.save_checkpoint(
+                LATEST_CHECKPOINT
+            )
+
+            elapsed = (
+                time.perf_counter()
+                - emergency_start
+            )
+
+            print(
+                f"[emergency] Checkpoint saved successfully "
+                f"in {elapsed:.2f}s."
+            )
+
+            print(
+                f"[emergency] Resume point: "
+                f"step {self.step:,}."
+            )
+
+        except Exception as error:
+
+            print(
+                "[emergency] CRITICAL: "
+                "checkpoint save failed!"
+            )
+
+            print(
+                f"[emergency] Error: {error}"
+            )
+
+        print("=" * 72)
+        print()
 
     # ========================================================
     # CHECKPOINT LOAD
@@ -725,696 +904,688 @@ class Trainer:
     # TRAINING
     # ========================================================
 
-def train(self):
+    def train(self):
 
-    if self.step >= MAX_STEPS:
+        if self.step >= MAX_STEPS:
+
+            print()
+            print(
+                "[trainer] Lifetime maximum already reached."
+            )
+
+            return
+
+        session_start_step = self.step
+
+        session_target = min(
+            self.step + SESSION_STEPS,
+            MAX_STEPS,
+        )
+
+        self.model.train()
+
+        training_start = time.perf_counter()
+
+        total_tokens = 0
+
+        last_loss = float("nan")
+
+        last_gradient_norm = float("nan")
+
+        last_gpu_memory = "VRAM not sampled"
+
+        # ----------------------------------------------------
+        # HEADER
+        # ----------------------------------------------------
 
         print()
         print(
-            "[trainer] Lifetime maximum already reached."
+            ">>> SHREKAI IS NOW TRAINING <<<"
         )
 
-        return
+        print(
+            f">>> SESSION: "
+            f"steps {self.step:,} -> "
+            f"{session_target:,} <<<"
+        )
 
-    session_start_step = self.step
+        print()
 
-    session_target = min(
-        self.step + SESSION_STEPS,
-        MAX_STEPS,
-    )
+        try:
 
-    self.model.train()
+            # ====================================================
+            # MAIN LOOP
+            # ====================================================
 
-    training_start = time.perf_counter()
+            while self.step < session_target:
 
-    total_tokens = 0
+                step_start = time.perf_counter()
 
-    last_loss = float("nan")
-
-    last_gradient_norm = float("nan")
-
-    # Cache GPU memory information.
-    # We do not want to force a CUDA synchronization every step.
-    last_gpu_memory = "VRAM not sampled"
-
-    # --------------------------------------------------------
-    # HEADER
-    # --------------------------------------------------------
-
-    print()
-    print(
-        ">>> SHREKAI IS NOW TRAINING <<<"
-    )
-
-    print(
-        f">>> SESSION: "
-        f"steps {self.step:,} -> "
-        f"{session_target:,} <<<"
-    )
-
-    print()
-
-    try:
-
-        # ====================================================
-        # MAIN LOOP
-        # ====================================================
-
-        while self.step < session_target:
-
-            step_start = time.perf_counter()
-
-            self.optimizer.zero_grad(
-                set_to_none=True
-            )
-
-            # ------------------------------------------------
-            # LOSS ACCUMULATES ON GPU
-            # ------------------------------------------------
-
-            accumulated_loss = torch.zeros(
-                (),
-                device=self.device,
-                dtype=torch.float32,
-            )
-
-            microbatches_completed = 0
-
-            step_tokens = 0
-
-            # -----------------------------------------------
-            # GRADIENT ACCUMULATION
-            # -----------------------------------------------
-
-            for _ in range(
-                GRADIENT_ACCUMULATION_STEPS
-            ):
-
-                batch = self._next_batch()
-
-                input_ids = batch[
-                    "input_ids"
-                ].to(
-                    self.device,
-                    non_blocking=(
-                        self.device.type == "cuda"
-                    ),
+                self.optimizer.zero_grad(
+                    set_to_none=True
                 )
 
-                labels = batch[
-                    "labels"
-                ].to(
-                    self.device,
-                    non_blocking=(
-                        self.device.type == "cuda"
-                    ),
+                accumulated_loss = torch.zeros(
+                    (),
+                    device=self.device,
+                    dtype=torch.float32,
                 )
 
-                # -------------------------------------------
-                # FORWARD
-                # -------------------------------------------
+                microbatches_completed = 0
 
-                if self.use_amp:
+                step_tokens = 0
 
-                    with torch.autocast(
-                        device_type="cuda",
-                        dtype=DTYPE,
-                    ):
+                # -----------------------------------------------
+                # GRADIENT ACCUMULATION
+                # -----------------------------------------------
+
+                for _ in range(
+                    GRADIENT_ACCUMULATION_STEPS
+                ):
+
+                    batch = self._next_batch()
+
+                    input_ids = batch[
+                        "input_ids"
+                    ].to(
+                        self.device,
+                        non_blocking=(
+                            self.device.type == "cuda"
+                        ),
+                    )
+
+                    labels = batch[
+                        "labels"
+                    ].to(
+                        self.device,
+                        non_blocking=(
+                            self.device.type == "cuda"
+                        ),
+                    )
+
+                    # -------------------------------------------
+                    # FORWARD
+                    # -------------------------------------------
+
+                    if self.use_amp:
+
+                        with torch.autocast(
+                            device_type="cuda",
+                            dtype=DTYPE,
+                        ):
+
+                            _, loss = self.model(
+                                input_ids,
+                                labels,
+                            )
+
+                    else:
 
                         _, loss = self.model(
                             input_ids,
                             labels,
                         )
 
-                else:
+                    # -------------------------------------------
+                    # LOSS
+                    # -------------------------------------------
 
-                    _, loss = self.model(
-                        input_ids,
-                        labels,
+                    accumulated_loss.add_(
+                        loss.detach().float()
                     )
 
-                # -------------------------------------------
-                # LOSS
-                # -------------------------------------------
+                    scaled_loss = (
+                        loss
+                        / GRADIENT_ACCUMULATION_STEPS
+                    )
 
-                # IMPORTANT:
-                #
-                # Do NOT call .item() here.
-                #
-                # Calling .item() 32 times per optimizer
-                # step forces CUDA synchronization 32 times.
-                #
-                accumulated_loss.add_(
-                    loss.detach().float()
-                )
+                    # -------------------------------------------
+                    # BACKWARD
+                    # -------------------------------------------
 
-                scaled_loss = (
-                    loss
-                    / GRADIENT_ACCUMULATION_STEPS
-                )
+                    if self.use_grad_scaler:
 
-                # -------------------------------------------
-                # BACKWARD
-                # -------------------------------------------
+                        self.scaler.scale(
+                            scaled_loss
+                        ).backward()
+
+                    else:
+
+                        scaled_loss.backward()
+
+                    tokens = input_ids.numel()
+
+                    step_tokens += tokens
+                    total_tokens += tokens
+
+                    microbatches_completed += 1
+
+                # -----------------------------------------------
+                # UNSCALE
+                # -----------------------------------------------
 
                 if self.use_grad_scaler:
 
-                    self.scaler.scale(
-                        scaled_loss
-                    ).backward()
+                    self.scaler.unscale_(
+                        self.optimizer
+                    )
+
+                # -----------------------------------------------
+                # GRADIENT CLIPPING
+                # -----------------------------------------------
+
+                gradient_norm = (
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(),
+                        GRAD_CLIP,
+                    )
+                )
+
+                # -----------------------------------------------
+                # LEARNING RATE
+                # -----------------------------------------------
+
+                lr = self.learning_rate()
+
+                for group in self.optimizer.param_groups:
+
+                    group["lr"] = lr
+
+                # -----------------------------------------------
+                # OPTIMIZER STEP
+                # -----------------------------------------------
+
+                if self.use_grad_scaler:
+
+                    self.scaler.step(
+                        self.optimizer
+                    )
+
+                    self.scaler.update()
 
                 else:
 
-                    scaled_loss.backward()
+                    self.optimizer.step()
 
-                tokens = input_ids.numel()
+                # -----------------------------------------------
+                # ADVANCE STEP
+                # -----------------------------------------------
 
-                step_tokens += tokens
-                total_tokens += tokens
+                self.step += 1
 
-                microbatches_completed += 1
+                # -----------------------------------------------
+                # TIMING
+                # -----------------------------------------------
 
-            # -----------------------------------------------
-            # UNSCALE
-            # -----------------------------------------------
+                now = time.perf_counter()
 
-            if self.use_grad_scaler:
-
-                self.scaler.unscale_(
-                    self.optimizer
+                step_elapsed = (
+                    now - step_start
                 )
 
-            # -----------------------------------------------
-            # GRADIENT CLIPPING
-            # -----------------------------------------------
-
-            gradient_norm = (
-                torch.nn.utils.clip_grad_norm_(
-                    self.model.parameters(),
-                    GRAD_CLIP,
-                )
-            )
-
-            # -----------------------------------------------
-            # LEARNING RATE
-            # -----------------------------------------------
-
-            lr = self.learning_rate()
-
-            for group in self.optimizer.param_groups:
-
-                group["lr"] = lr
-
-            # -----------------------------------------------
-            # OPTIMIZER STEP
-            # -----------------------------------------------
-
-            if self.use_grad_scaler:
-
-                self.scaler.step(
-                    self.optimizer
+                total_elapsed = (
+                    now - training_start
                 )
 
-                self.scaler.update()
+                # -----------------------------------------------
+                # LOSS
+                # -----------------------------------------------
 
-            else:
+                average_loss = (
+                    accumulated_loss
+                    / max(
+                        1,
+                        microbatches_completed,
+                    )
+                ).item()
 
-                self.optimizer.step()
+                last_loss = average_loss
 
-            # -----------------------------------------------
-            # ADVANCE STEP
-            # -----------------------------------------------
+                # -----------------------------------------------
+                # TOKENS / SECOND
+                # -----------------------------------------------
 
-            self.step += 1
-
-            # -----------------------------------------------
-            # TIMING
-            # -----------------------------------------------
-
-            now = time.perf_counter()
-
-            step_elapsed = (
-                now - step_start
-            )
-
-            total_elapsed = (
-                now - training_start
-            )
-
-            # -----------------------------------------------
-            # LOSS
-            # -----------------------------------------------
-
-            average_loss = (
-                accumulated_loss
-                / max(
-                    1,
-                    microbatches_completed,
-                )
-            ).item()
-
-            last_loss = average_loss
-
-            # -----------------------------------------------
-            # TOKENS / SECOND
-            # -----------------------------------------------
-
-            step_tokens_per_second = (
-                step_tokens
-                / max(
-                    step_elapsed,
-                    1e-9,
-                )
-            )
-
-            total_tokens_per_second = (
-                total_tokens
-                / max(
-                    total_elapsed,
-                    1e-9,
-                )
-            )
-
-            # -----------------------------------------------
-            # STEP / SECOND
-            # -----------------------------------------------
-
-            steps_per_second = (
-                1.0
-                / max(
-                    step_elapsed,
-                    1e-9,
-                )
-            )
-
-            # -----------------------------------------------
-            # TARGET STATUS
-            # -----------------------------------------------
-
-            if (
-                step_elapsed
-                <= TARGET_SECONDS_PER_STEP
-            ):
-
-                speed_status = "FAST"
-
-            else:
-
-                speed_status = "SLOW"
-
-            # -----------------------------------------------
-            # ETA
-            # -----------------------------------------------
-
-            remaining_steps = (
-                session_target
-                - self.step
-            )
-
-            eta_seconds = (
-                remaining_steps
-                * step_elapsed
-            )
-
-            eta_hours = int(
-                eta_seconds // 3600
-            )
-
-            eta_minutes = int(
-                (
-                    eta_seconds
-                    % 3600
-                )
-                // 60
-            )
-
-            eta_secs = int(
-                eta_seconds % 60
-            )
-
-            # -----------------------------------------------
-            # GRADIENT
-            # -----------------------------------------------
-
-            # One synchronization per optimizer step.
-            last_gradient_norm = float(
-                gradient_norm
-            )
-
-            # -----------------------------------------------
-            # PROGRESS
-            # -----------------------------------------------
-
-            session_span = max(
-                1,
-                session_target
-                - session_start_step,
-            )
-
-            session_progress = (
-                self.step
-                - session_start_step
-            ) / session_span
-
-            session_progress = min(
-                1.0,
-                max(
-                    0.0,
-                    session_progress,
-                ),
-            )
-
-            # -----------------------------------------------
-            # GPU MEMORY
-            # -----------------------------------------------
-
-            # Sample memory every 10 steps instead of
-            # forcing CUDA synchronization every step.
-            if (
-                self.step == 1
-                or self.step % 10 == 0
-            ):
-
-                last_gpu_memory = (
-                    self._gpu_memory()
+                step_tokens_per_second = (
+                    step_tokens
+                    / max(
+                        step_elapsed,
+                        1e-9,
+                    )
                 )
 
-            # -----------------------------------------------
-            # LOGGING
-            # -----------------------------------------------
-
-            # PRINT EVERY SINGLE OPTIMIZER STEP.
-            print(
-                f"[step {self.step:,}/"
-                f"{session_target:,}] "
-                f"loss={average_loss:.4f} "
-                f"lr={lr:.2e} "
-                f"grad={last_gradient_norm:.3f} "
-                f"{step_tokens_per_second:,.0f} tok/s "
-                f"{step_elapsed:.2f}s/step "
-                f"{steps_per_second:.2f} step/s "
-                f"[{speed_status}] "
-                f"{session_progress * 100:5.1f}% "
-                f"ETA "
-                f"{eta_hours:02d}:"
-                f"{eta_minutes:02d}:"
-                f"{eta_secs:02d} "
-                f"| {last_gpu_memory}",
-                flush=True,
-            )
-
-            # =================================================
-            # VALIDATION
-            # =================================================
-
-            if (
-                self.step
-                % VALIDATION_INTERVAL
-                == 0
-            ):
-
-                print()
-                print(
-                    f"[validation] Running at "
-                    f"step {self.step:,}..."
+                total_tokens_per_second = (
+                    total_tokens
+                    / max(
+                        total_elapsed,
+                        1e-9,
+                    )
                 )
 
-                validation_start = (
-                    time.perf_counter()
+                # -----------------------------------------------
+                # STEP / SECOND
+                # -----------------------------------------------
+
+                steps_per_second = (
+                    1.0
+                    / max(
+                        step_elapsed,
+                        1e-9,
+                    )
                 )
 
-                results = evaluate(
-                    self.model,
-                    self.tokenizer,
-                )
-
-                validation_elapsed = (
-                    time.perf_counter()
-                    - validation_start
-                )
-
-                print(
-                    f"[validation] "
-                    f"loss={results['loss']:.4f} "
-                    f"perplexity="
-                    f"{results['perplexity']:.2f} "
-                    f"time="
-                    f"{validation_elapsed:.2f}s"
-                )
+                # -----------------------------------------------
+                # TARGET STATUS
+                # -----------------------------------------------
 
                 if (
-                    results["loss"]
-                    < self.best_loss
+                    step_elapsed
+                    <= TARGET_SECONDS_PER_STEP
                 ):
 
-                    self.best_loss = (
-                        results["loss"]
+                    speed_status = "FAST"
+
+                else:
+
+                    speed_status = "SLOW"
+
+                # -----------------------------------------------
+                # ETA
+                # -----------------------------------------------
+
+                remaining_steps = (
+                    session_target
+                    - self.step
+                )
+
+                eta_seconds = (
+                    remaining_steps
+                    * step_elapsed
+                )
+
+                eta_hours = int(
+                    eta_seconds // 3600
+                )
+
+                eta_minutes = int(
+                    (
+                        eta_seconds
+                        % 3600
+                    )
+                    // 60
+                )
+
+                eta_secs = int(
+                    eta_seconds % 60
+                )
+
+                # -----------------------------------------------
+                # GRADIENT
+                # -----------------------------------------------
+
+                last_gradient_norm = float(
+                    gradient_norm
+                )
+
+                # -----------------------------------------------
+                # PROGRESS
+                # -----------------------------------------------
+
+                session_span = max(
+                    1,
+                    session_target
+                    - session_start_step,
+                )
+
+                session_progress = (
+                    self.step
+                    - session_start_step
+                ) / session_span
+
+                session_progress = min(
+                    1.0,
+                    max(
+                        0.0,
+                        session_progress,
+                    ),
+                )
+
+                # -----------------------------------------------
+                # GPU MEMORY
+                # -----------------------------------------------
+
+                if (
+                    self.step == 1
+                    or self.step % 10 == 0
+                ):
+
+                    last_gpu_memory = (
+                        self._gpu_memory()
+                    )
+
+                # -----------------------------------------------
+                # LOGGING
+                # -----------------------------------------------
+
+                print(
+                    f"[step {self.step:,}/"
+                    f"{session_target:,}] "
+                    f"loss={average_loss:.4f} "
+                    f"lr={lr:.2e} "
+                    f"grad={last_gradient_norm:.3f} "
+                    f"{step_tokens_per_second:,.0f} tok/s "
+                    f"{step_elapsed:.2f}s/step "
+                    f"{steps_per_second:.2f} step/s "
+                    f"[{speed_status}] "
+                    f"{session_progress * 100:5.1f}% "
+                    f"ETA "
+                    f"{eta_hours:02d}:"
+                    f"{eta_minutes:02d}:"
+                    f"{eta_secs:02d} "
+                    f"| {last_gpu_memory}",
+                    flush=True,
+                )
+
+                # =================================================
+                # VALIDATION
+                # =================================================
+
+                if (
+                    self.step
+                    % VALIDATION_INTERVAL
+                    == 0
+                ):
+
+                    print()
+                    print(
+                        f"[validation] Running at "
+                        f"step {self.step:,}..."
+                    )
+
+                    validation_start = (
+                        time.perf_counter()
+                    )
+
+                    results = evaluate(
+                        self.model,
+                        self.tokenizer,
+                    )
+
+                    validation_elapsed = (
+                        time.perf_counter()
+                        - validation_start
                     )
 
                     print(
-                        "[validation] "
-                        "New best model."
+                        f"[validation] "
+                        f"loss={results['loss']:.4f} "
+                        f"perplexity="
+                        f"{results['perplexity']:.2f} "
+                        f"time="
+                        f"{validation_elapsed:.2f}s"
+                    )
+
+                    if (
+                        results["loss"]
+                        < self.best_loss
+                    ):
+
+                        self.best_loss = (
+                            results["loss"]
+                        )
+
+                        print(
+                            "[validation] "
+                            "New best model."
+                        )
+
+                        self.save_checkpoint(
+                            BEST_CHECKPOINT
+                        )
+
+                    self.model.train()
+
+                # =================================================
+                # SAFETY CHECKPOINT
+                # =================================================
+
+                if (
+                    self.step
+                    % SAFETY_CHECKPOINT_INTERVAL
+                    == 0
+                ):
+
+                    print()
+                    print(
+                        f"[checkpoint] Safety save at "
+                        f"step {self.step:,}..."
+                    )
+
+                    checkpoint_start = (
+                        time.perf_counter()
                     )
 
                     self.save_checkpoint(
-                        BEST_CHECKPOINT
+                        LATEST_CHECKPOINT
                     )
 
-                self.model.train()
+                    checkpoint_elapsed = (
+                        time.perf_counter()
+                        - checkpoint_start
+                    )
 
-            # =================================================
-            # PERIODIC CHECKPOINT
-            # =================================================
+                    print(
+                        f"[checkpoint] Saved "
+                        f"in "
+                        f"{checkpoint_elapsed:.2f}s."
+                    )
 
-            if (
-                self.step
-                % CHECKPOINT_INTERVAL
-                == 0
-            ):
+                # =================================================
+                # SHUTDOWN REQUEST
+                # =================================================
 
-                print()
-                print(
-                    f"[checkpoint] Saving step "
-                    f"{self.step:,}..."
-                )
+                if self.shutdown_requested:
 
-                checkpoint_start = (
-                    time.perf_counter()
-                )
+                    self._emergency_save(
+                        "Graceful shutdown checkpoint."
+                    )
 
-                self.save_checkpoint(
-                    LATEST_CHECKPOINT
-                )
+                    print(
+                        "[emergency] Training stopped safely."
+                    )
 
-                checkpoint_elapsed = (
-                    time.perf_counter()
-                    - checkpoint_start
-                )
+                    return
 
-                print(
-                    f"[checkpoint] Saved "
-                    f"in "
-                    f"{checkpoint_elapsed:.2f}s."
-                )
+        # ========================================================
+        # KEYBOARD INTERRUPT
+        # ========================================================
 
-    # ========================================================
-    # EMERGENCY SAVE
-    # ========================================================
+        except KeyboardInterrupt:
 
-    except KeyboardInterrupt:
-
-        print()
-        print("=" * 72)
-        print(
-            "[emergency] Training interrupted."
-        )
-
-        print(
-            f"[emergency] Saving checkpoint "
-            f"at completed step {self.step:,}..."
-        )
-
-        emergency_start = (
-            time.perf_counter()
-        )
-
-        try:
-
-            self.save_checkpoint(
-                LATEST_CHECKPOINT
+            self._emergency_save(
+                "Keyboard interrupt received."
             )
 
-            emergency_elapsed = (
-                time.perf_counter()
-                - emergency_start
-            )
+            return
 
-            print(
-                f"[emergency] Checkpoint saved "
-                f"in {emergency_elapsed:.2f}s."
-            )
-
-            print(
-                f"[emergency] Resume from "
-                f"step {self.step:,}."
-            )
+        # ========================================================
+        # UNEXPECTED EXCEPTION
+        # ========================================================
 
         except Exception as error:
 
+            print()
+            print("=" * 72)
             print(
-                "[emergency] "
-                "CRITICAL: checkpoint save failed!"
+                "[emergency] UNEXPECTED TRAINING ERROR"
             )
 
             print(
-                f"[emergency] Error: {error}"
+                f"[emergency] {type(error).__name__}: "
+                f"{error}"
             )
+
+            print(
+                f"[emergency] Current completed step: "
+                f"{self.step:,}"
+            )
+
+            print(
+                "[emergency] Attempting emergency checkpoint..."
+            )
+
+            self._emergency_save(
+                "Emergency save after unexpected training error."
+            )
+
+            print(
+                "[emergency] Re-raising original error."
+            )
+
+            print("=" * 72)
+            print()
+
+            raise
+
+        # ========================================================
+        # SESSION COMPLETE
+        # ========================================================
+
+        total_time = (
+            time.perf_counter()
+            - training_start
+        )
+
+        total_steps = (
+            self.step
+            - session_start_step
+        )
+
+        average_step_time = (
+            total_time
+            / max(
+                1,
+                total_steps,
+            )
+        )
+
+        average_steps_per_second = (
+            total_steps
+            / max(
+                total_time,
+                1e-9,
+            )
+        )
+
+        average_tokens_per_second = (
+            total_tokens
+            / max(
+                total_time,
+                1e-9,
+            )
+        )
+
+        # --------------------------------------------------------
+        # FINAL CHECKPOINT
+        # --------------------------------------------------------
+
+        print()
+        print(
+            "[checkpoint] Saving session state..."
+        )
+
+        self.save_checkpoint(
+            LATEST_CHECKPOINT
+        )
+
+        print(
+            "[checkpoint] Session checkpoint saved."
+        )
+
+        # --------------------------------------------------------
+        # FINAL MODEL
+        # --------------------------------------------------------
+
+        model = self._get_uncompiled_model()
+
+        torch.save(
+            model.state_dict(),
+            FINAL_MODEL,
+        )
+
+        # ========================================================
+        # SUMMARY
+        # ========================================================
+
+        print()
+        print("=" * 72)
+        print("                    SESSION FINISHED")
+        print("=" * 72)
+
+        print(
+            f"Steps completed:       "
+            f"{total_steps:,}"
+        )
+
+        print(
+            f"Lifetime step:         "
+            f"{self.step:,} / {MAX_STEPS:,}"
+        )
+
+        print(
+            f"Final loss:            "
+            f"{last_loss:.4f}"
+        )
+
+        print(
+            f"Average step time:     "
+            f"{average_step_time:.2f} sec"
+        )
+
+        print(
+            f"Average steps/sec:      "
+            f"{average_steps_per_second:.2f}"
+        )
+
+        print(
+            f"Average tokens/sec:     "
+            f"{average_tokens_per_second:,.0f}"
+        )
+
+        print(
+            f"Target step time:       "
+            f"{TARGET_SECONDS_PER_STEP:.2f} sec"
+        )
+
+        if (
+            average_step_time
+            <= TARGET_SECONDS_PER_STEP
+        ):
+
+            print(
+                "Performance target:     ACHIEVED"
+            )
+
+        else:
+
+            print(
+                "Performance target:     "
+                "HARDWARE LIMITED"
+            )
+
+        print(
+            f"Total session time:     "
+            f"{total_time / 3600:.2f} hours"
+        )
+
+        print(
+            f"Latest checkpoint:      "
+            f"{LATEST_CHECKPOINT}"
+        )
+
+        print(
+            f"Final model:            "
+            f"{FINAL_MODEL}"
+        )
 
         print("=" * 72)
         print()
-
-        return
-
-    # ========================================================
-    # SESSION COMPLETE
-    # ========================================================
-
-    total_time = (
-        time.perf_counter()
-        - training_start
-    )
-
-    total_steps = (
-        self.step
-        - session_start_step
-    )
-
-    average_step_time = (
-        total_time
-        / max(
-            1,
-            total_steps,
-        )
-    )
-
-    average_steps_per_second = (
-        total_steps
-        / max(
-            total_time,
-            1e-9,
-        )
-    )
-
-    average_tokens_per_second = (
-        total_tokens
-        / max(
-            total_time,
-            1e-9,
-        )
-    )
-
-    # --------------------------------------------------------
-    # FINAL CHECKPOINT
-    # --------------------------------------------------------
-
-    print()
-    print(
-        "[checkpoint] Saving session state..."
-    )
-
-    self.save_checkpoint(
-        LATEST_CHECKPOINT
-    )
-
-    print(
-        "[checkpoint] Session checkpoint saved."
-    )
-
-    # --------------------------------------------------------
-    # FINAL MODEL
-    # --------------------------------------------------------
-
-    model = self._get_uncompiled_model()
-
-    torch.save(
-        model.state_dict(),
-        FINAL_MODEL,
-    )
-
-    # ========================================================
-    # SUMMARY
-    # ========================================================
-
-    print()
-    print("=" * 72)
-    print("                    SESSION FINISHED")
-    print("=" * 72)
-
-    print(
-        f"Steps completed:       "
-        f"{total_steps:,}"
-    )
-
-    print(
-        f"Lifetime step:         "
-        f"{self.step:,} / {MAX_STEPS:,}"
-    )
-
-    print(
-        f"Final loss:            "
-        f"{last_loss:.4f}"
-    )
-
-    print(
-        f"Average step time:     "
-        f"{average_step_time:.2f} sec"
-    )
-
-    print(
-        f"Average steps/sec:      "
-        f"{average_steps_per_second:.2f}"
-    )
-
-    print(
-        f"Average tokens/sec:     "
-        f"{average_tokens_per_second:,.0f}"
-    )
-
-    print(
-        f"Target step time:       "
-        f"{TARGET_SECONDS_PER_STEP:.2f} sec"
-    )
-
-    if (
-        average_step_time
-        <= TARGET_SECONDS_PER_STEP
-    ):
-
-        print(
-            "Performance target:     ACHIEVED"
-        )
-
-    else:
-
-        print(
-            "Performance target:     "
-            "HARDWARE LIMITED"
-        )
-
-    print(
-        f"Total session time:     "
-        f"{total_time / 3600:.2f} hours"
-    )
-
-    print(
-        f"Latest checkpoint:      "
-        f"{LATEST_CHECKPOINT}"
-    )
-
-    print(
-        f"Final model:            "
-        f"{FINAL_MODEL}"
-    )
-
-    print("=" * 72)
-    print()

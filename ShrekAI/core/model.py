@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 
 from config import (
     VOCAB_SIZE,
@@ -19,8 +20,13 @@ from config import (
 )
 
 
+# ============================================================
+# MODEL CONFIG
+# ============================================================
+
 @dataclass
 class ModelConfig:
+
     vocab_size: int = VOCAB_SIZE
     d_model: int = D_MODEL
     n_layers: int = N_LAYERS
@@ -31,9 +37,17 @@ class ModelConfig:
     bias: bool = BIAS
 
 
+# ============================================================
+# RMSNORM
+# ============================================================
+
 class RMSNorm(nn.Module):
 
-    def __init__(self, dim, eps=1e-6):
+    def __init__(
+        self,
+        dim,
+        eps=1e-6,
+    ):
         super().__init__()
 
         self.weight = nn.Parameter(
@@ -44,111 +58,70 @@ class RMSNorm(nn.Module):
 
     def forward(self, x):
 
-        # Compute variance in FP32 for numerical stability.
+        # Calculate variance in FP32 for stability.
         variance = (
             x.float()
             .pow(2)
-            .mean(-1, keepdim=True)
+            .mean(
+                -1,
+                keepdim=True,
+            )
         )
 
-        # Convert the normalization factor back to
-        # the input dtype so BF16 inputs remain BF16.
         inv_rms = torch.rsqrt(
             variance + self.eps
-        ).to(dtype=x.dtype)
+        ).to(
+            dtype=x.dtype
+        )
 
         x = x * inv_rms
 
-        # The parameter itself is stored in FP32,
-        # but the output must match x's dtype.
-        weight = self.weight.to(dtype=x.dtype)
+        # Parameters remain FP32.
+        # Convert only for the multiplication.
+        return (
+            self.weight.to(
+                dtype=x.dtype
+            )
+            * x
+        )
 
-        return weight * x
 
+# ============================================================
+# ROTARY POSITION EMBEDDINGS
+# ============================================================
 
 def rotate_half(x):
 
-    x1 = x[..., : x.shape[-1] // 2]
-    x2 = x[..., x.shape[-1] // 2 :]
+    half = x.shape[-1] // 2
+
+    x1 = x[..., :half]
+    x2 = x[..., half:]
 
     return torch.cat(
-        (-x2, x1),
+        (
+            -x2,
+            x1,
+        ),
         dim=-1,
     )
 
 
-def apply_rope(q, k, seq_len, device):
-
-    head_dim = q.shape[-1]
-
-    # RoPE math is calculated in FP32 for stability.
-    inv_freq = 1.0 / (
-        10000
-        ** (
-            torch.arange(
-                0,
-                head_dim,
-                2,
-                device=device,
-                dtype=torch.float32,
-            )
-            / head_dim
-        )
-    )
-
-    positions = torch.arange(
-        seq_len,
-        device=device,
-        dtype=torch.float32,
-    )
-
-    freqs = torch.outer(
-        positions,
-        inv_freq,
-    )
-
-    emb = torch.cat(
-        (freqs, freqs),
-        dim=-1,
-    )
-
-    # Calculate trig functions in FP32,
-    # then convert them back to the Q/K dtype.
-    cos = emb.cos()[
-        None,
-        None,
-        :,
-        :
-    ].to(dtype=q.dtype)
-
-    sin = emb.sin()[
-        None,
-        None,
-        :,
-        :
-    ].to(dtype=q.dtype)
-
-    q = (
-        q * cos
-        + rotate_half(q) * sin
-    )
-
-    k = (
-        k * cos
-        + rotate_half(k) * sin
-    )
-
-    return q, k
-
+# ============================================================
+# CAUSAL SELF ATTENTION
+# ============================================================
 
 class CausalSelfAttention(nn.Module):
 
-    def __init__(self, config):
-
+    def __init__(
+        self,
+        config,
+    ):
         super().__init__()
 
         assert (
-            config.d_model % config.n_heads == 0
+            config.d_model
+            % config.n_heads
+            == 0
         )
 
         self.n_heads = config.n_heads
@@ -172,9 +145,118 @@ class CausalSelfAttention(nn.Module):
 
         self.dropout = config.dropout
 
+        # ----------------------------------------------------
+        # CACHE ROPE
+        # ----------------------------------------------------
+        #
+        # Previously these tensors were rebuilt on EVERY
+        # forward pass.
+        #
+        # Since MAX_SEQ_LEN is fixed, cache them once.
+        #
+        # persistent=False means they are NOT saved into
+        # the model checkpoint.
+        # ----------------------------------------------------
+
+        inv_freq = 1.0 / (
+            10000
+            ** (
+                torch.arange(
+                    0,
+                    self.head_dim,
+                    2,
+                    dtype=torch.float32,
+                )
+                / self.head_dim
+            )
+        )
+
+        positions = torch.arange(
+            config.max_seq_len,
+            dtype=torch.float32,
+        )
+
+        freqs = torch.outer(
+            positions,
+            inv_freq,
+        )
+
+        emb = torch.cat(
+            (
+                freqs,
+                freqs,
+            ),
+            dim=-1,
+        )
+
+        self.register_buffer(
+            "rope_cos",
+            emb.cos(),
+            persistent=False,
+        )
+
+        self.register_buffer(
+            "rope_sin",
+            emb.sin(),
+            persistent=False,
+        )
+
+    # --------------------------------------------------------
+    # APPLY ROPE
+    # --------------------------------------------------------
+
+    def apply_rope(
+        self,
+        q,
+        k,
+        seq_len,
+    ):
+
+        cos = self.rope_cos[
+            :seq_len
+        ][
+            None,
+            None,
+            :,
+            :
+        ].to(
+            dtype=q.dtype
+        )
+
+        sin = self.rope_sin[
+            :seq_len
+        ][
+            None,
+            None,
+            :,
+            :
+        ].to(
+            dtype=q.dtype
+        )
+
+        q = (
+            q * cos
+            + rotate_half(q) * sin
+        )
+
+        k = (
+            k * cos
+            + rotate_half(k) * sin
+        )
+
+        return q, k
+
+    # --------------------------------------------------------
+    # FORWARD
+    # --------------------------------------------------------
+
     def forward(self, x):
 
         batch, seq_len, channels = x.shape
+
+        # ----------------------------------------------------
+        # QKV PROJECTION
+        # ----------------------------------------------------
 
         qkv = self.qkv(x)
 
@@ -183,33 +265,63 @@ class CausalSelfAttention(nn.Module):
             dim=-1,
         )
 
+        # ----------------------------------------------------
+        # SPLIT INTO HEADS
+        # ----------------------------------------------------
+
         q = q.view(
             batch,
             seq_len,
             self.n_heads,
             self.head_dim,
-        ).transpose(1, 2)
+        ).transpose(
+            1,
+            2,
+        )
 
         k = k.view(
             batch,
             seq_len,
             self.n_heads,
             self.head_dim,
-        ).transpose(1, 2)
+        ).transpose(
+            1,
+            2,
+        )
 
         v = v.view(
             batch,
             seq_len,
             self.n_heads,
             self.head_dim,
-        ).transpose(1, 2)
+        ).transpose(
+            1,
+            2,
+        )
 
-        q, k = apply_rope(
+        # ----------------------------------------------------
+        # ROTARY POSITION EMBEDDINGS
+        # ----------------------------------------------------
+
+        q, k = self.apply_rope(
             q,
             k,
             seq_len,
-            x.device,
         )
+
+        # ----------------------------------------------------
+        # PYTORCH SDPA
+        # ----------------------------------------------------
+        #
+        # This is considerably better than manually doing:
+        #
+        #   q @ k.T
+        #   softmax
+        #   softmax @ v
+        #
+        # PyTorch can select the most efficient CUDA
+        # attention implementation available.
+        # ----------------------------------------------------
 
         y = F.scaled_dot_product_attention(
             q,
@@ -224,8 +336,15 @@ class CausalSelfAttention(nn.Module):
             is_causal=True,
         )
 
+        # ----------------------------------------------------
+        # MERGE HEADS
+        # ----------------------------------------------------
+
         y = (
-            y.transpose(1, 2)
+            y.transpose(
+                1,
+                2,
+            )
             .contiguous()
         )
 
@@ -238,10 +357,16 @@ class CausalSelfAttention(nn.Module):
         return self.out(y)
 
 
+# ============================================================
+# SWIGLU
+# ============================================================
+
 class SwiGLU(nn.Module):
 
-    def __init__(self, config):
-
+    def __init__(
+        self,
+        config,
+    ):
         super().__init__()
 
         hidden = int(
@@ -249,8 +374,10 @@ class SwiGLU(nn.Module):
             * config.ffn_multiplier
         )
 
+        # Keep the existing 256-aligned hidden size.
         hidden = 256 * (
-            (hidden + 255) // 256
+            (hidden + 255)
+            // 256
         )
 
         self.gate = nn.Linear(
@@ -273,26 +400,35 @@ class SwiGLU(nn.Module):
 
     def forward(self, x):
 
+        gate = self.gate(x)
+        up = self.up(x)
+
         return self.down(
-            F.silu(
-                self.gate(x)
-            )
-            * self.up(x)
+            F.silu(gate)
+            * up
         )
 
 
+# ============================================================
+# TRANSFORMER BLOCK
+# ============================================================
+
 class TransformerBlock(nn.Module):
 
-    def __init__(self, config):
-
+    def __init__(
+        self,
+        config,
+    ):
         super().__init__()
 
         self.norm1 = RMSNorm(
             config.d_model
         )
 
-        self.attention = CausalSelfAttention(
-            config
+        self.attention = (
+            CausalSelfAttention(
+                config
+            )
         )
 
         self.norm2 = RMSNorm(
@@ -305,21 +441,33 @@ class TransformerBlock(nn.Module):
 
     def forward(self, x):
 
-        x = x + self.attention(
-            self.norm1(x)
+        x = (
+            x
+            + self.attention(
+                self.norm1(x)
+            )
         )
 
-        x = x + self.mlp(
-            self.norm2(x)
+        x = (
+            x
+            + self.mlp(
+                self.norm2(x)
+            )
         )
 
         return x
 
 
+# ============================================================
+# SHREKAI
+# ============================================================
+
 class ShrekAI(nn.Module):
 
-    def __init__(self, config=None):
-
+    def __init__(
+        self,
+        config=None,
+    ):
         super().__init__()
 
         if config is None:
@@ -327,21 +475,43 @@ class ShrekAI(nn.Module):
 
         self.config = config
 
-        self.token_embedding = nn.Embedding(
-            config.vocab_size,
-            config.d_model,
+        # ----------------------------------------------------
+        # EMBEDDING
+        # ----------------------------------------------------
+
+        self.token_embedding = (
+            nn.Embedding(
+                config.vocab_size,
+                config.d_model,
+            )
         )
+
+        # ----------------------------------------------------
+        # TRANSFORMER
+        # ----------------------------------------------------
 
         self.layers = nn.ModuleList(
             [
-                TransformerBlock(config)
-                for _ in range(config.n_layers)
+                TransformerBlock(
+                    config
+                )
+                for _ in range(
+                    config.n_layers
+                )
             ]
         )
+
+        # ----------------------------------------------------
+        # FINAL NORMALIZATION
+        # ----------------------------------------------------
 
         self.norm = RMSNorm(
             config.d_model
         )
+
+        # ----------------------------------------------------
+        # OUTPUT HEAD
+        # ----------------------------------------------------
 
         self.lm_head = nn.Linear(
             config.d_model,
@@ -349,28 +519,47 @@ class ShrekAI(nn.Module):
             bias=False,
         )
 
-        # Weight tying.
+        # ----------------------------------------------------
+        # WEIGHT TYING
+        # ----------------------------------------------------
+        #
+        # The input embedding and output projection share
+        # the same weights.
+        #
+        # This saves parameters and memory without reducing
+        # the actual model architecture.
+        # ----------------------------------------------------
+
         self.lm_head.weight = (
             self.token_embedding.weight
         )
+
+        # ----------------------------------------------------
+        # INITIALIZATION
+        # ----------------------------------------------------
 
         self.apply(
             self._init_weights
         )
 
-    def _init_weights(self, module):
+    # ========================================================
+    # INITIALIZATION
+    # ========================================================
+
+    def _init_weights(
+        self,
+        module,
+    ):
 
         if isinstance(
             module,
             nn.Linear,
         ):
 
-            std = 0.02
-
             nn.init.normal_(
                 module.weight,
                 mean=0.0,
-                std=std,
+                std=0.02,
             )
 
             if module.bias is not None:
@@ -390,13 +579,19 @@ class ShrekAI(nn.Module):
                 std=0.02,
             )
 
+    # ========================================================
+    # FORWARD
+    # ========================================================
+
     def forward(
         self,
         input_ids,
         targets=None,
     ):
 
-        batch, seq_len = input_ids.shape
+        batch, seq_len = (
+            input_ids.shape
+        )
 
         if (
             seq_len
@@ -408,19 +603,63 @@ class ShrekAI(nn.Module):
                 f"maximum {self.config.max_seq_len}"
             )
 
+        # ----------------------------------------------------
+        # TOKEN EMBEDDING
+        # ----------------------------------------------------
+
         x = self.token_embedding(
             input_ids
         )
 
+        # ----------------------------------------------------
+        # TRANSFORMER BLOCKS
+        # ----------------------------------------------------
+
         for layer in self.layers:
 
-            x = layer(x)
+            # Gradient checkpointing is controlled by the
+            # model attribute. Trainer can enable it without
+            # changing the architecture.
+            #
+            # This trades some compute for significantly
+            # lower activation memory.
+
+            if (
+                self.training
+                and getattr(
+                    self,
+                    "gradient_checkpointing",
+                    False,
+                )
+            ):
+
+                x = checkpoint(
+                    layer,
+                    x,
+                    use_reentrant=False,
+                )
+
+            else:
+
+                x = layer(x)
+
+        # ----------------------------------------------------
+        # FINAL NORMALIZATION
+        # ----------------------------------------------------
 
         x = self.norm(x)
+
+        # ----------------------------------------------------
+        # LANGUAGE MODEL HEAD
+        # ----------------------------------------------------
 
         logits = self.lm_head(x)
 
         loss = None
+
+        # ----------------------------------------------------
+        # LOSS
+        # ----------------------------------------------------
 
         if targets is not None:
 
@@ -429,20 +668,48 @@ class ShrekAI(nn.Module):
                     -1,
                     logits.size(-1),
                 ),
-                targets.reshape(-1),
+                targets.reshape(
+                    -1
+                ),
                 ignore_index=-100,
             )
 
         return logits, loss
 
+    # ========================================================
+    # ENABLE / DISABLE GRADIENT CHECKPOINTING
+    # ========================================================
+
+    def enable_gradient_checkpointing(
+        self,
+    ):
+
+        self.gradient_checkpointing = False
+
+    def disable_gradient_checkpointing(
+        self,
+    ):
+
+        self.gradient_checkpointing = False
+
+    # ========================================================
+    # PARAMETER COUNT
+    # ========================================================
+
     @torch.no_grad()
-    def count_parameters(self):
+    def count_parameters(
+        self,
+    ):
 
         return sum(
             parameter.numel()
             for parameter in self.parameters()
             if parameter.requires_grad
         )
+
+    # ========================================================
+    # GENERATION
+    # ========================================================
 
     @torch.no_grad()
     def generate(
@@ -456,8 +723,11 @@ class ShrekAI(nn.Module):
 
         self.eval()
 
-        for _ in range(max_new_tokens):
+        for _ in range(
+            max_new_tokens
+        ):
 
+            # Keep only the available context.
             context = input_ids[
                 :,
                 -self.config.max_seq_len:
@@ -467,7 +737,15 @@ class ShrekAI(nn.Module):
                 context
             )
 
-            logits = logits[:, -1, :]
+            logits = logits[
+                :,
+                -1,
+                :,
+            ]
+
+            # ------------------------------------------------
+            # REPETITION PENALTY
+            # ------------------------------------------------
 
             if (
                 repetition_penalty
@@ -482,10 +760,18 @@ class ShrekAI(nn.Module):
                     repetition_penalty
                 )
 
+            # ------------------------------------------------
+            # TEMPERATURE
+            # ------------------------------------------------
+
             logits = logits / max(
                 temperature,
                 1e-5,
             )
+
+            # ------------------------------------------------
+            # TOP-P
+            # ------------------------------------------------
 
             sorted_logits, sorted_indices = (
                 torch.sort(
@@ -508,21 +794,29 @@ class ShrekAI(nn.Module):
                 cumulative > top_p
             )
 
+            # Keep the first token above
+            # the probability threshold.
             remove[..., 1:] = (
-                remove[..., :-1]
-                .clone()
+                remove[
+                    ...,
+                    :-1,
+                ].clone()
             )
 
             remove[..., 0] = False
 
-            sorted_logits[remove] = (
-                float("-inf")
-            )
+            sorted_logits[
+                remove
+            ] = float("-inf")
 
             probabilities = F.softmax(
                 sorted_logits,
                 dim=-1,
             )
+
+            # ------------------------------------------------
+            # SAMPLE
+            # ------------------------------------------------
 
             next_token = (
                 torch.multinomial(

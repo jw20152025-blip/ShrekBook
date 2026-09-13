@@ -1,4 +1,3 @@
-# training/dataset.py
 
 import json
 import re
@@ -15,11 +14,29 @@ from config import (
 )
 
 
+# ============================================================
+# SPECIAL TOKENS
+# ============================================================
+
 SPECIAL_TOKENS = {
     "<|pad|>": 256,
     "<|eos|>": 257,
+    "<|system|>": 258,
+    "<|user|>": 259,
+    "<|assistant|>": 260,
+    "<|tool|>": 261,
+    "<|end|>": 262,
 }
 
+
+SPECIAL_TOKEN_PATTERN = re.compile(
+    r"<\|(pad|eos|system|user|assistant|tool|end)\|>"
+)
+
+
+# ============================================================
+# BYTE TOKENIZER
+# ============================================================
 
 class ByteTokenizer:
 
@@ -32,6 +49,10 @@ class ByteTokenizer:
             for key, value in SPECIAL_TOKENS.items()
         }
 
+    # ========================================================
+    # ENCODE
+    # ========================================================
+
     def encode(
         self,
         text,
@@ -40,48 +61,59 @@ class ByteTokenizer:
 
         result = []
 
-        pattern = re.compile(
-            r"<\|(?:pad|eos|system|user|assistant|tool|end)\|>"
-        )
-
         position = 0
 
-        for match in pattern.finditer(text):
+        for match in SPECIAL_TOKEN_PATTERN.finditer(text):
 
-            normal = text[position:match.start()]
+            normal = text[
+                position:match.start()
+            ]
 
             result.extend(
-                list(normal.encode("utf-8"))
+                list(
+                    normal.encode("utf-8")
+                )
             )
 
             token = match.group(0)
 
-            if token in self.special_tokens:
+            token_id = self.special_tokens.get(
+                token
+            )
+
+            if token_id is not None:
 
                 result.append(
-                    self.special_tokens[token]
+                    token_id
                 )
-
-            elif token == "<|eos|>":
-
-                result.append(257)
 
             else:
 
                 result.extend(
-                    list(token.encode("utf-8"))
+                    list(
+                        token.encode("utf-8")
+                    )
                 )
 
             position = match.end()
 
         result.extend(
-            list(text[position:].encode("utf-8"))
+            list(
+                text[position:].encode("utf-8")
+            )
         )
 
         if add_special_tokens:
-            result.append(257)
+
+            result.append(
+                self.special_tokens["<|eos|>"]
+            )
 
         return result
+
+    # ========================================================
+    # DECODE
+    # ========================================================
 
     def decode(
         self,
@@ -106,7 +138,9 @@ class ByteTokenizer:
 
             elif 0 <= token_id <= 255:
 
-                output.append(token_id)
+                output.append(
+                    token_id
+                )
 
         return output.decode(
             "utf-8",
@@ -114,18 +148,44 @@ class ByteTokenizer:
         )
 
 
+# ============================================================
+# NORMALIZE RECORD
+# ============================================================
+
 def normalize_record(record):
 
     if isinstance(record, str):
+
         return record
 
+    # --------------------------------------------------------
+    # TEXT
+    # --------------------------------------------------------
+
     if "text" in record:
-        return str(record["text"])
+
+        return str(
+            record["text"]
+        )
+
+    # --------------------------------------------------------
+    # CONTENT
+    # --------------------------------------------------------
 
     if "content" in record:
-        return str(record["content"])
 
-    if "prompt" in record and "response" in record:
+        return str(
+            record["content"]
+        )
+
+    # --------------------------------------------------------
+    # PROMPT / RESPONSE
+    # --------------------------------------------------------
+
+    if (
+        "prompt" in record
+        and "response" in record
+    ):
 
         return (
             "<|user|>\n"
@@ -136,6 +196,10 @@ def normalize_record(record):
             + "\n<|end|>"
         )
 
+    # --------------------------------------------------------
+    # INSTRUCTION
+    # --------------------------------------------------------
+
     if "instruction" in record:
 
         instruction = str(
@@ -143,20 +207,30 @@ def normalize_record(record):
         )
 
         input_text = str(
-            record.get("input", "")
+            record.get(
+                "input",
+                "",
+            )
         )
 
         output = str(
             record.get(
                 "output",
-                record.get("response", ""),
+                record.get(
+                    "response",
+                    "",
+                ),
             )
         )
 
         user_text = instruction
 
         if input_text.strip():
-            user_text += "\n" + input_text
+
+            user_text += (
+                "\n"
+                + input_text
+            )
 
         return (
             "<|user|>\n"
@@ -166,6 +240,10 @@ def normalize_record(record):
             + output
             + "\n<|end|>"
         )
+
+    # --------------------------------------------------------
+    # MESSAGES
+    # --------------------------------------------------------
 
     if "messages" in record:
 
@@ -187,6 +265,15 @@ def normalize_record(record):
                 )
             )
 
+            if role not in (
+                "system",
+                "user",
+                "assistant",
+                "tool",
+            ):
+
+                role = "user"
+
             parts.extend(
                 [
                     f"<|{role}|>",
@@ -196,6 +283,10 @@ def normalize_record(record):
             )
 
         return "\n".join(parts)
+
+    # --------------------------------------------------------
+    # FALLBACK
+    # --------------------------------------------------------
 
     values = []
 
@@ -208,11 +299,16 @@ def normalize_record(record):
     return "\n".join(values)
 
 
+# ============================================================
+# LOAD JSONL
+# ============================================================
+
 def load_jsonl(path):
 
     records = []
 
     if not Path(path).exists():
+
         return records
 
     with open(
@@ -226,21 +322,37 @@ def load_jsonl(path):
             line = line.strip()
 
             if not line:
+
                 continue
 
             try:
-                record = json.loads(line)
 
-                text = normalize_record(record)
+                record = json.loads(
+                    line
+                )
+
+                text = normalize_record(
+                    record
+                )
 
                 if text.strip():
-                    records.append(text)
+
+                    records.append(
+                        text
+                    )
 
             except json.JSONDecodeError:
-                records.append(line)
+
+                records.append(
+                    line
+                )
 
     return records
 
+
+# ============================================================
+# SHREK DATASET
+# ============================================================
 
 class ShrekDataset(Dataset):
 
@@ -249,15 +361,30 @@ class ShrekDataset(Dataset):
         files=None,
         tokenizer=None,
         max_seq_len=MAX_SEQ_LEN,
+        allow_empty=False,
     ):
 
         self.tokenizer = (
-            tokenizer or ByteTokenizer()
+            tokenizer
+            or ByteTokenizer()
         )
 
-        self.max_seq_len = max_seq_len
+        self.max_seq_len = (
+            max_seq_len
+        )
 
-        files = files or TRAINING_FILES
+        self.allow_empty = (
+            allow_empty
+        )
+
+        files = (
+            files
+            or TRAINING_FILES
+        )
+
+        # ----------------------------------------------------
+        # LOAD TEXT SAMPLES
+        # ----------------------------------------------------
 
         self.samples = []
 
@@ -267,44 +394,94 @@ class ShrekDataset(Dataset):
                 load_jsonl(path)
             )
 
+        # ----------------------------------------------------
+        # TOKENIZE
+        # ----------------------------------------------------
+
         self.tokens = []
 
         for sample in self.samples:
 
-            encoded = self.tokenizer.encode(
-                sample,
-                add_special_tokens=True,
+            encoded = (
+                self.tokenizer.encode(
+                    sample,
+                    add_special_tokens=True,
+                )
             )
 
-            self.tokens.extend(encoded)
+            self.tokens.extend(
+                encoded
+            )
 
-        if len(self.tokens) < 2:
+        # ----------------------------------------------------
+        # VALIDATE
+        # ----------------------------------------------------
+
+        if (
+            len(self.tokens) < 2
+            and not self.allow_empty
+        ):
+
             raise RuntimeError(
                 "Training dataset contains fewer than "
                 "2 tokens."
             )
 
+    # ========================================================
+    # LENGTH
+    # ========================================================
+
     def __len__(self):
+
+        if len(self.tokens) < 2:
+
+            return 0
 
         return max(
             1,
-            (len(self.tokens) - 1)
+            (
+                len(self.tokens) - 1
+            )
             // self.max_seq_len,
         )
 
-    def __getitem__(self, index):
+    # ========================================================
+    # GET ITEM
+    # ========================================================
+
+    def __getitem__(
+        self,
+        index,
+    ):
+
+        if len(self.tokens) < 2:
+
+            raise IndexError(
+                "Dataset contains fewer than 2 tokens."
+            )
 
         start = (
-            index * self.max_seq_len
+            index
+            * self.max_seq_len
         )
 
-        end = start + self.max_seq_len + 1
+        end = (
+            start
+            + self.max_seq_len
+            + 1
+        )
 
         chunk = self.tokens[
             start:end
         ]
 
-        if len(chunk) < self.max_seq_len + 1:
+        # ----------------------------------------------------
+        # WRAP AROUND IF NECESSARY
+        # ----------------------------------------------------
+
+        if len(chunk) < (
+            self.max_seq_len + 1
+        ):
 
             needed = (
                 self.max_seq_len
@@ -315,6 +492,10 @@ class ShrekDataset(Dataset):
             chunk += (
                 self.tokens[:needed]
             )
+
+        # ----------------------------------------------------
+        # TENSOR
+        # ----------------------------------------------------
 
         chunk = torch.tensor(
             chunk,
@@ -327,7 +508,13 @@ class ShrekDataset(Dataset):
         }
 
 
-class EvaluationDataset(ShrekDataset):
+# ============================================================
+# EVALUATION DATASET
+# ============================================================
+
+class EvaluationDataset(
+    ShrekDataset
+):
 
     def __init__(
         self,
@@ -340,4 +527,10 @@ class EvaluationDataset(ShrekDataset):
             files=[path],
             tokenizer=tokenizer,
             max_seq_len=max_seq_len,
+            allow_empty=True,
         )
+
+
+
+
+

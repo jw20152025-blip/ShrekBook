@@ -1,5 +1,3 @@
-# training/evaluator.py
-
 import math
 
 import torch
@@ -29,6 +27,30 @@ def evaluate(
         max_seq_len=MAX_SEQ_LEN,
     )
 
+    # ========================================================
+    # EMPTY EVALUATION DATASET
+    # ========================================================
+
+    if len(dataset) == 0:
+
+        print(
+            "[validation] WARNING: evaluation dataset "
+            "contains fewer than 2 usable tokens."
+        )
+
+        print(
+            "[validation] Skipping validation."
+        )
+
+        return {
+            "loss": float("inf"),
+            "perplexity": float("inf"),
+        }
+
+    # ========================================================
+    # DATA LOADER
+    # ========================================================
+
     loader = DataLoader(
         dataset,
         batch_size=BATCH_SIZE,
@@ -41,6 +63,10 @@ def evaluate(
 
     total_loss = 0.0
     batches = 0
+
+    # ========================================================
+    # EVALUATION
+    # ========================================================
 
     for batch in loader:
 
@@ -70,17 +96,34 @@ def evaluate(
         if batches >= max_batches:
             break
 
+    # ========================================================
+    # NO BATCHES
+    # ========================================================
+
     if batches == 0:
+
         return {
             "loss": float("inf"),
             "perplexity": float("inf"),
         }
 
-    loss = total_loss / batches
+    # ========================================================
+    # RESULTS
+    # ========================================================
+
+    loss = (
+        total_loss
+        / batches
+    )
 
     try:
-        perplexity = math.exp(loss)
+
+        perplexity = math.exp(
+            loss
+        )
+
     except OverflowError:
+
         perplexity = float("inf")
 
     return {

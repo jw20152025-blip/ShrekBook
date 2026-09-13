@@ -186,11 +186,11 @@ TRAINING_FILES = [
 
     DATASET_DIR / "reasoning.jsonl",
 
+    DATASET_DIR / "evaluation.jsonl"
+
 ]
 
-EVALUATION_FILE = (
-    DATASET_DIR / "evaluation.jsonl"
-)
+
 
 
 # ============================================================
