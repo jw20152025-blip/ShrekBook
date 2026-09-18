@@ -143,7 +143,7 @@ app.use(
     })
 );
 
-app.use("/api", houseRouter);
+
 async function awardShrekCoins(
     userId,
     amount,
