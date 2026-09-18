@@ -19,6 +19,24 @@
     rel="stylesheet"
     href="/styles.css">
 
+    <link rel="stylesheet" href="/themes.css">
+
+
+    
+<script>
+(function () {
+const theme = localStorage.getItem("shrekbook-theme");
+
+
+        if (theme === "dark" || theme === "legacy") {
+            document.documentElement.setAttribute(
+                "data-theme",
+                theme
+            );
+        }
+    })();
+</script>
+
 </head>
 
 
@@ -1303,6 +1321,8 @@ document
 })();
 
 </script>
+
+    <script src="/themes.js"></script>
 
 </body>
 

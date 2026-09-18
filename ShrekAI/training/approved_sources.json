@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "name": "Wikipedia",
+      "domain": "wikipedia.org",
+      "enabled": true,
+      "topics": [
+        "general",
+        "science",
+        "history",
+        "geography",
+        "mathematics",
+        "computer_science"
+      ]
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import torch
 
 
@@ -14,6 +15,7 @@ MODEL_DIR = ROOT_DIR / "models"
 MEMORY_DIR = ROOT_DIR / "memory"
 
 for directory in (
+    DATASET_DIR,
     CHECKPOINT_DIR,
     MODEL_DIR,
     MEMORY_DIR,
@@ -28,25 +30,71 @@ for directory in (
 # MODEL
 # ============================================================
 
-VOCAB_SIZE = 263
+# ------------------------------------------------------------
+# TOKEN VOCABULARY
+# ------------------------------------------------------------
+#
+# 0-255:
+#     Raw UTF-8 bytes.
+#
+# 256-262:
+#     Existing special tokens.
+#
+# 263-2047:
+#     Learned subword tokens.
+#
+# IMPORTANT:
+# The first 263 IDs are intentionally preserved so the
+# existing ShrekAI checkpoint can be migrated without
+# throwing away the learned weights.
+# ------------------------------------------------------------
+
+BASE_VOCAB_SIZE = 263
+
+VOCAB_SIZE = 2048
+
+SUBWORD_START_ID = BASE_VOCAB_SIZE
+
+SUBWORD_VOCAB_SIZE = (
+    VOCAB_SIZE - BASE_VOCAB_SIZE
+)
 
 D_MODEL = 1024
 N_LAYERS = 16
 N_HEADS = 16
 FFN_MULTIPLIER = 2.6875
 
-MAX_SEQ_LEN = 512
+MAX_SEQ_LEN = 256
 
 DROPOUT = 0.0
 BIAS = False
 
 
 # ============================================================
+# TOKENIZER
+# ============================================================
+
+TOKENIZER_VOCAB_FILE = (
+    DATASET_DIR / "subword_vocab.json"
+)
+
+TOKENIZER_MIN_FREQUENCY = 2
+
+TOKENIZER_MIN_TOKEN_LENGTH = 2
+
+TOKENIZER_MAX_TOKEN_LENGTH = 16
+
+# Maximum number of characters examined when automatically
+# building the vocabulary from a single training record.
+TOKENIZER_MAX_RECORD_CHARS = 20_000
+
+
+# ============================================================
 # TRAINING
 # ============================================================
 
-# Keep these unchanged for the same training dynamics.
 BATCH_SIZE = 1
+
 GRADIENT_ACCUMULATION_STEPS = 32
 
 LEARNING_RATE = 3e-4
@@ -60,15 +108,10 @@ WARMUP_STEPS = 1_000
 
 GRAD_CLIP = 1.0
 
-# Validation is expensive, so don't run it constantly.
 VALIDATION_INTERVAL = 500
 
-# Frequent enough to protect progress without constantly
-# writing the huge optimizer state to disk.
 CHECKPOINT_INTERVAL = 100
 
-# Windows + small dataset:
-# keep this at 0 unless profiling shows workers help.
 NUM_WORKERS = 0
 
 SEED = 42
@@ -81,7 +124,9 @@ SEED = 42
 MAX_NEW_TOKENS = 16
 
 TEMPERATURE = 0.8
+
 TOP_P = 0.92
+
 REPETITION_PENALTY = 1.05
 
 
@@ -188,22 +233,28 @@ TRAINING_FILES = [
 
     DATASET_DIR / "expressions.jsonl",
 
+    DATASET_DIR / "web.jsonl",
+
 ]
+
+
+# ------------------------------------------------------------
+# IMPORTANT:
+#
+# evaluation.jsonl is NOT training data.
+# ------------------------------------------------------------
 
 EVALUATION_FILE = (
     DATASET_DIR / "evaluation.jsonl"
 )
 
 
-
 # ============================================================
 # PERFORMANCE
 # ============================================================
 
-# Keep compilation enabled.
 USE_COMPILE = True
 
-# Used by the model implementation if supported.
 USE_FLASH_ATTENTION = True
 
 
@@ -218,10 +269,8 @@ torch.set_float32_matmul_precision(
 
 if torch.cuda.is_available():
 
-    # Allow TF32 for supported FP32 CUDA operations.
     torch.backends.cuda.matmul.allow_tf32 = True
 
     torch.backends.cudnn.allow_tf32 = True
 
-    # Let cuDNN benchmark fixed-shape operations.
     torch.backends.cudnn.benchmark = True

@@ -1,0 +1,357 @@
+/* ============================================================
+   SHREKBOOK THEMES
+   ============================================================ */
+
+/*
+   DEFAULT
+   The normal ShrekBook appearance.
+   We intentionally don't override the existing styles here.
+*/
+
+
+/* ============================================================
+   DARK MODE
+   ============================================================ */
+
+html[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+html[data-theme="dark"] body {
+    background: #111111;
+    color: #eeeeee;
+}
+
+html[data-theme="dark"] .navbar {
+    background: #181818;
+    color: #ffffff;
+    border-bottom: 1px solid #333333;
+}
+
+html[data-theme="dark"] .navbar a {
+    color: #eeeeee;
+}
+
+html[data-theme="dark"] .navbar a:hover {
+    color: #ffffff;
+}
+
+html[data-theme="dark"] .container,
+html[data-theme="dark"] .other-section {
+    color: #eeeeee;
+}
+
+html[data-theme="dark"] section,
+html[data-theme="dark"] .auth-box,
+html[data-theme="dark"] .create-post,
+html[data-theme="dark"] .leaderboard-box,
+html[data-theme="dark"] .telecom-section {
+    background: #1b1b1b;
+    color: #eeeeee;
+    border-color: #333333;
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+    background: #242424;
+    color: #eeeeee;
+    border: 1px solid #444444;
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+    color: #999999;
+}
+
+html[data-theme="dark"] button {
+    background: #2c2c2c;
+    color: #ffffff;
+    border-color: #444444;
+}
+
+html[data-theme="dark"] button:hover {
+    background: #383838;
+}
+
+html[data-theme="dark"] .secondary-button {
+    background: #242424;
+    color: #dddddd;
+}
+
+html[data-theme="dark"] .jump-nav button {
+    background: #292929;
+    color: #eeeeee;
+}
+
+html[data-theme="dark"] .leaderboard-switcher button {
+    background: #292929;
+    color: #eeeeee;
+}
+
+html[data-theme="dark"] .leaderboard-switcher button.active {
+    background: #eeeeee;
+    color: #111111;
+}
+
+html[data-theme="dark"] .leaderboard-user {
+    background: #242424;
+    color: #eeeeee;
+}
+
+html[data-theme="dark"] .leaderboard-username,
+html[data-theme="dark"] .leaderboard-loading,
+html[data-theme="dark"] .leaderboard-empty {
+    color: #999999;
+}
+
+html[data-theme="dark"] a {
+    color: #8ab4f8;
+}
+
+html[data-theme="dark"] a:hover {
+    color: #b8d4ff;
+}
+
+html[data-theme="dark"] hr {
+    border-color: #333333;
+}
+
+html[data-theme="dark"] .ads {
+    background: #111111;
+}
+
+
+/* ============================================================
+   LEGACY MODE
+   ============================================================ */
+
+/*
+   Legacy mode is deliberately more "old ShrekBook".
+
+   Think:
+   - simpler UI
+   - square corners
+   - less modern spacing
+   - classic gray controls
+   - tighter layout
+*/
+
+html[data-theme="legacy"] {
+    color-scheme: light;
+}
+
+html[data-theme="legacy"] body {
+    background: #d9d9d9;
+    color: #222222;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+html[data-theme="legacy"] .navbar {
+    background: #333333;
+    color: #ffffff;
+    border-bottom: 3px solid #111111;
+}
+
+html[data-theme="legacy"] .navbar-inner {
+    border-radius: 0;
+}
+
+html[data-theme="legacy"] .navbar a {
+    color: #ffffff;
+}
+
+html[data-theme="legacy"] .navbar a:hover {
+    background: #555555;
+}
+
+html[data-theme="legacy"] section,
+html[data-theme="legacy"] .auth-box,
+html[data-theme="legacy"] .create-post,
+html[data-theme="legacy"] .leaderboard-box,
+html[data-theme="legacy"] .telecom-section,
+html[data-theme="legacy"] .other-section {
+    border-radius: 3px;
+    box-shadow: none;
+}
+
+html[data-theme="legacy"] button,
+html[data-theme="legacy"] input,
+html[data-theme="legacy"] textarea,
+html[data-theme="legacy"] select {
+    border-radius: 2px;
+}
+
+html[data-theme="legacy"] button {
+    background: #eeeeee;
+    color: #111111;
+    border: 1px solid #777777;
+    box-shadow:
+        inset 0 1px 0 #ffffff,
+        0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+html[data-theme="legacy"] button:hover {
+    background: #dddddd;
+}
+
+html[data-theme="legacy"] .jump-nav {
+    gap: 5px;
+}
+
+html[data-theme="legacy"] .jump-nav button {
+    background: #eeeeee;
+    border: 1px solid #777777;
+    border-radius: 2px;
+}
+
+html[data-theme="legacy"] .leaderboard-box {
+    background: #ffffff;
+    border: 1px solid #999999;
+}
+
+html[data-theme="legacy"] .leaderboard-switcher {
+    gap: 4px;
+}
+
+html[data-theme="legacy"] .leaderboard-switcher button {
+    background: #eeeeee;
+    border: 1px solid #888888;
+    border-radius: 2px;
+}
+
+html[data-theme="legacy"] .leaderboard-switcher button.active {
+    background: #333333;
+    color: #ffffff;
+}
+
+html[data-theme="legacy"] .leaderboard-user {
+    background: #eeeeee;
+    border: 1px solid #cccccc;
+    border-radius: 3px;
+}
+
+html[data-theme="legacy"] input,
+html[data-theme="legacy"] textarea,
+html[data-theme="legacy"] select {
+    background: #ffffff;
+    color: #111111;
+    border: 1px solid #777777;
+}
+
+html[data-theme="legacy"] a {
+    color: #0645ad;
+}
+
+html[data-theme="legacy"] a:visited {
+    color: #551a8b;
+}
+
+html[data-theme="legacy"] h1,
+html[data-theme="legacy"] h2,
+html[data-theme="legacy"] h3 {
+    font-weight: bold;
+}
+
+html[data-theme="legacy"] .telecom-section {
+    border: 1px solid #999999;
+}
+
+
+/* ============================================================
+   THEME SELECTOR
+   ============================================================ */
+
+.theme-selector {
+    position: relative;
+    display: inline-block;
+}
+
+.theme-button {
+    cursor: pointer;
+}
+
+.theme-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+
+    min-width: 170px;
+
+    padding: 6px;
+
+    background: white;
+    color: #111111;
+
+    border: 1px solid #cccccc;
+    border-radius: 10px;
+
+    box-shadow:
+        0 8px 25px rgba(0, 0, 0, 0.15);
+
+    z-index: 99999;
+}
+
+.theme-menu.hidden {
+    display: none;
+}
+
+.theme-option {
+    width: 100%;
+
+    display: block;
+
+    padding: 9px 11px;
+    margin: 2px 0;
+
+    border: none;
+    border-radius: 7px;
+
+    background: transparent;
+    color: #111111;
+
+    text-align: left;
+    cursor: pointer;
+}
+
+.theme-option:hover {
+    background: #eeeeee;
+}
+
+.theme-option.active {
+    font-weight: bold;
+}
+
+
+/* Dark theme selector */
+
+html[data-theme="dark"] .theme-menu {
+    background: #1e1e1e;
+    color: #eeeeee;
+    border-color: #444444;
+}
+
+html[data-theme="dark"] .theme-option {
+    color: #eeeeee;
+}
+
+html[data-theme="dark"] .theme-option:hover {
+    background: #333333;
+}
+
+
+/* Legacy theme selector */
+
+html[data-theme="legacy"] .theme-menu {
+    border-radius: 2px;
+    border: 1px solid #777777;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.25);
+}
+
+html[data-theme="legacy"] .theme-option {
+    border-radius: 2px;
+}
+
+html[data-theme="legacy"] .theme-option:hover {
+    background: #dddddd;
+}

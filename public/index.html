@@ -1,212 +1,253 @@
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
 
-    <meta charset="UTF-8">
+```
+<meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0">
 
-    <title>ShrekBook - The Social Network for Everyone</title>
-    <link rel="icon" type="image/png" href="/favicon.png">
+<title>ShrekBook - The Social Network for Everyone</title>
 
-    <meta
-        name="description"
-        content="ShrekBook is a fun social network where you can connect with people, share posts, chat, react to content, and compete on the leaderboard.">
+<link
+    rel="icon"
+    type="image/png"
+    href="/favicon.png">
 
-    <meta
-        name="keywords"
-        content="ShrekBook, social network, Shrek, social media, posts, chat, leaderboard">
+<meta
+    name="description"
+    content="ShrekBook is a fun social network where you can connect with people, share posts, chat, react to content, and compete on the leaderboard.">
 
-    <link
-        rel="stylesheet"
-        href="/styles.css">
+<meta
+    name="keywords"
+    content="ShrekBook, social network, Shrek, social media, posts, chat, leaderboard">
 
-    <style>
 
-        /* ==================================================
-           SHREKBOOK NAVIGATION
-           ================================================== */
+<!-- ==================================================
+     LOAD SAVED THEME BEFORE PAGE RENDER
+     ================================================== -->
 
-        .jump-nav {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin: 15px 0 25px 0;
+<script>
+    (function () {
+
+        const theme =
+            localStorage.getItem("shrekbook-theme");
+
+        if (
+            theme === "dark" ||
+            theme === "legacy"
+        ) {
+
+            document.documentElement.setAttribute(
+                "data-theme",
+                theme
+            );
+
         }
 
-        .jump-nav button {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: bold;
-            background: #eeeeee;
-        }
-
-        .jump-nav button:hover {
-            opacity: 0.8;
-        }
+    })();
+</script>
 
 
-        /* ==================================================
-           LEADERBOARD
-           ================================================== */
+<!-- ==================================================
+     MAIN STYLES
+     ================================================== -->
 
-        #leaderboard-section {
-            margin-top: 40px;
-            margin-bottom: 40px;
-        }
+<link
+    rel="stylesheet"
+    href="/styles.css">
 
-        .leaderboard-box {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow:
-                0 2px 10px
-                rgba(0, 0, 0, 0.08);
-        }
-
-        .leaderboard-switcher {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 20px;
-        }
-
-        .leaderboard-switcher button {
-            padding: 9px 13px;
-            border: none;
-            border-radius: 9px;
-            cursor: pointer;
-            background: #eeeeee;
-            font-weight: bold;
-        }
-
-        .leaderboard-switcher button:hover {
-            opacity: 0.8;
-        }
-
-        .leaderboard-switcher button.active {
-            background: #333;
-            color: white;
-        }
-
-        .leaderboard-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .leaderboard-user {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            border-radius: 12px;
-            background: #f5f5f5;
-        }
-
-        .leaderboard-rank {
-            width: 45px;
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            flex-shrink: 0;
-        }
-
-        .leaderboard-avatar {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            object-fit: cover;
-            flex-shrink: 0;
-        }
-
-        .leaderboard-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .leaderboard-name {
-            font-weight: bold;
-            font-size: 16px;
-        }
-
-        .leaderboard-username {
-            color: #777;
-            font-size: 13px;
-        }
-
-        .leaderboard-score {
-            font-weight: bold;
-            font-size: 16px;
-            text-align: right;
-        }
-
-        .leaderboard-medal {
-            font-size: 28px;
-        }
-
-        .leaderboard-loading {
-            text-align: center;
-            padding: 30px;
-            color: #777;
-        }
-
-        .leaderboard-empty {
-            text-align: center;
-            padding: 30px;
-            color: #777;
-        }
+<link
+    rel="stylesheet"
+    href="/themes.css">
 
 
-        /* ==================================================
-           PEOPLE
-           ================================================== */
+<style>
 
-        #people-section {
-            scroll-margin-top: 80px;
-        }
+    /* ==================================================
+       SHREKBOOK NAVIGATION
+       ================================================== */
+
+    .jump-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 15px 0 25px 0;
+    }
+
+    .jump-nav button {
+        padding: 10px 15px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: bold;
+        background: #eeeeee;
+    }
+
+    .jump-nav button:hover {
+        opacity: 0.8;
+    }
 
 
-        /* ==================================================
-           POSTS
-           ================================================== */
+    /* ==================================================
+       LEADERBOARD
+       ================================================== */
 
-        #posts-section {
-            scroll-margin-top: 80px;
-        }
+    #leaderboard-section {
+        margin-top: 40px;
+        margin-bottom: 40px;
+    }
+
+    .leaderboard-box {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow:
+            0 2px 10px
+            rgba(0, 0, 0, 0.08);
+    }
+
+    .leaderboard-switcher {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+
+    .leaderboard-switcher button {
+        padding: 9px 13px;
+        border: none;
+        border-radius: 9px;
+        cursor: pointer;
+        background: #eeeeee;
+        font-weight: bold;
+    }
+
+    .leaderboard-switcher button:hover {
+        opacity: 0.8;
+    }
+
+    .leaderboard-switcher button.active {
+        background: #333;
+        color: white;
+    }
+
+    .leaderboard-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .leaderboard-user {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        border-radius: 12px;
+        background: #f5f5f5;
+    }
+
+    .leaderboard-rank {
+        width: 45px;
+        text-align: center;
+        font-size: 24px;
+        font-weight: bold;
+        flex-shrink: 0;
+    }
+
+    .leaderboard-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+    .leaderboard-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .leaderboard-name {
+        font-weight: bold;
+        font-size: 16px;
+    }
+
+    .leaderboard-username {
+        color: #777;
+        font-size: 13px;
+    }
+
+    .leaderboard-score {
+        font-weight: bold;
+        font-size: 16px;
+        text-align: right;
+    }
+
+    .leaderboard-medal {
+        font-size: 28px;
+    }
+
+    .leaderboard-loading {
+        text-align: center;
+        padding: 30px;
+        color: #777;
+    }
+
+    .leaderboard-empty {
+        text-align: center;
+        padding: 30px;
+        color: #777;
+    }
 
 
-        /* ==================================================
-           LEADERBOARD SCROLL
-           ================================================== */
+    /* ==================================================
+       PEOPLE
+       ================================================== */
 
-        #leaderboard-section {
-            scroll-margin-top: 80px;
-        }
+    #people-section {
+        scroll-margin-top: 80px;
+    }
 
 
-        /* ==================================================
-           OTHER
-           ================================================== */
+    /* ==================================================
+       POSTS
+       ================================================== */
 
-        .other-section {
-            max-width: 1100px;
-            margin: 40px auto;
-            padding: 20px;
-        }
+    #posts-section {
+        scroll-margin-top: 80px;
+    }
 
-    </style>
+
+    /* ==================================================
+       LEADERBOARD SCROLL
+       ================================================== */
+
+    #leaderboard-section {
+        scroll-margin-top: 80px;
+    }
+
+
+    /* ==================================================
+       OTHER
+       ================================================== */
+
+    .other-section {
+        max-width: 1100px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+
+</style>
+```
 
 </head>
 
-
 <body>
-
 
 <!-- ==================================================
      NAVBAR
@@ -214,89 +255,129 @@
 
 <header class="navbar">
 
-    <div class="navbar-inner">
+```
+<div class="navbar-inner">
+
+    <a
+        href="/"
+        class="logo">
+
+        🧌 ShrekBook
+
+    </a>
+
+
+    <nav>
+
+        <a href="/">
+            Home
+        </a>
+
 
         <a
-            href="/"
-            class="logo">
+            href="/profile.html"
+            id="profile-link">
 
-            🧌 ShrekBook
+            Profile
 
         </a>
 
 
-        <nav>
+        <a href="/shrekchat.html">
 
-            <a href="/">
-                Home
-            </a>
+            💬 ShrekChat
 
-
-            <a
-                href="/profile.html"
-                id="profile-link">
-
-                Profile
-
-            </a>
+        </a>
 
 
-            <a href="/shrekchat.html">
-
-                💬 ShrekChat
-
-            </a>
-
-            <a href="/house-directory.html">Houses</a>
-            <a
-                id="admin-button"
-                href="/admin.html"
-                style="display:none;">
-
-                🛡️ Admin
-
-            </a>
-            
-            <a
-                href="/shreksearch.html"
-                class="shreksearch-button"
-            >
-                🔎 ShrekSearch
-            </a>
-            <a href="/about.html">About</a>
-            <a href="/terms.html">Terms of Service</a>
-            <a href="/policies.html">Policies</a>
+        <!-- HOUSES REMOVED -->
 
 
-            <a href="/svis.html">SVIS</a>
-            <a href="/inventory.html">Inventory</a>
-            <a href="/sell.html">Sell</a>
-            <a href="/creator.html">Creator</a>
-            <a href="/transfer.html">Transfer</a>
-            <a href="/sellhistory.html">Sell History</a>
-            <button
-                id="logout-button"
-                onclick="logout()"
-                style="display:none;">
+        <a
+            id="admin-button"
+            href="/admin.html"
+            style="display:none;">
 
-                Logout
+            🛡️ Admin
 
-            </button>
+        </a>
 
-        </nav>
 
-    </div>
+        <a
+            href="/shreksearch.html"
+            class="shreksearch-button">
+
+            🔎 ShrekSearch
+
+        </a>
+
+
+        <a href="/about.html">
+            About
+        </a>
+
+
+        <a href="/terms.html">
+            Terms of Service
+        </a>
+
+
+        <a href="/policies.html">
+            Policies
+        </a>
+
+
+        <a href="/svis.html">
+            SVIS
+        </a>
+
+
+        <a href="/inventory.html">
+            Inventory
+        </a>
+
+
+        <a href="/sell.html">
+            Sell
+        </a>
+
+
+        <a href="/creator.html">
+            Creator
+        </a>
+
+
+        <a href="/transfer.html">
+            Transfer
+        </a>
+
+
+        <a href="/sellhistory.html">
+            Sell History
+        </a>
+
+
+        <button
+            id="logout-button"
+            onclick="logout()"
+            style="display:none;">
+
+            Logout
+
+        </button>
+
+    </nav>
+
+</div>
+```
 
 </header>
-
-
 
 <!-- ==================================================
      MAIN
      ================================================== -->
 
 <main class="container">
-
 
 <!-- ==================================================
      LOGIN / SIGNUP
@@ -306,127 +387,127 @@
     id="auth-section"
     class="auth-section">
 
-    <div class="auth-box">
+```
+<div class="auth-box">
 
-        <h1>
-            Welcome to ShrekBook 🧌
-        </h1>
+    <h1>
+        Welcome to ShrekBook 🧌
+    </h1>
 
-        <p>
-            The social network for ogres,
-            cats, and everyone in between.
-        </p>
+    <p>
+        The social network for ogres,
+        cats, and everyone in between.
+    </p>
 
-        <p>
-            You can post, share, and interact with others!
-        </p>
-
-
-        <!-- LOGIN -->
-
-        <div id="login-box">
-
-            <h2>
-                Login
-            </h2>
+    <p>
+        You can post, share, and interact with others!
+    </p>
 
 
-            <input
-                id="login-email"
-                type="email"
-                placeholder="Email">
+    <!-- LOGIN -->
+
+    <div id="login-box">
+
+        <h2>
+            Login
+        </h2>
 
 
-            <input
-                id="login-password"
-                type="password"
-                placeholder="Password">
+        <input
+            id="login-email"
+            type="email"
+            placeholder="Email">
 
 
-            <button onclick="login()">
-
-                🔐 Login
-
-            </button>
-
-
-            <p id="login-status"></p>
+        <input
+            id="login-password"
+            type="password"
+            placeholder="Password">
 
 
-            <button
-                class="secondary-button"
-                onclick="showSignup()">
+        <button onclick="login()">
 
-                Don't have an account?
-                Sign up
+            🔐 Login
 
-            </button>
-
-        </div>
+        </button>
 
 
-
-        <!-- SIGNUP -->
-
-        <div
-            id="signup-box"
-            style="display:none;">
-
-            <h2>
-                Create Account
-            </h2>
+        <p id="login-status"></p>
 
 
-            <input
-                id="signup-username"
-                maxlength="30"
-                placeholder="Username">
+        <button
+            class="secondary-button"
+            onclick="showSignup()">
 
+            Don't have an account?
+            Sign up
 
-            <input
-                id="signup-display-name"
-                maxlength="50"
-                placeholder="Display name">
-
-
-            <input
-                id="signup-email"
-                type="email"
-                placeholder="Email">
-
-
-            <input
-                id="signup-password"
-                type="password"
-                placeholder="Password">
-
-
-            <button onclick="signup()">
-
-                📝 Create Account
-
-            </button>
-
-
-            <p id="signup-status"></p>
-
-
-            <button
-                class="secondary-button"
-                onclick="showLogin()">
-
-                Already have an account?
-                Login
-
-            </button>
-
-        </div>
+        </button>
 
     </div>
 
+
+
+    <!-- SIGNUP -->
+
+    <div
+        id="signup-box"
+        style="display:none;">
+
+        <h2>
+            Create Account
+        </h2>
+
+
+        <input
+            id="signup-username"
+            maxlength="30"
+            placeholder="Username">
+
+
+        <input
+            id="signup-display-name"
+            maxlength="50"
+            placeholder="Display name">
+
+
+        <input
+            id="signup-email"
+            type="email"
+            placeholder="Email">
+
+
+        <input
+            id="signup-password"
+            type="password"
+            placeholder="Password">
+
+
+        <button onclick="signup()">
+
+            📝 Create Account
+
+        </button>
+
+
+        <p id="signup-status"></p>
+
+
+        <button
+            class="secondary-button"
+            onclick="showLogin()">
+
+            Already have an account?
+            Login
+
+        </button>
+
+    </div>
+
+</div>
+```
+
 </section>
-
-
 
 <!-- ==================================================
      MAIN APP
@@ -436,332 +517,344 @@
     id="app-section"
     style="display:none;">
 
+```
+<!-- ==================================================
+     QUICK NAVIGATION
+     ================================================== -->
 
-    <!-- ==================================================
-         QUICK NAVIGATION
-         ================================================== -->
+<div class="jump-nav">
 
-    <div class="jump-nav">
+    <button
+        type="button"
+        onclick="document.getElementById('posts-section').scrollIntoView({behavior:'smooth'})">
 
-        <button
-            type="button"
-            onclick="document.getElementById('posts-section').scrollIntoView({behavior:'smooth'})">
+        📝 Posts
 
-            📝 Posts
-
-        </button>
-
-
-        <button
-            type="button"
-            onclick="document.getElementById('people-section').scrollIntoView({behavior:'smooth'})">
-
-            👥 People
-
-        </button>
+    </button>
 
 
-        <button
-            type="button"
-            onclick="document.getElementById('leaderboard-section').scrollIntoView({behavior:'smooth'})">
+    <button
+        type="button"
+        onclick="document.getElementById('people-section').scrollIntoView({behavior:'smooth'})">
 
-            🏆 Leaderboard
+        👥 People
 
-        </button>
-        <div id="shrekcoin-display" class="shrekcoin-display">
-            🪙 <span id="shrekcoin-count">0</span> ShrekCoins
-        </div>
-        <span id="hambicoin-count">0</span> Hambicoins
+    </button>
+
+
+    <button
+        type="button"
+        onclick="document.getElementById('leaderboard-section').scrollIntoView({behavior:'smooth'})">
+
+        🏆 Leaderboard
+
+    </button>
+
+
+    <div
+        id="shrekcoin-display"
+        class="shrekcoin-display">
+
+        🪙
+        <span id="shrekcoin-count">0</span>
+        ShrekCoins
 
     </div>
 
 
+    <span id="hambicoin-count">
+        0
+    </span>
+    Hambicoins
 
-    <!-- ==================================================
-         CREATE POST
-         ================================================== -->
-
-    <section class="create-post">
-
-        <h2>
-            What's on your mind? 🧌
-        </h2>
-
-
-        <textarea
-            id="post-content"
-            maxlength="5000"
-            placeholder="Say something..."></textarea>
-
-
-        <!-- IMAGE PICKER -->
-
-        <div class="image-upload">
-
-            <label for="post-image">
-
-                🖼️ Add an image
-
-            </label>
-
-
-            <input
-                id="post-image"
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif,video/mp4", .sb>
-
-
-            <div
-                id="post-image-preview"
-                style="display:none;">
-
-
-                <img
-                    id="post-preview-image"
-                    alt="Post image preview"
-                    style="
-                        max-width:100%;
-                        max-height:400px;
-                        border-radius:12px;
-                        margin-top:10px;
-                    ">
-
-
-                <br>
-
-
-                <button
-                    type="button"
-                    onclick="clearPostImage()">
-
-                    ❌ Remove image
-
-                </button>
-
-            </div>
-
-        </div>
-
-
-        <button onclick="createPost()">
-
-            📝 Post
-
-        </button>
-
-
-        <p id="post-status"></p>
-
-    </section>
+</div>
 
 
 
-    <!-- ==================================================
-         POSTS
-         ================================================== -->
+<!-- ==================================================
+     CREATE POST
+     ================================================== -->
 
-    <section
-        id="posts-section">
+<section class="create-post">
 
-        <h2>
-            Feed
-        </h2>
-
-
-        <div id="posts">
-
-            Loading posts...
-
-        </div>
-
-    </section>
+    <h2>
+        What's on your mind? 🧌
+    </h2>
 
 
+    <textarea
+        id="post-content"
+        maxlength="5000"
+        placeholder="Say something..."></textarea>
 
-    <!-- ==================================================
-         PEOPLE
-         ================================================== -->
 
-    <section
-        id="people-section"
-        class="people-section">
+    <!-- IMAGE PICKER -->
 
-        <h2>
-            People 👥
-        </h2>
+    <div class="image-upload">
+
+        <label for="post-image">
+
+            🖼️ Add an image
+
+        </label>
+
+
         <input
-            id="people-search"
-            type="search"
-            placeholder="Search for a friend..."
-            autocomplete="off"
-        >
-
-        <div id="people">
-
-            Loading people...
-
-        </div>
-
-    </section>
+            id="post-image"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif,video/mp4">
 
 
-
-    <!-- ==================================================
-         LEADERBOARD
-         ================================================== -->
-
-    <section
-        id="leaderboard-section">
+        <div
+            id="post-image-preview"
+            style="display:none;">
 
 
-        <h2>
-            🏆 ShrekBook Leaderboard
-        </h2>
+            <img
+                id="post-preview-image"
+                alt="Post image preview"
+                style="
+                    max-width:100%;
+                    max-height:400px;
+                    border-radius:12px;
+                    margin-top:10px;
+                ">
 
 
-        <p>
-            Who rules the swamp? 🧌
-        </p>
+            <br>
 
 
-        <div class="leaderboard-box">
+            <button
+                type="button"
+                onclick="clearPostImage()">
 
+                ❌ Remove image
 
-            <!-- ==========================================
-                 SWITCH BUTTONS
-                 ========================================== -->
-
-            <div
-                class="leaderboard-switcher">
-
-
-                <button
-                    id="leaderboard-button-overall"
-                    class="active"
-                    onclick="loadLeaderboard('overall')">
-
-                    🏆 Overall
-
-                </button>
-
-
-                <button
-                    id="leaderboard-button-posts"
-                    onclick="loadLeaderboard('posts')">
-
-                    📝 Posts
-
-                </button>
-
-
-                <button
-                    id="leaderboard-button-comments"
-                    onclick="loadLeaderboard('comments')">
-
-                    💬 Comments
-
-                </button>
-
-
-                <button
-                    id="leaderboard-button-cat"
-                    onclick="loadLeaderboard('cat')">
-
-                    🐱 Cat
-
-                </button>
-
-
-                <button
-                    id="leaderboard-button-gyatt"
-                    onclick="loadLeaderboard('gyatt')">
-
-                    🍑 Gyatt
-
-                </button>
-
-
-                <button
-                    id="leaderboard-button-ogred"
-                    onclick="loadLeaderboard('ogred')">
-
-                    🧌 Ogred
-
-                </button>
-
-            </div>
-
-
-
-            <!-- ==========================================
-                 CURRENT CATEGORY
-                 ========================================== -->
-
-            <h3 id="leaderboard-title">
-
-                🏆 Overall points
-
-            </h3>
-
-
-
-            <!-- ==========================================
-                 TOP FIVE
-                 ========================================== -->
-
-            <div
-                id="leaderboard"
-                class="leaderboard-list">
-
-                <div class="leaderboard-loading">
-
-                    Loading leaderboard... 🧌
-
-                </div>
-
-            </div>
-
+            </button>
 
         </div>
 
-    </section>
+    </div>
 
 
+    <button onclick="createPost()">
 
-    <!-- ==================================================
-         SHREKBOOK TELECOM
-         ================================================== -->
+        📝 Post
 
-    <section class="telecom-section">
-
-        <h2>
-            🧌 ShrekBook Telecom
-        </h2>
+    </button>
 
 
-        <p>
-            Connecting the swamp
-            to the internet since 2026.
-        </p>
-
-
-        <a
-            class="telecom-button"
-            href="/shrekchat.html">
-
-            💬 Open ShrekChat
-
-        </a>
-
-    </section>
-
+    <p id="post-status"></p>
 
 </section>
 
 
+
+<!-- ==================================================
+     POSTS
+     ================================================== -->
+
+<section
+    id="posts-section">
+
+    <h2>
+        Feed
+    </h2>
+
+
+    <div id="posts">
+
+        Loading posts...
+
+    </div>
+
+</section>
+
+
+
+<!-- ==================================================
+     PEOPLE
+     ================================================== -->
+
+<section
+    id="people-section"
+    class="people-section">
+
+    <h2>
+        People 👥
+    </h2>
+
+
+    <input
+        id="people-search"
+        type="search"
+        placeholder="Search for a friend..."
+        autocomplete="off">
+
+
+    <div id="people">
+
+        Loading people...
+
+    </div>
+
+</section>
+
+
+
+<!-- ==================================================
+     LEADERBOARD
+     ================================================== -->
+
+<section
+    id="leaderboard-section">
+
+
+    <h2>
+        🏆 ShrekBook Leaderboard
+    </h2>
+
+
+    <p>
+        Who rules the swamp? 🧌
+    </p>
+
+
+    <div class="leaderboard-box">
+
+
+        <!-- ==========================================
+             SWITCH BUTTONS
+             ========================================== -->
+
+        <div
+            class="leaderboard-switcher">
+
+
+            <button
+                id="leaderboard-button-overall"
+                class="active"
+                onclick="loadLeaderboard('overall')">
+
+                🏆 Overall
+
+            </button>
+
+
+            <button
+                id="leaderboard-button-posts"
+                onclick="loadLeaderboard('posts')">
+
+                📝 Posts
+
+            </button>
+
+
+            <button
+                id="leaderboard-button-comments"
+                onclick="loadLeaderboard('comments')">
+
+                💬 Comments
+
+            </button>
+
+
+            <button
+                id="leaderboard-button-cat"
+                onclick="loadLeaderboard('cat')">
+
+                🐱 Cat
+
+            </button>
+
+
+            <button
+                id="leaderboard-button-gyatt"
+                onclick="loadLeaderboard('gyatt')">
+
+                🍑 Gyatt
+
+            </button>
+
+
+            <button
+                id="leaderboard-button-ogred"
+                onclick="loadLeaderboard('ogred')">
+
+                🧌 Ogred
+
+            </button>
+
+        </div>
+
+
+
+        <!-- ==========================================
+             CURRENT CATEGORY
+             ========================================== -->
+
+        <h3 id="leaderboard-title">
+
+            🏆 Overall points
+
+        </h3>
+
+
+
+        <!-- ==========================================
+             TOP FIVE
+             ========================================== -->
+
+        <div
+            id="leaderboard"
+            class="leaderboard-list">
+
+            <div class="leaderboard-loading">
+
+                Loading leaderboard... 🧌
+
+            </div>
+
+        </div>
+
+
+    </div>
+
+</section>
+
+
+
+<!-- ==================================================
+     SHREKBOOK TELECOM
+     ================================================== -->
+
+<section class="telecom-section">
+
+    <h2>
+        🧌 ShrekBook Telecom
+    </h2>
+
+
+    <p>
+        Connecting the swamp
+        to the internet since 2026.
+    </p>
+
+
+    <a
+        class="telecom-button"
+        href="/shrekchat.html">
+
+        💬 Open ShrekChat
+
+    </a>
+
+</section>
+```
+
+</section>
+
 </main>
-
-
 
 <!-- ==================================================
      OTHER
@@ -769,213 +862,233 @@
 
 <section class="other-section">
 
+```
+<h2>
+    Other
+</h2>
 
-    <h2>
-        Other
-    </h2>
 
+<h3>
+    Account Management
+</h3>
 
-    <h3>
-        Account Management
-    </h3>
 
+<p>
+    Currently, if you would like to delete
+    or edit your username, you must contact
+    ShrekBook's support team.
+</p>
 
-    <p>
-        Currently, if you would like to delete
-        or edit your username, you must contact
-        ShrekBook's support team.
-    </p>
 
+<a href="mailto:jw20152025@gmail.com">
 
-    <a href="mailto:jw20152025@gmail.com">
+    Contact Support
 
-        Contact Support
+</a>
 
-    </a>
 
+<br>
 
-    <br>
 
+<small>
 
-    <small>
+    We may take up to 24 hours to respond,
+    and are not responsible for any delays.
 
-        We may take up to 24 hours to respond,
-        and are not responsible for any delays.
+</small>
 
-    </small>
 
+<br>
 
-    <br>
 
+<small>
 
-    <small>
+    Please do not send multiple emails
+    about the same issue or request.
 
-        Please do not send multiple emails
-        about the same issue or request.
+</small>
 
-    </small>
 
 
-
-    <!-- ==================================================
-         POLICIES
-         ================================================== -->
-
-    <div>
-
-        <h3>
-            ShrekBook Policies
-        </h3>
-
-
-        <ol>
-
-            <li>
-                Do not post inappropriate content.
-            </li>
-
-            <li>
-                Respect other users and their opinions.
-            </li>
-
-            <li>
-                Do not share personal information or sensitive data.
-            </li>
-
-            <li>
-                Do not engage in harassment or bullying.
-            </li>
-
-            <li>
-                Do not use ShrekBook for illegal activities.
-            </li>
-
-            <li>
-                Do not create multiple accounts to manipulate the platform.
-            </li>
-
-            <li>
-                Do not impersonate other users or public figures.
-            </li>
-
-            <li>
-                Do not post spam or advertisements.
-            </li>
-
-            <li>
-                Do not attempt to hack or exploit the platform.
-            </li>
-
-            <li>
-                Do not share content that violates copyright
-                or intellectual property rights.
-            </li>
-
-            <li>
-                Do not post content that promotes violence
-                or hate speech.
-            </li>
-
-            <li>
-                Do not post content that is misleading or false.
-            </li>
-
-            <li>
-                Do not post content that is sexually explicit
-                or pornographic.
-            </li>
-
-            <li>
-                Do not post content that is discriminatory or offensive.
-            </li>
-
-            <li>
-                Do not message developers multiple times
-                about the same issue.
-            </li>
-
-            <li>
-                Do not contact developers multiple times per day.
-            </li>
-
-            <li>
-                Do not contact developers about issues
-                that are not related to the platform.
-            </li>
-
-            <li>
-                Do not contact developers about issues
-                that are not your own.
-            </li>
-
-            <li>
-                Do not contact developers about issues
-                that are not urgent.
-            </li>
-
-            <li>
-                If you suspect any violations of these policies,
-                please contact our support team.
-            </li>
-
-        </ol>
-
-    </div>
-
-
-
-    <!-- ==================================================
-         DEVELOPERS
-         ================================================== -->
-
-    <h3>
-        Meet the Developers!
-    </h3>
-
-
-    <ul>
-
-        <li>
-            jw20152025@gmail.com
-        </li>
-
-        <li>
-            marshmellowleader
-        </li>
-
-        <li>
-            Arz
-        </li>
-
-        <li>
-            Olive Tree
-        </li>
-
-    </ul>
-    <h3>Sponsors</h3>
-    <p>Click on the link to visit our sponsors.</p>
-    <a href="https://shrekbook.bbroot.com/sponsors.html">Sponsors Page</a>
-
-</section>
-
-
-
-
-
-<section class="ads">
-    <div class="shrekbook_ad1">
-        <script src="https://pl31025712.profitableratecpmnetwork.com/74/10/bd/7410bddbf1a4ab5bef8c019c654f2808.js"></script>
-
-
-
-    </div>
-</section>
 <!-- ==================================================
-     MAIN SHREKBOOK SCRIPT
+     POLICIES
      ================================================== -->
 
-<script src="/script.js"></script>
+<div>
 
+    <h3>
+        ShrekBook Policies
+    </h3>
+
+
+    <ol>
+
+        <li>
+            Do not post inappropriate content.
+        </li>
+
+        <li>
+            Respect other users and their opinions.
+        </li>
+
+        <li>
+            Do not share personal information or sensitive data.
+        </li>
+
+        <li>
+            Do not engage in harassment or bullying.
+        </li>
+
+        <li>
+            Do not use ShrekBook for illegal activities.
+        </li>
+
+        <li>
+            Do not create multiple accounts to manipulate the platform.
+        </li>
+
+        <li>
+            Do not impersonate other users or public figures.
+        </li>
+
+        <li>
+            Do not post spam or advertisements.
+        </li>
+
+        <li>
+            Do not attempt to hack or exploit the platform.
+        </li>
+
+        <li>
+            Do not share content that violates copyright
+            or intellectual property rights.
+        </li>
+
+        <li>
+            Do not post content that promotes violence
+            or hate speech.
+        </li>
+
+        <li>
+            Do not post content that is misleading or false.
+        </li>
+
+        <li>
+            Do not post content that is sexually explicit
+            or pornographic.
+        </li>
+
+        <li>
+            Do not post content that is discriminatory or offensive.
+        </li>
+
+        <li>
+            Do not message developers multiple times
+            about the same issue.
+        </li>
+
+        <li>
+            Do not contact developers multiple times per day.
+        </li>
+
+        <li>
+            Do not contact developers about issues
+            that are not related to the platform.
+        </li>
+
+        <li>
+            Do not contact developers about issues
+            that are not your own.
+        </li>
+
+        <li>
+            Do not contact developers about issues
+            that are not urgent.
+        </li>
+
+        <li>
+            If you suspect any violations of these policies,
+            please contact our support team.
+        </li>
+
+    </ol>
+
+</div>
+
+
+
+<!-- ==================================================
+     DEVELOPERS
+     ================================================== -->
+
+<h3>
+    Meet the Developers!
+</h3>
+
+
+<ul>
+
+    <li>
+        jw20152025@gmail.com
+    </li>
+
+    <li>
+        marshmellowleader
+    </li>
+
+    <li>
+        Arz
+    </li>
+
+    <li>
+        Olive Tree
+    </li>
+
+</ul>
+
+
+<h3>
+    Sponsors
+</h3>
+
+
+<p>
+    Click on the link to visit our sponsors.
+</p>
+
+
+<a href="https://shrekbook.bbroot.com/sponsors.html">
+
+    Sponsors Page
+
+</a>
+```
+
+</section>
+
+<!-- ==================================================
+     ADS
+     ================================================== -->
+
+<section class="ads">
+
+```
+<div class="shrekbook_ad1">
+
+    <script src="https://pl31025712.profitableratecpmnetwork.com/74/10/bd/7410bddbf1a4ab5bef8c019c654f2808.js"></script>
+
+</div>
+```
+
+</section>
+
+<!-- ==================================================
+     SHREKBOOK SCRIPTS
+     ================================================== -->
+
+<script src="/themes.js"></script>
+
+<script src="/script.js"></script>
 
 </body>
 

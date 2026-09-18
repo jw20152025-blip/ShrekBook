@@ -1,3 +1,4 @@
+
 # core/model.py
 
 import math
@@ -58,7 +59,6 @@ class RMSNorm(nn.Module):
 
     def forward(self, x):
 
-        # Calculate variance in FP32 for stability.
         variance = (
             x.float()
             .pow(2)
@@ -76,8 +76,6 @@ class RMSNorm(nn.Module):
 
         x = x * inv_rms
 
-        # Parameters remain FP32.
-        # Convert only for the multiplication.
         return (
             self.weight.to(
                 dtype=x.dtype
@@ -148,15 +146,6 @@ class CausalSelfAttention(nn.Module):
         # ----------------------------------------------------
         # CACHE ROPE
         # ----------------------------------------------------
-        #
-        # Previously these tensors were rebuilt on EVERY
-        # forward pass.
-        #
-        # Since MAX_SEQ_LEN is fixed, cache them once.
-        #
-        # persistent=False means they are NOT saved into
-        # the model checkpoint.
-        # ----------------------------------------------------
 
         inv_freq = 1.0 / (
             10000
@@ -201,9 +190,9 @@ class CausalSelfAttention(nn.Module):
             persistent=False,
         )
 
-    # --------------------------------------------------------
+    # ========================================================
     # APPLY ROPE
-    # --------------------------------------------------------
+    # ========================================================
 
     def apply_rope(
         self,
@@ -218,7 +207,7 @@ class CausalSelfAttention(nn.Module):
             None,
             None,
             :,
-            :
+            :,
         ].to(
             dtype=q.dtype
         )
@@ -229,7 +218,7 @@ class CausalSelfAttention(nn.Module):
             None,
             None,
             :,
-            :
+            :,
         ].to(
             dtype=q.dtype
         )
@@ -246,17 +235,13 @@ class CausalSelfAttention(nn.Module):
 
         return q, k
 
-    # --------------------------------------------------------
+    # ========================================================
     # FORWARD
-    # --------------------------------------------------------
+    # ========================================================
 
     def forward(self, x):
 
         batch, seq_len, channels = x.shape
-
-        # ----------------------------------------------------
-        # QKV PROJECTION
-        # ----------------------------------------------------
 
         qkv = self.qkv(x)
 
@@ -266,7 +251,7 @@ class CausalSelfAttention(nn.Module):
         )
 
         # ----------------------------------------------------
-        # SPLIT INTO HEADS
+        # SPLIT HEADS
         # ----------------------------------------------------
 
         q = q.view(
@@ -300,7 +285,7 @@ class CausalSelfAttention(nn.Module):
         )
 
         # ----------------------------------------------------
-        # ROTARY POSITION EMBEDDINGS
+        # ROPE
         # ----------------------------------------------------
 
         q, k = self.apply_rope(
@@ -311,16 +296,6 @@ class CausalSelfAttention(nn.Module):
 
         # ----------------------------------------------------
         # PYTORCH SDPA
-        # ----------------------------------------------------
-        #
-        # This is considerably better than manually doing:
-        #
-        #   q @ k.T
-        #   softmax
-        #   softmax @ v
-        #
-        # PyTorch can select the most efficient CUDA
-        # attention implementation available.
         # ----------------------------------------------------
 
         y = F.scaled_dot_product_attention(
@@ -522,13 +497,6 @@ class ShrekAI(nn.Module):
         # ----------------------------------------------------
         # WEIGHT TYING
         # ----------------------------------------------------
-        #
-        # The input embedding and output projection share
-        # the same weights.
-        #
-        # This saves parameters and memory without reducing
-        # the actual model architecture.
-        # ----------------------------------------------------
 
         self.lm_head.weight = (
             self.token_embedding.weight
@@ -617,13 +585,6 @@ class ShrekAI(nn.Module):
 
         for layer in self.layers:
 
-            # Gradient checkpointing is controlled by the
-            # model attribute. Trainer can enable it without
-            # changing the architecture.
-            #
-            # This trades some compute for significantly
-            # lower activation memory.
-
             if (
                 self.training
                 and getattr(
@@ -684,7 +645,7 @@ class ShrekAI(nn.Module):
         self,
     ):
 
-        self.gradient_checkpointing = False
+        self.gradient_checkpointing = True
 
     def disable_gradient_checkpointing(
         self,
@@ -708,6 +669,213 @@ class ShrekAI(nn.Module):
         )
 
     # ========================================================
+    # LEGACY VOCABULARY MIGRATION
+    # ========================================================
+
+    @torch.no_grad()
+    def load_legacy_state_dict(
+        self,
+        state,
+        legacy_vocab_size=263,
+    ):
+        """
+        Load an older checkpoint whose vocabulary is smaller
+        than the current model vocabulary.
+
+        Existing rows are preserved exactly.
+
+        New vocabulary rows are initialized from the mean of
+        the original UTF-8 byte embeddings.
+
+        This method intentionally does NOT modify transformer
+        weights.
+        """
+
+        current_vocab = (
+            self.config.vocab_size
+        )
+
+        if current_vocab <= legacy_vocab_size:
+
+            raise RuntimeError(
+                "Current vocabulary must be larger than "
+                "the legacy vocabulary."
+            )
+
+        if (
+            "token_embedding.weight"
+            not in state
+        ):
+
+            raise KeyError(
+                "Legacy checkpoint is missing "
+                "'token_embedding.weight'."
+            )
+
+        old_embedding = state[
+            "token_embedding.weight"
+        ]
+
+        if old_embedding.ndim != 2:
+
+            raise RuntimeError(
+                "Invalid legacy token embedding shape: "
+                f"{tuple(old_embedding.shape)}"
+            )
+
+        old_vocab = (
+            old_embedding.shape[0]
+        )
+
+        embedding_dim = (
+            old_embedding.shape[1]
+        )
+
+        if old_vocab > current_vocab:
+
+            raise RuntimeError(
+                "Legacy checkpoint vocabulary is larger "
+                "than the current vocabulary.\n"
+                f"Checkpoint: {old_vocab}\n"
+                f"Current: {current_vocab}"
+            )
+
+        # ----------------------------------------------------
+        # CREATE MIGRATED EMBEDDING
+        # ----------------------------------------------------
+
+        new_embedding = (
+            self.token_embedding.weight.detach()
+            .clone()
+        )
+
+        # Preserve every existing row.
+        new_embedding[
+            :old_vocab
+        ].copy_(
+            old_embedding.to(
+                device=new_embedding.device,
+                dtype=new_embedding.dtype,
+            )
+        )
+
+        # ----------------------------------------------------
+        # INITIALIZE NEW TOKENS
+        # ----------------------------------------------------
+        #
+        # Use the mean of the original UTF-8 byte embeddings
+        # as a stable starting point.
+        #
+        # IDs 0-255 are raw byte tokens.
+        #
+        # IDs 256+ are special/legacy tokens.
+        # ----------------------------------------------------
+
+        byte_count = min(
+            256,
+            old_vocab,
+        )
+
+        if byte_count > 0:
+
+            byte_mean = (
+                old_embedding[
+                    :byte_count
+                ]
+                .to(
+                    device=new_embedding.device,
+                    dtype=new_embedding.dtype,
+                )
+                .mean(
+                    dim=0,
+                    keepdim=True,
+                )
+            )
+
+        else:
+
+            byte_mean = (
+                old_embedding.mean(
+                    dim=0,
+                    keepdim=True,
+                )
+                .to(
+                    device=new_embedding.device,
+                    dtype=new_embedding.dtype,
+                )
+            )
+
+        if old_vocab < current_vocab:
+
+            new_embedding[
+                old_vocab:
+            ].copy_(
+                byte_mean.expand(
+                    current_vocab
+                    - old_vocab,
+                    -1,
+                )
+            )
+
+        # ----------------------------------------------------
+        # LOAD ALL NON-VOCABULARY WEIGHTS
+        # ----------------------------------------------------
+
+        current_state = (
+            self.state_dict()
+        )
+
+        migrated_state = {}
+
+        for key, current_value in (
+            current_state.items()
+        ):
+
+            if key in (
+                "token_embedding.weight",
+                "lm_head.weight",
+            ):
+
+                continue
+
+            if key not in state:
+
+                raise KeyError(
+                    "Legacy checkpoint is missing "
+                    f"required parameter: {key}"
+                )
+
+            old_value = state[key]
+
+            if old_value.shape != current_value.shape:
+
+                raise RuntimeError(
+                    "Shape mismatch while migrating "
+                    f"{key}.\n"
+                    f"Checkpoint: {tuple(old_value.shape)}\n"
+                    f"Current:    {tuple(current_value.shape)}"
+                )
+
+            migrated_state[key] = (
+                old_value
+            )
+
+        migrated_state[
+            "token_embedding.weight"
+        ] = new_embedding
+
+        migrated_state[
+            "lm_head.weight"
+        ] = new_embedding
+
+        self.load_state_dict(
+            migrated_state,
+            strict=True,
+        )
+
+        return self
+
+    # ========================================================
     # GENERATION
     # ========================================================
 
@@ -727,7 +895,10 @@ class ShrekAI(nn.Module):
             max_new_tokens
         ):
 
-            # Keep only the available context.
+            # ------------------------------------------------
+            # KEEP AVAILABLE CONTEXT
+            # ------------------------------------------------
+
             context = input_ids[
                 :,
                 -self.config.max_seq_len:

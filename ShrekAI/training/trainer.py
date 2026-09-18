@@ -2,6 +2,7 @@ import math
 import os
 import signal
 import time
+
 from pathlib import Path
 
 import torch
@@ -28,16 +29,20 @@ from config import (
     FINAL_MODEL,
     USE_COMPILE,
     MAX_SEQ_LEN,
-)
-
-from core.model import (
-    ShrekAI,
-    ModelConfig,
+    DATASET_DIR,
+    TRAINING_FILES,
+    VOCAB_SIZE,
+    BASE_VOCAB_SIZE,
 )
 
 from training.dataset import (
     ShrekDataset,
     ByteTokenizer,
+)
+
+from core.model import (
+    ShrekAI,
+    ModelConfig,
 )
 
 from training.evaluator import evaluate
@@ -49,67 +54,81 @@ from training.evaluator import evaluate
 
 SESSION_STEPS = 1_000
 
-# Print every optimizer step.
 LOG_INTERVAL = 1
 
-# Target only used for displaying performance status.
 TARGET_SECONDS_PER_STEP = 1.0
 
-# ------------------------------------------------------------
-# SAFETY CHECKPOINT
-# ------------------------------------------------------------
-#
-# Even if config.py says 100, we save every 25 steps here.
-#
-# This dramatically reduces how much training can be lost if
-# Windows crashes, restarts, or the computer loses power.
-#
-# Example:
-#
-# step 800 -> checkpoint
-# step 825 -> checkpoint
-# step 850 -> checkpoint
-#
-# If the computer dies at step 847, step 825 is recoverable.
-#
 SAFETY_CHECKPOINT_INTERVAL = 25
 
 
 # ============================================================
-# CUDA PERFORMANCE
+# WEB DATASET
 # ============================================================
 
-if torch.cuda.is_available():
+WEB_DATASET_FILE = (
+    Path(DATASET_DIR)
+    / "web.jsonl"
+)
 
-    torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32 = True
 
-    torch.backends.cudnn.benchmark = True
-
-    torch.set_float32_matmul_precision("high")
-
+# ============================================================
+# TRAINER
+# ============================================================
 
 class Trainer:
 
-    def __init__(self):
+    def __init__(
+        self,
+        training_mode="normal",
+    ):
+
+        training_mode = (
+            str(training_mode)
+            .strip()
+            .lower()
+        )
+
+        if training_mode not in (
+            "normal",
+            "web",
+        ):
+
+            raise ValueError(
+                "Invalid training mode. "
+                "Use 'normal' or 'web'."
+            )
+
+        self.training_mode = (
+            training_mode
+        )
 
         # ----------------------------------------------------
         # RANDOM SEED
         # ----------------------------------------------------
 
-        torch.manual_seed(SEED)
+        torch.manual_seed(
+            SEED
+        )
 
         if torch.cuda.is_available():
-            torch.cuda.manual_seed_all(SEED)
 
-        self.device = torch.device(DEVICE)
+            torch.cuda.manual_seed_all(
+                SEED
+            )
+
+        self.device = torch.device(
+            DEVICE
+        )
 
         # ----------------------------------------------------
-        # SHUTDOWN / EMERGENCY STATE
+        # SHUTDOWN
         # ----------------------------------------------------
 
         self.shutdown_requested = False
-        self.emergency_save_in_progress = False
+
+        self.emergency_save_in_progress = (
+            False
+        )
 
         self._install_signal_handlers()
 
@@ -117,7 +136,9 @@ class Trainer:
         # TOKENIZER
         # ----------------------------------------------------
 
-        self.tokenizer = ByteTokenizer()
+        self.tokenizer = (
+            ByteTokenizer()
+        )
 
         # ----------------------------------------------------
         # MODEL
@@ -125,20 +146,27 @@ class Trainer:
 
         self.model = ShrekAI(
             ModelConfig()
-        ).to(self.device)
+        ).to(
+            self.device
+        )
 
         # ----------------------------------------------------
         # OPTIMIZER
         # ----------------------------------------------------
 
-        self.optimizer = self._create_optimizer()
+        self.optimizer = (
+            self._create_optimizer()
+        )
 
         # ----------------------------------------------------
         # TRAINING STATE
         # ----------------------------------------------------
 
         self.step = 0
-        self.best_loss = float("inf")
+
+        self.best_loss = float(
+            "inf"
+        )
 
         # ----------------------------------------------------
         # AMP
@@ -166,7 +194,12 @@ class Trainer:
         # DATASET
         # ----------------------------------------------------
 
+        self.training_files = (
+            self._get_training_files()
+        )
+
         self.dataset = ShrekDataset(
+            files=self.training_files,
             tokenizer=self.tokenizer,
             max_seq_len=MAX_SEQ_LEN,
         )
@@ -176,41 +209,69 @@ class Trainer:
         # ----------------------------------------------------
 
         loader_kwargs = {
+
             "dataset": self.dataset,
+
             "batch_size": BATCH_SIZE,
+
             "shuffle": True,
+
             "num_workers": NUM_WORKERS,
+
             "drop_last": False,
+
         }
 
         if self.device.type == "cuda":
-            loader_kwargs["pin_memory"] = True
+
+            loader_kwargs[
+                "pin_memory"
+            ] = True
 
         if NUM_WORKERS > 0:
-            loader_kwargs["persistent_workers"] = True
-            loader_kwargs["prefetch_factor"] = 2
+
+            loader_kwargs[
+                "persistent_workers"
+            ] = True
+
+            loader_kwargs[
+                "prefetch_factor"
+            ] = 2
 
         self.loader = DataLoader(
             **loader_kwargs
         )
 
         if len(self.loader) == 0:
+
             raise RuntimeError(
                 "Training DataLoader contains 0 batches.\n"
-                f"Dataset samples: {len(self.dataset)}\n"
+                f"Dataset samples: "
+                f"{len(self.dataset)}\n"
                 f"Batch size: {BATCH_SIZE}\n"
-                "Add more training data or reduce the batch size."
+                f"Training mode: "
+                f"{self.training_mode}\n"
+                "Add more training data or "
+                "reduce the batch size."
             )
 
-        self.iterator = iter(self.loader)
+        self.iterator = iter(
+            self.loader
+        )
 
         # ----------------------------------------------------
-        # OPTIONAL COMPILE
+        # COMPILE
         # ----------------------------------------------------
 
         self.compiled = False
 
-        if USE_COMPILE and hasattr(torch, "compile"):
+        if (
+            USE_COMPILE
+            and hasattr(
+                torch,
+                "compile",
+            )
+        ):
 
             print(
                 "[trainer] torch.compile enabled."
@@ -225,13 +286,15 @@ class Trainer:
                 self.compiled = True
 
                 print(
-                    "[trainer] torch.compile initialized."
+                    "[trainer] "
+                    "torch.compile initialized."
                 )
 
             except Exception as error:
 
                 print(
-                    "[trainer] torch.compile failed."
+                    "[trainer] "
+                    "torch.compile failed."
                 )
 
                 print(
@@ -239,7 +302,8 @@ class Trainer:
                 )
 
                 print(
-                    "[trainer] Continuing without compilation."
+                    "[trainer] "
+                    "Continuing without compilation."
                 )
 
         # ----------------------------------------------------
@@ -249,111 +313,210 @@ class Trainer:
         self._print_startup_info()
 
     # ========================================================
+    # DATASET SOURCES
+    # ========================================================
+
+    def _get_training_files(self):
+
+        if self.training_mode == "web":
+
+            if not WEB_DATASET_FILE.exists():
+
+                raise FileNotFoundError(
+                    "Web training dataset does not exist.\n"
+                    f"Expected: "
+                    f"{WEB_DATASET_FILE}\n\n"
+                    "Run option 5: Web Training first."
+                )
+
+            if (
+                WEB_DATASET_FILE.stat().st_size
+                == 0
+            ):
+
+                raise RuntimeError(
+                    "Web training dataset is empty.\n"
+                    f"File: {WEB_DATASET_FILE}\n\n"
+                    "Run option 5: Web Training first."
+                )
+
+            print(
+                "[trainer] "
+                "WEB-ONLY dataset selected."
+            )
+
+            return [
+                WEB_DATASET_FILE
+            ]
+
+        print(
+            "[trainer] "
+            "Using configured training datasets."
+        )
+
+        return [
+            path
+            for path in TRAINING_FILES
+            if Path(path).exists()
+        ]
+
+    # ========================================================
     # SIGNAL HANDLERS
     # ========================================================
 
-    def _install_signal_handlers(self):
+    def _install_signal_handlers(
+        self
+    ):
 
-        def request_shutdown(signum, frame):
+        def request_shutdown(
+            signum,
+            frame,
+        ):
 
             if self.shutdown_requested:
+
                 print()
+
                 print(
-                    "[emergency] Shutdown requested again."
+                    "[emergency] "
+                    "Shutdown requested again."
                 )
+
                 print(
-                    "[emergency] Please wait for the checkpoint."
+                    "[emergency] "
+                    "Please wait for the checkpoint."
                 )
+
                 return
 
             self.shutdown_requested = True
 
             print()
             print("=" * 72)
+
             print(
-                "[emergency] Shutdown signal received."
+                "[emergency] "
+                "Shutdown signal received."
             )
+
             print(
-                "[emergency] Finishing the current optimizer step."
+                "[emergency] "
+                "Finishing the current optimizer step."
             )
+
             print(
-                "[emergency] A checkpoint will be saved immediately after it."
+                "[emergency] "
+                "A checkpoint will be saved immediately "
+                "after it."
             )
+
             print("=" * 72)
 
-        # Windows supports SIGINT.
         try:
+
             signal.signal(
                 signal.SIGINT,
                 request_shutdown,
             )
-        except (ValueError, OSError):
+
+        except (
+            ValueError,
+            OSError,
+        ):
+
             pass
 
-        # SIGTERM exists on modern Python/Windows.
         try:
+
             signal.signal(
                 signal.SIGTERM,
                 request_shutdown,
             )
-        except (ValueError, OSError, AttributeError):
+
+        except (
+            ValueError,
+            OSError,
+            AttributeError,
+        ):
+
             pass
 
-        # SIGBREAK is useful for Ctrl+Break on Windows.
         try:
+
             signal.signal(
                 signal.SIGBREAK,
                 request_shutdown,
             )
-        except (ValueError, OSError, AttributeError):
+
+        except (
+            ValueError,
+            OSError,
+            AttributeError,
+        ):
+
             pass
 
     # ========================================================
     # OPTIMIZER
     # ========================================================
 
-    def _create_optimizer(self):
+    def _create_optimizer(
+        self
+    ):
 
         decay = []
+
         no_decay = []
 
-        for parameter in self.model.parameters():
+        for parameter in (
+            self.model.parameters()
+        ):
 
             if not parameter.requires_grad:
+
                 continue
 
             if parameter.ndim >= 2:
-                decay.append(parameter)
+
+                decay.append(
+                    parameter
+                )
 
             else:
-                no_decay.append(parameter)
+
+                no_decay.append(
+                    parameter
+                )
 
         parameter_groups = [
+
             {
                 "params": decay,
                 "weight_decay": WEIGHT_DECAY,
             },
+
             {
                 "params": no_decay,
                 "weight_decay": 0.0,
             },
+
         ]
 
         optimizer_kwargs = {
-            "lr": LEARNING_RATE,
-            "betas": BETAS,
-        }
 
-        # ----------------------------------------------------
-        # FUSED ADAMW
-        # ----------------------------------------------------
+            "lr": LEARNING_RATE,
+
+            "betas": BETAS,
+
+        }
 
         if self.device.type == "cuda":
 
             try:
 
                 print(
-                    "[trainer] Using fused AdamW."
+                    "[trainer] "
+                    "Using fused AdamW."
                 )
 
                 return torch.optim.AdamW(
@@ -362,15 +525,15 @@ class Trainer:
                     **optimizer_kwargs,
                 )
 
-            except (TypeError, RuntimeError):
+            except (
+                TypeError,
+                RuntimeError,
+            ):
 
                 print(
-                    "[trainer] Fused AdamW unavailable."
+                    "[trainer] "
+                    "Fused AdamW unavailable."
                 )
-
-        # ----------------------------------------------------
-        # STANDARD ADAMW
-        # ----------------------------------------------------
 
         return torch.optim.AdamW(
             parameter_groups,
@@ -378,12 +541,339 @@ class Trainer:
         )
 
     # ========================================================
+    # OPTIMIZER STATE MIGRATION
+    # ========================================================
+
+    @staticmethod
+    def _expand_optimizer_tensor(
+        old_tensor,
+        new_shape,
+    ):
+
+        if (
+            not torch.is_tensor(
+                old_tensor
+            )
+        ):
+
+            return old_tensor
+
+        if (
+            tuple(old_tensor.shape)
+            == tuple(new_shape)
+        ):
+
+            return old_tensor
+
+        # ----------------------------------------------------
+        # The embedding state is:
+        #
+        # [old_vocab, d_model]
+        #
+        # Expand only the vocabulary dimension.
+        # ----------------------------------------------------
+
+        if (
+            old_tensor.ndim == 2
+            and len(new_shape) == 2
+            and old_tensor.shape[1]
+            == new_shape[1]
+            and old_tensor.shape[0]
+            < new_shape[0]
+        ):
+
+            expanded = torch.zeros(
+                new_shape,
+                dtype=old_tensor.dtype,
+                device=old_tensor.device,
+            )
+
+            expanded[
+                :old_tensor.shape[0]
+            ].copy_(
+                old_tensor
+            )
+
+            return expanded
+
+        # ----------------------------------------------------
+        # Unknown mismatch.
+        # ----------------------------------------------------
+
+        return old_tensor
+
+    def _migrate_optimizer_state(
+        self,
+        old_optimizer_state,
+        old_parameter_shapes,
+    ):
+
+        if not old_optimizer_state:
+
+            print(
+                "[trainer] No optimizer state found."
+            )
+
+            return False
+
+        try:
+
+            new_state = (
+                self.optimizer.state_dict()
+            )
+
+            old_groups = (
+                old_optimizer_state.get(
+                    "param_groups",
+                    [],
+                )
+            )
+
+            new_groups = (
+                new_state.get(
+                    "param_groups",
+                    [],
+                )
+            )
+
+            old_state = (
+                old_optimizer_state.get(
+                    "state",
+                    {},
+                )
+            )
+
+            if len(old_groups) != len(
+                new_groups
+            ):
+
+                raise RuntimeError(
+                    "Optimizer parameter-group count changed."
+                )
+
+            # ------------------------------------------------
+            # Map old parameter IDs to current parameter IDs
+            # by their position inside each optimizer group.
+            # ------------------------------------------------
+
+            id_mapping = {}
+
+            for old_group, new_group in zip(
+                old_groups,
+                new_groups,
+            ):
+
+                old_ids = old_group[
+                    "params"
+                ]
+
+                new_ids = new_group[
+                    "params"
+                ]
+
+                if len(old_ids) != len(
+                    new_ids
+                ):
+
+                    raise RuntimeError(
+                        "Optimizer parameter count changed."
+                    )
+
+                for old_id, new_id in zip(
+                    old_ids,
+                    new_ids,
+                ):
+
+                    id_mapping[
+                        old_id
+                    ] = new_id
+
+            migrated_state = {}
+
+            current_parameters = []
+
+            for group in (
+                self.optimizer.param_groups
+            ):
+
+                current_parameters.extend(
+                    group["params"]
+                )
+
+            old_parameters = []
+
+            for group in (
+                old_groups
+            ):
+
+                old_parameters.extend(
+                    group["params"]
+                )
+
+            # ------------------------------------------------
+            # Parameter shapes are needed because the old
+            # checkpoint embedding has 263 rows.
+            # ------------------------------------------------
+
+            for old_id, old_entry in (
+                old_state.items()
+            ):
+
+                if old_id not in id_mapping:
+
+                    continue
+
+                new_id = id_mapping[
+                    old_id
+                ]
+
+                new_entry = {}
+
+                parameter_index = None
+
+                for index, old_param_id in enumerate(
+                    old_parameters
+                ):
+
+                    if old_param_id == old_id:
+
+                        parameter_index = index
+
+                        break
+
+                if parameter_index is None:
+
+                    continue
+
+                current_parameter = (
+                    current_parameters[
+                        parameter_index
+                    ]
+                )
+
+                current_shape = (
+                    current_parameter.shape
+                )
+
+                for key, value in (
+                    old_entry.items()
+                ):
+
+                    if torch.is_tensor(
+                        value
+                    ):
+
+                        if value.ndim == 0:
+
+                            new_entry[
+                                key
+                            ] = value
+
+                        elif (
+                            tuple(value.shape)
+                            == tuple(current_shape)
+                        ):
+
+                            new_entry[
+                                key
+                            ] = value
+
+                        elif (
+                            value.ndim
+                            == len(current_shape)
+                            and value.shape[1:]
+                            == current_shape[1:]
+                            and value.shape[0]
+                            < current_shape[0]
+                        ):
+
+                            expanded = (
+                                torch.zeros(
+                                    current_shape,
+                                    dtype=value.dtype,
+                                    device=value.device,
+                                )
+                            )
+
+                            expanded[
+                                :value.shape[0]
+                            ].copy_(
+                                value
+                            )
+
+                            new_entry[
+                                key
+                            ] = expanded
+
+                        else:
+
+                            raise RuntimeError(
+                                "Optimizer state tensor "
+                                f"shape mismatch for parameter "
+                                f"{parameter_index}: "
+                                f"{value.shape} -> "
+                                f"{current_shape}"
+                            )
+
+                    else:
+
+                        new_entry[
+                            key
+                        ] = value
+
+                migrated_state[
+                    new_id
+                ] = new_entry
+
+            new_state[
+                "state"
+            ] = migrated_state
+
+            self.optimizer.load_state_dict(
+                new_state
+            )
+
+            print(
+                "[trainer] Optimizer state migrated "
+                "successfully."
+            )
+
+            return True
+
+        except Exception as error:
+
+            print(
+                "[trainer] WARNING: "
+                "Optimizer state migration failed."
+            )
+
+            print(
+                f"[trainer] Reason: {error}"
+            )
+
+            print(
+                "[trainer] Model weights will still "
+                "be preserved."
+            )
+
+            print(
+                "[trainer] AdamW will start with "
+                "fresh optimizer moments."
+            )
+
+            return False
+
+    # ========================================================
     # STARTUP INFORMATION
     # ========================================================
 
-    def _print_startup_info(self):
+    def _print_startup_info(
+        self
+    ):
 
-        parameters = self.model.count_parameters()
+        parameters = (
+            self.model.count_parameters()
+        )
 
         effective_batch = (
             BATCH_SIZE
@@ -396,32 +886,69 @@ class Trainer:
         )
 
         session_target = min(
-            self.step + SESSION_STEPS,
+            self.step
+            + SESSION_STEPS,
             MAX_STEPS,
         )
 
         print()
         print("=" * 72)
-        print("                      SHREKAI TRAINING")
+
+        print(
+            "                      SHREKAI TRAINING"
+        )
+
         print("=" * 72)
 
         print(
-            f"Device:                 {self.device}"
+            f"Training mode:         "
+            f"{self.training_mode.upper()}"
+        )
+
+        print(
+            f"Vocabulary size:       "
+            f"{VOCAB_SIZE:,}"
+        )
+
+        print(
+            f"Legacy vocabulary:     "
+            f"{BASE_VOCAB_SIZE:,}"
+        )
+
+        print(
+            "Training files:"
+        )
+
+        for file in (
+            self.training_files
+        ):
+
+            print(
+                f"  - {file}"
+            )
+
+        print(
+            f"Device:                "
+            f"{self.device}"
         )
 
         if self.device.type == "cuda":
 
             try:
 
-                gpu_name = torch.cuda.get_device_name(
-                    self.device
+                gpu_name = (
+                    torch.cuda.get_device_name(
+                        self.device
+                    )
                 )
 
                 print(
-                    f"GPU:                    {gpu_name}"
+                    f"GPU:                   "
+                    f"{gpu_name}"
                 )
 
             except Exception:
+
                 pass
 
             try:
@@ -436,116 +963,119 @@ class Trainer:
                 )
 
                 print(
-                    f"GPU VRAM:               "
+                    f"GPU VRAM:              "
                     f"{total_memory:.2f} GB"
                 )
 
             except Exception:
+
                 pass
 
         print(
-            f"Model parameters:       "
+            f"Model parameters:      "
             f"{parameters:,}"
         )
 
         print(
-            f"Sequence length:        "
+            f"Sequence length:       "
             f"{MAX_SEQ_LEN:,}"
         )
 
         print(
-            f"Batch size:             "
+            f"Batch size:            "
             f"{BATCH_SIZE}"
         )
 
         print(
-            f"Gradient accumulation:  "
+            f"Gradient accumulation: "
             f"{GRADIENT_ACCUMULATION_STEPS}"
         )
 
         print(
-            f"Effective batch size:   "
+            f"Effective batch size:  "
             f"{effective_batch}"
         )
 
         print(
-            f"Tokens per optimizer:   "
+            f"Tokens per optimizer:  "
             f"{tokens_per_step:,}"
         )
 
         print(
-            f"Learning rate:          "
+            f"Learning rate:         "
             f"{LEARNING_RATE:.2e}"
         )
 
         print(
-            f"Lifetime maximum:       "
+            f"Lifetime maximum:      "
             f"{MAX_STEPS:,} steps"
         )
 
         print(
-            f"Session length:         "
+            f"Session length:        "
             f"{SESSION_STEPS:,} steps"
         )
 
         print(
-            f"Session target:         "
-            f"{self.step:,} -> {session_target:,}"
+            f"Session target:        "
+            f"{self.step:,} -> "
+            f"{session_target:,}"
         )
 
         print(
-            f"Dataset samples:        "
+            f"Dataset samples:       "
             f"{len(self.dataset):,}"
         )
 
         print(
-            f"DataLoader batches:     "
+            f"DataLoader batches:    "
             f"{len(self.loader):,}"
         )
 
         print(
-            f"Configured checkpoint:  "
+            f"Configured checkpoint: "
             f"{CHECKPOINT_INTERVAL:,}"
         )
 
         print(
-            f"Safety checkpoint:      "
+            f"Safety checkpoint:     "
             f"{SAFETY_CHECKPOINT_INTERVAL:,}"
         )
 
         print(
-            f"Validation interval:    "
+            f"Validation interval:   "
             f"{VALIDATION_INTERVAL:,}"
         )
 
         print(
-            f"AMP:                    "
+            f"AMP:                   "
             f"{self.use_amp}"
         )
 
         print(
-            f"GradScaler:             "
+            f"GradScaler:            "
             f"{self.use_grad_scaler}"
         )
 
         print(
-            f"torch.compile:          "
+            f"torch.compile:         "
             f"{self.compiled}"
         )
 
         print(
-            f"Target speed:           "
+            f"Target speed:          "
             f"{TARGET_SECONDS_PER_STEP:.1f} sec/step"
         )
 
         print()
+
         print(
             "Training is starting..."
         )
 
         print(
-            "The first step may take longer while "
-            "PyTorch initializes."
+            "The first step may take longer "
+            "while PyTorch initializes."
         )
 
         print(
@@ -559,9 +1089,12 @@ class Trainer:
     # GPU MEMORY
     # ========================================================
 
-    def _gpu_memory(self):
+    def _gpu_memory(
+        self
+    ):
 
         if self.device.type != "cuda":
+
             return "CPU"
 
         try:
@@ -591,14 +1124,20 @@ class Trainer:
             return "VRAM unavailable"
 
     # ========================================================
-    # GET MODEL
+    # UNCOMPILED MODEL
     # ========================================================
 
-    def _get_uncompiled_model(self):
+    def _get_uncompiled_model(
+        self
+    ):
 
         model = self.model
 
-        if hasattr(model, "_orig_mod"):
+        if hasattr(
+            model,
+            "_orig_mod",
+        ):
+
             model = model._orig_mod
 
         return model
@@ -607,7 +1146,9 @@ class Trainer:
     # LEARNING RATE
     # ========================================================
 
-    def learning_rate(self):
+    def learning_rate(
+        self
+    ):
 
         if self.step < WARMUP_STEPS:
 
@@ -621,10 +1162,12 @@ class Trainer:
             )
 
         progress = (
-            self.step - WARMUP_STEPS
+            self.step
+            - WARMUP_STEPS
         ) / max(
             1,
-            MAX_STEPS - WARMUP_STEPS,
+            MAX_STEPS
+            - WARMUP_STEPS,
         )
 
         progress = min(
@@ -638,7 +1181,8 @@ class Trainer:
         cosine = 0.5 * (
             1.0
             + math.cos(
-                math.pi * progress
+                math.pi
+                * progress
             )
         )
 
@@ -652,13 +1196,17 @@ class Trainer:
         )
 
     # ========================================================
-    # RNG STATE
+    # RNG
     # ========================================================
 
-    def _get_rng_state(self):
+    def _get_rng_state(
+        self
+    ):
 
         state = {
-            "torch": torch.get_rng_state(),
+            "torch": (
+                torch.get_rng_state()
+            ),
         }
 
         if torch.cuda.is_available():
@@ -669,9 +1217,13 @@ class Trainer:
 
         return state
 
-    def _restore_rng_state(self, state):
+    def _restore_rng_state(
+        self,
+        state,
+    ):
 
         if not state:
+
             return
 
         try:
@@ -695,25 +1247,64 @@ class Trainer:
 
             print(
                 "[trainer] Warning: "
-                f"Could not restore RNG state: {error}"
+                f"Could not restore RNG state: "
+                f"{error}"
             )
 
     # ========================================================
     # CHECKPOINT SAVE
     # ========================================================
 
-    def save_checkpoint(self, path):
+    def save_checkpoint(
+        self,
+        path,
+    ):
 
-        model = self._get_uncompiled_model()
+        model = (
+            self._get_uncompiled_model()
+        )
 
         state = {
-            "model": model.state_dict(),
-            "optimizer": self.optimizer.state_dict(),
+
+            "model": (
+                model.state_dict()
+            ),
+
+            "optimizer": (
+                self.optimizer.state_dict()
+            ),
+
             "step": self.step,
-            "best_loss": self.best_loss,
-            "config": model.config.__dict__,
-            "scaler": self.scaler.state_dict(),
-            "rng": self._get_rng_state(),
+
+            "best_loss": (
+                self.best_loss
+            ),
+
+            "config": (
+                model.config.__dict__
+            ),
+
+            "scaler": (
+                self.scaler.state_dict()
+            ),
+
+            "rng": (
+                self._get_rng_state()
+            ),
+
+            "training_mode": (
+                self.training_mode
+            ),
+
+            "training_dataset": [
+                str(path)
+                for path in self.training_files
+            ],
+
+            "vocab_size": (
+                model.config.vocab_size
+            ),
+
         }
 
         path = Path(path)
@@ -724,28 +1315,14 @@ class Trainer:
         )
 
         temporary = path.with_suffix(
-            path.suffix + ".tmp"
+            path.suffix
+            + ".tmp"
         )
-
-        # ----------------------------------------------------
-        # WRITE COMPLETE CHECKPOINT FIRST
-        # ----------------------------------------------------
 
         torch.save(
             state,
             temporary,
         )
-
-        # ----------------------------------------------------
-        # ATOMIC REPLACEMENT
-        # ----------------------------------------------------
-        #
-        # latest.pt is only replaced after torch.save()
-        # successfully finishes.
-        #
-        # Therefore a shutdown during the write should leave
-        # the previous valid latest.pt untouched.
-        #
 
         os.replace(
             temporary,
@@ -753,27 +1330,39 @@ class Trainer:
         )
 
     # ========================================================
-    # EMERGENCY CHECKPOINT
+    # EMERGENCY SAVE
     # ========================================================
 
-    def _emergency_save(self, reason):
+    def _emergency_save(
+        self,
+        reason,
+    ):
 
-        if self.emergency_save_in_progress:
+        if (
+            self.emergency_save_in_progress
+        ):
+
             return
 
-        self.emergency_save_in_progress = True
+        self.emergency_save_in_progress = (
+            True
+        )
 
         print()
         print("=" * 72)
+
         print(
             f"[emergency] {reason}"
         )
+
         print(
-            f"[emergency] Saving checkpoint at "
+            "[emergency] Saving checkpoint at "
             f"completed step {self.step:,}..."
         )
 
-        emergency_start = time.perf_counter()
+        emergency_start = (
+            time.perf_counter()
+        )
 
         try:
 
@@ -787,12 +1376,12 @@ class Trainer:
             )
 
             print(
-                f"[emergency] Checkpoint saved successfully "
-                f"in {elapsed:.2f}s."
+                "[emergency] Checkpoint saved "
+                f"successfully in {elapsed:.2f}s."
             )
 
             print(
-                f"[emergency] Resume point: "
+                "[emergency] Resume point: "
                 f"step {self.step:,}."
             )
 
@@ -814,11 +1403,19 @@ class Trainer:
     # CHECKPOINT LOAD
     # ========================================================
 
-    def load_checkpoint(self, path=None):
+    def load_checkpoint(
+        self,
+        path=None,
+    ):
 
-        path = path or LATEST_CHECKPOINT
+        path = (
+            path
+            or LATEST_CHECKPOINT
+        )
 
-        if not Path(path).exists():
+        path = Path(path)
+
+        if not path.exists():
 
             print(
                 "[trainer] No checkpoint found."
@@ -827,24 +1424,200 @@ class Trainer:
             return False
 
         print(
-            f"[trainer] Loading checkpoint: {path}"
+            "[trainer] Loading checkpoint: "
+            f"{path}"
         )
 
         checkpoint = torch.load(
             path,
-            map_location=self.device,
+            map_location="cpu",
             weights_only=False,
         )
 
-        model = self._get_uncompiled_model()
-
-        model.load_state_dict(
-            checkpoint["model"]
+        checkpoint_mode = (
+            checkpoint.get(
+                "training_mode"
+            )
         )
 
-        self.optimizer.load_state_dict(
-            checkpoint["optimizer"]
+        if (
+            checkpoint_mode is not None
+            and checkpoint_mode
+            != self.training_mode
+        ):
+
+            print(
+                "[trainer] WARNING:"
+            )
+
+            print(
+                "[trainer] Checkpoint was created "
+                f"in '{checkpoint_mode}' mode."
+            )
+
+            print(
+                "[trainer] Current training mode is "
+                f"'{self.training_mode}'."
+            )
+
+            print(
+                "[trainer] Model weights will still "
+                "be loaded."
+            )
+
+            print(
+                "[trainer] New batches will come from "
+                "the current training mode."
+            )
+
+        model = (
+            self._get_uncompiled_model()
         )
+
+        old_state = checkpoint[
+            "model"
+        ]
+
+        old_vocab = (
+            old_state[
+                "token_embedding.weight"
+            ].shape[0]
+        )
+
+        new_vocab = (
+            model.config.vocab_size
+        )
+
+        # ----------------------------------------------------
+        # NORMAL LOAD
+        # ----------------------------------------------------
+
+        if old_vocab == new_vocab:
+
+            model.load_state_dict(
+                old_state,
+                strict=True,
+            )
+
+            optimizer_loaded = False
+
+            try:
+
+                self.optimizer.load_state_dict(
+                    checkpoint[
+                        "optimizer"
+                    ]
+                )
+
+                optimizer_loaded = True
+
+                print(
+                    "[trainer] Optimizer state "
+                    "loaded normally."
+                )
+
+            except Exception as error:
+
+                print(
+                    "[trainer] WARNING: "
+                    "Normal optimizer load failed."
+                )
+
+                print(
+                    f"[trainer] Reason: {error}"
+                )
+
+        # ----------------------------------------------------
+        # LEGACY MODEL MIGRATION
+        # ----------------------------------------------------
+
+        elif (
+            old_vocab
+            < new_vocab
+        ):
+
+            print()
+            print("=" * 72)
+
+            print(
+                "[migration] Legacy ShrekAI checkpoint detected."
+            )
+
+            print(
+                f"[migration] Old vocabulary: {old_vocab:,}"
+            )
+
+            print(
+                f"[migration] New vocabulary: {new_vocab:,}"
+            )
+
+            print(
+                "[migration] Existing model weights "
+                "will be preserved."
+            )
+
+            print(
+                "[migration] New subword rows will "
+                "be initialized."
+            )
+
+            print("=" * 72)
+            print()
+
+            model.load_legacy_state_dict(
+                old_state
+            )
+
+            print(
+                "[migration] Model weights migrated."
+            )
+
+            # ------------------------------------------------
+            # Migrate AdamW.
+            # ------------------------------------------------
+
+            optimizer_loaded = (
+                self._migrate_optimizer_state(
+                    checkpoint.get(
+                        "optimizer"
+                    ),
+                    None,
+                )
+            )
+
+            if optimizer_loaded:
+
+                print(
+                    "[migration] Optimizer progress "
+                    "preserved."
+                )
+
+            else:
+
+                print(
+                    "[migration] Optimizer moments "
+                    "were reset."
+                )
+
+                print(
+                    "[migration] IMPORTANT: Model weights "
+                    "and training step are still preserved."
+                )
+
+            print()
+
+        else:
+
+            raise RuntimeError(
+                "Checkpoint vocabulary is larger "
+                "than the current model vocabulary.\n"
+                f"Checkpoint: {old_vocab}\n"
+                f"Current: {new_vocab}"
+            )
+
+        # ----------------------------------------------------
+        # TRAINING STATE
+        # ----------------------------------------------------
 
         self.step = checkpoint.get(
             "step",
@@ -864,25 +1637,53 @@ class Trainer:
                     checkpoint["scaler"]
                 )
 
-            except Exception:
-                pass
+            except Exception as error:
+
+                print(
+                    "[trainer] Warning: "
+                    "Could not restore GradScaler:"
+                    f" {error}"
+                )
 
         self._restore_rng_state(
-            checkpoint.get("rng")
+            checkpoint.get(
+                "rng"
+            )
         )
 
+        # ----------------------------------------------------
+        # AUTOMATICALLY SAVE MIGRATED CHECKPOINT
+        # ----------------------------------------------------
+
+        if old_vocab != new_vocab:
+
+            print(
+                "[migration] Saving migrated "
+                "checkpoint..."
+            )
+
+            self.save_checkpoint(
+                LATEST_CHECKPOINT
+            )
+
+            print(
+                "[migration] New checkpoint saved."
+            )
+
         print(
-            f"[trainer] Resuming from step "
+            "[trainer] Resuming from step "
             f"{self.step:,}."
         )
 
         return True
 
     # ========================================================
-    # GET NEXT BATCH
+    # NEXT BATCH
     # ========================================================
 
-    def _next_batch(self):
+    def _next_batch(
+        self
+    ):
 
         try:
 
@@ -904,44 +1705,77 @@ class Trainer:
     # TRAINING
     # ========================================================
 
-    def train(self):
+    def train(
+        self
+    ):
 
         if self.step >= MAX_STEPS:
 
             print()
+
             print(
-                "[trainer] Lifetime maximum already reached."
+                "[trainer] Lifetime maximum "
+                "already reached."
             )
 
             return
 
-        session_start_step = self.step
+        session_start_step = (
+            self.step
+        )
 
         session_target = min(
-            self.step + SESSION_STEPS,
+            self.step
+            + SESSION_STEPS,
             MAX_STEPS,
         )
 
         self.model.train()
 
-        training_start = time.perf_counter()
+        training_start = (
+            time.perf_counter()
+        )
 
         total_tokens = 0
 
-        last_loss = float("nan")
+        last_loss = float(
+            "nan"
+        )
 
-        last_gradient_norm = float("nan")
+        last_gradient_norm = float(
+            "nan"
+        )
 
-        last_gpu_memory = "VRAM not sampled"
-
-        # ----------------------------------------------------
-        # HEADER
-        # ----------------------------------------------------
+        last_gpu_memory = (
+            "VRAM not sampled"
+        )
 
         print()
+
         print(
             ">>> SHREKAI IS NOW TRAINING <<<"
         )
+
+        if self.training_mode == "web":
+
+            print(
+                ">>> MODE: WEB-ONLY <<<"
+            )
+
+            print(
+                ">>> SOURCE: datasets/web.jsonl <<<"
+            )
+
+        else:
+
+            print(
+                ">>> MODE: NORMAL <<<"
+            )
+
+            print(
+                ">>> SOURCE: ALL CONFIGURED "
+                "TRAINING DATA <<<"
+            )
 
         print(
             f">>> SESSION: "
@@ -953,59 +1787,59 @@ class Trainer:
 
         try:
 
-            # ====================================================
-            # MAIN LOOP
-            # ====================================================
-
             while self.step < session_target:
 
-                step_start = time.perf_counter()
+                step_start = (
+                    time.perf_counter()
+                )
 
                 self.optimizer.zero_grad(
                     set_to_none=True
                 )
 
-                accumulated_loss = torch.zeros(
-                    (),
-                    device=self.device,
-                    dtype=torch.float32,
+                accumulated_loss = (
+                    torch.zeros(
+                        (),
+                        device=self.device,
+                        dtype=torch.float32,
+                    )
                 )
 
                 microbatches_completed = 0
 
                 step_tokens = 0
 
-                # -----------------------------------------------
-                # GRADIENT ACCUMULATION
-                # -----------------------------------------------
-
                 for _ in range(
                     GRADIENT_ACCUMULATION_STEPS
                 ):
 
-                    batch = self._next_batch()
-
-                    input_ids = batch[
-                        "input_ids"
-                    ].to(
-                        self.device,
-                        non_blocking=(
-                            self.device.type == "cuda"
-                        ),
+                    batch = (
+                        self._next_batch()
                     )
 
-                    labels = batch[
-                        "labels"
-                    ].to(
-                        self.device,
-                        non_blocking=(
-                            self.device.type == "cuda"
-                        ),
+                    input_ids = (
+                        batch[
+                            "input_ids"
+                        ].to(
+                            self.device,
+                            non_blocking=(
+                                self.device.type
+                                == "cuda"
+                            ),
+                        )
                     )
 
-                    # -------------------------------------------
-                    # FORWARD
-                    # -------------------------------------------
+                    labels = (
+                        batch[
+                            "labels"
+                        ].to(
+                            self.device,
+                            non_blocking=(
+                                self.device.type
+                                == "cuda"
+                            ),
+                        )
+                    )
 
                     if self.use_amp:
 
@@ -1026,10 +1860,6 @@ class Trainer:
                             labels,
                         )
 
-                    # -------------------------------------------
-                    # LOSS
-                    # -------------------------------------------
-
                     accumulated_loss.add_(
                         loss.detach().float()
                     )
@@ -1038,10 +1868,6 @@ class Trainer:
                         loss
                         / GRADIENT_ACCUMULATION_STEPS
                     )
-
-                    # -------------------------------------------
-                    # BACKWARD
-                    # -------------------------------------------
 
                     if self.use_grad_scaler:
 
@@ -1053,26 +1879,21 @@ class Trainer:
 
                         scaled_loss.backward()
 
-                    tokens = input_ids.numel()
+                    tokens = (
+                        input_ids.numel()
+                    )
 
                     step_tokens += tokens
+
                     total_tokens += tokens
 
                     microbatches_completed += 1
-
-                # -----------------------------------------------
-                # UNSCALE
-                # -----------------------------------------------
 
                 if self.use_grad_scaler:
 
                     self.scaler.unscale_(
                         self.optimizer
                     )
-
-                # -----------------------------------------------
-                # GRADIENT CLIPPING
-                # -----------------------------------------------
 
                 gradient_norm = (
                     torch.nn.utils.clip_grad_norm_(
@@ -1081,19 +1902,13 @@ class Trainer:
                     )
                 )
 
-                # -----------------------------------------------
-                # LEARNING RATE
-                # -----------------------------------------------
-
                 lr = self.learning_rate()
 
-                for group in self.optimizer.param_groups:
+                for group in (
+                    self.optimizer.param_groups
+                ):
 
                     group["lr"] = lr
-
-                # -----------------------------------------------
-                # OPTIMIZER STEP
-                # -----------------------------------------------
 
                 if self.use_grad_scaler:
 
@@ -1107,15 +1922,7 @@ class Trainer:
 
                     self.optimizer.step()
 
-                # -----------------------------------------------
-                # ADVANCE STEP
-                # -----------------------------------------------
-
                 self.step += 1
-
-                # -----------------------------------------------
-                # TIMING
-                # -----------------------------------------------
 
                 now = time.perf_counter()
 
@@ -1127,10 +1934,6 @@ class Trainer:
                     now - training_start
                 )
 
-                # -----------------------------------------------
-                # LOSS
-                # -----------------------------------------------
-
                 average_loss = (
                     accumulated_loss
                     / max(
@@ -1139,11 +1942,9 @@ class Trainer:
                     )
                 ).item()
 
-                last_loss = average_loss
-
-                # -----------------------------------------------
-                # TOKENS / SECOND
-                # -----------------------------------------------
+                last_loss = (
+                    average_loss
+                )
 
                 step_tokens_per_second = (
                     step_tokens
@@ -1153,18 +1954,6 @@ class Trainer:
                     )
                 )
 
-                total_tokens_per_second = (
-                    total_tokens
-                    / max(
-                        total_elapsed,
-                        1e-9,
-                    )
-                )
-
-                # -----------------------------------------------
-                # STEP / SECOND
-                # -----------------------------------------------
-
                 steps_per_second = (
                     1.0
                     / max(
@@ -1172,10 +1961,6 @@ class Trainer:
                         1e-9,
                     )
                 )
-
-                # -----------------------------------------------
-                # TARGET STATUS
-                # -----------------------------------------------
 
                 if (
                     step_elapsed
@@ -1188,10 +1973,6 @@ class Trainer:
 
                     speed_status = "SLOW"
 
-                # -----------------------------------------------
-                # ETA
-                # -----------------------------------------------
-
                 remaining_steps = (
                     session_target
                     - self.step
@@ -1203,7 +1984,8 @@ class Trainer:
                 )
 
                 eta_hours = int(
-                    eta_seconds // 3600
+                    eta_seconds
+                    // 3600
                 )
 
                 eta_minutes = int(
@@ -1215,20 +1997,15 @@ class Trainer:
                 )
 
                 eta_secs = int(
-                    eta_seconds % 60
+                    eta_seconds
+                    % 60
                 )
 
-                # -----------------------------------------------
-                # GRADIENT
-                # -----------------------------------------------
-
-                last_gradient_norm = float(
-                    gradient_norm
+                last_gradient_norm = (
+                    float(
+                        gradient_norm
+                    )
                 )
-
-                # -----------------------------------------------
-                # PROGRESS
-                # -----------------------------------------------
 
                 session_span = max(
                     1,
@@ -1249,10 +2026,6 @@ class Trainer:
                     ),
                 )
 
-                # -----------------------------------------------
-                # GPU MEMORY
-                # -----------------------------------------------
-
                 if (
                     self.step == 1
                     or self.step % 10 == 0
@@ -1261,10 +2034,6 @@ class Trainer:
                     last_gpu_memory = (
                         self._gpu_memory()
                     )
-
-                # -----------------------------------------------
-                # LOGGING
-                # -----------------------------------------------
 
                 print(
                     f"[step {self.step:,}/"
@@ -1285,9 +2054,9 @@ class Trainer:
                     flush=True,
                 )
 
-                # =================================================
+                # --------------------------------------------
                 # VALIDATION
-                # =================================================
+                # --------------------------------------------
 
                 if (
                     self.step
@@ -1296,8 +2065,9 @@ class Trainer:
                 ):
 
                     print()
+
                     print(
-                        f"[validation] Running at "
+                        "[validation] Running at "
                         f"step {self.step:,}..."
                     )
 
@@ -1316,7 +2086,7 @@ class Trainer:
                     )
 
                     print(
-                        f"[validation] "
+                        "[validation] "
                         f"loss={results['loss']:.4f} "
                         f"perplexity="
                         f"{results['perplexity']:.2f} "
@@ -1344,9 +2114,9 @@ class Trainer:
 
                     self.model.train()
 
-                # =================================================
+                # --------------------------------------------
                 # SAFETY CHECKPOINT
-                # =================================================
+                # --------------------------------------------
 
                 if (
                     self.step
@@ -1355,9 +2125,10 @@ class Trainer:
                 ):
 
                     print()
+
                     print(
-                        f"[checkpoint] Safety save at "
-                        f"step {self.step:,}..."
+                        "[checkpoint] Safety save "
+                        f"at step {self.step:,}..."
                     )
 
                     checkpoint_start = (
@@ -1374,14 +2145,13 @@ class Trainer:
                     )
 
                     print(
-                        f"[checkpoint] Saved "
-                        f"in "
+                        "[checkpoint] Saved in "
                         f"{checkpoint_elapsed:.2f}s."
                     )
 
-                # =================================================
-                # SHUTDOWN REQUEST
-                # =================================================
+                # --------------------------------------------
+                # SHUTDOWN
+                # --------------------------------------------
 
                 if self.shutdown_requested:
 
@@ -1390,14 +2160,11 @@ class Trainer:
                     )
 
                     print(
-                        "[emergency] Training stopped safely."
+                        "[emergency] "
+                        "Training stopped safely."
                     )
 
                     return
-
-        # ========================================================
-        # KEYBOARD INTERRUPT
-        # ========================================================
 
         except KeyboardInterrupt:
 
@@ -1407,38 +2174,36 @@ class Trainer:
 
             return
 
-        # ========================================================
-        # UNEXPECTED EXCEPTION
-        # ========================================================
-
         except Exception as error:
 
             print()
             print("=" * 72)
+
             print(
-                "[emergency] UNEXPECTED TRAINING ERROR"
+                "[emergency] "
+                "UNEXPECTED TRAINING ERROR"
             )
 
             print(
-                f"[emergency] {type(error).__name__}: "
+                f"[emergency] "
+                f"{type(error).__name__}: "
                 f"{error}"
             )
 
             print(
-                f"[emergency] Current completed step: "
+                "[emergency] "
+                f"Current completed step: "
                 f"{self.step:,}"
             )
 
-            print(
-                "[emergency] Attempting emergency checkpoint..."
-            )
-
             self._emergency_save(
-                "Emergency save after unexpected training error."
+                "Emergency save after "
+                "unexpected training error."
             )
 
             print(
-                "[emergency] Re-raising original error."
+                "[emergency] "
+                "Re-raising original error."
             )
 
             print("=" * 72)
@@ -1446,9 +2211,9 @@ class Trainer:
 
             raise
 
-        # ========================================================
+        # ====================================================
         # SESSION COMPLETE
-        # ========================================================
+        # ====================================================
 
         total_time = (
             time.perf_counter()
@@ -1484,13 +2249,11 @@ class Trainer:
             )
         )
 
-        # --------------------------------------------------------
-        # FINAL CHECKPOINT
-        # --------------------------------------------------------
-
         print()
+
         print(
-            "[checkpoint] Saving session state..."
+            "[checkpoint] "
+            "Saving session state..."
         )
 
         self.save_checkpoint(
@@ -1498,28 +2261,51 @@ class Trainer:
         )
 
         print(
-            "[checkpoint] Session checkpoint saved."
+            "[checkpoint] "
+            "Session checkpoint saved."
         )
 
-        # --------------------------------------------------------
-        # FINAL MODEL
-        # --------------------------------------------------------
+        model = (
+            self._get_uncompiled_model()
+        )
 
-        model = self._get_uncompiled_model()
+        Path(
+            FINAL_MODEL
+        ).parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
 
         torch.save(
             model.state_dict(),
             FINAL_MODEL,
         )
 
-        # ========================================================
-        # SUMMARY
-        # ========================================================
-
         print()
         print("=" * 72)
-        print("                    SESSION FINISHED")
+
+        print(
+            "                    SESSION FINISHED"
+        )
+
         print("=" * 72)
+
+        print(
+            f"Training mode:         "
+            f"{self.training_mode.upper()}"
+        )
+
+        print(
+            "Training source:"
+        )
+
+        for file in (
+            self.training_files
+        ):
+
+            print(
+                f"  - {file}"
+            )
 
         print(
             f"Steps completed:       "
@@ -1542,17 +2328,17 @@ class Trainer:
         )
 
         print(
-            f"Average steps/sec:      "
+            f"Average steps/sec:     "
             f"{average_steps_per_second:.2f}"
         )
 
         print(
-            f"Average tokens/sec:     "
+            f"Average tokens/sec:    "
             f"{average_tokens_per_second:,.0f}"
         )
 
         print(
-            f"Target step time:       "
+            f"Target step time:      "
             f"{TARGET_SECONDS_PER_STEP:.2f} sec"
         )
 
@@ -1562,28 +2348,28 @@ class Trainer:
         ):
 
             print(
-                "Performance target:     ACHIEVED"
+                "Performance target:    ACHIEVED"
             )
 
         else:
 
             print(
-                "Performance target:     "
+                "Performance target:    "
                 "HARDWARE LIMITED"
             )
 
         print(
-            f"Total session time:     "
+            f"Total session time:    "
             f"{total_time / 3600:.2f} hours"
         )
 
         print(
-            f"Latest checkpoint:      "
+            f"Latest checkpoint:     "
             f"{LATEST_CHECKPOINT}"
         )
 
         print(
-            f"Final model:            "
+            f"Final model:           "
             f"{FINAL_MODEL}"
         )
 

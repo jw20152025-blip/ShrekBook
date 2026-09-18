@@ -1,5 +1,3 @@
-# run.py
-
 import sys
 
 from config import (
@@ -19,6 +17,10 @@ from core.inference import (
     ShrekInference,
 )
 
+
+# ============================================================
+# MODEL INFORMATION
+# ============================================================
 
 def show_info():
 
@@ -57,6 +59,10 @@ def show_info():
     print()
 
 
+# ============================================================
+# CHAT
+# ============================================================
+
 def chat():
 
     ai = ShrekInference()
@@ -91,6 +97,7 @@ def chat():
             continue
 
         if user.lower() == "/exit":
+
             break
 
         if user.lower() == "/clear":
@@ -138,6 +145,62 @@ def chat():
         )
 
 
+# ============================================================
+# NORMAL TRAINING
+# ============================================================
+
+def normal_training():
+
+    from training.worker import (
+        train,
+    )
+
+    train()
+
+
+# ============================================================
+# WEB DATA COLLECTION
+# ============================================================
+
+def web_training():
+
+    from training.web_training import (
+        run_web_training,
+    )
+
+    run_web_training()
+
+
+# ============================================================
+# WEB-ONLY MODEL TRAINING
+# ============================================================
+
+def web_only_training():
+
+    from training.worker import (
+        train_web,
+    )
+
+    train_web()
+
+
+# ============================================================
+# API SERVER
+# ============================================================
+
+def api_server():
+
+    from api.server import (
+        start_server,
+    )
+
+    start_server()
+
+
+# ============================================================
+# MAIN MENU
+# ============================================================
+
 def main():
 
     while True:
@@ -150,12 +213,24 @@ def main():
         print("2. Train")
         print("3. Model information")
         print("4. API server")
-        print("5. Exit")
+        print("5. Web Training")
+        print("6. Web-Only Training")
+        print("7. Exit")
         print("================================")
 
-        choice = input(
-            "Select: "
-        ).strip()
+        try:
+
+            choice = input(
+                "Select: "
+            ).strip()
+
+        except (
+            KeyboardInterrupt,
+            EOFError,
+        ):
+
+            print()
+            break
 
         if choice == "1":
 
@@ -163,9 +238,7 @@ def main():
 
         elif choice == "2":
 
-            from training.worker import train
-
-            train()
+            normal_training()
 
         elif choice == "3":
 
@@ -173,13 +246,23 @@ def main():
 
         elif choice == "4":
 
-            from api.server import (
-                start_server,
-            )
-
-            start_server()
+            api_server()
 
         elif choice == "5":
+
+            web_training()
+
+        elif choice == "6":
+
+            web_only_training()
+
+        elif choice == "7":
+
+            print()
+            print(
+                "Goodbye."
+            )
+            print()
 
             break
 
@@ -190,5 +273,10 @@ def main():
             )
 
 
+# ============================================================
+# ENTRY POINT
+# ============================================================
+
 if __name__ == "__main__":
+
     main()
