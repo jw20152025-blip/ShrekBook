@@ -13000,22 +13000,33 @@ app.post(
 );
 
 
+
 // ============================================================
 // SHREKAI PROXY
 // ============================================================
 
 app.post("/api/shrekai", async (req, res) => {
 
+    const messages = req.body?.messages;
+
+    // --------------------------------------------------------
+    // BASIC VALIDATION
+    // --------------------------------------------------------
+
+    if (!Array.isArray(messages)) {
+
+        return res.json({
+            response:
+                "I couldn't understand that message. 🧅"
+        });
+    }
+
+
+    // --------------------------------------------------------
+    // TRY REAL SHREKAI
+    // --------------------------------------------------------
+
     try {
-
-        console.log(
-            "[ShrekAI] Sending request to Python server..."
-        );
-
-        console.log(
-            "[ShrekAI] Messages:",
-            req.body.messages
-        );
 
         const response = await fetch(
             "http://127.0.0.1:8765/chat",
@@ -13023,71 +13034,153 @@ app.post("/api/shrekai", async (req, res) => {
                 method: "POST",
 
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type":
+                        "application/json"
                 },
 
                 body: JSON.stringify({
-                    messages: req.body.messages
+                    messages: messages
                 })
             }
         );
 
-        console.log(
-            "[ShrekAI] Python status:",
-            response.status
-        );
 
         const text =
             await response.text();
 
-        console.log(
-            "[ShrekAI] Python response:",
-            text
-        );
 
-        let data;
+        let data = null;
 
         try {
             data = JSON.parse(text);
         } catch {
-            return res.status(502).json({
-                error:
-                    "ShrekAI returned invalid JSON.",
-                details: text
+            data = null;
+        }
+
+
+        // ----------------------------------------------------
+        // REAL SHREKAI RESPONSE
+        // ----------------------------------------------------
+
+        if (
+            response.ok &&
+            data &&
+            typeof data.response === "string" &&
+            data.response.trim()
+        ) {
+
+            return res.json({
+                response: data.response
             });
         }
 
-        if (!response.ok) {
 
-            return res.status(response.status).json({
-                error:
-                    data.error ||
-                    "ShrekAI returned an error."
-            });
-        }
+        // ----------------------------------------------------
+        // SHREKAI RESPONDED BUT FAILED
+        // ----------------------------------------------------
 
-        return res.json({
-            response: data.response
-        });
+        console.error(
+            "[ShrekAI] Python server returned an error:",
+            text
+        );
+
 
     } catch (error) {
 
-        console.error(
-            "[ShrekAI] PROXY ERROR:",
-            error
-        );
+        // ----------------------------------------------------
+        // SHREKAI IS NOT RUNNING
+        // ----------------------------------------------------
 
-        return res.status(503).json({
-            error:
-                "ShrekAI is currently offline.",
-            details:
-                error.message
-        });
+        console.error(
+            "[ShrekAI] Connection failed:",
+            error.message
+        );
     }
+
+
+    // ========================================================
+    // FALLBACK RESPONSE
+    // ========================================================
+
+    const lastMessage =
+        messages.length > 0
+            ? messages[messages.length - 1]
+            : null;
+
+    const userMessage =
+        lastMessage &&
+        lastMessage.role === "user"
+            ? String(lastMessage.content || "")
+            : "";
+
+
+    let fallback;
+
+
+    // --------------------------------------------------------
+    // SIMPLE BUILT-IN RESPONSES
+    // --------------------------------------------------------
+
+    const lower =
+        userMessage.toLowerCase();
+
+
+    if (
+        lower.includes("hello") ||
+        lower.includes("hi") ||
+        lower.includes("hey")
+    ) {
+
+        fallback =
+            "Yo! 🧅 I'm ShrekAI. My main brain isn't available right now, but I'm still here.";
+
+    } else if (
+        lower.includes("who are you") ||
+        lower.includes("what are you")
+    ) {
+
+        fallback =
+            "I'm ShrekAI, the AI assistant built for ShrekBook. 🧅";
+
+    } else if (
+        lower.includes("shrekbook")
+    ) {
+
+        fallback =
+            "ShrekBook is the place where all the ogres, cats, posts, chats, and questionable decisions live. 🧅💀";
+
+    } else if (
+        lower.includes("2+2") ||
+        lower.includes("2 + 2")
+    ) {
+
+        fallback =
+            "4. Even my emergency brain knows that one. 💀";
+
+    } else if (
+        lower.includes("help")
+    ) {
+
+        fallback =
+            "I'm here. Ask me a question and I'll do my best. 🧅";
+
+    } else {
+
+        fallback =
+            "I'm still here! 🧅 My main ShrekAI model isn't available right now, so I'm running in fallback mode. I can't give you the full AI response at the moment, but your message was received.";
+    }
+
+
+    // --------------------------------------------------------
+    // ALWAYS RETURN 200
+    // --------------------------------------------------------
+
+    return res.status(200).json({
+        response: fallback
+    });
 });
 
 
-// ============================================================
 // UPDATE HOUSE
 // ============================================================
 
