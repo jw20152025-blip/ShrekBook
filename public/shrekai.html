@@ -1,0 +1,269 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ShrekAI - ShrekBook</title>
+
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/themes.css">
+
+    <script>
+        (function () {
+            const theme = localStorage.getItem("shrekbook-theme");
+
+            if (theme === "dark" || theme === "legacy") {
+                document.documentElement.setAttribute("data-theme", theme);
+            }
+        })();
+    </script>
+
+    <style>
+        .shrekai-page {
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .shrekai-header {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,.08);
+            margin-bottom: 20px;
+        }
+
+        .shrekai-header h1 {
+            margin: 0 0 8px;
+        }
+
+        .shrekai-status {
+            color: #28c840;
+            font-size: 14px;
+        }
+
+        .shrekai-chat {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,.08);
+            overflow: hidden;
+        }
+
+        .shrekai-messages {
+            height: 550px;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .shrekai-message {
+            display: flex;
+            margin-bottom: 15px;
+        }
+
+        .shrekai-message.user {
+            justify-content: flex-end;
+        }
+
+        .shrekai-bubble {
+            max-width: 75%;
+            padding: 12px 15px;
+            border-radius: 14px;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            line-height: 1.45;
+        }
+
+        .shrekai-message.user .shrekai-bubble {
+            background: #4b7f2c;
+            color: white;
+        }
+
+        .shrekai-message.ai .shrekai-bubble {
+            background: #f1f5e8;
+            color: #222;
+        }
+
+        .shrekai-input-area {
+            display: flex;
+            gap: 10px;
+            padding: 15px;
+            border-top: 1px solid #ddd;
+        }
+
+        .shrekai-input-area textarea {
+            flex: 1;
+            margin: 0;
+            min-height: 50px;
+            max-height: 150px;
+        }
+
+        .shrekai-send {
+            align-self: flex-end;
+        }
+
+        .shrekai-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            border-top: 1px solid #ddd;
+        }
+
+        .shrekai-clear {
+            background: #777;
+            color: white;
+        }
+
+        .shrekai-thinking {
+            opacity: .65;
+            font-style: italic;
+        }
+
+        @media (max-width: 700px) {
+            .shrekai-input-area {
+                flex-direction: column;
+            }
+
+            .shrekai-send {
+                width: 100%;
+            }
+
+            .shrekai-bubble {
+                max-width: 90%;
+            }
+        }
+
+        /* Dark mode */
+
+        html[data-theme="dark"] .shrekai-header,
+        html[data-theme="dark"] .shrekai-chat {
+            background: #0b0b0b;
+            color: #eeeeee;
+        }
+
+        html[data-theme="dark"] .shrekai-message.ai .shrekai-bubble {
+            background: #181818;
+            color: #eeeeee;
+        }
+
+        html[data-theme="dark"] .shrekai-input-area,
+        html[data-theme="dark"] .shrekai-controls {
+            border-color: #292929;
+        }
+
+        /* Legacy */
+
+        html[data-theme="legacy"] .shrekai-header,
+        html[data-theme="legacy"] .shrekai-chat {
+            border-radius: 0;
+            background: #ffffff;
+            box-shadow: none;
+
+            border-top: 2px solid #ffffff;
+            border-left: 2px solid #ffffff;
+            border-right: 2px solid #404040;
+            border-bottom: 2px solid #404040;
+        }
+
+        html[data-theme="legacy"] .shrekai-message.ai .shrekai-bubble {
+            background: #eeeeee;
+            color: #000000;
+            border: 1px solid #808080;
+            border-radius: 0;
+        }
+
+        html[data-theme="legacy"] .shrekai-message.user .shrekai-bubble {
+            background: #000080;
+            border-radius: 0;
+        }
+    </style>
+</head>
+
+<body>
+
+<header class="navbar">
+    <div class="navbar-inner">
+
+        <div class="logo">
+            ShrekBook
+        </div>
+
+        <nav>
+            <a href="/">Home</a>
+            <a href="/profile.html">Profile</a>
+            <a href="/shrekchat.html">ShrekChat</a>
+            <a href="/shrekai.html">ShrekAI</a>
+        </nav>
+
+    </div>
+</header>
+
+
+<main class="shrekai-page">
+
+    <div class="shrekai-header">
+        <h1>🤖 ShrekAI</h1>
+
+        <div class="shrekai-status">
+            ● ShrekAI
+        </div>
+
+        <p>
+            Your local ShrekBook AI assistant.
+        </p>
+    </div>
+
+
+    <div class="shrekai-chat">
+
+        <div
+            id="shrekai-messages"
+            class="shrekai-messages"
+        ></div>
+
+
+        <div class="shrekai-input-area">
+
+            <textarea
+                id="shrekai-input"
+                placeholder="Talk to ShrekAI..."
+                maxlength="4000"
+            ></textarea>
+
+            <button
+                id="shrekai-send"
+                class="shrekai-send"
+            >
+                Send
+            </button>
+
+        </div>
+
+
+        <div class="shrekai-controls">
+
+            <span>
+                ShrekAI may occasionally say something stupid.
+            </span>
+
+            <button
+                id="shrekai-clear"
+                class="shrekai-clear"
+            >
+                Clear Chat
+            </button>
+
+        </div>
+
+    </div>
+
+</main>
+
+
+<script src="/themes.js"></script>
+<script src="/shrekai.js"></script>
+
+</body>
+</html>
