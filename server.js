@@ -142,13 +142,6 @@ app.use(
 
     })
 );
-// ==================================================
-// HOUSE SYSTEM
-// ==================================================
-
-const houseRouter = require("./house-api")({
-    supabase
-});
 
 app.use("/api", houseRouter);
 async function awardShrekCoins(
