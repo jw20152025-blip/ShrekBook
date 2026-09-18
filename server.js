@@ -12999,6 +12999,7 @@ app.post(
     }
 );
 
+
 // ============================================================
 // SHREKAI PROXY
 // ============================================================
@@ -13006,6 +13007,15 @@ app.post(
 app.post("/api/shrekai", async (req, res) => {
 
     try {
+
+        console.log(
+            "[ShrekAI] Sending request to Python server..."
+        );
+
+        console.log(
+            "[ShrekAI] Messages:",
+            req.body.messages
+        );
 
         const response = await fetch(
             "http://127.0.0.1:8765/chat",
@@ -13022,34 +13032,59 @@ app.post("/api/shrekai", async (req, res) => {
             }
         );
 
-        const data = await response.json();
+        console.log(
+            "[ShrekAI] Python status:",
+            response.status
+        );
 
-        if (!response.ok) {
-            return res.status(response.status).json({
-                error: data.error || "ShrekAI returned an error."
+        const text =
+            await response.text();
+
+        console.log(
+            "[ShrekAI] Python response:",
+            text
+        );
+
+        let data;
+
+        try {
+            data = JSON.parse(text);
+        } catch {
+            return res.status(502).json({
+                error:
+                    "ShrekAI returned invalid JSON.",
+                details: text
             });
         }
 
-        res.json({
+        if (!response.ok) {
+
+            return res.status(response.status).json({
+                error:
+                    data.error ||
+                    "ShrekAI returned an error."
+            });
+        }
+
+        return res.json({
             response: data.response
         });
 
     } catch (error) {
 
         console.error(
-            "ShrekAI proxy error:",
+            "[ShrekAI] PROXY ERROR:",
             error
         );
 
-        res.status(503).json({
+        return res.status(503).json({
             error:
-                "ShrekAI is currently offline. " +
-                "Make sure the ShrekAI server is running."
+                "ShrekAI is currently offline.",
+            details:
+                error.message
         });
     }
 });
-
-
 
 
 // ============================================================
