@@ -12999,6 +12999,58 @@ app.post(
     }
 );
 
+// ============================================================
+// SHREKAI PROXY
+// ============================================================
+
+app.post("/api/shrekai", async (req, res) => {
+
+    try {
+
+        const response = await fetch(
+            "http://127.0.0.1:8765/chat",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    messages: req.body.messages
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            return res.status(response.status).json({
+                error: data.error || "ShrekAI returned an error."
+            });
+        }
+
+        res.json({
+            response: data.response
+        });
+
+    } catch (error) {
+
+        console.error(
+            "ShrekAI proxy error:",
+            error
+        );
+
+        res.status(503).json({
+            error:
+                "ShrekAI is currently offline. " +
+                "Make sure the ShrekAI server is running."
+        });
+    }
+});
+
+
+
 
 // ============================================================
 // UPDATE HOUSE

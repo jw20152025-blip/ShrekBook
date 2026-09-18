@@ -3,13 +3,7 @@
 // SHREKAI CHAT
 // ============================================================
 
-// Your actual ShrekAI API
-const SHREKAI_API = "http://127.0.0.1:8765/chat";
-
-
-// ============================================================
-// ELEMENTS
-// ============================================================
+const SHREKAI_API = "/api/shrekai";
 
 const messagesContainer =
     document.getElementById("shrekai-messages");
@@ -22,11 +16,6 @@ const sendButton =
 
 const clearButton =
     document.getElementById("shrekai-clear");
-
-
-// ============================================================
-// CONVERSATION
-// ============================================================
 
 let conversation = [];
 
@@ -43,22 +32,20 @@ function addMessage(role, content) {
     wrapper.className =
         `shrekai-message ${role}`;
 
-
     const bubble =
         document.createElement("div");
 
     bubble.className =
         "shrekai-bubble";
 
-
     bubble.textContent =
         content;
 
-
     wrapper.appendChild(bubble);
 
-    messagesContainer.appendChild(wrapper);
-
+    messagesContainer.appendChild(
+        wrapper
+    );
 
     messagesContainer.scrollTop =
         messagesContainer.scrollHeight;
@@ -84,36 +71,40 @@ async function sendMessage() {
     const message =
         input.value.trim();
 
-
     if (!message) {
         return;
     }
 
 
-    // Display user's message
+    // --------------------------------------------------------
+    // USER MESSAGE
+    // --------------------------------------------------------
+
     addMessage(
         "user",
         message
     );
 
-
-    // Add to conversation
     conversation.push({
         role: "user",
         content: message
     });
 
-
-    // Clear input
     input.value = "";
 
 
-    // Disable controls
+    // --------------------------------------------------------
+    // DISABLE INPUT
+    // --------------------------------------------------------
+
     sendButton.disabled = true;
     input.disabled = true;
 
 
-    // Thinking indicator
+    // --------------------------------------------------------
+    // THINKING MESSAGE
+    // --------------------------------------------------------
+
     const thinking =
         document.createElement("div");
 
@@ -123,28 +114,25 @@ async function sendMessage() {
     thinking.id =
         "shrekai-thinking";
 
-
     thinking.innerHTML = `
         <div class="shrekai-bubble shrekai-thinking">
             ShrekAI is thinking...
         </div>
     `;
 
-
     messagesContainer.appendChild(
         thinking
     );
-
 
     messagesContainer.scrollTop =
         messagesContainer.scrollHeight;
 
 
-    try {
+    // --------------------------------------------------------
+    // REQUEST
+    // --------------------------------------------------------
 
-        // ====================================================
-        // CALL YOUR ACTUAL SHREKAI SERVER
-        // ====================================================
+    try {
 
         const response =
             await fetch(
@@ -165,9 +153,9 @@ async function sendMessage() {
             );
 
 
-        // ====================================================
-        // HTTP ERROR
-        // ====================================================
+        // ----------------------------------------------------
+        // HANDLE HTTP ERRORS
+        // ----------------------------------------------------
 
         if (!response.ok) {
 
@@ -179,15 +167,17 @@ async function sendMessage() {
                 const errorData =
                     await response.json();
 
-                if (errorData.error) {
+                if (
+                    errorData &&
+                    errorData.error
+                ) {
                     errorMessage =
                         errorData.error;
                 }
 
             } catch {
-                // Ignore invalid error JSON
+                // Ignore invalid JSON
             }
-
 
             throw new Error(
                 errorMessage
@@ -195,9 +185,9 @@ async function sendMessage() {
         }
 
 
-        // ====================================================
-        // READ RESPONSE
-        // ====================================================
+        // ----------------------------------------------------
+        // RESPONSE
+        // ----------------------------------------------------
 
         const data =
             await response.json();
@@ -205,12 +195,6 @@ async function sendMessage() {
 
         thinking.remove();
 
-
-        // Your server returns:
-        //
-        // {
-        //     "response": "..."
-        // }
 
         const reply =
             data.response;
@@ -227,9 +211,9 @@ async function sendMessage() {
         }
 
 
-        // ====================================================
+        // ----------------------------------------------------
         // DISPLAY AI RESPONSE
-        // ====================================================
+        // ----------------------------------------------------
 
         addMessage(
             "ai",
@@ -237,7 +221,6 @@ async function sendMessage() {
         );
 
 
-        // Add AI response to conversation
         conversation.push({
             role: "assistant",
             content: reply
@@ -257,10 +240,9 @@ async function sendMessage() {
 
         addMessage(
             "ai",
-            "💀 I couldn't connect to ShrekAI.\n\n" +
-            "Make sure the ShrekAI server is running."
+            "💀 ShrekAI couldn't respond.\n\n" +
+            error.message
         );
-
 
     } finally {
 
@@ -269,7 +251,6 @@ async function sendMessage() {
         input.disabled = false;
 
         input.focus();
-
     }
 }
 
@@ -286,7 +267,6 @@ sendButton.addEventListener(
 
 // ============================================================
 // ENTER TO SEND
-// SHIFT + ENTER = NEW LINE
 // ============================================================
 
 input.addEventListener(
@@ -301,9 +281,7 @@ input.addEventListener(
             event.preventDefault();
 
             sendMessage();
-
         }
-
     }
 );
 
@@ -320,15 +298,12 @@ clearButton.addEventListener(
 
         messagesContainer.innerHTML = "";
 
-
         addMessage(
             "ai",
             "Chat cleared. 🧅\n\nWhat's up?"
         );
 
-
         input.focus();
-
     }
 );
 
