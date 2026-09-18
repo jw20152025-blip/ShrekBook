@@ -1,11 +1,15 @@
+
 /* ============================================================
    SHREKBOOK THEMES
    ============================================================ */
 
-/*
+
+/* ============================================================
    DEFAULT
-   The normal ShrekBook appearance.
-   We intentionally don't override the existing styles here.
+   ============================================================ */
+
+/*
+   Default mode intentionally uses styles.css unchanged.
 */
 
 
@@ -17,108 +21,306 @@ html[data-theme="dark"] {
     color-scheme: dark;
 }
 
+/* ---------- GLOBAL ---------- */
+
+html[data-theme="dark"],
 html[data-theme="dark"] body {
-    background: #111111;
-    color: #eeeeee;
+    background: #000000 !important;
+    color: #f5f5f5 !important;
 }
 
+html[data-theme="dark"] body,
+html[data-theme="dark"] main,
+html[data-theme="dark"] section,
+html[data-theme="dark"] div,
+html[data-theme="dark"] article,
+html[data-theme="dark"] aside,
+html[data-theme="dark"] header,
+html[data-theme="dark"] footer {
+    border-color: #222222;
+}
+
+/* ---------- TEXT ---------- */
+
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] h5,
+html[data-theme="dark"] h6,
+html[data-theme="dark"] p,
+html[data-theme="dark"] span,
+html[data-theme="dark"] label,
+html[data-theme="dark"] strong,
+html[data-theme="dark"] b,
+html[data-theme="dark"] small {
+    color: inherit;
+}
+
+/* ---------- LINKS ---------- */
+
+html[data-theme="dark"] a {
+    color: #66aaff !important;
+}
+
+html[data-theme="dark"] a:hover {
+    color: #99c7ff !important;
+}
+
+html[data-theme="dark"] a:visited {
+    color: #b58cff;
+}
+
+/* ---------- NAVBAR ---------- */
+
 html[data-theme="dark"] .navbar {
-    background: #181818;
-    color: #ffffff;
-    border-bottom: 1px solid #333333;
+    background: #050505 !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+html[data-theme="dark"] .navbar-inner {
+    background: transparent !important;
+}
+
+html[data-theme="dark"] .navbar nav,
+html[data-theme="dark"] nav {
+    background: transparent !important;
 }
 
 html[data-theme="dark"] .navbar a {
-    color: #eeeeee;
+    color: #eeeeee !important;
+    background: transparent;
 }
 
 html[data-theme="dark"] .navbar a:hover {
-    color: #ffffff;
+    color: #ffffff !important;
+    background: #1a1a1a;
 }
+
+/* ---------- CONTAINERS ---------- */
 
 html[data-theme="dark"] .container,
-html[data-theme="dark"] .other-section {
-    color: #eeeeee;
+html[data-theme="dark"] .other-section,
+html[data-theme="dark"] .app-section {
+    color: #f5f5f5 !important;
 }
 
-html[data-theme="dark"] section,
+/* ---------- CARDS ---------- */
+
 html[data-theme="dark"] .auth-box,
 html[data-theme="dark"] .create-post,
+html[data-theme="dark"] .post,
+html[data-theme="dark"] .people-section,
+html[data-theme="dark"] .telecom-section,
+html[data-theme="dark"] .chat-create,
+html[data-theme="dark"] .profile-card,
+html[data-theme="dark"] .profile-posts,
+html[data-theme="dark"] .room,
+html[data-theme="dark"] .chat-messages,
+html[data-theme="dark"] .empty-box,
+html[data-theme="dark"] .error-box,
 html[data-theme="dark"] .leaderboard-box,
-html[data-theme="dark"] .telecom-section {
-    background: #1b1b1b;
-    color: #eeeeee;
-    border-color: #333333;
+html[data-theme="dark"] section {
+    background: #0d0d0d !important;
+    color: #f5f5f5 !important;
+
+    border-color: #252525 !important;
+
+    box-shadow:
+        0 0 0 1px #151515,
+        0 8px 30px rgba(0, 0, 0, 0.8);
 }
+
+/* ---------- POSTS ---------- */
+
+html[data-theme="dark"] .post-header span,
+html[data-theme="dark"] .post span,
+html[data-theme="dark"] .comment span,
+html[data-theme="dark"] .chat-message span,
+html[data-theme="dark"] .profile-bio,
+html[data-theme="dark"] .leaderboard-username,
+html[data-theme="dark"] .leaderboard-loading,
+html[data-theme="dark"] .leaderboard-empty {
+    color: #999999 !important;
+}
+
+html[data-theme="dark"] .post-content {
+    color: #f1f1f1 !important;
+}
+
+/* ---------- PEOPLE ---------- */
+
+html[data-theme="dark"] .person {
+    background: #151515 !important;
+    color: #eeeeee !important;
+    border: 1px solid #242424;
+}
+
+html[data-theme="dark"] .person:hover {
+    background: #202020 !important;
+}
+
+html[data-theme="dark"] .avatar-placeholder {
+    background: #222222 !important;
+    color: #ffffff !important;
+}
+
+/* ---------- COMMENTS ---------- */
+
+html[data-theme="dark"] .comments {
+    background: #080808 !important;
+    color: #eeeeee !important;
+    border: 1px solid #222222;
+}
+
+html[data-theme="dark"] .comment {
+    border-bottom-color: #2a2a2a !important;
+}
+
+html[data-theme="dark"] .comment p {
+    color: #eeeeee !important;
+}
+
+/* ---------- CHAT ---------- */
+
+html[data-theme="dark"] .chat-message {
+    background: #181818 !important;
+    color: #eeeeee !important;
+    border: 1px solid #252525;
+}
+
+html[data-theme="dark"] .chat-messages {
+    background: #050505 !important;
+}
+
+/* ---------- PROFILE ---------- */
+
+html[data-theme="dark"] .profile-card,
+html[data-theme="dark"] .profile-posts {
+    background: #0b0b0b !important;
+}
+
+html[data-theme="dark"] .stat {
+    background: #181818 !important;
+    color: #ffffff !important;
+    border: 1px solid #292929;
+}
+
+/* ---------- FORMS ---------- */
 
 html[data-theme="dark"] input,
 html[data-theme="dark"] textarea,
 html[data-theme="dark"] select {
-    background: #242424;
-    color: #eeeeee;
-    border: 1px solid #444444;
+    background: #0a0a0a !important;
+    color: #ffffff !important;
+
+    border: 1px solid #3a3a3a !important;
+}
+
+html[data-theme="dark"] input:focus,
+html[data-theme="dark"] textarea:focus,
+html[data-theme="dark"] select:focus {
+    outline: 1px solid #666666;
+    border-color: #666666 !important;
 }
 
 html[data-theme="dark"] input::placeholder,
 html[data-theme="dark"] textarea::placeholder {
-    color: #999999;
+    color: #777777 !important;
 }
 
-html[data-theme="dark"] button {
-    background: #2c2c2c;
+html[data-theme="dark"] option {
+    background: #0a0a0a;
     color: #ffffff;
-    border-color: #444444;
 }
 
-html[data-theme="dark"] button:hover {
-    background: #383838;
+/* ---------- BUTTONS ---------- */
+
+html[data-theme="dark"] button,
+html[data-theme="dark"] .telecom-button {
+    background: #181818 !important;
+    color: #ffffff !important;
+
+    border: 1px solid #3a3a3a !important;
 }
 
-html[data-theme="dark"] .secondary-button {
-    background: #242424;
-    color: #dddddd;
+html[data-theme="dark"] button:hover,
+html[data-theme="dark"] .telecom-button:hover {
+    background: #292929 !important;
+    color: #ffffff !important;
 }
 
-html[data-theme="dark"] .jump-nav button {
-    background: #292929;
-    color: #eeeeee;
-}
+/* ---------- JUMP NAV ---------- */
 
+html[data-theme="dark"] .jump-nav button,
 html[data-theme="dark"] .leaderboard-switcher button {
-    background: #292929;
-    color: #eeeeee;
+    background: #141414 !important;
+    color: #eeeeee !important;
+    border: 1px solid #333333 !important;
+}
+
+html[data-theme="dark"] .jump-nav button:hover,
+html[data-theme="dark"] .leaderboard-switcher button:hover {
+    background: #252525 !important;
 }
 
 html[data-theme="dark"] .leaderboard-switcher button.active {
-    background: #eeeeee;
-    color: #111111;
+    background: #eeeeee !important;
+    color: #000000 !important;
 }
+
+/* ---------- LEADERBOARD ---------- */
 
 html[data-theme="dark"] .leaderboard-user {
-    background: #242424;
-    color: #eeeeee;
+    background: #161616 !important;
+    color: #eeeeee !important;
+    border: 1px solid #292929 !important;
 }
 
-html[data-theme="dark"] .leaderboard-username,
-html[data-theme="dark"] .leaderboard-loading,
-html[data-theme="dark"] .leaderboard-empty {
-    color: #999999;
+/* ---------- POPUP ---------- */
+
+html[data-theme="dark"] #shrekbook-message-popup {
+    background: rgba(0, 0, 0, 0.85) !important;
 }
 
-html[data-theme="dark"] a {
-    color: #8ab4f8;
+html[data-theme="dark"] .shrekbook-message-box {
+    background: #0b0b0b !important;
+    color: #ffffff !important;
+    border: 1px solid #333333;
+    box-shadow: 0 20px 70px rgba(0, 0, 0, 0.95);
 }
 
-html[data-theme="dark"] a:hover {
-    color: #b8d4ff;
+html[data-theme="dark"] .shrekbook-message-box h2,
+html[data-theme="dark"] .shrekbook-message-box p {
+    color: #ffffff !important;
 }
+
+/* ---------- HR ---------- */
 
 html[data-theme="dark"] hr {
-    border-color: #333333;
+    border-color: #292929 !important;
 }
 
+/* ---------- ADS ---------- */
+
 html[data-theme="dark"] .ads {
-    background: #111111;
+    background: #000000 !important;
+    color: #eeeeee !important;
+}
+
+/* ---------- STATUS ---------- */
+
+html[data-theme="dark"] .offline-status {
+    color: #777777 !important;
+}
+
+html[data-theme="dark"] .online-status {
+    color: #36e06f !important;
+}
+
+html[data-theme="dark"] .online-dot {
+    border-color: #0d0d0d !important;
 }
 
 
@@ -127,134 +329,466 @@ html[data-theme="dark"] .ads {
    ============================================================ */
 
 /*
-   Legacy mode is deliberately more "old ShrekBook".
+   SHREKBOOK LEGACY EDITION
 
-   Think:
-   - simpler UI
-   - square corners
-   - less modern spacing
-   - classic gray controls
-   - tighter layout
+   Maximum early-web energy.
+
+   Inspired by:
+   - Windows 95 / 98 / XP
+   - old forums
+   - GeoCities
+   - MySpace
+   - early social networks
+   - 800x600 / 1024x768 layouts
+   - beveled buttons
+   - ugly-but-beautiful HTML from 2002
 */
 
 html[data-theme="legacy"] {
     color-scheme: light;
 }
 
+/* ---------- GLOBAL ---------- */
+
+html[data-theme="legacy"],
 html[data-theme="legacy"] body {
-    background: #d9d9d9;
-    color: #222222;
-    font-family: Arial, Helvetica, sans-serif;
+    background: #c0c0c0 !important;
+    color: #000000 !important;
+
+    font-family:
+        "Times New Roman",
+        Times,
+        serif;
 }
 
-html[data-theme="legacy"] .navbar {
-    background: #333333;
-    color: #ffffff;
-    border-bottom: 3px solid #111111;
+html[data-theme="legacy"] body {
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            #c0c0c0 0px,
+            #c0c0c0 2px,
+            #c4c4c4 2px,
+            #c4c4c4 4px
+        );
 }
 
-html[data-theme="legacy"] .navbar-inner {
-    border-radius: 0;
+/* ---------- EVERYTHING GETS SQUARE ---------- */
+
+html[data-theme="legacy"] * {
+    border-radius: 0 !important;
 }
 
-html[data-theme="legacy"] .navbar a {
-    color: #ffffff;
-}
-
-html[data-theme="legacy"] .navbar a:hover {
-    background: #555555;
-}
-
-html[data-theme="legacy"] section,
-html[data-theme="legacy"] .auth-box,
-html[data-theme="legacy"] .create-post,
-html[data-theme="legacy"] .leaderboard-box,
-html[data-theme="legacy"] .telecom-section,
-html[data-theme="legacy"] .other-section {
-    border-radius: 3px;
-    box-shadow: none;
-}
-
-html[data-theme="legacy"] button,
-html[data-theme="legacy"] input,
-html[data-theme="legacy"] textarea,
-html[data-theme="legacy"] select {
-    border-radius: 2px;
-}
-
-html[data-theme="legacy"] button {
-    background: #eeeeee;
-    color: #111111;
-    border: 1px solid #777777;
-    box-shadow:
-        inset 0 1px 0 #ffffff,
-        0 1px 2px rgba(0, 0, 0, 0.15);
-}
-
-html[data-theme="legacy"] button:hover {
-    background: #dddddd;
-}
-
-html[data-theme="legacy"] .jump-nav {
-    gap: 5px;
-}
-
-html[data-theme="legacy"] .jump-nav button {
-    background: #eeeeee;
-    border: 1px solid #777777;
-    border-radius: 2px;
-}
-
-html[data-theme="legacy"] .leaderboard-box {
-    background: #ffffff;
-    border: 1px solid #999999;
-}
-
-html[data-theme="legacy"] .leaderboard-switcher {
-    gap: 4px;
-}
-
-html[data-theme="legacy"] .leaderboard-switcher button {
-    background: #eeeeee;
-    border: 1px solid #888888;
-    border-radius: 2px;
-}
-
-html[data-theme="legacy"] .leaderboard-switcher button.active {
-    background: #333333;
-    color: #ffffff;
-}
-
-html[data-theme="legacy"] .leaderboard-user {
-    background: #eeeeee;
-    border: 1px solid #cccccc;
-    border-radius: 3px;
-}
-
-html[data-theme="legacy"] input,
-html[data-theme="legacy"] textarea,
-html[data-theme="legacy"] select {
-    background: #ffffff;
-    color: #111111;
-    border: 1px solid #777777;
-}
-
-html[data-theme="legacy"] a {
-    color: #0645ad;
-}
-
-html[data-theme="legacy"] a:visited {
-    color: #551a8b;
-}
+/* ---------- TEXT ---------- */
 
 html[data-theme="legacy"] h1,
 html[data-theme="legacy"] h2,
-html[data-theme="legacy"] h3 {
-    font-weight: bold;
+html[data-theme="legacy"] h3,
+html[data-theme="legacy"] h4,
+html[data-theme="legacy"] h5,
+html[data-theme="legacy"] h6 {
+    font-family:
+        "Arial Black",
+        Arial,
+        sans-serif;
+
+    color: #000080 !important;
+
+    text-shadow: 1px 1px #ffffff;
 }
 
+html[data-theme="legacy"] p,
+html[data-theme="legacy"] label,
+html[data-theme="legacy"] span,
+html[data-theme="legacy"] strong,
+html[data-theme="legacy"] b {
+    color: #000000;
+}
+
+/* ---------- LINKS ---------- */
+
+html[data-theme="legacy"] a {
+    color: #0000ee !important;
+    text-decoration: underline !important;
+}
+
+html[data-theme="legacy"] a:visited {
+    color: #551a8b !important;
+}
+
+html[data-theme="legacy"] a:hover {
+    color: #ff0000 !important;
+    background: #ffff00 !important;
+}
+
+/* ---------- NAVBAR ---------- */
+
+html[data-theme="legacy"] .navbar {
+    background: #000080 !important;
+    color: #ffffff !important;
+
+    border-top: 3px solid #ffffff;
+    border-left: 3px solid #ffffff;
+    border-right: 3px solid #000000;
+    border-bottom: 3px solid #000000;
+
+    padding: 8px;
+}
+
+html[data-theme="legacy"] .navbar-inner {
+    max-width: 960px;
+}
+
+html[data-theme="legacy"] .logo {
+    font-family:
+        "Arial Black",
+        Arial,
+        sans-serif;
+
+    font-size: 24px;
+    color: #ffffff !important;
+
+    text-shadow:
+        1px 1px #000000,
+        2px 2px #555555;
+}
+
+html[data-theme="legacy"] nav {
+    gap: 4px;
+}
+
+html[data-theme="legacy"] .navbar nav a {
+    color: #ffffff !important;
+
+    padding: 4px 7px;
+
+    text-decoration: none !important;
+
+    border-top: 2px solid #6666ff;
+    border-left: 2px solid #6666ff;
+    border-right: 2px solid #000040;
+    border-bottom: 2px solid #000040;
+}
+
+html[data-theme="legacy"] .navbar nav a:hover {
+    background: #ffff00 !important;
+    color: #000000 !important;
+}
+
+/* ---------- CONTAINER ---------- */
+
+html[data-theme="legacy"] .container {
+    max-width: 960px;
+
+    background: #d4d0c8;
+
+    border-top: 3px solid #ffffff;
+    border-left: 3px solid #ffffff;
+    border-right: 3px solid #404040;
+    border-bottom: 3px solid #404040;
+
+    padding: 15px;
+}
+
+/* ---------- CARDS ---------- */
+
+html[data-theme="legacy"] .auth-box,
+html[data-theme="legacy"] .create-post,
+html[data-theme="legacy"] .post,
+html[data-theme="legacy"] .people-section,
+html[data-theme="legacy"] .telecom-section,
+html[data-theme="legacy"] .chat-create,
+html[data-theme="legacy"] .profile-card,
+html[data-theme="legacy"] .profile-posts,
+html[data-theme="legacy"] .room,
+html[data-theme="legacy"] .chat-messages,
+html[data-theme="legacy"] .empty-box,
+html[data-theme="legacy"] .error-box,
+html[data-theme="legacy"] .leaderboard-box,
+html[data-theme="legacy"] section {
+    background: #ffffff !important;
+    color: #000000 !important;
+
+    border-top: 2px solid #ffffff !important;
+    border-left: 2px solid #ffffff !important;
+    border-right: 2px solid #404040 !important;
+    border-bottom: 2px solid #404040 !important;
+
+    box-shadow: none !important;
+}
+
+/* ---------- POSTS ---------- */
+
+html[data-theme="legacy"] .post-header {
+    border-bottom: 1px dotted #808080;
+    padding-bottom: 5px;
+}
+
+html[data-theme="legacy"] .post-header span,
+html[data-theme="legacy"] .post span,
+html[data-theme="legacy"] .comment span,
+html[data-theme="legacy"] .chat-message span,
+html[data-theme="legacy"] .profile-bio {
+    color: #555555 !important;
+}
+
+html[data-theme="legacy"] .post-content {
+    font-family:
+        "Times New Roman",
+        Times,
+        serif;
+
+    line-height: 1.35;
+}
+
+/* ---------- PEOPLE ---------- */
+
+html[data-theme="legacy"] .person {
+    background: #eeeeee !important;
+    color: #000000 !important;
+
+    border: 1px solid #808080;
+
+    padding: 8px;
+}
+
+html[data-theme="legacy"] .person:hover {
+    background: #ffffcc !important;
+}
+
+html[data-theme="legacy"] .avatar-placeholder {
+    background: #000080 !important;
+    color: #ffffff !important;
+
+    border: 2px inset #ffffff;
+}
+
+/* ---------- COMMENTS ---------- */
+
+html[data-theme="legacy"] .comments {
+    background: #eeeeee !important;
+    color: #000000 !important;
+
+    border: 1px solid #808080;
+
+    padding: 10px;
+}
+
+html[data-theme="legacy"] .comment {
+    border-bottom: 1px dotted #808080 !important;
+}
+
+/* ---------- CHAT ---------- */
+
+html[data-theme="legacy"] .chat-messages {
+    background: #eeeeee !important;
+    border: 2px inset #ffffff !important;
+}
+
+html[data-theme="legacy"] .chat-message {
+    background: #ffffff !important;
+    color: #000000 !important;
+
+    border: 1px solid #808080;
+
+    padding: 7px;
+}
+
+/* ---------- PROFILE ---------- */
+
+html[data-theme="legacy"] .profile-card {
+    background: #ffffff !important;
+}
+
+html[data-theme="legacy"] .profile-avatar {
+    border: 4px ridge #808080;
+}
+
+html[data-theme="legacy"] .stat {
+    background: #d4d0c8 !important;
+    color: #000000 !important;
+
+    border-top: 2px solid #ffffff;
+    border-left: 2px solid #ffffff;
+    border-right: 2px solid #404040;
+    border-bottom: 2px solid #404040;
+}
+
+/* ---------- INPUTS ---------- */
+
+html[data-theme="legacy"] input,
+html[data-theme="legacy"] textarea,
+html[data-theme="legacy"] select {
+    background: #ffffff !important;
+    color: #000000 !important;
+
+    border-top: 2px solid #404040 !important;
+    border-left: 2px solid #404040 !important;
+    border-right: 2px solid #ffffff !important;
+    border-bottom: 2px solid #ffffff !important;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    font-size: 14px;
+}
+
+html[data-theme="legacy"] input:focus,
+html[data-theme="legacy"] textarea:focus,
+html[data-theme="legacy"] select:focus {
+    outline: 1px dotted #000000;
+}
+
+/* ---------- BUTTONS ---------- */
+
+html[data-theme="legacy"] button,
+html[data-theme="legacy"] .telecom-button {
+    background: #d4d0c8 !important;
+    color: #000000 !important;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    font-size: 13px;
+
+    border-top: 2px solid #ffffff !important;
+    border-left: 2px solid #ffffff !important;
+    border-right: 2px solid #404040 !important;
+    border-bottom: 2px solid #404040 !important;
+
+    box-shadow: none !important;
+}
+
+html[data-theme="legacy"] button:hover,
+html[data-theme="legacy"] .telecom-button:hover {
+    background: #eeeeee !important;
+}
+
+html[data-theme="legacy"] button:active {
+    border-top: 2px solid #404040 !important;
+    border-left: 2px solid #404040 !important;
+    border-right: 2px solid #ffffff !important;
+    border-bottom: 2px solid #ffffff !important;
+}
+
+/* ---------- JUMP NAV ---------- */
+
+html[data-theme="legacy"] .jump-nav {
+    gap: 3px;
+}
+
+html[data-theme="legacy"] .jump-nav button {
+    background: #d4d0c8 !important;
+}
+
+/* ---------- LEADERBOARD ---------- */
+
+html[data-theme="legacy"] .leaderboard-box {
+    background: #ffffff !important;
+    border: 2px inset #ffffff !important;
+}
+
+html[data-theme="legacy"] .leaderboard-switcher {
+    gap: 3px;
+}
+
+html[data-theme="legacy"] .leaderboard-switcher button {
+    background: #d4d0c8 !important;
+}
+
+html[data-theme="legacy"] .leaderboard-switcher button.active {
+    background: #000080 !important;
+    color: #ffffff !important;
+}
+
+html[data-theme="legacy"] .leaderboard-user {
+    background: #eeeeee !important;
+    color: #000000 !important;
+
+    border: 1px solid #808080 !important;
+}
+
+/* ---------- TELECOM ---------- */
+
 html[data-theme="legacy"] .telecom-section {
-    border: 1px solid #999999;
+    background: #ffffcc !important;
+
+    border: 2px solid #808080 !important;
+}
+
+html[data-theme="legacy"] .telecom-button {
+    background: #000080 !important;
+    color: #ffffff !important;
+}
+
+/* ---------- POPUP ---------- */
+
+html[data-theme="legacy"] #shrekbook-message-popup {
+    background:
+        repeating-linear-gradient(
+            45deg,
+            rgba(0,0,0,.15) 0px,
+            rgba(0,0,0,.15) 2px,
+            transparent 2px,
+            transparent 4px
+        ) !important;
+}
+
+html[data-theme="legacy"] .shrekbook-message-box {
+    background: #ffffff !important;
+    color: #000000 !important;
+
+    border-top: 4px solid #ffffff;
+    border-left: 4px solid #ffffff;
+    border-right: 4px solid #000000;
+    border-bottom: 4px solid #000000;
+
+    box-shadow: 8px 8px 0 #404040 !important;
+}
+
+html[data-theme="legacy"] .shrekbook-message-box h2,
+html[data-theme="legacy"] .shrekbook-message-box p {
+    color: #000000 !important;
+}
+
+/* ---------- STATUS ---------- */
+
+html[data-theme="legacy"] .online-status {
+    color: #008000 !important;
+}
+
+html[data-theme="legacy"] .offline-status {
+    color: #808080 !important;
+}
+
+html[data-theme="legacy"] .online-dot {
+    border-color: #ffffff !important;
+}
+
+/* ---------- HR ---------- */
+
+html[data-theme="legacy"] hr {
+    border: 0 !important;
+    border-top: 1px dotted #808080 !important;
+}
+
+/* ---------- ADS ---------- */
+
+html[data-theme="legacy"] .ads {
+    background: #c0c0c0 !important;
+    color: #000000 !important;
+
+    border: 1px solid #808080;
+}
+
+/* ---------- SELECTION ---------- */
+
+html[data-theme="legacy"] ::selection {
+    background: #000080;
+    color: #ffffff;
 }
 
 
@@ -273,6 +807,7 @@ html[data-theme="legacy"] .telecom-section {
 
 .theme-menu {
     position: absolute;
+
     top: calc(100% + 8px);
     right: 0;
 
@@ -280,7 +815,7 @@ html[data-theme="legacy"] .telecom-section {
 
     padding: 6px;
 
-    background: white;
+    background: #ffffff;
     color: #111111;
 
     border: 1px solid #cccccc;
@@ -323,35 +858,516 @@ html[data-theme="legacy"] .telecom-section {
 }
 
 
-/* Dark theme selector */
+/* ============================================================
+   DARK THEME SELECTOR
+   ============================================================ */
 
 html[data-theme="dark"] .theme-menu {
-    background: #1e1e1e;
-    color: #eeeeee;
-    border-color: #444444;
+    background: #080808 !important;
+    color: #ffffff !important;
+
+    border: 1px solid #333333;
+
+    box-shadow:
+        0 15px 50px rgba(0, 0, 0, 0.9);
 }
 
 html[data-theme="dark"] .theme-option {
-    color: #eeeeee;
+    color: #ffffff !important;
 }
 
 html[data-theme="dark"] .theme-option:hover {
-    background: #333333;
+    background: #202020 !important;
 }
 
 
-/* Legacy theme selector */
+/* ============================================================
+   LEGACY THEME SELECTOR
+   ============================================================ */
+
+html[data-theme="legacy"] .theme-selector {
+    font-family: Arial, Helvetica, sans-serif;
+}
 
 html[data-theme="legacy"] .theme-menu {
-    border-radius: 2px;
-    border: 1px solid #777777;
-    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.25);
+    background: #d4d0c8 !important;
+
+    border-top: 2px solid #ffffff;
+    border-left: 2px solid #ffffff;
+    border-right: 2px solid #404040;
+    border-bottom: 2px solid #404040;
+
+    box-shadow: 4px 4px 0 #404040;
+
+    padding: 3px;
 }
 
 html[data-theme="legacy"] .theme-option {
-    border-radius: 2px;
+    color: #000000 !important;
+
+    border: 1px solid transparent;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    font-size: 12px;
 }
 
 html[data-theme="legacy"] .theme-option:hover {
-    background: #dddddd;
+    background: #000080 !important;
+    color: #ffffff !important;
 }
+
+html[data-theme="legacy"] .theme-option.active {
+    background: #ffffff;
+    border: 1px dotted #000000;
+}
+
+
+/* ============================================================
+   LEGACY "WEB 1.0" FEEL
+   ============================================================ */
+
+html[data-theme="legacy"] .post-heading {
+    color: #000080 !important;
+}
+
+html[data-theme="legacy"] .post-heading-large,
+html[data-theme="legacy"] .post-heading-medium,
+html[data-theme="legacy"] .post-heading-small {
+    font-family:
+        "Arial Black",
+        Arial,
+        sans-serif;
+}
+
+html[data-theme="legacy"] .post-mention {
+    color: #0000ee !important;
+    text-decoration: underline !important;
+}
+
+html[data-theme="legacy"] .post-mention:hover {
+    color: #ff0000 !important;
+    background: #ffff00 !important;
+}
+
+
+/* ============================================================
+   LEGACY MOBILE
+   ============================================================ */
+
+@media (max-width: 700px) {
+
+    html[data-theme="legacy"] .container {
+        margin: 10px auto;
+        padding: 8px;
+    }
+
+    html[data-theme="legacy"] .navbar {
+        padding: 6px;
+    }
+
+    html[data-theme="legacy"] .navbar nav a {
+        padding: 3px 5px;
+    }
+}
+
+/* ============================================================
+   DARK MODE — FULL BLACK OVERRIDE
+   ============================================================ */
+
+/*
+   This section intentionally goes nuclear.
+
+   Anything that would normally be white/light gray gets
+   converted to a dark surface.
+
+   Put this at the VERY END of themes.css so it wins against
+   styles.css and earlier theme rules.
+*/
+
+html[data-theme="dark"] {
+    background: #000000 !important;
+    color: #eeeeee !important;
+}
+
+html[data-theme="dark"] body {
+    background: #000000 !important;
+    color: #eeeeee !important;
+}
+
+/* ============================================================
+   GLOBAL LIGHT BACKGROUNDS
+   ============================================================ */
+
+html[data-theme="dark"] * {
+    border-color: #2a2a2a;
+}
+
+html[data-theme="dark"] div,
+html[data-theme="dark"] section,
+html[data-theme="dark"] article,
+html[data-theme="dark"] aside,
+html[data-theme="dark"] main,
+html[data-theme="dark"] header,
+html[data-theme="dark"] footer {
+    background-color: transparent;
+}
+
+/*
+   Explicitly kill the common white/light backgrounds from
+   styles.css.
+*/
+
+html[data-theme="dark"] .auth-box,
+html[data-theme="dark"] .create-post,
+html[data-theme="dark"] .post,
+html[data-theme="dark"] .people-section,
+html[data-theme="dark"] .telecom-section,
+html[data-theme="dark"] .chat-create,
+html[data-theme="dark"] .profile-card,
+html[data-theme="dark"] .profile-posts,
+html[data-theme="dark"] .room,
+html[data-theme="dark"] .chat-messages,
+html[data-theme="dark"] .empty-box,
+html[data-theme="dark"] .error-box,
+html[data-theme="dark"] .leaderboard-box,
+html[data-theme="dark"] .comments,
+html[data-theme="dark"] .person,
+html[data-theme="dark"] .leaderboard-user,
+html[data-theme="dark"] .stat,
+html[data-theme="dark"] .shrekbook-message-box {
+    background-color: #0b0b0b !important;
+    color: #eeeeee !important;
+}
+
+/* ============================================================
+   FORMS — NO MORE WHITE INPUTS
+   ============================================================ */
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select,
+html[data-theme="dark"] option {
+    background-color: #050505 !important;
+    color: #ffffff !important;
+
+    border-color: #333333 !important;
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+    color: #777777 !important;
+}
+
+/* File upload controls can be stubborn */
+
+html[data-theme="dark"] input[type="file"] {
+    background: #050505 !important;
+    color: #eeeeee !important;
+}
+
+html[data-theme="dark"] input[type="file"]::file-selector-button {
+    background: #181818 !important;
+    color: #ffffff !important;
+    border: 1px solid #444444 !important;
+}
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+
+html[data-theme="dark"] button,
+html[data-theme="dark"] input[type="button"],
+html[data-theme="dark"] input[type="submit"],
+html[data-theme="dark"] input[type="reset"] {
+    background: #151515 !important;
+    color: #ffffff !important;
+
+    border: 1px solid #3a3a3a !important;
+}
+
+html[data-theme="dark"] button:hover,
+html[data-theme="dark"] input[type="button"]:hover,
+html[data-theme="dark"] input[type="submit"]:hover,
+html[data-theme="dark"] input[type="reset"]:hover {
+    background: #252525 !important;
+    color: #ffffff !important;
+}
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+
+html[data-theme="dark"] .navbar {
+    background: #030303 !important;
+    color: #ffffff !important;
+}
+
+html[data-theme="dark"] .navbar-inner,
+html[data-theme="dark"] nav {
+    background: transparent !important;
+}
+
+html[data-theme="dark"] .navbar a {
+    background: transparent !important;
+    color: #eeeeee !important;
+}
+
+/* ============================================================
+   TABLES
+   ============================================================ */
+
+html[data-theme="dark"] table {
+    background: #080808 !important;
+    color: #eeeeee !important;
+    border-color: #333333 !important;
+}
+
+html[data-theme="dark"] thead,
+html[data-theme="dark"] tbody,
+html[data-theme="dark"] tr,
+html[data-theme="dark"] th,
+html[data-theme="dark"] td {
+    background: #080808 !important;
+    color: #eeeeee !important;
+    border-color: #333333 !important;
+}
+
+/* ============================================================
+   LISTS / MENU ELEMENTS
+   ============================================================ */
+
+html[data-theme="dark"] ul,
+html[data-theme="dark"] ol,
+html[data-theme="dark"] li {
+    color: #eeeeee !important;
+}
+
+/* ============================================================
+   TEXT
+   ============================================================ */
+
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] h5,
+html[data-theme="dark"] h6,
+html[data-theme="dark"] p,
+html[data-theme="dark"] label,
+html[data-theme="dark"] span,
+html[data-theme="dark"] strong,
+html[data-theme="dark"] b {
+    color: #eeeeee;
+}
+
+/* Keep muted text muted */
+
+html[data-theme="dark"] .post-header span,
+html[data-theme="dark"] .comment span,
+html[data-theme="dark"] .chat-message span,
+html[data-theme="dark"] .profile-bio,
+html[data-theme="dark"] .leaderboard-username,
+html[data-theme="dark"] .leaderboard-loading,
+html[data-theme="dark"] .leaderboard-empty {
+    color: #888888 !important;
+}
+
+/* ============================================================
+   LINKS
+   ============================================================ */
+
+html[data-theme="dark"] a {
+    color: #6ea8ff !important;
+}
+
+html[data-theme="dark"] a:visited {
+    color: #b48cff !important;
+}
+
+html[data-theme="dark"] a:hover {
+    color: #a8caff !important;
+}
+
+/* ============================================================
+   IMAGES / AVATARS
+   ============================================================ */
+
+/*
+   Don't darken actual images. They should remain normal.
+*/
+
+html[data-theme="dark"] img {
+    background-color: transparent !important;
+}
+
+/* Placeholder avatar */
+
+html[data-theme="dark"] .avatar-placeholder {
+    background: #222222 !important;
+    color: #ffffff !important;
+}
+
+/* ============================================================
+   CHAT
+   ============================================================ */
+
+html[data-theme="dark"] .chat-messages {
+    background: #050505 !important;
+}
+
+html[data-theme="dark"] .chat-message {
+    background: #151515 !important;
+    color: #eeeeee !important;
+    border-color: #292929 !important;
+}
+
+/* ============================================================
+   COMMENTS
+   ============================================================ */
+
+html[data-theme="dark"] .comments {
+    background: #050505 !important;
+}
+
+html[data-theme="dark"] .comment {
+    background: transparent !important;
+    color: #eeeeee !important;
+    border-color: #292929 !important;
+}
+
+/* ============================================================
+   PROFILE
+   ============================================================ */
+
+html[data-theme="dark"] .profile-card,
+html[data-theme="dark"] .profile-posts {
+    background: #080808 !important;
+}
+
+html[data-theme="dark"] .stat {
+    background: #151515 !important;
+    color: #eeeeee !important;
+}
+
+/* ============================================================
+   LEADERBOARD
+   ============================================================ */
+
+html[data-theme="dark"] .leaderboard-user {
+    background: #151515 !important;
+    color: #eeeeee !important;
+}
+
+html[data-theme="dark"] .leaderboard-switcher button,
+html[data-theme="dark"] .jump-nav button {
+    background: #151515 !important;
+    color: #eeeeee !important;
+}
+
+html[data-theme="dark"] .leaderboard-switcher button.active {
+    background: #eeeeee !important;
+    color: #000000 !important;
+}
+
+/* ============================================================
+   TELECOM
+   ============================================================ */
+
+html[data-theme="dark"] .telecom-section {
+    background: #080808 !important;
+    color: #eeeeee !important;
+}
+
+html[data-theme="dark"] .telecom-button {
+    background: #151515 !important;
+    color: #ffffff !important;
+}
+
+/* ============================================================
+   POPUPS / MODALS
+   ============================================================ */
+
+html[data-theme="dark"] #shrekbook-message-popup {
+    background: rgba(0, 0, 0, 0.90) !important;
+}
+
+html[data-theme="dark"] .shrekbook-message-box {
+    background: #080808 !important;
+    color: #eeeeee !important;
+
+    border-color: #333333 !important;
+}
+
+html[data-theme="dark"] .shrekbook-message-box h2,
+html[data-theme="dark"] .shrekbook-message-box p {
+    color: #eeeeee !important;
+}
+
+/* ============================================================
+   THEME MENU
+   ============================================================ */
+
+html[data-theme="dark"] .theme-menu {
+    background: #080808 !important;
+    color: #eeeeee !important;
+
+    border-color: #333333 !important;
+}
+
+html[data-theme="dark"] .theme-option {
+    background: transparent !important;
+    color: #eeeeee !important;
+}
+
+html[data-theme="dark"] .theme-option:hover {
+    background: #202020 !important;
+}
+
+/* ============================================================
+   MISC LIGHT ELEMENTS
+   ============================================================ */
+
+html[data-theme="dark"] hr {
+    border-color: #292929 !important;
+}
+
+html[data-theme="dark"] .ads {
+    background: #000000 !important;
+    color: #eeeeee !important;
+}
+
+html[data-theme="dark"] .empty-box,
+html[data-theme="dark"] .error-box {
+    background: #0b0b0b !important;
+    color: #eeeeee !important;
+}
+
+/* ============================================================
+   STATUS
+   ============================================================ */
+
+html[data-theme="dark"] .online-status {
+    color: #35e06f !important;
+}
+
+html[data-theme="dark"] .offline-status {
+    color: #777777 !important;
+}
+
+html[data-theme="dark"] .online-dot {
+    border-color: #0b0b0b !important;
+}
+
+/* ============================================================
+   SELECTION
+   ============================================================ */
+
+html[data-theme="dark"] ::selection {
+    background: #ffffff;
+    color: #000000;
+}
+
