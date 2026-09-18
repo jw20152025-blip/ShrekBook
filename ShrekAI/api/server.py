@@ -147,16 +147,14 @@ class Handler(BaseHTTPRequestHandler):
         return
 
 
+
 def start_server():
 
-    host = os.environ.get(
-        "HOST",
-        "0.0.0.0",
-    )
+    host = "127.0.0.1"
 
     port = int(
         os.environ.get(
-            "PORT",
+            "SHREKAI_PORT",
             "8765",
         )
     )
