@@ -1,6 +1,7 @@
-# api/server.py
+
 
 import json
+import os
 
 from http.server import (
     BaseHTTPRequestHandler,
@@ -146,10 +147,19 @@ class Handler(BaseHTTPRequestHandler):
         return
 
 
-def start_server(
-    host="127.0.0.1",
-    port=8765,
-):
+def start_server():
+
+    host = os.environ.get(
+        "HOST",
+        "0.0.0.0",
+    )
+
+    port = int(
+        os.environ.get(
+            "PORT",
+            "8765",
+        )
+    )
 
     server = ThreadingHTTPServer(
         (host, port),
@@ -166,3 +176,4 @@ def start_server(
 
 if __name__ == "__main__":
     start_server()
+
