@@ -22,7 +22,7 @@ function applyTheme(theme,persist=true){
 function createThemeSelector(){
  const nav=document.querySelector(".navbar nav");if(!nav||document.getElementById("theme-selector"))return;
  const select=document.createElement("select");select.id="theme-selector";select.className="theme-select";select.setAttribute("aria-label","Choose ShrekBook theme");
- [["Original themes",["default","dark","legacy"]],["Additional themes",["ivory","midnight","terminal","ocean","sunset","monochrome","shrekbook-special"]],["Experimental themes"],["Random themes",["random-colors","random-selection"]]].forEach(([label,items])=>{const group=document.createElement("optgroup");group.label=label;items.forEach(t=>{const o=document.createElement("option");o.value=t;o.textContent=LABELS[t];group.appendChild(o);});select.appendChild(group);});
+ [["Original themes",["default","dark","legacy"]],["Additional themes",["ivory","midnight","terminal","ocean","sunset","monochrome","shrekbook-special"]],["Random themes",["random-colors","random-selection"]]].forEach(([label,items])=>{const group=document.createElement("optgroup");group.label=label;items.forEach(t=>{const o=document.createElement("option");o.value=t;o.textContent=LABELS[t];group.appendChild(o);});select.appendChild(group);});
  select.addEventListener("change",()=>applyTheme(select.value));nav.appendChild(select);updateSelector(getSavedTheme());
 }
 function init(){applyTheme(getSavedTheme(),false);createThemeSelector();}
