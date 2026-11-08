@@ -16,7 +16,9 @@
     const THEMES = [
         "default",
         "dark",
-        "legacy"
+        "legacy",
+        "1990s",
+        "1980s"
     ];
 
 
@@ -143,6 +145,14 @@
             {
                 theme: "legacy",
                 label: "🕰️ Legacy"
+            },
+            {
+                theme: "1990s",
+                label: "💾 1990s — Pre-Web Test"
+            },
+            {
+                theme: "1980s",
+                label: "📼 1980s — VHS Prototype"
             }
         ];
 
