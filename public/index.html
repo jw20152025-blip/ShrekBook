@@ -37,12 +37,11 @@
         const theme =
             localStorage.getItem("shrekbook-theme");
 
-        if (
-            theme === "dark" ||
-            theme === "legacy" ||
-            theme === "1990s" ||
-            theme === "1980s"
-        ) {
+        if ([
+            "dark", "legacy", "ivory", "midnight", "terminal", "ocean",
+            "sunset", "monochrome", "shrekbook-special", "random-colors",
+            "1990s", "1980s"
+        ].includes(theme)) {
 
             document.documentElement.setAttribute(
                 "data-theme",
