@@ -2,9 +2,9 @@
 (function () {
 "use strict";
 const STORAGE_KEY="shrekbook-theme";
-const THEMES=["default","dark","legacy","ivory","midnight","terminal","ocean","sunset","monochrome","shrekbook-special","random-colors","random-selection","1990s","1980s"];
+const THEMES=["default","dark","legacy","ivory","midnight","terminal","ocean","sunset","monochrome","shrekbook-special","random-colors","random-selection"];
 const VISUAL=THEMES.filter(t=>t!=="random-colors"&&t!=="random-selection");
-const LABELS={"default":"☀️ Default","dark":"🌑 Dark","legacy":"🕰️ Legacy","ivory":"📜 Ivory","midnight":"🌌 Midnight","terminal":"💻 Terminal","ocean":"🌊 Ocean","sunset":"🌇 Sunset","monochrome":"◼ Monochrome","shrekbook-special":"🟢 ShrekBook Special","random-colors":"🎲 Random Colors","random-selection":"🎰 Random Selection","1990s":"💾 1990s — Pre-Web Test","1980s":"📼 1980s — VHS Prototype"};
+const LABELS={"default":"☀️ Default","dark":"🌑 Dark","legacy":"🕰️ Legacy","ivory":"📜 Ivory","midnight":"🌌 Midnight","terminal":"💻 Terminal","ocean":"🌊 Ocean","sunset":"🌇 Sunset","monochrome":"◼ Monochrome","shrekbook-special":"🟢 ShrekBook Special","random-colors":"🎲 Random Colors","random-selection":"🎰 Random Selection"};
 function getSavedTheme(){const v=localStorage.getItem(STORAGE_KEY);return THEMES.includes(v)?v:"default";}
 function clearRandom(){["--sb-bg","--sb-surface","--sb-text","--sb-muted","--sb-border","--sb-accent","--sb-accent-text","--sb-random-text"].forEach(v=>document.documentElement.style.removeProperty(v));}
 function randomHex(){return "#"+Math.floor(Math.random()*16777215).toString(16).padStart(6,"0");}
@@ -22,7 +22,7 @@ function applyTheme(theme,persist=true){
 function createThemeSelector(){
  const nav=document.querySelector(".navbar nav");if(!nav||document.getElementById("theme-selector"))return;
  const select=document.createElement("select");select.id="theme-selector";select.className="theme-select";select.setAttribute("aria-label","Choose ShrekBook theme");
- [["Original themes",["default","dark","legacy"]],["Additional themes",["ivory","midnight","terminal","ocean","sunset","monochrome","shrekbook-special"]],["Experimental themes",["1990s","1980s"]],["Random themes",["random-colors","random-selection"]]].forEach(([label,items])=>{const group=document.createElement("optgroup");group.label=label;items.forEach(t=>{const o=document.createElement("option");o.value=t;o.textContent=LABELS[t];group.appendChild(o);});select.appendChild(group);});
+ [["Original themes",["default","dark","legacy"]],["Additional themes",["ivory","midnight","terminal","ocean","sunset","monochrome","shrekbook-special"]],["Experimental themes"],["Random themes",["random-colors","random-selection"]]].forEach(([label,items])=>{const group=document.createElement("optgroup");group.label=label;items.forEach(t=>{const o=document.createElement("option");o.value=t;o.textContent=LABELS[t];group.appendChild(o);});select.appendChild(group);});
  select.addEventListener("change",()=>applyTheme(select.value));nav.appendChild(select);updateSelector(getSavedTheme());
 }
 function init(){applyTheme(getSavedTheme(),false);createThemeSelector();}
