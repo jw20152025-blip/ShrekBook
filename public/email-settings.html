@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Email Notifications | ShrekBook</title>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/themes.css">
+<style>
+.email-settings { max-width: 720px; margin: 36px auto; }
+.email-setting { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:18px 0; border-bottom:1px solid var(--border-color, #ddd); }
+.email-setting p { margin:5px 0 0; opacity:.75; }
+.email-setting input { width:22px; height:22px; flex:0 0 auto; }
+#status { min-height:24px; margin-top:14px; }
+</style>
+<script>
+(function(){const t=localStorage.getItem("shrekbook-theme");if(t==="dark"||t==="legacy")document.documentElement.setAttribute("data-theme",t);})();
+</script>
+</head>
+<body>
+<header class="navbar"><div class="navbar-inner">
+<a href="/" class="logo">🧌 ShrekBook</a>
+<nav><a href="/">Home</a><a href="/profile.html">Profile</a></nav>
+</div></header>
+<main class="container email-settings">
+<section class="auth-box">
+<h1>📧 Email notification settings</h1>
+<p>Choose which ShrekBook emails you receive. Changes are saved to your account.</p>
+<div class="email-setting">
+<div><strong>Social activity</strong><p>Updates about social interactions and activity.</p></div>
+<input id="social" type="checkbox" aria-label="Social activity emails">
+</div>
+<div class="email-setting">
+<div><strong>Announcements</strong><p>ShrekBook news, releases, and important platform updates.</p></div>
+<input id="announcements" type="checkbox" aria-label="Announcement emails">
+</div>
+<div class="email-setting">
+<div><strong>Security and account notices</strong><p>Important account and security notifications. These cannot be disabled.</p></div>
+<input id="security" type="checkbox" checked disabled aria-label="Security emails are always enabled">
+</div>
+<button id="save" type="button">Save preferences</button>
+<p id="status" role="status"></p>
+</section>
+</main>
+<script src="/email-settings.js"></script>
+<script src="/themes.js"></script>
+</body>
+</html>
