@@ -537,6 +537,24 @@ const sessionMiddleware = session({
 
 app.use(sessionMiddleware);
 
+// ==================================================
+// EMAIL NOTIFICATIONS
+// ==================================================
+const {
+    createEmailNotificationRouter,
+    enqueueEmail,
+    sendQueuedEmails
+} = require("./email-notifications");
+
+app.use("/api/email", createEmailNotificationRouter({ supabase }));
+
+// Persistent queue: delivery continues after app restarts because jobs live in Supabase.
+setInterval(() => {
+    sendQueuedEmails(supabase).catch(error => {
+        console.error("EMAIL WORKER ERROR:", error);
+    });
+}, 15000);
+
 app.use(express.static(
     path.join(__dirname, "public")
 ));
@@ -1486,6 +1504,15 @@ app.post("/api/signup", async (req, res) => {
                     profileError.message
             });
         }
+
+        // Queue a welcome email. Delivery is handled asynchronously.
+        await enqueueEmail(supabase, {
+            userId,
+            type: "account",
+            subject: "Welcome to ShrekBook 🧌",
+            text: `Welcome to ShrekBook, ${username}! Your account is ready. Visit https://shrekbook.bbroot.com to get started.`,
+            html: `<h1>Welcome to ShrekBook 🧌</h1><p>Welcome, ${String(username).replace(/[&<>"]/g, "")}!</p><p>Your account is ready. <a href="https://shrekbook.bbroot.com">Visit ShrekBook</a>.</p>`
+        });
 
         res.status(201).json({
 
